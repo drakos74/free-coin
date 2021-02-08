@@ -2,17 +2,19 @@ package processor
 
 import (
 	"fmt"
-	"github.com/drakos74/free-coin/internal/emoji"
-	"github.com/drakos74/free-coin/internal/math"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/drakos74/free-coin/internal/emoji"
+	"github.com/drakos74/free-coin/internal/math"
+
 	"github.com/drakos74/free-coin/buffer"
 	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/api"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -116,16 +118,7 @@ func MultiStats(client api.TradeClient, user api.Interface, commands <-chan api.
 					buckets := historyWindows[key][p.Coin].Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
-							avg := b.Values().Stats()[0].Avg()
-							diff := b.Values().Stats()[0].Diff()
-							return buffer.TimeWindowView{
-								Time:   b.Time,
-								Count:  b.Size(),
-								Price:  avg,
-								Diff:   diff,
-								Ratio:  diff / avg,
-								StdDev: b.Values().Stats()[0].StDev(),
-							}
+							return buffer.NewView(b, 0)
 						}
 						// TODO : this will break things a lot if we missed something ... 😅
 						return nil
@@ -133,61 +126,9 @@ func MultiStats(client api.TradeClient, user api.Interface, commands <-chan api.
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
 					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
-
 					if user != nil {
 						// TODO : add tests for this
-						values, last := ExtractFromBuckets(buckets, func(b buffer.TimeWindowView) string {
-							v := math.Order10(b.Ratio)
-							symbol := emoji.DotSnow
-							if b.Ratio > 0 {
-								switch v {
-								case 3:
-									symbol = emoji.FirstEclipse
-								case 2:
-									symbol = emoji.FullMoon
-								case 1:
-									symbol = emoji.SunFace
-								case 0:
-									symbol = emoji.Star
-								}
-							} else {
-								switch v {
-								case 3:
-									symbol = emoji.ThirdEclipse
-								case 2:
-									symbol = emoji.FullEclipse
-								case 1:
-									symbol = emoji.EclipseFace
-								case 0:
-									symbol = emoji.Comet
-								}
-							}
-							return symbol
-						})
-
-						// TODO : make the trigger arguments more specific to current stats state
-						move := emoji.Zero
-						if last.Ratio > 0 {
-							move = emoji.Up
-						} else if last.Ratio < 0 {
-							move = emoji.Down
-						}
-						msg := fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f", p.Coin, cfg.duration.Minutes(), strings.Join(values, " "), move, math.Format(p.Price), last.Ratio*100, last.StdDev*100)
-						user.Send(msg, &api.Trigger{
-							ID: uuid.New().String(),
-							Exec: func(command api.Command, options ...string) (string, error) {
-								t := model.NoType
-								switch command.Content {
-								case "buy":
-									t = model.Buy
-								case "sell":
-									t = model.Sell
-								default:
-									return "[error]", fmt.Errorf("unknown command: %s", command.Content)
-								}
-								return fmt.Sprintf("opened position for %s", p.Coin), client.OpenPosition(model.OpenPosition(p.Coin, t))
-							},
-						})
+						api.SendMessage(user, uuid.New().String(), createStatsMessage(buckets, p, cfg), openPosition(p, client))
 					}
 					// TODO : expose in metrics
 					//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
@@ -239,4 +180,62 @@ func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) st
 		bb[i] = format(b)
 	}
 	return bb, last
+}
+
+func order(b buffer.TimeWindowView) string {
+	v := math.Order10(b.Ratio)
+	symbol := emoji.DotSnow
+	if b.Ratio > 0 {
+		switch v {
+		case 3:
+			symbol = emoji.FirstEclipse
+		case 2:
+			symbol = emoji.FullMoon
+		case 1:
+			symbol = emoji.SunFace
+		case 0:
+			symbol = emoji.Star
+		}
+	} else {
+		switch v {
+		case 3:
+			symbol = emoji.ThirdEclipse
+		case 2:
+			symbol = emoji.FullEclipse
+		case 1:
+			symbol = emoji.EclipseFace
+		case 0:
+			symbol = emoji.Comet
+		}
+	}
+	return symbol
+}
+
+func createStatsMessage(buckets []interface{}, p model.Trade, cfg windowConfig) string {
+	values, last := ExtractFromBuckets(buckets, order)
+
+	// TODO : make the trigger arguments more specific to current stats state
+	move := emoji.Zero
+	if last.Ratio > 0 {
+		move = emoji.Up
+	} else if last.Ratio < 0 {
+		move = emoji.Down
+	}
+	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f", p.Coin, cfg.duration.Minutes(), strings.Join(values, " "), move, math.Format(p.Price), last.Ratio*100, last.StdDev*100)
+
+}
+
+func openPosition(p model.Trade, client api.TradeClient) api.TriggerFunc {
+	return func(command api.Command, options ...string) (string, error) {
+		t := model.NoType
+		switch command.Content {
+		case "buy":
+			t = model.Buy
+		case "sell":
+			t = model.Sell
+		default:
+			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
+		}
+		return fmt.Sprintf("opened position for %s", p.Coin), client.OpenPosition(model.OpenPosition(p.Coin, t))
+	}
 }

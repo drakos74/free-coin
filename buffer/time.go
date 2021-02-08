@@ -14,6 +14,20 @@ type TimeWindowView struct {
 	StdDev float64   `json:"std"`
 }
 
+// NewView creates a new time view from a time bucket.
+func NewView(bucket TimeBucket, index int) TimeWindowView {
+	avg := bucket.Values().Stats()[index].Avg()
+	diff := bucket.Values().Stats()[index].Diff()
+	return TimeWindowView{
+		Time:   bucket.Time,
+		Count:  bucket.Size(),
+		Price:  avg,
+		Diff:   diff,
+		Ratio:  diff / avg,
+		StdDev: bucket.Values().Stats()[index].StDev(),
+	}
+}
+
 // TimeBucket is a wrapper for a bucket of a TimeWindow, that carries also the time index.
 type TimeBucket struct {
 	Bucket
