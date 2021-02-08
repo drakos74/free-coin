@@ -17,7 +17,8 @@ type Time struct {
 	UnixNano   int64
 }
 
-const nano = 1000000000
+// good to know how many nanoseconds a second is ... i always forget and have to google.
+//const nano = 1000000000 // nolint:deadcode
 
 // ThisWeek returns the unix time in seconds for the last 7 days.
 func ThisWeek() int64 {
