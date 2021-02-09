@@ -3,7 +3,6 @@ package processor
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -27,72 +26,72 @@ type windowConfig struct {
 	size     int64
 }
 
-// MultiStats allows the user to start and stop their own stats processors from the commands channel
-func MultiStats(client api.TradeClient, user api.Interface, commands <-chan api.Command) model.Transform {
+type state struct {
+	configs map[time.Duration]windowConfig
+	windows map[time.Duration]map[model.Coin]*buffer.HistoryWindow
+}
 
-	windows := make(map[time.Duration]windowConfig)
-	historyWindows := make(map[time.Duration]map[model.Coin]*buffer.HistoryWindow)
+func trackUserActions(user api.UserInterface, stats *state) {
+	for command := range user.Listen("stats", "?n") {
+		// TODO :
+		var duration int
+		var action string
+		var size int
+		err := command.Validate(
+			api.Any(),
+			api.Contains("?n", "?notify"),
+			api.Int(&duration),
+			api.OneOf(&action, "start", "stop"),
+			api.Int(&size))
+		if err != nil {
+			user.Reply(api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			continue
+		}
+		timeDuration := time.Duration(duration) * time.Minute
+
+		switch action {
+		case "start":
+			if _, ok := stats.configs[timeDuration]; ok {
+				user.Reply(
+					api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
+						ReplyTo(command.ID), nil)
+				continue
+			}
+			if size == 0 {
+				user.Reply(
+					api.NewMessage(fmt.Sprintf("a third arg for size is required [ int ] %v", size)).
+						ReplyTo(command.ID), nil)
+				continue
+			}
+			stats.configs[timeDuration] = windowConfig{
+				duration: timeDuration,
+				size:     int64(size),
+			}
+			stats.windows[timeDuration] = make(map[model.Coin]*buffer.HistoryWindow)
+			user.Reply(
+				api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
+					ReplyTo(command.ID), nil)
+		case "stop":
+			delete(stats.configs, timeDuration)
+			delete(stats.windows, timeDuration)
+			user.Reply(
+				api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
+					ReplyTo(command.ID), nil)
+		}
+	}
+}
+
+// MultiStats allows the user to start and stop their own stats processors from the commands channel
+func MultiStats(client api.TradeClient, user api.UserInterface) model.Processor {
+
+	stats := &state{
+		configs: make(map[time.Duration]windowConfig),
+		windows: make(map[time.Duration]map[model.Coin]*buffer.HistoryWindow),
+	}
 
 	//cmdSample := "?notify [time in minutes] [start/stop]"
 
-	go func() {
-		for command := range commands {
-			if !strings.HasPrefix(command.Content, "?notify") {
-				continue
-			}
-			cmd := strings.Split(command.Content, " ")[1:]
-			if len(cmd) == 0 {
-				user.SendWithRef("could not parse option args for '?notify'", command.ID, nil)
-				continue
-			}
-
-			// second argument is the duration in minutes
-			duration, err := strconv.ParseInt(cmd[0], 10, 64)
-			if err != nil {
-				user.SendWithRef(fmt.Sprintf("could not parse duration arg as int %v", cmd[0]), command.ID, nil)
-				continue
-			}
-			timeDuration := time.Duration(duration) * time.Minute
-
-			if len(cmd) < 2 {
-				user.SendWithRef(fmt.Sprintf("a second arg for action is required [ start or stop ] %v", cmd), command.ID, nil)
-				continue
-			}
-
-			action := cmd[1]
-			switch action {
-			case "start":
-				if _, ok := windows[timeDuration]; ok {
-					user.SendWithRef(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes()), command.ID, nil)
-					continue
-				}
-				if len(cmd) < 3 {
-					user.SendWithRef(fmt.Sprintf("a third arg for size is required [ int ] %v", cmd), command.ID, nil)
-					continue
-				}
-				size, err := strconv.ParseInt(cmd[2], 10, 64)
-				if err != nil {
-					user.SendWithRef(fmt.Sprintf("could not parse size arg as int %v", cmd[2]), command.ID, nil)
-					continue
-				}
-				windows[timeDuration] = windowConfig{
-					duration: timeDuration,
-					size:     size,
-				}
-				historyWindows[timeDuration] = make(map[model.Coin]*buffer.HistoryWindow)
-				user.SendWithRef(fmt.Sprintf("started notify window %v", cmd), command.ID, nil)
-				continue
-			case "stop":
-				delete(windows, timeDuration)
-				delete(historyWindows, timeDuration)
-				user.SendWithRef(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes()), command.ID, nil)
-				continue
-			default:
-				user.SendWithRef(fmt.Sprintf("could not parse action arg as [ start or stop ] %v", cmd[1]), command.ID, nil)
-				continue
-			}
-		}
-	}()
+	go trackUserActions(user, stats)
 
 	return func(in <-chan model.Trade, out chan<- model.Trade) error {
 
@@ -105,17 +104,17 @@ func MultiStats(client api.TradeClient, user api.Interface, commands <-chan api.
 
 			//metrics.Observe.Trades.WithLabelValues(p.Coin.String(), "multi_window").Inc()
 
-			for key, cfg := range windows {
+			for key, cfg := range stats.configs {
 
 				// we got the config, check if we need something to do in the windows
 
-				if _, ok := historyWindows[key][p.Coin]; !ok {
-					historyWindows[key][p.Coin] = buffer.NewHistoryWindow(cfg.duration, int(cfg.size))
+				if _, ok := stats.windows[key][p.Coin]; !ok {
+					stats.windows[key][p.Coin] = buffer.NewHistoryWindow(cfg.duration, int(cfg.size))
 				}
 
-				if _, ok := historyWindows[key][p.Coin].Push(p.Time.Real, p.Price); ok {
+				if _, ok := stats.windows[key][p.Coin].Push(p.Time, p.Price); ok {
 
-					buckets := historyWindows[key][p.Coin].Get(func(bucket interface{}) interface{} {
+					buckets := stats.windows[key][p.Coin].Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
 							return buffer.NewView(b, 0)
@@ -128,7 +127,7 @@ func MultiStats(client api.TradeClient, user api.Interface, commands <-chan api.
 					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
 					if user != nil {
 						// TODO : add tests for this
-						api.SendMessage(user, uuid.New().String(), createStatsMessage(buckets, p, cfg), openPosition(p, client))
+						user.Send(api.NewMessage(createStatsMessage(buckets, p, cfg)), api.NewTrigger(openPosition(p, client)).WithID(uuid.New().String()))
 					}
 					// TODO : expose in metrics
 					//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
@@ -147,7 +146,7 @@ func MetaKey(coin model.Coin, duration int64) string {
 
 // TODO :
 // Gap calculates the time it takes for the price to move by the given percentage in any direction
-func Gap(percentage float64) model.Transform {
+func Gap(percentage float64) model.Processor {
 	return func(in <-chan model.Trade, out chan<- model.Trade) error {
 		return nil
 	}
@@ -183,7 +182,7 @@ func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) st
 }
 
 func order(b buffer.TimeWindowView) string {
-	v := math.Order10(b.Ratio)
+	v := math.O10(b.Ratio)
 	symbol := emoji.DotSnow
 	if b.Ratio > 0 {
 		switch v {
