@@ -31,7 +31,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 // TimeBucket is a wrapper for a bucket of a TimeWindow, that carries also the time index.
 type TimeBucket struct {
 	Bucket
-	time.Time
+	Time time.Time
 }
 
 // TimeWindow is a window indexed by the current time.
