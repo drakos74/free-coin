@@ -1,9 +1,10 @@
 package buffer
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHistoryWindow_Push(t *testing.T) {
@@ -43,7 +44,7 @@ func TestHistoryWindow_Push(t *testing.T) {
 					current = b.Time
 					doneFirst = true
 				} else {
-
+					// TODO : what would be the assertions here ?
 				}
 			}
 		})

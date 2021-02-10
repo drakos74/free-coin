@@ -8,8 +8,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// UnixPrecision is the precision for the unix timestamp
 const UnixPrecision = 1000000
 
+// Time is a wrapper around time.Time to make handling of times more convenient.
 type Time struct {
 	Stripped   float64
 	Real       time.Time
@@ -44,7 +46,7 @@ func Nano(t time.Time) int64 {
 	return t.Unix() * time.Second.Nanoseconds()
 }
 
-// New creates a new cointime.
+// New creates a new coin time.
 func New(seconds int64) Time {
 	var nano int64 = 0
 	second := seconds
@@ -56,7 +58,7 @@ func New(seconds int64) Time {
 	}
 }
 
-// At sets the cointime to the specifies time.
+// At sets the coin time to the specifies time.
 func At(t time.Time) Time {
 	u := t.Unix()
 	// keep the last 6 digits (enough to cover for a day)

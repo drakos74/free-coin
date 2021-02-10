@@ -159,12 +159,11 @@ func ExtractLastBucket(coin model.Coin, key int64, trade *model.Trade) (buffer.T
 			if bucket, ok := ifc[len(ifc)-1].(buffer.TimeWindowView); ok {
 				return bucket, true
 			} else {
-				fmt.Println(fmt.Sprintf("could not ifc[len(ifc)-1] = %+v", reflect.TypeOf(ifc[len(ifc)-1])))
+				log.Warn().Str("type", fmt.Sprintf("%+v", reflect.TypeOf(ifc[len(ifc)-1]))).Msg("could not get expected type")
 			}
 		} else {
-			fmt.Println(fmt.Sprintf("could not parse = %+v", reflect.TypeOf(meta)))
+			log.Warn().Str("key", fmt.Sprintf("%+v", k)).Msg("key not found in trade metadata")
 		}
-
 	}
 	return buffer.TimeWindowView{}, false
 }
@@ -226,7 +225,7 @@ func createStatsMessage(buckets []interface{}, p model.Trade, cfg windowConfig) 
 
 func openPosition(p model.Trade, client api.TradeClient) api.TriggerFunc {
 	return func(command api.Command, options ...string) (string, error) {
-		t := model.NoType
+		var t model.Type
 		switch command.Content {
 		case "buy":
 			t = model.Buy

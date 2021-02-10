@@ -36,7 +36,7 @@ var Coins = map[string]Coin{
 func KnownCoins() []string {
 	cc := make([]string, len(Coins))
 	i := 0
-	for c, _ := range Coins {
+	for c := range Coins {
 		cc[i] = c
 		i++
 	}
