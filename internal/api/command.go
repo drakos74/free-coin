@@ -13,7 +13,11 @@ type Command struct {
 	Content string
 }
 
-func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, args ...func(string) error) error {
+// Validator is a validation function that checks the string for the given type.
+type Validator func(string) error
+
+// Validate validates the command with the given arguments.
+func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, args ...Validator) error {
 	if _, ok := user[c.User]; !ok && len(user) > 0 {
 		return fmt.Errorf("command cannot be executed: %s", c.User)
 	}
@@ -38,10 +42,12 @@ func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, arg
 	return nil
 }
 
+// Any is a predefined validator for any value.
 func Any() map[string]struct{} {
 	return map[string]struct{}{}
 }
 
+// Contains is a predefined validator for the argument being one of the given values.
 func Contains(arg ...string) map[string]struct{} {
 	args := make(map[string]struct{})
 	for _, a := range arg {
@@ -50,6 +56,7 @@ func Contains(arg ...string) map[string]struct{} {
 	return args
 }
 
+// NotEmpty is a predefined Validator that checks if the argument is empty.
 func NotEmpty(s string) error {
 	if s == "" {
 		return fmt.Errorf("cannot be empty")
@@ -57,7 +64,9 @@ func NotEmpty(s string) error {
 	return nil
 }
 
-func OneOf(v *string, args ...string) func(string) error {
+// OneOf is a predefined Validator checking that the value is on of the provided arguments.
+// it passes the reference to the value to the given interface argument.
+func OneOf(v *string, args ...string) Validator {
 	return func(s string) error {
 		var isOneOf bool
 		for _, arg := range args {
@@ -68,12 +77,14 @@ func OneOf(v *string, args ...string) func(string) error {
 		if !isOneOf {
 			return fmt.Errorf("must be one of %v", args)
 		}
-		v = &s
+		*v = s
 		return nil
 	}
 }
 
-func Int(d *int) func(s string) error {
+// Int is a predefined Validator checking that the argument is an int.
+// it passes the reference to the value to the given interface argument.
+func Int(d *int) Validator {
 	return func(s string) error {
 		if s == "" {
 			i := 0
@@ -85,7 +96,7 @@ func Int(d *int) func(s string) error {
 			return err
 		}
 		i := int(number)
-		d = &i
+		*d = i
 		return nil
 	}
 }
