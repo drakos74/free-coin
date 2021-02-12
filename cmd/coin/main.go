@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 
+	"github.com/drakos74/free-coin/coinapi"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
-	"github.com/drakos74/free-coin/internal/api"
-
 	coin "github.com/drakos74/free-coin/internal"
+	"github.com/drakos74/free-coin/internal/algo/model"
 )
 
 func main() {
@@ -18,10 +18,10 @@ func main() {
 	ctx, _ := context.WithCancel(context.Background())
 
 	// TODO : make the implementation
-	var client api.TradeClient
+	var client coinapi.TradeClient
 
 	// TODO : make the implementation
-	var user api.UserInterface
+	var user coinapi.UserInterface
 	err := user.Run(ctx)
 	if err != nil {
 		panic(err.Error())

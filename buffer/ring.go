@@ -11,6 +11,7 @@ import (
 type Transform func(bucket interface{}) interface{}
 
 // Ring is a ring buffer keeping the last x elements
+// TODO : use container/ring
 type Ring struct {
 	index  int
 	count  int

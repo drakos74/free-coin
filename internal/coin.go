@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/drakos74/free-coin/coinapi"
+
 	"github.com/drakos74/free-coin/internal/algo/model"
-	"github.com/drakos74/free-coin/internal/api"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,7 +40,7 @@ func (engine *Engine) AddProcessor(processor model.Processor) *Engine {
 }
 
 // RunWith starts the engine with the given client.
-func (engine *Engine) RunWith(client api.TradeClient) (*Engine, error) {
+func (engine *Engine) RunWith(client coinapi.TradeClient) (*Engine, error) {
 
 	trades, err := client.Trades(engine.stop, engine.coin, engine.autoStop)
 
@@ -81,12 +82,12 @@ func (engine *Engine) Close() error {
 // OverWatch is the main applications wrapper that orchestrates and controls engines.
 type OverWatch struct {
 	engines map[string]*Engine
-	client  api.TradeClient
-	user    api.UserInterface
+	client  coinapi.TradeClient
+	user    coinapi.UserInterface
 }
 
 // New creates a new OverWatch instance.
-func New(client api.TradeClient, user api.UserInterface) *OverWatch {
+func New(client coinapi.TradeClient, user coinapi.UserInterface) *OverWatch {
 	return &OverWatch{
 		engines: make(map[string]*Engine),
 		client:  client,
@@ -100,23 +101,23 @@ func (o *OverWatch) Run() {
 		var c string
 		var action string
 		err := command.Validate(
-			api.Any(),
-			api.Contains("?c", "?coin"),
-			api.OneOf(&c, model.KnownCoins()...),
-			api.OneOf(&action, "start", "stop"))
+			coinapi.Any(),
+			coinapi.Contains("?c", "?coin"),
+			coinapi.OneOf(&c, model.KnownCoins()...),
+			coinapi.OneOf(&action, "start", "stop"))
 		if err != nil {
-			o.user.Reply(api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			o.user.Reply(coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 			continue
 		}
 		// ...execute
 		switch action {
 		case "start":
 			err = o.Start(model.Coins[strings.ToUpper(c)], Void())
-			o.user.Reply(api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			o.user.Reply(coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case "stop":
 			err = o.Stop(model.Coins[strings.ToUpper(c)])
 		}
-		o.user.Reply(api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+		o.user.Reply(coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 	}
 }
 

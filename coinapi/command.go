@@ -1,4 +1,4 @@
-package api
+package coinapi
 
 import (
 	"fmt"
@@ -11,6 +11,16 @@ type Command struct {
 	ID      int
 	User    string
 	Content string
+}
+
+func ParseCommand(id int, user, txt string) (Command, []string) {
+	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
+	cmd := strings.Split(txt, " ")
+	return Command{
+		ID:      id,
+		User:    user,
+		Content: cmd[0],
+	}, cmd[1:]
 }
 
 // Validator is a validation function that checks the string for the given type.

@@ -1,4 +1,4 @@
-package api
+package coinapi
 
 import (
 	"context"
@@ -30,31 +30,33 @@ type UserInterface interface {
 
 // Message defines a message that should be sent to the user or group.
 type Message struct {
-	text  string
-	reply int
+	Text  string
+	Reply int
 }
 
 // NewMessage creates a new message.
 func NewMessage(txt string) *Message {
 	return &Message{
-		text: txt,
+		Text: txt,
 	}
 }
 
 // ReplyTo defines a message id that this message refers to.
 func (m *Message) ReplyTo(msgID int) *Message {
-	m.reply = msgID
+	m.Reply = msgID
 	return m
 }
 
 // AddLine adds a line argument to the message.
 func (m *Message) AddLine(txt string) *Message {
-	m.text = fmt.Sprintf("%s\n%s", m.text, txt)
+	m.Text = fmt.Sprintf("%s\n%s", m.Text, txt)
 	return m
 }
 
+type Constructor func(m Message) interface{}
+
 // Create creates a new messager implementation to send the current message.
-func (m *Message) Create(constructor func(m Message) interface{}, obj interface{}) {
+func (m *Message) Create(constructor Constructor, obj interface{}) {
 	// TODO : test and fix this.
 	obj = constructor(*m)
 }

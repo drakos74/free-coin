@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/coinapi"
+
 	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/drakos74/free-coin/buffer"
 	"github.com/drakos74/free-coin/internal/algo/model"
-	"github.com/drakos74/free-coin/internal/api"
 	"github.com/rs/zerolog/log"
 )
 
@@ -31,20 +32,20 @@ type state struct {
 	windows map[time.Duration]map[model.Coin]*buffer.HistoryWindow
 }
 
-func trackUserActions(user api.UserInterface, stats *state) {
+func trackUserActions(user coinapi.UserInterface, stats *state) {
 	for command := range user.Listen("stats", "?n") {
 		// TODO :
 		var duration int
 		var action string
 		var size int
 		err := command.Validate(
-			api.Any(),
-			api.Contains("?n", "?notify"),
-			api.Int(&duration),
-			api.OneOf(&action, "start", "stop"),
-			api.Int(&size))
+			coinapi.Any(),
+			coinapi.Contains("?n", "?notify"),
+			coinapi.Int(&duration),
+			coinapi.OneOf(&action, "start", "stop"),
+			coinapi.Int(&size))
 		if err != nil {
-			user.Reply(api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			user.Reply(coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 			continue
 		}
 		timeDuration := time.Duration(duration) * time.Minute
@@ -53,13 +54,13 @@ func trackUserActions(user api.UserInterface, stats *state) {
 		case "start":
 			if _, ok := stats.configs[timeDuration]; ok {
 				user.Reply(
-					api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
+					coinapi.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
 						ReplyTo(command.ID), nil)
 				continue
 			}
 			if size == 0 {
 				user.Reply(
-					api.NewMessage(fmt.Sprintf("a third arg for size is required [ int ] %v", size)).
+					coinapi.NewMessage(fmt.Sprintf("a third arg for size is required [ int ] %v", size)).
 						ReplyTo(command.ID), nil)
 				continue
 			}
@@ -69,20 +70,20 @@ func trackUserActions(user api.UserInterface, stats *state) {
 			}
 			stats.windows[timeDuration] = make(map[model.Coin]*buffer.HistoryWindow)
 			user.Reply(
-				api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
+				coinapi.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
 					ReplyTo(command.ID), nil)
 		case "stop":
 			delete(stats.configs, timeDuration)
 			delete(stats.windows, timeDuration)
 			user.Reply(
-				api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
+				coinapi.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
 					ReplyTo(command.ID), nil)
 		}
 	}
 }
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
-func MultiStats(client api.TradeClient, user api.UserInterface) model.Processor {
+func MultiStats(client coinapi.TradeClient, user coinapi.UserInterface) model.Processor {
 
 	stats := &state{
 		configs: make(map[time.Duration]windowConfig),
@@ -127,7 +128,7 @@ func MultiStats(client api.TradeClient, user api.UserInterface) model.Processor 
 					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
 					if user != nil {
 						// TODO : add tests for this
-						user.Send(api.NewMessage(createStatsMessage(buckets, p, cfg)), api.NewTrigger(openPosition(p, client)).WithID(uuid.New().String()))
+						user.Send(coinapi.NewMessage(createStatsMessage(buckets, p, cfg)), coinapi.NewTrigger(openPosition(p, client)).WithID(uuid.New().String()))
 					}
 					// TODO : expose in metrics
 					//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
@@ -223,8 +224,8 @@ func createStatsMessage(buckets []interface{}, p model.Trade, cfg windowConfig) 
 
 }
 
-func openPosition(p model.Trade, client api.TradeClient) api.TriggerFunc {
-	return func(command api.Command, options ...string) (string, error) {
+func openPosition(p model.Trade, client coinapi.TradeClient) coinapi.TriggerFunc {
+	return func(command coinapi.Command, options ...string) (string, error) {
 		var t model.Type
 		switch command.Content {
 		case "buy":
