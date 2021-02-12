@@ -85,7 +85,7 @@ func TestO10(t *testing.T) {
 		},
 		"0.0143242": {
 			input:  0.0143242,
-			output: 2,
+			output: 1,
 		},
 		"0.00167676": {
 			input:  0.00167676,
