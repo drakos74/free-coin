@@ -15,7 +15,7 @@ import (
 
 func main() {
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cnl := context.WithCancel(context.Background())
 
 	// TODO : make the implementation
 	var client coinapi.TradeClient
@@ -30,10 +30,7 @@ func main() {
 	overWatch := coin.New(client, user)
 	go overWatch.Run()
 
-	// TODO : define coins
-	var coins map[model.Coin]*coin.Engine
-
-	for c, _ := range coins {
+	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Void(), processor.MultiStats(client, user))
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")
@@ -42,5 +39,5 @@ func main() {
 
 	// this is a long running task ... lets keep the main thread occupied
 	<-ctx.Done()
-
+	cnl()
 }

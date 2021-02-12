@@ -94,7 +94,7 @@ func MultiStats(client coinapi.TradeClient, user coinapi.UserInterface) model.Pr
 
 	go trackUserActions(user, stats)
 
-	return func(in <-chan model.Trade, out chan<- model.Trade) error {
+	return func(in <-chan model.Trade, out chan<- model.Trade) {
 
 		defer func() {
 			log.Info().Msg("closing 'Window' strategy")
@@ -136,7 +136,6 @@ func MultiStats(client coinapi.TradeClient, user coinapi.UserInterface) model.Pr
 			}
 			out <- p
 		}
-		return nil
 	}
 }
 
@@ -148,9 +147,7 @@ func MetaKey(coin model.Coin, duration int64) string {
 // TODO :
 // Gap calculates the time it takes for the price to move by the given percentage in any direction
 func Gap(percentage float64) model.Processor {
-	return func(in <-chan model.Trade, out chan<- model.Trade) error {
-		return nil
-	}
+	return func(in <-chan model.Trade, out chan<- model.Trade) {}
 }
 
 func ExtractLastBucket(coin model.Coin, key int64, trade *model.Trade) (buffer.TimeWindowView, bool) {

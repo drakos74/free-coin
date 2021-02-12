@@ -19,7 +19,7 @@ type Trade struct {
 
 // Processor defines the processing model of input and output channels for trades.
 // Each processor will trigger the next one, when pushing the trade to the output channel.
-type Processor func(in <-chan Trade, out chan<- Trade) error
+type Processor func(in <-chan Trade, out chan<- Trade)
 
 // Condition defines a boundary condition to stop execution based on the consumed trades.
 type Condition func(trade Trade, numberOfTrades int) bool

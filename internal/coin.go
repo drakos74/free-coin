@@ -66,7 +66,6 @@ func (engine *Engine) RunWith(client coinapi.TradeClient) (*Engine, error) {
 			// pull the trades from the source through the processors
 			engine.main.Process(trade)
 		}
-		return
 	}()
 
 	return engine, nil
