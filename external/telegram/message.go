@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func constructTelegramMessage(message coinapi.Message) interface{} {
+func NewMessage(message *coinapi.Message) tgbotapi.MessageConfig {
 	msg := tgbotapi.NewMessage(ChatID, message.Text)
 	if message.Reply > 0 {
 		msg.ReplyToMessageID = message.Reply
@@ -54,17 +54,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 						User:    update.Message.From.UserName,
 						Content: update.Message.Text,
 					}:
-					default:
-						log.Warn().Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
+					case <-time.Tick(1 * time.Second):
+						log.Warn().Str("prefix", k.prefix).Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
 					}
 				}
 			}
 		case <-ctx.Done():
 			log.Info().Msg("closing bot")
 			return
-		default:
-			// nothing to do
-			continue
 		}
 	}
 }
@@ -89,8 +86,10 @@ func (b *Bot) deferExecute(timeout time.Duration, replyID int, trigger *coinapi.
 // execute will try to find and execute the trigger attached to the replied message.
 func (b *Bot) execute(message, replyTo *tgbotapi.Message) {
 	// find the replyTo to the message
+	println(fmt.Sprintf("message = %+v", message))
 	if triggerID, ok := b.messages[replyTo.MessageID]; ok {
 		// try to find trigger id if it s still valid
+		println(fmt.Sprintf("triggerID = %+v", triggerID))
 		if trigger, ok := b.triggers[triggerID]; ok {
 			cmd, opts := coinapi.ParseCommand(message.MessageID, message.From.UserName, message.Text)
 			b.executeTrigger(trigger, cmd, opts...)

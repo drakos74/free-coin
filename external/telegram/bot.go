@@ -10,10 +10,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
+// allow to change these for the tests
+var (
+	// defaultTimeout defines the trigger execution timeout, if none is provided in the trigger.
 	defaultTimeout = 30 * time.Second
-	blockTimeout   = 30 * time.Second
+	// blockTimeout defines the duration that a trigger is blocked if a reply comes up.
+	blockTimeout = 30 * time.Second
 )
+
+type botAPI interface {
+	GetUpdatesChan(config tgbotapi.UpdateConfig) (tgbotapi.UpdatesChannel, error)
+	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
+}
 
 // consumerKey is the internal consumer key for indexing and managing consumers.
 type consumerKey struct {
@@ -23,7 +31,7 @@ type consumerKey struct {
 
 // Bot defines the telegram bot coinapi.UserInterface api implementation.
 type Bot struct {
-	bot             *tgbotapi.BotAPI
+	bot             botAPI
 	messages        map[int]string
 	triggers        map[string]*coinapi.Trigger
 	blockedTriggers map[string]time.Time
@@ -73,8 +81,7 @@ func (b *Bot) Listen(key, prefix string) <-chan coinapi.Command {
 
 // Send sends the given message with the attached details to the specified telegram chat.
 func (b *Bot) Send(message *coinapi.Message, trigger *coinapi.Trigger) int {
-	var msg tgbotapi.MessageConfig
-	message.Create(constructTelegramMessage, &msg)
+	msg := NewMessage(message)
 	msgID, err := b.send(msg, trigger)
 	if err != nil {
 		log.Err(err).Msg("could not send message")
@@ -94,7 +101,10 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *coinapi.Trigger) (int, e
 	}
 	// otherwise send the message and add the trigger
 	// TODO : be able to expose more details on the trigger
-	sent, err := b.bot.Send(addLine(msg, fmt.Sprintf("[trigger] %vm", trigger.Timeout.Minutes())))
+	if trigger != nil {
+		msg = addLine(msg, fmt.Sprintf("[trigger] %vm", trigger.Timeout.Minutes()))
+	}
+	sent, err := b.bot.Send(msg)
 	if err != nil {
 		return 0, err
 	}
