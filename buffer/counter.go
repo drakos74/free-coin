@@ -6,13 +6,6 @@ import (
 	"strings"
 )
 
-type trackingKey []int
-
-type trackedValue struct {
-	emoji string
-	value int
-}
-
 // NewCounter creates a new counter.
 func NewCounter(sizes ...int) *Counter {
 	var max int
@@ -46,7 +39,7 @@ type Prediction struct {
 }
 
 // Add adds a string to the counter sequence.
-func (c *Counter) Add(s string) {
+func (c *Counter) Add(s string) map[string]Prediction {
 
 	values := make([]string, 0)
 
@@ -54,31 +47,60 @@ func (c *Counter) Add(s string) {
 		values = append(values, fmt.Sprintf("%v", i))
 	})
 
+	println(fmt.Sprintf("values = %+v", values))
+
 	prediction := make(map[string]Prediction)
 
 	for _, l := range c.config {
-		c.addKey(l, values, s)
-		if k, predict := c.getKey(l, values, s); k != "" {
+		println(fmt.Sprintf("s = %+v", s))
+		if k, predict := c.addKey(l, values, s); predict != nil {
 			prediction[k] = *predict
 		}
+		println(fmt.Sprintf("c.counter = %+v", c.counter))
 	}
 
 	// add the new value at the end
 	c.sequence.Value = s
 	c.sequence = c.sequence.Next()
+
+	return prediction
 }
 
-func (c *Counter) getKey(l int, values []string, v string) (string, *Prediction) {
+func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction) {
+	println(fmt.Sprintf("l = %+v", l))
 	// create the key for each of the configs
-	k := values[l-1:]
-	// ... replace the new value
-	k = append(k[1:], v)
+	k := values[len(values)-l:]
 	key := strings.Join(k, ":")
 
 	if strings.Contains(key, "<nil>") {
 		return "", nil
 	}
 
+	if _, ok := c.counter[key]; !ok {
+		c.counter[key] = make(map[string]int)
+	}
+
+	if _, ok := c.counter[key][v]; !ok {
+		c.counter[key][v] = 0
+	}
+
+	println(fmt.Sprintf("k = %+v", key))
+	println(fmt.Sprintf("v = %+v", v))
+
+	kk := append(k[1:], v)
+	pKey := strings.Join(kk, ":")
+
+	var prediction *Prediction
+	if !strings.Contains(pKey, "<nil>") {
+		prediction = c.predict(pKey)
+	}
+
+	c.counter[key][v]++
+
+	return pKey, prediction
+}
+
+func (c *Counter) predict(key string) *Prediction {
 	if _, ok := c.counter[key]; ok {
 		var m int
 		var r string
@@ -93,7 +115,7 @@ func (c *Counter) getKey(l int, values []string, v string) (string, *Prediction)
 			}
 
 			if s > 0 {
-				return key, &Prediction{
+				return &Prediction{
 					value:       r,
 					probability: float64(m) / float64(s),
 					options:     len(count),
@@ -102,29 +124,5 @@ func (c *Counter) getKey(l int, values []string, v string) (string, *Prediction)
 			}
 		}
 	}
-
-	return "", nil
-}
-
-func (c *Counter) addKey(l int, values []string, v string) {
-	// create the key for each of the configs
-	k := values[l-1:]
-	key := strings.Join(k, ":")
-
-	if strings.Contains(key, "<nil>") {
-		return
-	}
-
-	if _, ok := c.counter[key]; !ok {
-		c.counter[key] = make(map[string]int)
-	}
-
-	if _, ok := c.counter[key][v]; !ok {
-		c.counter[key][v] = 0
-	} else {
-		// capture the result of the previous prediction
-
-	}
-
-	c.counter[key][v]++
+	return nil
 }

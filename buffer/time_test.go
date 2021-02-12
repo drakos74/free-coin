@@ -43,9 +43,8 @@ func TestHistoryWindow_Push(t *testing.T) {
 
 					current = b.Time
 					doneFirst = true
-				} else {
-					// TODO : what would be the assertions here ?
 				}
+				// TODO : what would be the assertions for the 'else' here ?
 			}
 		})
 	}
