@@ -30,12 +30,12 @@ type Counter struct {
 	counter  map[string]map[string]int
 }
 
-// Prediction defines a prediction result with the computed probability
+// Prediction defines a prediction result with the computed Probability
 type Prediction struct {
-	value       string
-	probability float64
-	options     int
-	sample      int
+	Value       string
+	Probability float64
+	Options     int
+	Sample      int
 }
 
 // Add adds a string to the counter sequence.
@@ -47,19 +47,15 @@ func (c *Counter) Add(s string) map[string]Prediction {
 		values = append(values, fmt.Sprintf("%v", i))
 	})
 
-	println(fmt.Sprintf("values = %+v", values))
-
 	prediction := make(map[string]Prediction)
 
 	for _, l := range c.config {
-		println(fmt.Sprintf("s = %+v", s))
 		if k, predict := c.addKey(l, values, s); predict != nil {
 			prediction[k] = *predict
 		}
-		println(fmt.Sprintf("c.counter = %+v", c.counter))
 	}
 
-	// add the new value at the end
+	// add the new Value at the end
 	c.sequence.Value = s
 	c.sequence = c.sequence.Next()
 
@@ -67,7 +63,6 @@ func (c *Counter) Add(s string) map[string]Prediction {
 }
 
 func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction) {
-	println(fmt.Sprintf("l = %+v", l))
 	// create the key for each of the configs
 	k := values[len(values)-l:]
 	key := strings.Join(k, ":")
@@ -83,9 +78,6 @@ func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction)
 	if _, ok := c.counter[key][v]; !ok {
 		c.counter[key][v] = 0
 	}
-
-	println(fmt.Sprintf("k = %+v", key))
-	println(fmt.Sprintf("v = %+v", v))
 
 	kk := append(k[1:], v)
 	pKey := strings.Join(kk, ":")
@@ -116,10 +108,10 @@ func (c *Counter) predict(key string) *Prediction {
 
 			if s > 0 {
 				return &Prediction{
-					value:       r,
-					probability: float64(m) / float64(s),
-					options:     len(count),
-					sample:      s,
+					Value:       r,
+					Probability: float64(m) / float64(s),
+					Options:     len(count),
+					Sample:      s,
 				}
 			}
 		}

@@ -16,35 +16,35 @@ func TestCounter_Add(t *testing.T) {
 	}
 
 	tests := map[string]test{
-		"only-value": {
+		"only-Value": {
 			transform: func(i int) string {
 				return "1"
 			},
 			predictions: map[string]Prediction{
 				"1": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      98,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      98,
 				},
 			},
 			sizes: []int{1},
 		},
-		"single-value": {
+		"single-Value": {
 			transform: func(i int) string {
 				return "1"
 			},
 			predictions: map[string]Prediction{
 				"1:1": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      97,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      97,
 				},
 			},
 			sizes: []int{2},
 		},
-		"dual-value": {
+		"dual-Value": {
 			transform: func(i int) string {
 				if i%2 == 0 {
 					return "1"
@@ -53,22 +53,22 @@ func TestCounter_Add(t *testing.T) {
 			},
 			predictions: map[string]Prediction{
 				"1:2": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      49,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      49,
 				},
 				"2:1": {
-					value:       "2",
-					probability: 1,
-					options:     1,
+					Value:       "2",
+					Probability: 1,
+					Options:     1,
 					// NOTE : it s one less, because the first instance is the other option.
-					sample: 48,
+					Sample: 48,
 				},
 			},
 			sizes: []int{2},
 		},
-		"sequence-value": {
+		"sequence-Value": {
 			transform: func(i int) string {
 				if i%2 == 0 {
 					return "1"
@@ -79,36 +79,36 @@ func TestCounter_Add(t *testing.T) {
 			},
 			predictions: map[string]Prediction{
 				"1:2:1": {
-					value:       "1",
-					probability: 0.5,
-					options:     2,
-					sample:      32,
+					Value:       "1",
+					Probability: 0.5,
+					Options:     2,
+					Sample:      32,
 				},
 				// NOTE : this never comes up
 				//"1:2:2": {},
 				"1:1:1": {
-					value:       "2",
-					probability: 1,
-					options:     1,
-					sample:      15,
+					Value:       "2",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
 				},
 				"1:1:2": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      15,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
 				},
 				"2:1:1": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      16,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      16,
 				},
 				"2:1:2": {
-					value:       "1",
-					probability: 1,
-					options:     1,
-					sample:      15,
+					Value:       "1",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
 				},
 			},
 			sizes: []int{3},
@@ -132,10 +132,10 @@ func TestCounter_Add(t *testing.T) {
 			for k, prediction := range tt.predictions {
 				pp, ok := p[k]
 				assert.True(t, ok, fmt.Sprintf("missing key [%s]", k))
-				assert.Equal(t, prediction.sample, pp.sample, fmt.Sprintf("wrong sample for key [%s]", k))
-				assert.Equal(t, prediction.probability, pp.probability, fmt.Sprintf("wrong probability for key [%s]", k))
-				assert.Equal(t, prediction.options, pp.options, fmt.Sprintf("wrong options for key [%s]", k))
-				assert.Equal(t, prediction.value, pp.value, fmt.Sprintf("wrong value for key [%s]", k))
+				assert.Equal(t, prediction.Sample, pp.Sample, fmt.Sprintf("wrong Sample for key [%s]", k))
+				assert.Equal(t, prediction.Probability, pp.Probability, fmt.Sprintf("wrong Probability for key [%s]", k))
+				assert.Equal(t, prediction.Options, pp.Options, fmt.Sprintf("wrong Options for key [%s]", k))
+				assert.Equal(t, prediction.Value, pp.Value, fmt.Sprintf("wrong Value for key [%s]", k))
 			}
 		})
 	}
