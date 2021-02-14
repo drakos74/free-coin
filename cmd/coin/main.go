@@ -4,15 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/rs/zerolog"
-
-	time2 "github.com/drakos74/free-coin/internal/time"
-
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/algo/processor"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/drakos74/free-coin/user/telegram"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -24,7 +22,7 @@ func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
 
-	client := kraken.New(ctx, time2.ThisInstant(), 10*time.Second)
+	client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
 
 	user, err := telegram.NewBot()
 	if err != nil {
@@ -32,6 +30,7 @@ func main() {
 			panic(err.Error())
 		}
 	}
+
 	err = user.Run(ctx)
 	if err != nil {
 		panic(err.Error())
@@ -41,7 +40,6 @@ func main() {
 	go overWatch.Run()
 
 	for _, c := range model.Coins {
-		log.Info().Str("coin", string(c)).Msg("start engine")
 		err := overWatch.Start(c, coin.Void(), processor.MultiStats(client, user))
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")

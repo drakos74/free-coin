@@ -13,6 +13,8 @@ const port = 6021
 func init() {
 	prometheus.MustRegister(Observer.prometheus.Trades)
 
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	}()
 }
