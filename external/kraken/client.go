@@ -52,7 +52,7 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(ctx context.Context, coin coinapi.Coin, stopExecution coinapi.Condition) coinapi.TradeSource {
+func (c *Client) Trades(stop <-chan struct{}, coin coinapi.Coin, stopExecution coinapi.Condition) (coinapi.TradeSource, error) {
 
 	out := make(chan coinapi.Trade)
 
@@ -80,7 +80,7 @@ func (c *Client) Trades(ctx context.Context, coin coinapi.Coin, stopExecution co
 	}(trades)
 
 	// executor for polling trades
-	go cointime.Execute(ctx, c.interval, func(trades chan<- coinapi.Trade) func() error {
+	go cointime.Execute(stop, c.interval, func(trades chan<- coinapi.Trade) func() error {
 
 		type state struct {
 			last int64
@@ -108,14 +108,12 @@ func (c *Client) Trades(ctx context.Context, coin coinapi.Coin, stopExecution co
 			s.last = tradeResponse.Index
 			return nil
 		}
-
 	}(trades),
 		func() {
 			log.Info().Str("pair", string(coin)).Msg("closing trade source")
 			close(trades)
 		})
-
-	return out
+	return out, nil
 
 }
 
