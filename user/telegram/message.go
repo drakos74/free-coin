@@ -49,9 +49,10 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 				continue
 			}
 
-			log.Debug().
+			log.Info().
 				Str("from", update.Message.From.UserName).
 				Str("text", update.Message.Text).
+				Int64("chat", update.Message.Chat.ID).
 				Msg("message received")
 
 			for k, consumer := range b.consumers {

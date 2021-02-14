@@ -65,7 +65,7 @@ func NewBot() (*Bot, error) {
 // Run starts the Bot and polls for updates from telegram.
 func (b *Bot) Run(ctx context.Context) error {
 	u := tgbotapi.NewUpdate(0)
-	//u.Timeout = 60
+	u.Timeout = 10
 
 	updates, err := b.bot.GetUpdatesChan(u)
 	if err != nil {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	time2 "github.com/drakos74/free-coin/internal/time"
 
 	"github.com/drakos74/free-coin/client/kraken"
@@ -14,15 +16,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func init() {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
+
 func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
 
-	// TODO : make the implementation
-
 	client := kraken.New(ctx, time2.ThisInstant(), 10*time.Second)
 
-	// TODO : make the implementation
 	user, err := telegram.NewBot()
 	if err != nil {
 		if err != nil {
