@@ -46,6 +46,10 @@ check() {
 
 restart() {
   process="$1"
+
+  dir=$(pwd)
+  echo "current directory '$dir'"
+
   stop "$process"
   echo "stopped $process"
 
