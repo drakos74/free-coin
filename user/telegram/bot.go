@@ -108,8 +108,12 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 	}
 	// otherwise send the message and add the trigger
 	// TODO : be able to expose more details on the trigger
+	t := defaultTimeout
 	if trigger != nil {
-		msg = addLine(msg, fmt.Sprintf("[trigger] %vm", trigger.Timeout.Minutes()))
+		if trigger.Timeout > 0 {
+			t = trigger.Timeout
+		}
+		msg = addLine(msg, fmt.Sprintf("[%s] %vm -> %v", trigger.Description, t.Minutes(), trigger.Default))
 	}
 	sent, err := b.bot.Send(msg)
 	if err != nil {
@@ -119,10 +123,7 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 		// store the message for potential replies on the trigger.
 		b.messages[sent.MessageID] = trigger.ID
 		b.triggers[trigger.ID] = trigger
-		t := defaultTimeout
-		if trigger.Timeout > 0 {
-			t = trigger.Timeout
-		}
+
 		if len(trigger.Default) > 0 {
 			go b.deferExecute(t, sent.MessageID, trigger)
 		}

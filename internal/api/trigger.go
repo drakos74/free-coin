@@ -11,10 +11,11 @@ type TriggerFunc func(command Command, options ...string) (string, error)
 
 // Trigger wraps a trigger func into a re-usable object.
 type Trigger struct {
-	ID      string
-	Default []string
-	Exec    TriggerFunc
-	Timeout time.Duration
+	ID          string
+	Default     []string
+	Description string
+	Exec        TriggerFunc
+	Timeout     time.Duration
 }
 
 // NewTrigger creates a new trigger.
@@ -28,6 +29,12 @@ func NewTrigger(f TriggerFunc) *Trigger {
 // WithID allows to specify a custom ID for the trigger.
 func (t *Trigger) WithID(id string) *Trigger {
 	t.ID = id
+	return t
+}
+
+// WithID allows to specify a custom ID for the trigger.
+func (t *Trigger) WithDescription(desc string) *Trigger {
+	t.Description = desc
 	return t
 }
 

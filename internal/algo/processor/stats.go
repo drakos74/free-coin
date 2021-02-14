@@ -51,14 +51,13 @@ type state struct {
 
 func trackUserActions(user model.UserInterface, stats *state) {
 	for command := range user.Listen("stats", "?n") {
-		// TODO :
 		var duration int
 		var action string
 		err := command.Validate(
 			api.Any(),
 			api.Contains("?n", "?notify"),
 			api.Int(&duration),
-			api.OneOf(&action, "start", "stop"),
+			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
 			model.Reply(user,
@@ -69,6 +68,8 @@ func trackUserActions(user model.UserInterface, stats *state) {
 		timeDuration := time.Duration(duration) * time.Minute
 
 		switch action {
+		case "":
+			// TODO : return the currently running stats processes
 		case "start":
 			if _, ok := stats.configs[timeDuration]; ok {
 				model.Reply(user,
@@ -163,7 +164,12 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
 					if user != nil {
 						// TODO : add tests for this
-						user.Send(api.NewMessage(createStatsMessage(last, values, predictions, p, cfg)), api.NewTrigger(openPositionTrigger(p, client)).WithID(uuid.New().String()))
+						user.Send(
+							api.NewMessage(createStatsMessage(last, values, predictions, p, cfg)),
+							api.NewTrigger(openPositionTrigger(p, client)).
+								WithID(uuid.New().String()).
+								WithDescription("buy | sell"),
+						)
 					}
 					// TODO : expose in metrics
 					//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
