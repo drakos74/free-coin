@@ -1,11 +1,13 @@
-package api
+package kraken
 
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/client/kraken/model"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/client/kraken/public"
 	"github.com/drakos74/free-coin/coinapi"
-	"github.com/drakos74/free-coin/external/kraken/public"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,8 +17,8 @@ type Remote struct {
 	PrivateApi *krakenapi.KrakenAPI
 }
 
-func (r *Remote) Trades(coin coinapi.Coin, since int64) (*TradeBatch, error) {
-	pair := Pair(coin)
+func (r *Remote) Trades(coin coinapi.Coin, since int64) (*model.TradeBatch, error) {
+	pair := model.Pair(coin)
 	log.Trace().
 		Str("method", "Count").
 		Str("pair", pair).
@@ -30,10 +32,10 @@ func (r *Remote) Trades(coin coinapi.Coin, since int64) (*TradeBatch, error) {
 	return transform(pair, response)
 }
 
-func transform(pair string, response *krakenapi.TradesResponse) (*TradeBatch, error) {
+func transform(pair string, response *krakenapi.TradesResponse) (*model.TradeBatch, error) {
 	l := len(response.Trades)
 	if l == 0 {
-		return &TradeBatch{
+		return &model.TradeBatch{
 			Trades: []coinapi.Trade{},
 			Index:  response.Last,
 		}, nil
@@ -42,7 +44,7 @@ func transform(pair string, response *krakenapi.TradesResponse) (*TradeBatch, er
 	for i := 0; i < l; i++ {
 		trades[i] = public.NewTrade(pair, i == l-1, response.Trades[i])
 	}
-	return &TradeBatch{
+	return &model.TradeBatch{
 		Trades: trades,
 		Index:  response.Last,
 	}, nil

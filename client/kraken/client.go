@@ -8,7 +8,6 @@ import (
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/coinapi"
-	"github.com/drakos74/free-coin/external/kraken/api"
 	cointime "github.com/drakos74/free-coin/time"
 	"github.com/rs/zerolog/log"
 )
@@ -23,7 +22,7 @@ type Client struct {
 	since    int64
 	current  int
 	interval time.Duration
-	Api      *api.Remote
+	Api      *Remote
 }
 
 // New creates a new client.
@@ -33,7 +32,7 @@ func New(ctx context.Context, since int64, interval time.Duration) *Client {
 	client := &Client{
 		since:    since,
 		interval: interval,
-		Api: &api.Remote{
+		Api: &Remote{
 			PublicApi:  krakenapi.New("KEY", "SECRET"),
 			PrivateApi: krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},
