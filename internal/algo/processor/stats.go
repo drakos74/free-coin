@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/metrics"
+
 	"github.com/drakos74/free-coin/internal/api"
 
 	"github.com/google/uuid"
@@ -19,7 +21,8 @@ import (
 )
 
 const (
-	RatioKey = "RATIO"
+	RatioKey           = "RATIO"
+	statsProcessorName = "stats"
 )
 
 type windowConfig struct {
@@ -125,7 +128,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 
 		for p := range in {
 
-			//metrics.Observe.Trades.WithLabelValues(p.Coin.String(), "multi_window").Inc()
+			metrics.Observer.IncrementTrades(string(p.Coin), statsProcessorName)
 
 			for key, cfg := range stats.configs {
 
@@ -136,6 +139,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
 						c: buffer.NewCounter(2, 3, 4),
 					}
+					log.Info().Str("coin", string(p.Coin)).Msg("started stats processor")
 				}
 
 				if _, ok := stats.windows[key][p.Coin].w.Push(p.Time, p.Price); ok {

@@ -2,24 +2,18 @@ package metrics
 
 import (
 	"sync"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var Observer = &Metrics{
 	mutex:      new(sync.RWMutex),
-	prometheus: NewPrometheusMetrics(),
-}
-
-func init() {
-	prometheus.MustRegister(Observer.prometheus.Trades)
+	prometheus: newPrometheusMetrics(),
 }
 
 type Metrics struct {
 	mutex      *sync.RWMutex
-	prometheus Prometheus
+	prometheus prometheusMetrics
 }
 
-func (m *Metrics) Increment(labels ...string) {
+func (m *Metrics) IncrementTrades(labels ...string) {
 	m.prometheus.Trades.WithLabelValues(labels...).Inc()
 }
