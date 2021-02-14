@@ -56,6 +56,8 @@ restart() {
   build "$process"
   echo "built $process"
 
+  cd "$dir" || exit
+
   new_name="$(increment_name "$process")"
   echo "move previous logs to '$new_name'"
   mv ui/build/static/logs/"$process".log ui/build/static/logs/"$new_name"
