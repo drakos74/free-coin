@@ -39,8 +39,9 @@ func main() {
 	overWatch := coin.New(client, user)
 	go overWatch.Run()
 
+	statsProcessor := processor.MultiStats(client, user)
 	for _, c := range model.Coins {
-		err := overWatch.Start(c, coin.Void(), processor.MultiStats(client, user))
+		err := overWatch.Start(c, coin.Void(), statsProcessor)
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")
 		}
