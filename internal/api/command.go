@@ -45,7 +45,11 @@ func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, arg
 	options := cmd[1:]
 
 	for i, arg := range args {
-		err := arg(options[i])
+		opt := ""
+		if len(options) > i {
+			opt = options[i]
+		}
+		err := arg(opt)
 		if err != nil {
 			return fmt.Errorf("error for argument '%s' at %d: %w", options[i], i, err)
 		}
