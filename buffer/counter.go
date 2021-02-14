@@ -63,11 +63,9 @@ func (c *Counter) Add(s string) map[string]Prediction {
 }
 
 func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction) {
-	println(fmt.Sprintf("values = %+v , v = %+v", values, v))
 	// create the key for each of the configs
 	k := values[len(values)-l:]
 	key := strings.Join(k, ":")
-	println(fmt.Sprintf("key = %+v", key))
 
 	if strings.Contains(key, "<nil>") {
 		return "", nil
@@ -83,11 +81,9 @@ func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction)
 
 	kk := append(k[1:], v)
 	pKey := strings.Join(kk, ":")
-	println(fmt.Sprintf("pKey = %+v", pKey))
 	var prediction *Prediction
 	if !strings.Contains(pKey, "<nil>") {
 		prediction = c.predict(pKey)
-		println(fmt.Sprintf("prediction = %+v", prediction))
 	}
 
 	c.counter[key][v]++
