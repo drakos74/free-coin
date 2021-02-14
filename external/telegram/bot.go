@@ -3,11 +3,17 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/drakos74/free-coin/coinapi"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	telegramBotToken = "TELEGRAM_BOT_TOKEN"
+	telegramChatID   = "TELEGRAM_CHAT_ID"
 )
 
 // allow to change these for the tests
@@ -40,7 +46,7 @@ type Bot struct {
 
 // NewBot creates a new telegram bot implementing the coinapi.UserInterface api.
 func NewBot() (*Bot, error) {
-	bot, err := tgbotapi.NewBotAPI(BotToken)
+	bot, err := tgbotapi.NewBotAPI(os.Getenv(telegramBotToken))
 	if err != nil {
 		return nil, fmt.Errorf("error creating bot: %w", err)
 	}

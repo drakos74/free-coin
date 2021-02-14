@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
@@ -10,6 +11,11 @@ import (
 	"github.com/drakos74/free-coin/external/kraken/api"
 	cointime "github.com/drakos74/free-coin/time"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	key    = "KRAKEN_KEY"
+	secret = "KRAKEN_SECRET"
 )
 
 // Client is the exchange client used To interact with the exchange methods.
@@ -29,7 +35,7 @@ func New(ctx context.Context, since int64, interval time.Duration) *Client {
 		interval: interval,
 		Api: &api.Remote{
 			PublicApi:  krakenapi.New("KEY", "SECRET"),
-			PrivateApi: krakenapi.New(Key, Secret),
+			PrivateApi: krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},
 	}
 	return client

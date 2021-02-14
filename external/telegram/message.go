@@ -3,6 +3,8 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,7 +15,12 @@ import (
 
 // NewMessage creates a new telegram message config
 func NewMessage(message *coinapi.Message) tgbotapi.MessageConfig {
-	msg := tgbotapi.NewMessage(ChatID, message.Text)
+	cID := os.Getenv(telegramChatID)
+	tgChatID, err := strconv.ParseInt(cID, 10, 64)
+	if err != nil {
+		panic("invalid chat id")
+	}
+	msg := tgbotapi.NewMessage(tgChatID, message.Text)
 	if message.Reply > 0 {
 		msg.ReplyToMessageID = message.Reply
 	}
