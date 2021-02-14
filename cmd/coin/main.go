@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"time"
 
+	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/algo/processor"
+	cointime "github.com/drakos74/free-coin/time"
+	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,11 +18,17 @@ func main() {
 	ctx, cnl := context.WithCancel(context.Background())
 
 	// TODO : make the implementation
-	var client model.TradeClient
+
+	client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
 
 	// TODO : make the implementation
-	var user model.UserInterface
-	err := user.Run(ctx)
+	user, err := telegram.NewBot()
+	if err != nil {
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+	err = user.Run(ctx)
 	if err != nil {
 		panic(err.Error())
 	}
