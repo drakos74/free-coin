@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// NewMessage creates a new telegram message config
 func NewMessage(message *coinapi.Message) tgbotapi.MessageConfig {
 	msg := tgbotapi.NewMessage(ChatID, message.Text)
 	if message.Reply > 0 {

@@ -1,4 +1,4 @@
-module github.com/drakos74/free-coin/telegram
+module github.com/drakos74/free-coin/external/telegram
 
 go 1.16
 

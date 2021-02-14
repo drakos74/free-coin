@@ -1,4 +1,4 @@
-package model
+package coinapi
 
 // Coin defines a custom coin type
 type Coin string
@@ -22,23 +22,14 @@ const (
 	XRP Coin = "XRP"
 )
 
-// Config contains coin related configuration.
-var Coins = map[string]Coin{
-	"BTC":   BTC,
-	"ETH":   ETH,
-	"EOS":   EOS,
-	"LINK":  LINK,
-	"WAVES": WAVES,
-	"DOT":   DOT,
-	"XRP":   XRP,
-}
+// Type defines the type of the order/movement buy or sell.
+type Type byte
 
-func KnownCoins() []string {
-	cc := make([]string, len(Coins))
-	i := 0
-	for c := range Coins {
-		cc[i] = c
-		i++
-	}
-	return cc
-}
+const (
+	// NoType defines a missing trade type.
+	NoType Type = iota
+	// Buy defines a buy order.
+	Buy
+	// Sell defines a sell order.
+	Sell
+)

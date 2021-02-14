@@ -1,19 +1,9 @@
 package model
 
-type Position struct {
-	ID           string
-	Coin         Coin
-	Type         Type
-	OpenPrice    float64
-	CurrentPrice float64
-	Volume       float64
-	Cost         float64
-	Net          float64
-	Fees         float64
-}
+import "github.com/drakos74/free-coin/coinapi"
 
-func OpenPosition(coin Coin, t Type) Position {
-	return Position{
+func OpenPosition(coin coinapi.Coin, t coinapi.Type) coinapi.Position {
+	return coinapi.Position{
 		Coin: coin,
 		Type: t,
 	}

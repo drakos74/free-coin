@@ -1,5 +1,6 @@
-package model
+package coinapi
 
+// Position defines an open position details.
 type Position struct {
 	ID           string
 	Coin         Coin
@@ -10,11 +11,4 @@ type Position struct {
 	Cost         float64
 	Net          float64
 	Fees         float64
-}
-
-func OpenPosition(coin Coin, t Type) Position {
-	return Position{
-		Coin: coin,
-		Type: t,
-	}
 }

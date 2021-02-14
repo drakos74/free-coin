@@ -1,4 +1,4 @@
-name: ci
+name: kraken
 on:
   push:
     tags:
@@ -8,14 +8,15 @@ on:
       - main
   pull_request:
 jobs:
-  golangci-coin:
-    name: lint-coin
+  golangci:
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
+          working-directory: external/kraken
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.35
           # Optional: golangci-lint command line arguments.
@@ -27,6 +28,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
+          working-directory: external/kraken
           stable: 'false'
           go-version: '1.15.5' # The Go version to download (if necessary) and use.
       - run: go test -race -cover -covermode=atomic ./...
@@ -37,6 +39,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
+          working-directory: external/kraken
           stable: 'false'
           go-version: '1.15.5' # The Go version to download (if necessary) and use.
       - run: go build -race ./...
