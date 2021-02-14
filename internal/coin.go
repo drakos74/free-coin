@@ -132,6 +132,7 @@ func (o *OverWatch) Start(c api.Coin, processor Processor, processors ...api.Pro
 		return fmt.Errorf("could not start engine for %s: %w", c, err)
 	}
 	o.engines[string(c)] = e
+	log.Info().Str("coin", string(c)).Msg("started engine")
 	return nil
 }
 
