@@ -1,15 +1,33 @@
 package time
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
+// ThisWeek returns the unix time in seconds for the last 7 days.
+func ThisWeek() int64 {
+	return time.Now().AddDate(0, 0, -7).Unix()
+}
+
+// ThisDay returns the unix time in seconds for the last 24 hours.
+func ThisDay() int64 {
+	return time.Now().Add(-24 * time.Hour).Unix()
+}
+
+// LastXHours returns the time x hours before the current time in nanoseconds.
+func LastXHours(h int) int64 {
+	return time.Now().Add(-1*time.Duration(h)*time.Hour).Unix() * time.Second.Nanoseconds()
+}
+
+// ThisInstant returns the current time in nanoseconds.
+func ThisInstant() int64 {
+	return time.Now().Unix() * time.Second.Nanoseconds()
+}
+
 // Execute executes the given function at the specified interval providing also a shutdown hook.
-func Execute(ctx context.Context, interval time.Duration, exec func() error, shutdown func()) {
+func Execute(stop <-chan struct{}, interval time.Duration, exec func() error, shutdown func()) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		err := exec()
@@ -24,8 +42,8 @@ func Execute(ctx context.Context, interval time.Duration, exec func() error, shu
 				if err != nil {
 					log.Warn().Err(err).Msg("ERROR")
 				}
-			case <-ctx.Done():
-				log.Info().Str("context", fmt.Sprintf("%v", ctx)).Float64("interval", interval.Seconds()).Msg("Ticker Done")
+			case <-stop:
+				log.Info().Float64("interval", interval.Seconds()).Msg("execution stopped")
 				ticker.Stop()
 				return
 			}

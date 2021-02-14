@@ -1,10 +1,14 @@
-# github.com/beldur/kraken-go-api-client v0.0.0-20200330152217-ed78f31b987e
+# github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
 ## explicit
 github.com/beldur/kraken-go-api-client
-# github.com/drakos74/free-coin v0.0.0-20210210075349-61a134f2f6ea => ../../
+# github.com/drakos74/free-coin v0.0.0-20210214165707-eba822599bf3
 ## explicit
 github.com/drakos74/free-coin/coinapi
 github.com/drakos74/free-coin/time
+# github.com/drakos74/free-coin/external/kraken v0.0.0-20210214165707-eba822599bf3
+## explicit
+github.com/drakos74/free-coin/external/kraken/api
+github.com/drakos74/free-coin/external/kraken/public
 # github.com/google/uuid v1.1.1
 github.com/google/uuid
 # github.com/rs/zerolog v1.20.0
@@ -13,4 +17,3 @@ github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
-# github.com/drakos74/free-coin => ../../

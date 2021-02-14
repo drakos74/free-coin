@@ -16,6 +16,7 @@ const (
 	ADAEUR   = "ADAEUR"
 	ADAUSD   = "ADAUSD"
 	ADAXBT   = "ADAXBT"
+	AAVEUSD  = "AAVEUSD"
 	BCHEUR   = "BCHEUR"
 	BCHUSD   = "BCHUSD"
 	BCHXBT   = "BCHXBT"
@@ -36,6 +37,7 @@ const (
 	QTUMUSD  = "QTUMUSD"
 	QTUMXBT  = "QTUMXBT"
 	USDTZUSD = "USDTZUSD"
+	XBTUSDT  = "XBTUSDT"
 	XETCXETH = "XETCXETH"
 	XETCXXBT = "XETCXXBT"
 	XETCZEUR = "XETCZEUR"
@@ -109,6 +111,7 @@ type TimeResponse struct {
 // AssetPairsResponse includes asset pair informations
 type AssetPairsResponse struct {
 	ADACAD   AssetPairInfo
+	AAVEUSD  AssetPairInfo
 	ADAETH   AssetPairInfo
 	ADAEUR   AssetPairInfo
 	ADAUSD   AssetPairInfo
@@ -220,6 +223,7 @@ type AssetPairInfo struct {
 // AssetsResponse includes asset informations
 type AssetsResponse struct {
 	ADA  AssetInfo
+	AAVE AssetInfo
 	BCH  AssetInfo
 	DASH AssetInfo
 	EOS  AssetInfo
@@ -266,6 +270,7 @@ type AssetInfo struct {
 // BalanceResponse represents the account's balances (list of currencies)
 type BalanceResponse struct {
 	ADA  float64 `json:"ADA,string"`
+	AAVE float64 `json:"AAVE,string"`
 	BCH  float64 `json:"BCH,string"`
 	DASH float64 `json:"DASH,string"`
 	EOS  float64 `json:"EOS,string"`
@@ -295,6 +300,7 @@ type BalanceResponse struct {
 	ZJPY float64 `json:"ZJPY,string"`
 	ZKRW float64 `json:"ZKRW,string"`
 	ZUSD float64 `json:"ZUSD,string"`
+	TRX  float64 `json:"TRX,string"`
 }
 
 // TradeBalanceResponse struct used as the response for the TradeBalance method
@@ -317,6 +323,7 @@ type Fees struct {
 	ADAEUR   FeeInfo
 	ADAUSD   FeeInfo
 	ADAXBT   FeeInfo
+	AAVEUSD  FeeInfo
 	BCHEUR   FeeInfo
 	BCHUSD   FeeInfo
 	BCHXBT   FeeInfo
@@ -410,6 +417,7 @@ type TickerResponse struct {
 	ADAEUR   PairTickerInfo
 	ADAUSD   PairTickerInfo
 	ADAXBT   PairTickerInfo
+	AAVEUSD  PairTickerInfo
 	BCHEUR   PairTickerInfo
 	BCHUSD   PairTickerInfo
 	BCHXBT   PairTickerInfo
@@ -430,6 +438,7 @@ type TickerResponse struct {
 	QTUMUSD  PairTickerInfo
 	QTUMXBT  PairTickerInfo
 	USDTZUSD PairTickerInfo
+	XBTUSDT  PairTickerInfo
 	XETCXETH PairTickerInfo
 	XETCXXBT PairTickerInfo
 	XETCZEUR PairTickerInfo
