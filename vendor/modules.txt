@@ -5,7 +5,7 @@ github.com/davecgh/go-spew/spew
 github.com/google/uuid
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/rs/zerolog v1.19.0
+# github.com/rs/zerolog v1.20.0
 ## explicit
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
@@ -16,3 +16,4 @@ github.com/rs/zerolog/log
 github.com/stretchr/testify/assert
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
+# github.com/drakos74/free-coin/external/telegram => ./external/telegram

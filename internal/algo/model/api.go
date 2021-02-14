@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/drakos74/free-coin/coinapi"
 )
@@ -23,4 +24,12 @@ type UserInterface interface {
 	Listen(key, prefix string) <-chan coinapi.Command
 	// Send sends a message to the user adn returns the message ID
 	Send(message *coinapi.Message, trigger *coinapi.Trigger) int
+}
+
+// Reply sends a reply message based on the given error to the user.
+func Reply(user UserInterface, message *coinapi.Message, err error) {
+	if err != nil {
+		message.AddLine(fmt.Sprintf("error:%s", err.Error()))
+	}
+	user.Send(message, nil)
 }

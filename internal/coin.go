@@ -104,26 +104,19 @@ func (o *OverWatch) Run() {
 			coinapi.OneOf(&c, model.KnownCoins()...),
 			coinapi.OneOf(&action, "start", "stop"))
 		if err != nil {
-			o.Reply(coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 			continue
 		}
 		// ...execute
 		switch action {
 		case "start":
 			err = o.Start(model.Coins[strings.ToUpper(c)], Void())
-			o.Reply(coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case "stop":
 			err = o.Stop(model.Coins[strings.ToUpper(c)])
 		}
-		o.Reply(coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+		model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 	}
-}
-
-func (o *OverWatch) Reply(message *coinapi.Message, err error) {
-	if err != nil {
-		message.AddLine(fmt.Sprintf("error:%s", err.Error()))
-	}
-	o.user.Send(message, nil)
 }
 
 // Start starts an engine for the given coin and arguments.

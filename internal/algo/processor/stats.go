@@ -43,10 +43,10 @@ type window struct {
 
 type state struct {
 	configs map[time.Duration]windowConfig
-	windows map[time.Duration]map[model.Coin]window
+	windows map[time.Duration]map[coinapi.Coin]window
 }
 
-func trackUserActions(user coinapi.UserInterface, stats *state) {
+func trackUserActions(user model.UserInterface, stats *state) {
 	for command := range user.Listen("stats", "?n") {
 		// TODO :
 		var duration int
@@ -58,7 +58,10 @@ func trackUserActions(user coinapi.UserInterface, stats *state) {
 			coinapi.OneOf(&action, "start", "stop"),
 		)
 		if err != nil {
-			user.Reply(coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			model.Reply(user,
+				coinapi.
+					NewMessage(fmt.Sprintf("[error]: %s", err.Error())).
+					ReplyTo(command.ID), err)
 			continue
 		}
 		timeDuration := time.Duration(duration) * time.Minute
@@ -66,35 +69,38 @@ func trackUserActions(user coinapi.UserInterface, stats *state) {
 		switch action {
 		case "start":
 			if _, ok := stats.configs[timeDuration]; ok {
-				user.Reply(
-					coinapi.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
+				model.Reply(user,
+					coinapi.
+						NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
 						ReplyTo(command.ID), nil)
 				continue
 			}
 			// TODO : decide how to handle the historySizes, especially in combination with the counterSizes.
 			stats.configs[timeDuration] = newWindowConfig(timeDuration)
-			stats.windows[timeDuration] = make(map[model.Coin]window)
-			user.Reply(
-				coinapi.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
+			stats.windows[timeDuration] = make(map[coinapi.Coin]window)
+			model.Reply(user,
+				coinapi.
+					NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
 					ReplyTo(command.ID), nil)
 		case "stop":
 			delete(stats.configs, timeDuration)
 			delete(stats.windows, timeDuration)
-			user.Reply(
-				coinapi.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
+			model.Reply(user,
+				coinapi.
+					NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
 					ReplyTo(command.ID), nil)
 		}
 	}
 }
 
-func openPositionTrigger(p model.Trade, client coinapi.TradeClient) coinapi.TriggerFunc {
+func openPositionTrigger(p coinapi.Trade, client model.TradeClient) coinapi.TriggerFunc {
 	return func(command coinapi.Command, options ...string) (string, error) {
-		var t model.Type
+		var t coinapi.Type
 		switch command.Content {
 		case "buy":
-			t = model.Buy
+			t = coinapi.Buy
 		case "sell":
-			t = model.Sell
+			t = coinapi.Sell
 		default:
 			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
 		}
@@ -103,18 +109,18 @@ func openPositionTrigger(p model.Trade, client coinapi.TradeClient) coinapi.Trig
 }
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
-func MultiStats(client coinapi.TradeClient, user coinapi.UserInterface) model.Processor {
+func MultiStats(client model.TradeClient, user model.UserInterface) coinapi.Processor {
 
 	stats := &state{
 		configs: make(map[time.Duration]windowConfig),
-		windows: make(map[time.Duration]map[model.Coin]window),
+		windows: make(map[time.Duration]map[coinapi.Coin]window),
 	}
 
 	//cmdSample := "?notify [time in minutes] [start/stop]"
 
 	go trackUserActions(user, stats)
 
-	return func(in <-chan model.Trade, out chan<- model.Trade) {
+	return func(in <-chan coinapi.Trade, out chan<- coinapi.Trade) {
 
 		defer func() {
 			log.Info().Msg("closing 'Window' strategy")
@@ -169,17 +175,17 @@ func MultiStats(client coinapi.TradeClient, user coinapi.UserInterface) model.Pr
 }
 
 // MetaKey defines the meta key for this trade
-func MetaKey(coin model.Coin, duration int64) string {
+func MetaKey(coin coinapi.Coin, duration int64) string {
 	return fmt.Sprintf("%s:%s:%v", RatioKey, coin, duration)
 }
 
 // TODO :
 // Gap calculates the time it takes for the price to move by the given percentage in any direction
-func Gap(percentage float64) model.Processor {
-	return func(in <-chan model.Trade, out chan<- model.Trade) {}
+func Gap(percentage float64) coinapi.Processor {
+	return func(in <-chan coinapi.Trade, out chan<- coinapi.Trade) {}
 }
 
-func ExtractLastBucket(coin model.Coin, key int64, trade *model.Trade) (buffer.TimeWindowView, bool) {
+func ExtractLastBucket(coin coinapi.Coin, key int64, trade *coinapi.Trade) (buffer.TimeWindowView, bool) {
 	k := MetaKey(coin, key)
 	if meta, ok := trade.Meta[k]; ok {
 		if ifc, ok := meta.([]interface{}); ok {
@@ -221,7 +227,7 @@ func order(b buffer.TimeWindowView) string {
 	return s
 }
 
-func createStatsMessage(last buffer.TimeWindowView, values []string, predictions map[string]buffer.Prediction, p model.Trade, cfg windowConfig) string {
+func createStatsMessage(last buffer.TimeWindowView, values []string, predictions map[string]buffer.Prediction, p coinapi.Trade, cfg windowConfig) string {
 
 	// TODO : make the trigger arguments more specific to current stats state
 	// identify the move of the coin.
