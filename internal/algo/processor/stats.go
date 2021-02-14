@@ -138,9 +138,14 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 				if _, ok := stats.windows[key][p.Coin]; !ok {
 					stats.windows[key][p.Coin] = window{
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
-						c: buffer.NewCounter(2, 3, 4),
+						c: buffer.NewCounter(cfg.counterSizes...),
 					}
-					log.Info().Str("coin", string(p.Coin)).Msg("started stats processor")
+					log.Info().
+						Ints("counters", cfg.counterSizes).
+						Int64("size", cfg.historySizes).
+						Float64("duration", cfg.duration.Minutes()).
+						Str("coin", string(p.Coin)).
+						Msg("started stats processor")
 				}
 
 				if _, ok := stats.windows[key][p.Coin].w.Push(p.Time, p.Price); ok {
