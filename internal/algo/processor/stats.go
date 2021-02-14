@@ -215,15 +215,13 @@ func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) st
 
 func order(b buffer.TimeWindowView) string {
 	v := math.O10(b.Ratio)
-
 	fs := "%d"
 	if b.Ratio > 0 {
 		fs = fmt.Sprintf("+%s", fs)
 	} else if b.Ratio < 0 {
 		fs = fmt.Sprintf("-%s", fs)
 	}
-
-	s := fmt.Sprintf("+%d", v)
+	s := fmt.Sprintf(fs, v)
 	return s
 }
 
