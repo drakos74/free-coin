@@ -3,8 +3,9 @@ package model
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
-	"github.com/drakos74/free-coin/coinapi"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,57 +16,57 @@ const (
 	XXRPZEUR   = "XXRPZEUR"
 )
 
-func Pair(p coinapi.Coin) string {
+func Pair(p api.Coin) string {
 	switch p {
-	case coinapi.BTC:
+	case api.BTC:
 		return krakenapi.XXBTZEUR
-	case coinapi.ETH:
+	case api.ETH:
 		return krakenapi.XETHZEUR
-	case coinapi.EOS:
+	case api.EOS:
 		return krakenapi.EOSEUR
-	case coinapi.LINK:
+	case api.LINK:
 		return XLINKZEUR
-	case coinapi.WAVES:
+	case api.WAVES:
 		return XWAVESZEUR
-	case coinapi.DOT:
+	case api.DOT:
 		return XDOTZEUR
-	case coinapi.XRP:
+	case api.XRP:
 		return XXRPZEUR
 	default:
 		panic(fmt.Sprintf("unknown coin: %d", p))
 	}
 }
 
-func Coin(p string) coinapi.Coin {
+func Coin(p string) api.Coin {
 	switch p {
 	case krakenapi.XXBTZEUR:
-		return coinapi.BTC
+		return api.BTC
 	case krakenapi.XETHZEUR:
-		return coinapi.ETH
+		return api.ETH
 	case krakenapi.EOSEUR:
-		return coinapi.EOS
+		return api.EOS
 	case XLINKZEUR:
-		return coinapi.LINK
+		return api.LINK
 	case XWAVESZEUR:
-		return coinapi.WAVES
+		return api.WAVES
 	case XDOTZEUR:
-		return coinapi.DOT
+		return api.DOT
 	case XXRPZEUR:
-		return coinapi.XRP
+		return api.XRP
 	default:
-		return coinapi.NoCoin
+		return api.NoCoin
 	}
 }
 
-func Type(s string) coinapi.Type {
+func Type(s string) api.Type {
 	switch s {
 	case "buy":
-		return coinapi.Buy
+		return api.Buy
 	case "sell":
-		return coinapi.Sell
+		return api.Sell
 	default:
 		log.Error().Str("type", s).Msg("unexpected type")
-		return coinapi.NoType
+		return api.NoType
 	}
 }
 

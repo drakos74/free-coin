@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	time2 "github.com/drakos74/free-coin/internal/time"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/algo/processor"
-	cointime "github.com/drakos74/free-coin/time"
 	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/rs/zerolog/log"
 )
@@ -19,7 +20,7 @@ func main() {
 
 	// TODO : make the implementation
 
-	client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
+	client := kraken.New(ctx, time2.ThisInstant(), 10*time.Second)
 
 	// TODO : make the implementation
 	user, err := telegram.NewBot()

@@ -1,9 +1,11 @@
 package model
 
-import "github.com/drakos74/free-coin/coinapi"
+import (
+	"github.com/drakos74/free-coin/internal/api"
+)
 
-func OpenPosition(coin coinapi.Coin, t coinapi.Type) coinapi.Position {
-	return coinapi.Position{
+func OpenPosition(coin api.Coin, t api.Type) api.Position {
+	return api.Position{
 		Coin: coin,
 		Type: t,
 	}

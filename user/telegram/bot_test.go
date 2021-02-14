@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/stretchr/testify/assert"
 
-	"github.com/drakos74/free-coin/coinapi"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -35,9 +36,9 @@ func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) 
 	return &Bot{
 		bot:             &mockBot{input: input, output: output},
 		messages:        make(map[int]string),
-		triggers:        make(map[string]*coinapi.Trigger),
+		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
-		consumers:       make(map[consumerKey]chan coinapi.Command),
+		consumers:       make(map[consumerKey]chan api.Command),
 	}
 }
 
@@ -103,7 +104,7 @@ func TestBot_SendTrigger(t *testing.T) {
 	defaultTimeout = 1 * time.Second
 
 	type test struct {
-		trigger  *coinapi.Trigger
+		trigger  *api.Trigger
 		msgCount int
 		count    int
 		tick     <-chan time.Time
@@ -113,7 +114,7 @@ func TestBot_SendTrigger(t *testing.T) {
 
 	tests := map[string]test{
 		"auto-trigger": {
-			trigger: coinapi.NewTrigger(func(command coinapi.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
 				return command.Content, nil
 			}),
 			msgCount: 1,
@@ -122,7 +123,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs:     []string{"text"},
 		},
 		"no-auto-trigger": {
-			trigger: coinapi.NewTrigger(func(command coinapi.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
 				// options[0] should be the 2nd argument of the defaults
 				return command.Content, nil
 			}).WithDefaults("cc").WithTimeout(1 * time.Second),
@@ -134,7 +135,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs: []string{"text", "cc"},
 		},
 		"manual-trigger": {
-			trigger: coinapi.NewTrigger(func(command coinapi.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
 				return command.Content, nil
 			}).WithDefaults("cc").WithTimeout(30 * time.Second),
 			msgCount: 1,
@@ -196,7 +197,7 @@ func TestBot_SendTrigger(t *testing.T) {
 
 			for i := 0; i < tt.msgCount; i++ {
 				// send a message to the user
-				b.Send(coinapi.NewMessage("text"), tt.trigger)
+				b.Send(api.NewMessage("text"), tt.trigger)
 			}
 
 			wg.Wait()

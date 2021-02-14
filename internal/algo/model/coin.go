@@ -1,16 +1,18 @@
 package model
 
-import "github.com/drakos74/free-coin/coinapi"
+import (
+	"github.com/drakos74/free-coin/internal/api"
+)
 
 // Config contains coin related configuration.
-var Coins = map[string]coinapi.Coin{
-	"BTC":   coinapi.BTC,
-	"ETH":   coinapi.ETH,
-	"EOS":   coinapi.EOS,
-	"LINK":  coinapi.LINK,
-	"WAVES": coinapi.WAVES,
-	"DOT":   coinapi.DOT,
-	"XRP":   coinapi.XRP,
+var Coins = map[string]api.Coin{
+	"BTC":   api.BTC,
+	"ETH":   api.ETH,
+	"EOS":   api.EOS,
+	"LINK":  api.LINK,
+	"WAVES": api.WAVES,
+	"DOT":   api.DOT,
+	"XRP":   api.XRP,
 }
 
 func KnownCoins() []string {

@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drakos74/free-coin/coinapi"
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/rs/zerolog/log"
 )
 
 // Engine defines a trade source engine with the required processors to execute a trade source pipeline.
 type Engine struct {
-	coin       coinapi.Coin
+	coin       api.Coin
 	main       Processor
-	processors []coinapi.Processor
-	autoStop   coinapi.Condition
+	processors []api.Processor
+	autoStop   api.Condition
 	stop       chan struct{}
 }
 
@@ -22,18 +23,18 @@ type Engine struct {
 // c is the coin for this engine
 // main can be used to extract trade information from an engine, which is inherently bound to one exchange
 // autoStop is an automatically stop trigger
-func NewEngine(c coinapi.Coin, main Processor, autoStop coinapi.Condition) *Engine {
+func NewEngine(c api.Coin, main Processor, autoStop api.Condition) *Engine {
 	return &Engine{
 		coin:       c,
 		main:       main,
-		processors: make([]coinapi.Processor, 0),
+		processors: make([]api.Processor, 0),
 		autoStop:   autoStop,
 		stop:       make(chan struct{}),
 	}
 }
 
 // AddProcessor adds a processor func to the Engine.
-func (engine *Engine) AddProcessor(processor coinapi.Processor) *Engine {
+func (engine *Engine) AddProcessor(processor api.Processor) *Engine {
 	engine.processors = append(engine.processors, processor)
 	return engine
 }
@@ -49,7 +50,7 @@ func (engine *Engine) RunWith(client model.TradeClient) (*Engine, error) {
 
 	for _, process := range engine.processors {
 
-		tradeSource := make(chan coinapi.Trade)
+		tradeSource := make(chan api.Trade)
 
 		go process(trades, tradeSource)
 
@@ -99,29 +100,29 @@ func (o *OverWatch) Run() {
 		var c string
 		var action string
 		err := command.Validate(
-			coinapi.Any(),
-			coinapi.Contains("?c", "?coin"),
-			coinapi.OneOf(&c, model.KnownCoins()...),
-			coinapi.OneOf(&action, "start", "stop"))
+			api.Any(),
+			api.Contains("?c", "?coin"),
+			api.OneOf(&c, model.KnownCoins()...),
+			api.OneOf(&action, "start", "stop"))
 		if err != nil {
-			model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			model.Reply(o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 			continue
 		}
 		// ...execute
 		switch action {
 		case "start":
 			err = o.Start(model.Coins[strings.ToUpper(c)], Void())
-			model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			model.Reply(o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case "stop":
 			err = o.Stop(model.Coins[strings.ToUpper(c)])
 		}
-		model.Reply(o.user, coinapi.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+		model.Reply(o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 	}
 }
 
 // Start starts an engine for the given coin and arguments.
-func (o *OverWatch) Start(c coinapi.Coin, processor Processor, processors ...coinapi.Processor) error {
-	engine := NewEngine(c, processor, coinapi.NonStop)
+func (o *OverWatch) Start(c api.Coin, processor Processor, processors ...api.Processor) error {
+	engine := NewEngine(c, processor, api.NonStop)
 	for _, proc := range processors {
 		engine.AddProcessor(proc)
 	}
@@ -135,7 +136,7 @@ func (o *OverWatch) Start(c coinapi.Coin, processor Processor, processors ...coi
 }
 
 // Stop stops an engine for the given coin.
-func (o *OverWatch) Stop(c coinapi.Coin) error {
+func (o *OverWatch) Stop(c api.Coin) error {
 	// TODO : make the key more generic to accommodate multiple clients per coin
 	if e, ok := o.engines[string(c)]; ok {
 		err := e.Close()
@@ -152,7 +153,7 @@ func (o *OverWatch) Stop(c coinapi.Coin) error {
 // The difference with the internal processors is that this one allows cross-engine communication
 // or interactions with the OverWatch.
 type Processor interface {
-	Process(trade coinapi.Trade)
+	Process(trade api.Trade)
 	Gather()
 }
 
@@ -166,7 +167,7 @@ type VoidProcessor struct {
 }
 
 // Process for the void processor does nothing.
-func (v VoidProcessor) Process(trade coinapi.Trade) {
+func (v VoidProcessor) Process(trade api.Trade) {
 	// nothing to do
 }
 

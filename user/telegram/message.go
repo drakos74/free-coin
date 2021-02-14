@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/coinapi"
+	"github.com/drakos74/free-coin/internal/api"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rs/zerolog/log"
 )
 
 // NewMessage creates a new telegram message config
-func NewMessage(message *coinapi.Message) tgbotapi.MessageConfig {
+func NewMessage(message *api.Message) tgbotapi.MessageConfig {
 	cID := os.Getenv(telegramChatID)
 	tgChatID, err := strconv.ParseInt(cID, 10, 64)
 	if err != nil {
@@ -57,7 +58,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.prefix) {
 					select {
-					case consumer <- coinapi.Command{
+					case consumer <- api.Command{
 						ID:      update.Message.MessageID,
 						User:    update.Message.From.UserName,
 						Content: update.Message.Text,
@@ -76,14 +77,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 
 // deferExecute plans the execution of the given trigger (with the defaults)
 // at the specified timeout
-func (b *Bot) deferExecute(timeout time.Duration, replyID int, trigger *coinapi.Trigger) {
+func (b *Bot) deferExecute(timeout time.Duration, replyID int, trigger *api.Trigger) {
 	<-time.Tick(timeout)
 	if trigger, ok := b.triggers[trigger.ID]; ok {
 		if txt, ok := b.checkIfBlocked(trigger); ok {
-			b.Send(coinapi.NewMessage(txt).ReplyTo(replyID), nil)
+			b.Send(api.NewMessage(txt).ReplyTo(replyID), nil)
 			return
 		}
-		b.executeTrigger(trigger, coinapi.Command{
+		b.executeTrigger(trigger, api.Command{
 			Content: trigger.Default[0],
 		}, trigger.Default[1:]...)
 	}
@@ -99,27 +100,27 @@ func (b *Bot) execute(message, replyTo *tgbotapi.Message) {
 		// try to find trigger id if it s still valid
 		println(fmt.Sprintf("triggerID = %+v", triggerID))
 		if trigger, ok := b.triggers[triggerID]; ok {
-			cmd, opts := coinapi.ParseCommand(message.MessageID, message.From.UserName, message.Text)
+			cmd, opts := api.ParseCommand(message.MessageID, message.From.UserName, message.Text)
 			b.executeTrigger(trigger, cmd, opts...)
 		} else {
 			// no trigger found for this id (could be already consumed)
 			log.Debug().Int("id", replyTo.MessageID).Msg("trigger already applied")
-			b.Send(coinapi.NewMessage("trigger already applied").ReplyTo(message.MessageID), nil)
+			b.Send(api.NewMessage("trigger already applied").ReplyTo(message.MessageID), nil)
 		}
 		// clean up the initial message cache
 		delete(b.messages, replyTo.MessageID)
 	} else {
 		log.Error().Int("id", replyTo.MessageID).Msg("trigger expired")
-		b.Send(coinapi.NewMessage("trigger expired").ReplyTo(message.MessageID), nil)
+		b.Send(api.NewMessage("trigger expired").ReplyTo(message.MessageID), nil)
 	}
 }
 
 // executeTrigger will execute the given trigger.
 // it will make sure the block on the trigger and state regarding this event are handled accordingly.
-func (b *Bot) executeTrigger(trigger *coinapi.Trigger, cmd coinapi.Command, opts ...string) {
+func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command, opts ...string) {
 	rsp, err := trigger.Exec(cmd, opts...)
 	if err != nil {
-		b.Send(coinapi.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
+		b.Send(api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
 		return
 	}
 	// TODO : check how and when to delete the triggers
@@ -131,5 +132,5 @@ func (b *Bot) executeTrigger(trigger *coinapi.Trigger, cmd coinapi.Command, opts
 		<-time.Tick(blockTimeout)
 		delete(b.blockedTriggers, trigger.ID)
 	}()
-	b.Send(coinapi.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)
+	b.Send(api.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)
 }

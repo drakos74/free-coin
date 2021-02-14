@@ -3,11 +3,12 @@ package kraken
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/drakos74/free-coin/client/kraken/model"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/client/kraken/public"
-	"github.com/drakos74/free-coin/coinapi"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,7 +18,7 @@ type Remote struct {
 	PrivateApi *krakenapi.KrakenAPI
 }
 
-func (r *Remote) Trades(coin coinapi.Coin, since int64) (*model.TradeBatch, error) {
+func (r *Remote) Trades(coin api.Coin, since int64) (*model.TradeBatch, error) {
 	pair := model.Pair(coin)
 	log.Trace().
 		Str("method", "Count").
@@ -36,11 +37,11 @@ func transform(pair string, response *krakenapi.TradesResponse) (*model.TradeBat
 	l := len(response.Trades)
 	if l == 0 {
 		return &model.TradeBatch{
-			Trades: []coinapi.Trade{},
+			Trades: []api.Trade{},
 			Index:  response.Last,
 		}, nil
 	}
-	trades := make([]coinapi.Trade, l)
+	trades := make([]api.Trade, l)
 	for i := 0; i < l; i++ {
 		trades[i] = public.NewTrade(pair, i == l-1, response.Trades[i])
 	}

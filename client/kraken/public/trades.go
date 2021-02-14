@@ -3,21 +3,22 @@ package public
 import (
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/client/kraken/model"
-	"github.com/drakos74/free-coin/coinapi"
 )
 
 type TradeInfo chan<- krakenapi.TradeInfo
 
-func NewTrade(pair string, active bool, trade krakenapi.TradeInfo) coinapi.Trade {
-	var t coinapi.Type
+func NewTrade(pair string, active bool, trade krakenapi.TradeInfo) api.Trade {
+	var t api.Type
 	if trade.Buy {
-		t = coinapi.Buy
+		t = api.Buy
 	} else if trade.Sell {
-		t = coinapi.Sell
+		t = api.Sell
 	}
-	return coinapi.Trade{
+	return api.Trade{
 		Coin:   model.Coin(pair),
 		Price:  trade.PriceFloat,
 		Volume: trade.VolumeFloat,

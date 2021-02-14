@@ -6,9 +6,11 @@ import (
 	"os"
 	"time"
 
+	time2 "github.com/drakos74/free-coin/internal/time"
+
+	"github.com/drakos74/free-coin/internal/api"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
-	"github.com/drakos74/free-coin/coinapi"
-	cointime "github.com/drakos74/free-coin/time"
 	"github.com/rs/zerolog/log"
 )
 
@@ -51,15 +53,15 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(stop <-chan struct{}, coin coinapi.Coin, stopExecution coinapi.Condition) (coinapi.TradeSource, error) {
+func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.Condition) (api.TradeSource, error) {
 
-	out := make(chan coinapi.Trade)
+	out := make(chan api.Trade)
 
 	// receive and delegate tick events To the output
-	trades := make(chan coinapi.Trade)
+	trades := make(chan api.Trade)
 
 	// controller decides To delegate trade for processing, or stop execution
-	go func(trades chan coinapi.Trade) {
+	go func(trades chan api.Trade) {
 		defer func() {
 			log.Info().Msg("closing trade controller")
 			close(out)
@@ -79,7 +81,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinapi.Coin, stopExecution c
 	}(trades)
 
 	// executor for polling trades
-	go cointime.Execute(stop, c.interval, func(trades chan<- coinapi.Trade) func() error {
+	go time2.Execute(stop, c.interval, func(trades chan<- api.Trade) func() error {
 
 		type state struct {
 			last int64
@@ -116,10 +118,10 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinapi.Coin, stopExecution c
 
 }
 
-func (c *Client) ClosePosition(position coinapi.Position) error {
+func (c *Client) ClosePosition(position api.Position) error {
 	return fmt.Errorf("not implemented ClosePosition for %+v", position)
 }
 
-func (c *Client) OpenPosition(position coinapi.Position) error {
+func (c *Client) OpenPosition(position api.Position) error {
 	return fmt.Errorf("not implemented OpenPosition for %+v", position)
 }

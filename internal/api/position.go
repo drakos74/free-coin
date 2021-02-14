@@ -1,4 +1,4 @@
-package coinapi
+package api
 
 // Position defines an open position details.
 type Position struct {

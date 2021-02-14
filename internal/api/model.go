@@ -1,4 +1,4 @@
-package coinapi
+package api
 
 // Coin defines a custom coin type
 type Coin string

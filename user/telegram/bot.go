@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/drakos74/free-coin/coinapi"
+	"github.com/drakos74/free-coin/internal/api"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rs/zerolog/log"
 )
@@ -39,9 +40,9 @@ type consumerKey struct {
 type Bot struct {
 	bot             botAPI
 	messages        map[int]string
-	triggers        map[string]*coinapi.Trigger
+	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
-	consumers       map[consumerKey]chan coinapi.Command
+	consumers       map[consumerKey]chan api.Command
 }
 
 // NewBot creates a new telegram bot implementing the coinapi.UserInterface api.
@@ -55,9 +56,9 @@ func NewBot() (*Bot, error) {
 	return &Bot{
 		bot:             bot,
 		messages:        make(map[int]string),
-		triggers:        make(map[string]*coinapi.Trigger),
+		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
-		consumers:       make(map[consumerKey]chan coinapi.Command),
+		consumers:       make(map[consumerKey]chan api.Command),
 	}, nil
 }
 
@@ -76,8 +77,8 @@ func (b *Bot) Run(ctx context.Context) error {
 }
 
 // Listen exposes a channel to the caller with updates for the given prefix.
-func (b *Bot) Listen(key, prefix string) <-chan coinapi.Command {
-	ch := make(chan coinapi.Command)
+func (b *Bot) Listen(key, prefix string) <-chan api.Command {
+	ch := make(chan api.Command)
 	b.consumers[consumerKey{
 		key:    key,
 		prefix: prefix,
@@ -86,7 +87,7 @@ func (b *Bot) Listen(key, prefix string) <-chan coinapi.Command {
 }
 
 // Send sends the given message with the attached details to the specified telegram chat.
-func (b *Bot) Send(message *coinapi.Message, trigger *coinapi.Trigger) int {
+func (b *Bot) Send(message *api.Message, trigger *api.Trigger) int {
 	msg := NewMessage(message)
 	msgID, err := b.send(msg, trigger)
 	if err != nil {
@@ -99,7 +100,7 @@ func (b *Bot) Send(message *coinapi.Message, trigger *coinapi.Trigger) int {
 // send will send a message and store the appropriate trigger.
 // it will automatically execute the default command if user does not reply.
 // TODO : send confirmation of auto-invoke - use tgbotapi.Message here
-func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *coinapi.Trigger) (int, error) {
+func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
 	// before sending check for blocked triggers ...
 	if txt, ok := b.checkIfBlocked(trigger); ok {
 		sent, err := b.bot.Send(addLine(msg, txt))
@@ -130,7 +131,7 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *coinapi.Trigger) (int, e
 }
 
 // checkIfBlocked checks if the trigger is currently blocked.
-func (b *Bot) checkIfBlocked(trigger *coinapi.Trigger) (string, bool) {
+func (b *Bot) checkIfBlocked(trigger *api.Trigger) (string, bool) {
 	if trigger != nil {
 		if blockedTime, ok := b.blockedTriggers[trigger.ID]; ok {
 			// trigger has been blocked
