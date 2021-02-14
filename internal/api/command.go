@@ -51,7 +51,7 @@ func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, arg
 		}
 		err := arg(opt)
 		if err != nil {
-			return fmt.Errorf("error for argument '%s' at %d: %w", options[i], i, err)
+			return fmt.Errorf("error for argument '%s' at %d: %w", opt, i, err)
 		}
 	}
 	return nil
