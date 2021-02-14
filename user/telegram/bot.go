@@ -107,13 +107,16 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 		return sent.MessageID, err
 	}
 	// otherwise send the message and add the trigger
-	// TODO : be able to expose more details on the trigger
+	// TODO : refactor and wrap up this logic
 	t := defaultTimeout
 	if trigger != nil {
 		if trigger.Timeout > 0 {
 			t = trigger.Timeout
 		}
-		msg = addLine(msg, fmt.Sprintf("[%s] %vm -> %v", trigger.Description, t.Minutes(), trigger.Default))
+	}
+	// TODO : be able to expose more details on the trigger
+	if trigger != nil && len(trigger.Default) > 0 {
+		msg = addLine(msg, fmt.Sprintf("[%s] %vs -> %v", trigger.Description, t.Seconds(), trigger.Default))
 	}
 	sent, err := b.bot.Send(msg)
 	if err != nil {
