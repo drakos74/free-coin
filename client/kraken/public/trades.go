@@ -3,10 +3,9 @@ package public
 import (
 	"time"
 
-	"github.com/drakos74/free-coin/internal/api"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/client/kraken/model"
+	"github.com/drakos74/free-coin/internal/api"
 )
 
 type TradeInfo chan<- krakenapi.TradeInfo

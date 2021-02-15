@@ -1,4 +1,4 @@
-# github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
+# github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a => ../kraken-go-api-client
 ## explicit
 github.com/beldur/kraken-go-api-client
 # github.com/beorn7/perks v1.0.1
@@ -87,3 +87,4 @@ google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
+# github.com/beldur/kraken-go-api-client => ../kraken-go-api-client

@@ -11,3 +11,5 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 )
+
+replace github.com/beldur/kraken-go-api-client => ../kraken-go-api-client

@@ -248,6 +248,10 @@ func (api *KrakenAPI) Trades(pair string, since int64) (*TradesResponse, error) 
 		Trades: make([]TradeInfo, 0),
 	}
 
+	if v[pair] == nil {
+		return nil, fmt.Errorf("got nil response for %s",pair)
+	}
+
 	trades := v[pair].([]interface{})
 	for _, v := range trades {
 		trade := v.([]interface{})
@@ -278,13 +282,13 @@ func (api *KrakenAPI) Trades(pair string, since int64) (*TradesResponse, error) 
 }
 
 // Balance returns all account asset balances
-func (api *KrakenAPI) Balance() (*BalanceResponse, error) {
-	resp, err := api.queryPrivate("Balance", url.Values{}, &BalanceResponse{})
+func (api *KrakenAPI) Balance(response interface{}) error {
+	response, err := api.queryPrivate("Balance", url.Values{}, response)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return resp.(*BalanceResponse), nil
+	return nil
 }
 
 // TradeBalance returns trade balance info
@@ -338,6 +342,31 @@ func (api *KrakenAPI) OpenOrders(args map[string]string) (*OpenOrdersResponse, e
 	}
 
 	return resp.(*OpenOrdersResponse), nil
+}
+
+// OpenPositions returns all open orders
+func (api *KrakenAPI) OpenPositions(args map[string]string) (*OpenPositionsResponse, error) {
+	params := url.Values{}
+	if value, ok := args["txid"]; ok {
+		params.Add("txid", value)
+	}
+	if value, ok := args["docalcs"]; ok {
+		params.Add("docalcs", value)
+	}
+	if value, ok := args["consolidation"]; ok {
+		params.Add("consolidation", value)
+	}
+	if value, ok := args["market"]; ok {
+		params.Add("market", value)
+	}
+
+	resp, err := api.queryPrivate("OpenPositions", params, &OpenPositionsResponse{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.(*OpenPositionsResponse), nil
 }
 
 // ClosedOrders returns all closed orders
@@ -633,7 +662,7 @@ func (api *KrakenAPI) doRequest(reqURL string, values url.Values, headers map[st
 
 	err = json.Unmarshal(body, &jsonData)
 	if err != nil {
-		return nil, fmt.Errorf("Could not execute request! #6 (%s)", err.Error())
+		return nil, fmt.Errorf("Could not execute request! #6 (%s): %w", string(body), err)
 	}
 
 	// Check for Kraken API error

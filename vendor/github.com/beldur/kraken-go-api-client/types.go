@@ -563,6 +563,18 @@ type TradeHistoryInfo struct {
 	Volume        float64 `json:"vol,string"`
 	Margin        float64 `json:"margin,string"`
 	Misc          string  `json:"misc"`
+	PositionInfo
+}
+
+type PositionInfo struct {
+	Status string   `json:"posstatus"`
+	Price  string   `json:"cprice"`
+	Cost   string   `json:"ccost"`
+	Fee    float64  `json:"cfee,string"`
+	Volume string   `json:"cvol"`
+	Margin string   `json:"cmargin"`
+	Net    string   `json:"net"`
+	Trades []string `json:"trades"`
 }
 
 // TradeInfo represents a trades information
@@ -684,6 +696,40 @@ func (o *OrderBookItem) UnmarshalJSON(data []byte) error {
 	o.Ts = tmpStruct.ts
 	return nil
 }
+
+type Float64 float64
+
+func (ff *Float64) UnmarshalJSON(data []byte) error {
+	f, err := strconv.ParseFloat(string(data), 64)
+	if err != nil {
+		return err
+	}
+	*ff = Float64(f)
+	return nil
+}
+
+// Position - Represents a single position
+type Position struct {
+	TransactionID      string  `json:"-"`
+	OrderTransactionID string  `json:"ordertxid"`
+	Pair               string  `json:"pair"`
+	TradeTime          float64 `json:"time"`
+	PositionType       string  `json:"type"`
+	OrderType          string  `json:"ordertype"`
+	Cost               float64 `json:"cost,string"`
+	Fee                float64 `json:"fee,string"`
+	Volume             float64 `json:"vol,string"`
+	VolumeClosed       float64 `json:"vol_closed,string"`
+	Margin             float64 `json:"margin,string"`
+	Value              float64 `json:"value,string"`
+	Net                Float64 `json:"net,string"`
+	Misc               string  `json:"misc"`
+	OrderFlags         string  `json:"oflags"`
+	Status             string  `json:"posstatus"`
+}
+
+// OpenPositionsResponse response when querying the open positions https://www.kraken.com/features/api#get-open-positions
+type OpenPositionsResponse map[string]Position
 
 // DepthResponse is a response from kraken to Depth request.
 type DepthResponse map[string]OrderBook
