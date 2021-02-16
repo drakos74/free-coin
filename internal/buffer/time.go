@@ -6,25 +6,28 @@ import "time"
 // It allows to retrieve buckets of Stats from a streaming data set.
 // the bucket indexing is based on the time.
 type TimeWindowView struct {
-	Time   time.Time `json:"time"`
-	Count  int       `json:"count"`
-	Price  float64   `json:"price"`
-	Diff   float64   `json:"diff"`
-	Ratio  float64   `json:"ratio"`
-	StdDev float64   `json:"std"`
+	Time    time.Time `json:"time"`
+	Count   int       `json:"count"`
+	Price   float64   `json:"price"`
+	EMADiff float64   `json:"ema_diff"`
+	Diff    float64   `json:"diff"`
+	Ratio   float64   `json:"ratio"`
+	StdDev  float64   `json:"std"`
 }
 
 // NewView creates a new time view from a time bucket.
 func NewView(bucket TimeBucket, index int) TimeWindowView {
 	avg := bucket.Values().Stats()[index].Avg()
+	ema := bucket.Values().Stats()[index].EMA()
 	diff := bucket.Values().Stats()[index].Diff()
 	return TimeWindowView{
-		Time:   bucket.Time,
-		Count:  bucket.Size(),
-		Price:  avg,
-		Diff:   diff,
-		Ratio:  diff / avg,
-		StdDev: bucket.Values().Stats()[index].StDev(),
+		Time:    bucket.Time,
+		Count:   bucket.Size(),
+		Price:   avg,
+		Diff:    diff,
+		EMADiff: (ema - avg) / avg,
+		Ratio:   diff / avg,
+		StdDev:  bucket.Values().Stats()[index].StDev(),
 	}
 }
 

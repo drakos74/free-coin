@@ -3,7 +3,7 @@ package api
 import "time"
 
 // TradeSource is a channel for receiving and sending trades.
-type TradeSource chan Trade
+type TradeSource chan *Trade
 
 // Trade represents a trade object with all necessary details.
 type Trade struct {
@@ -21,19 +21,19 @@ type Trade struct {
 // Processor defines the processing model of input and output channels for trades.
 // Each processor will trigger the next one, when pushing the trade to the output channel.
 // TODO : add load and save functionality for processors interface to allow saving and loading state.
-type Processor func(in <-chan Trade, out chan<- Trade)
+type Processor func(in <-chan *Trade, out chan<- *Trade)
 
 // Condition defines a boundary condition to stop execution based on the consumed trades.
-type Condition func(trade Trade, numberOfTrades int) bool
+type Condition func(trade *Trade, numberOfTrades int) bool
 
-func Counter(limit int) func(trade Trade, numberOfTrades int) bool {
-	return func(trade Trade, numberOfTrades int) bool {
+func Counter(limit int) func(trade *Trade, numberOfTrades int) bool {
+	return func(trade *Trade, numberOfTrades int) bool {
 		return numberOfTrades > 0 && numberOfTrades >= limit
 	}
 }
 
-func Until(time time.Time) func(trade Trade, numberOfTrades int) bool {
-	return func(trade Trade, numberOfTrades int) bool {
+func Until(time time.Time) func(trade *Trade, numberOfTrades int) bool {
+	return func(trade *Trade, numberOfTrades int) bool {
 		return trade.Time.After(time)
 	}
 }
@@ -45,6 +45,6 @@ func WhileHasTrades() func(trade Trade, numberOfTrades int) bool {
 	}
 }
 
-func NonStop(trade Trade, numberOfTrades int) bool {
+func NonStop(trade *Trade, numberOfTrades int) bool {
 	return false
 }

@@ -97,7 +97,7 @@ func trackUserActions(user model.UserInterface, stats *state) {
 	}
 }
 
-func openPositionTrigger(p api.Trade, client model.TradeClient) api.TriggerFunc {
+func openPositionTrigger(p *api.Trade, client model.TradeClient) api.TriggerFunc {
 	return func(command api.Command, options ...string) (string, error) {
 		var t api.Type
 		switch command.Content {
@@ -113,6 +113,7 @@ func openPositionTrigger(p api.Trade, client model.TradeClient) api.TriggerFunc 
 }
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
+// TODO : split responsibilities of this class to make things more clean and re-usable
 func MultiStats(client model.TradeClient, user model.UserInterface) api.Processor {
 
 	stats := &state{
@@ -131,23 +132,23 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 
 	go trackUserActions(user, stats)
 
-	return func(in <-chan api.Trade, out chan<- api.Trade) {
+	return func(in <-chan *api.Trade, out chan<- *api.Trade) {
 
 		defer func() {
-			log.Info().Msg("closing 'Window' strategy")
+			log.Info().Str("processor", statsProcessorName).Msg("closing' strategy")
 			close(out)
 		}()
 
-		for p := range in {
+		for trade := range in {
 
-			metrics.Observer.IncrementTrades(string(p.Coin), statsProcessorName)
+			metrics.Observer.IncrementTrades(string(trade.Coin), statsProcessorName)
 
 			for key, cfg := range stats.configs {
 
 				// we got the config, check if we need something to do in the windows
 
-				if _, ok := stats.windows[key][p.Coin]; !ok {
-					stats.windows[key][p.Coin] = window{
+				if _, ok := stats.windows[key][trade.Coin]; !ok {
+					stats.windows[key][trade.Coin] = window{
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
 						c: buffer.NewCounter(cfg.counterSizes...),
 					}
@@ -155,12 +156,12 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						Ints("counters", cfg.counterSizes).
 						Int64("size", cfg.historySizes).
 						Float64("duration", cfg.duration.Minutes()).
-						Str("coin", string(p.Coin)).
+						Str("coin", string(trade.Coin)).
 						Msg("started stats processor")
 				}
 
-				if _, ok := stats.windows[key][p.Coin].w.Push(p.Time, p.Price); ok {
-					buckets := stats.windows[key][p.Coin].w.Get(func(bucket interface{}) interface{} {
+				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price); ok {
+					buckets := stats.windows[key][trade.Coin].w.Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
 							// get the 'zerowth' stats element, as we are only assing the price a few lines above,
@@ -171,26 +172,26 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						return nil
 					})
 
-					values, rsi, last := ExtractFromBuckets(buckets, order)
+					values, rsi, last := extractFromBuckets(buckets, order)
 
 					// count the occurrences
-					predictions := stats.windows[key][p.Coin].c.Add(values[len(values)-1])
+					predictions := stats.windows[key][trade.Coin].c.Add(values[len(values)-1])
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
-					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
-					metaKey := fmt.Sprintf("stats|%.0f|%s", key.Seconds(), string(p.Coin))
-					p.Meta[fmt.Sprintf("%s|%s", metaKey, "rsi")] = RSIStats{
+					//trade.Enrich(MetaKey(trade.Coin, int64(cfg.duration.Seconds())), buffer)
+					metaKey := MetaKey(trade.Coin, key)
+					trade.Meta[fmt.Sprintf("%s|%s", metaKey, "rsi")] = RSIStats{
 						RSI:    rsi,
 						Sample: len(values),
 					}
-					p.Meta[fmt.Sprintf("%s|%s", metaKey, "predictios")] = predictions
+					trade.Meta[fmt.Sprintf("%s|%s", metaKey, "predictios")] = predictions
 
 					// TODO : send messages only if we are consuming live ...
-					if user != nil && p.Live {
+					if user != nil && trade.Live {
 						// TODO : add tests for this
 						user.Send(
-							api.NewMessage(createStatsMessage(last, values, rsi, predictions, p, cfg)),
-							api.NewTrigger(openPositionTrigger(p, client)).
+							api.NewMessage(createStatsMessage(last, values, rsi, predictions, trade, cfg)),
+							api.NewTrigger(openPositionTrigger(trade, client)).
 								WithID(uuid.New().String()).
 								WithDescription("buy | sell"),
 						)
@@ -199,39 +200,46 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
 				}
 			}
-			out <- p
+			out <- trade
 		}
 	}
 }
 
-// MetaKey defines the meta key for this trade
-func MetaKey(coin api.Coin, duration int64) string {
-	return fmt.Sprintf("%s:%s:%v", RatioKey, coin, duration)
+// MetaKey defines the meta key for this processor
+func MetaKey(coin api.Coin, duration time.Duration) string {
+	return fmt.Sprintf("%s|%.0f|%s", statsProcessorName, duration.Seconds(), string(coin))
 }
 
-// TODO :
-// Gap calculates the time it takes for the price to move by the given percentage in any direction
-func Gap(percentage float64) api.Processor {
-	return func(in <-chan api.Trade, out chan<- api.Trade) {}
+// MetaRSIKey  returns the metadata key for the rsi stats.
+func MetaKeyRSI(metaKey string) string {
+	return fmt.Sprintf("%s|%s", metaKey, "rsi")
 }
 
-func ExtractLastBucket(coin api.Coin, key int64, trade *api.Trade) (buffer.TimeWindowView, bool) {
-	k := MetaKey(coin, key)
-	if meta, ok := trade.Meta[k]; ok {
-		if ifc, ok := meta.([]interface{}); ok {
-			if bucket, ok := ifc[len(ifc)-1].(buffer.TimeWindowView); ok {
-				return bucket, true
-			} else {
-				log.Warn().Str("type", fmt.Sprintf("%+v", reflect.TypeOf(ifc[len(ifc)-1]))).Msg("could not get expected type")
-			}
-		} else {
-			log.Warn().Str("key", fmt.Sprintf("%+v", k)).Msg("key not found in trade metadata")
-		}
+// MetaStatsPredictionsKey returns the metadata key for the stats predictions.
+func MetaStatsPredictionsKey(metaKey string) string {
+	return fmt.Sprintf("%s|%s", metaKey, "predictios")
+}
+
+// MetaRSI returns the RSI stats from the metadata of the trade.
+func MetaRSI(trade *api.Trade, duration time.Duration) RSIStats {
+	metaKey := MetaKey(trade.Coin, duration)
+	if rsi, ok := trade.Meta[MetaKeyRSI(metaKey)].(RSIStats); ok {
+		return rsi
 	}
-	return buffer.TimeWindowView{}, false
+	return RSIStats{}
 }
 
-func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, buffer.TimeWindowView) {
+// MetaStatsPredictions returns the statistical predictions from the trade metadata.
+func MetaStatsPredictions(trade *api.Trade, duration time.Duration) map[string]buffer.Prediction {
+	metaKey := MetaKey(trade.Coin, duration)
+	if predictions, ok := trade.Meta[MetaStatsPredictionsKey(metaKey)].(map[string]buffer.Prediction); ok {
+		return predictions
+	}
+	return map[string]buffer.Prediction{}
+}
+
+// extractFromBuckets extracts from the given buckets the needed values
+func extractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, buffer.TimeWindowView) {
 	s := reflect.ValueOf(ifc)
 	bb := make([]string, s.Len())
 	var last buffer.TimeWindowView
@@ -258,8 +266,7 @@ func order(b buffer.TimeWindowView) string {
 	return s
 }
 
-func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, predictions map[string]buffer.Prediction, p api.Trade, cfg windowConfig) string {
-
+func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, predictions map[string]buffer.Prediction, p *api.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats state
 	// identify the move of the coin.
 	move := emoji.Zero

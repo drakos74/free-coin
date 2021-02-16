@@ -6,11 +6,9 @@ import (
 	"os"
 	"time"
 
-	time2 "github.com/drakos74/free-coin/internal/time"
-
-	"github.com/drakos74/free-coin/internal/api"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/internal/api"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,13 +54,13 @@ func (c *Client) Close() error {
 // TODO : add panic mode to close positions if api call fails ...
 func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.Condition) (api.TradeSource, error) {
 
-	out := make(chan api.Trade)
+	out := make(chan *api.Trade)
 
 	// receive and delegate tick events To the output
-	trades := make(chan api.Trade)
+	trades := make(chan *api.Trade)
 
 	// controller decides To delegate trade for processing, or stop execution
-	go func(trades chan api.Trade) {
+	go func(trades chan *api.Trade) {
 		defer func() {
 			log.Info().Msg("closing trade controller")
 			close(out)
@@ -82,7 +80,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.C
 	}(trades)
 
 	// executor for polling trades
-	go time2.Execute(stop, c.interval, func(trades chan<- api.Trade) func() error {
+	go cointime.Execute(stop, c.interval, func(trades chan<- *api.Trade) func() error {
 
 		type state struct {
 			last int64
@@ -105,7 +103,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.C
 				}
 				// signal the end of the trades batch
 				trade.Active = active
-				trades <- trade //public.OpenTrade(coin, trade, active)
+				trades <- &trade //public.OpenTrade(coin, trade, active)
 			}
 			s.last = tradeResponse.Index
 			return nil

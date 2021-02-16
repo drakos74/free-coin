@@ -50,7 +50,7 @@ func (engine *Engine) RunWith(client model.TradeClient) (*Engine, error) {
 
 	for _, process := range engine.processors {
 
-		tradeSource := make(chan api.Trade)
+		tradeSource := make(chan *api.Trade)
 
 		go process(trades, tradeSource)
 
@@ -154,7 +154,7 @@ func (o *OverWatch) Stop(c api.Coin) error {
 // The difference with the internal processors is that this one allows cross-engine communication
 // or interactions with the OverWatch.
 type Processor interface {
-	Process(trade api.Trade)
+	Process(trade *api.Trade)
 	Gather()
 }
 
@@ -168,7 +168,7 @@ type VoidProcessor struct {
 }
 
 // Process for the void processor does nothing.
-func (v VoidProcessor) Process(trade api.Trade) {
+func (v VoidProcessor) Process(trade *api.Trade) {
 	// nothing to do
 }
 
