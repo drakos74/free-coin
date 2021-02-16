@@ -146,7 +146,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgCount: 1,
 			// we get 3 because we also get the trigger expired message when we try to reply
 			count: 2,
-			tick:  time.Tick(5 * time.Second),
+			tick:  time.Tick(10 * time.Second),
 			reply: func(msg tgbotapi.MessageConfig, in chan tgbotapi.Update) {
 				in <- tgbotapi.Update{
 					Message: &tgbotapi.Message{

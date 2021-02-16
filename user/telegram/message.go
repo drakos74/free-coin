@@ -87,7 +87,6 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 // this is to synchronise all commands in a single routine and avoid lock contention and race conditions.
 func (b *Bot) processExecution() {
 	for exec := range b.process {
-		println(fmt.Sprintf("exec = %+v", exec))
 		if exec.message != nil && exec.trigger != nil {
 			// just to handle the adding of the trigger
 			b.messages[exec.message.MessageID] = exec.trigger.ID
