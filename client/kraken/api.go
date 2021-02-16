@@ -44,7 +44,7 @@ func transform(pair string, interval time.Duration, response *krakenapi.TradesRe
 	}
 	last := cointime.FromNano(response.Last)
 	var live bool
-	if time.Now().Sub(last) < interval {
+	if time.Since(last) < interval {
 		live = true
 	}
 	trades := make([]api.Trade, l)
