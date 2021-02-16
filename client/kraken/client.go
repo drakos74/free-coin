@@ -35,6 +35,7 @@ func New(ctx context.Context, since int64, interval time.Duration) *Client {
 		since:    since,
 		interval: interval,
 		Api: &Remote{
+			Interval:   interval,
 			PublicApi:  krakenapi.New("KEY", "SECRET"),
 			PrivateApi: krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},

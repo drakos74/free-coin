@@ -1,56 +1,34 @@
 package math
 
 import (
-	"fmt"
 	"math"
 )
 
 // RSI is an RSI streaming calculator
 type RSI struct {
-	pos   float64
-	neg   float64
-	count int
+	pos      float64
+	neg      float64
+	countPos int
+	countNeg int
 }
 
 // Add adds another value for the RSI calculation and returns the intermediate result.
-func (rsi *RSI) Add(f float64) int {
+func (rsi *RSI) Add(f float64) (value, count int) {
 	if f > 0 {
 		rsi.pos += f
+		rsi.countPos++
 	} else {
 		rsi.neg += math.Abs(f)
+		rsi.countNeg++
 	}
-	rsi.count++
 
-	c := float64(rsi.count)
-
-	si := (rsi.pos / c) / (rsi.neg / c)
-
-	fmt.Println(fmt.Sprintf("count = %v,pos = %+v,neg = %+v,si = %+v", rsi.count, rsi.pos, rsi.neg, si))
-
-	return int(math.Round(100 - (100 / (1 + si))))
+	return rsi.Get()
 }
 
-// RSI calculates the RSI indicator on the given sample.
-// To avoid duplicate iteration an extractor is given to use not only float slices.
-func CalcRSI(values []interface{}, extractAverage func(interface{}) float64) int {
+// Get returns the rsi for the added samples
+func (rsi *RSI) Get() (value, count int) {
 
-	pos := 0.0
-	neg := 0.0
-	count := 0
-	for _, v := range values {
-		f := extractAverage(v)
-		if f > 0 {
-			pos += f
-		} else {
-			neg += f
-		}
-		count++
-	}
+	si := (rsi.pos / float64(rsi.countPos)) / (rsi.neg / float64(rsi.countNeg))
 
-	c := float64(count)
-
-	si := (pos / c) / (neg / c)
-
-	return int(math.Round(100 - (100 / (1 + si))))
-
+	return int(math.Round(100 - (100 / (1 + si)))), rsi.countPos + rsi.countNeg
 }

@@ -25,6 +25,10 @@ const (
 	statsProcessorName = "stats"
 )
 
+var (
+	defaultDurations = []time.Duration{10 * time.Minute}
+)
+
 type windowConfig struct {
 	duration     time.Duration
 	historySizes int64
@@ -34,8 +38,8 @@ type windowConfig struct {
 func newWindowConfig(duration time.Duration) windowConfig {
 	return windowConfig{
 		duration:     duration,
-		historySizes: 6,
-		counterSizes: []int{2, 3, 4},
+		historySizes: 14,
+		counterSizes: []int{3, 4, 5},
 	}
 }
 
@@ -116,6 +120,13 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 		windows: make(map[time.Duration]map[api.Coin]window),
 	}
 
+	// add default configs to start with ...
+	for _, dd := range defaultDurations {
+		log.Info().Int("min", int(dd.Minutes())).Msg("added default duration stats")
+		stats.configs[dd] = newWindowConfig(dd)
+		stats.windows[dd] = make(map[api.Coin]window)
+	}
+
 	//cmdSample := "?notify [time in minutes] [start/stop]"
 
 	go trackUserActions(user, stats)
@@ -167,7 +178,15 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
 					//p.Enrich(MetaKey(p.Coin, int64(cfg.duration.Seconds())), buffer)
-					if user != nil {
+					metaKey := fmt.Sprintf("stats|%.0f|%s", key.Seconds(), string(p.Coin))
+					p.Meta[fmt.Sprintf("%s|%s", metaKey, "rsi")] = RSIStats{
+						RSI:    rsi,
+						Sample: len(values),
+					}
+					p.Meta[fmt.Sprintf("%s|%s", metaKey, "predictios")] = predictions
+
+					// TODO : send messages only if we are consuming live ...
+					if user != nil && p.Live {
 						// TODO : add tests for this
 						user.Send(
 							api.NewMessage(createStatsMessage(last, values, rsi, predictions, p, cfg)),
@@ -222,7 +241,7 @@ func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) st
 		b := s.Index(i).Interface().(buffer.TimeWindowView)
 		last = b
 		bb[i] = format(b)
-		rsi = rsiStream.Add(b.Diff)
+		rsi, _ = rsiStream.Add(b.Diff)
 	}
 	return bb, rsi, last
 }
@@ -290,4 +309,9 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 		strings.Join(pp, "\n"),
 	)
 
+}
+
+type RSIStats struct {
+	RSI    int
+	Sample int
 }

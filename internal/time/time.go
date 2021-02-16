@@ -6,6 +6,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const timeUnixNano = 1000000000
+
+func FromNano(nano int64) time.Time {
+	return time.Unix(nano/timeUnixNano, 0)
+}
+
 // ThisWeek returns the unix time in seconds for the last 7 days.
 func ThisWeek() int64 {
 	return time.Now().AddDate(0, 0, -7).Unix()

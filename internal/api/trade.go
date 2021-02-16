@@ -14,6 +14,7 @@ type Trade struct {
 	Time   time.Time              `json:"time"`
 	Type   Type                   `json:"Type"`
 	Active bool                   `json:"active"`
+	Live   bool                   `json:"live"`
 	Meta   map[string]interface{} `json:"-"`
 }
 

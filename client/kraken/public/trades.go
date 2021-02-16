@@ -10,7 +10,7 @@ import (
 
 type TradeInfo chan<- krakenapi.TradeInfo
 
-func NewTrade(pair string, active bool, trade krakenapi.TradeInfo) api.Trade {
+func NewTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) api.Trade {
 	var t api.Type
 	if trade.Buy {
 		t = api.Buy
@@ -24,6 +24,7 @@ func NewTrade(pair string, active bool, trade krakenapi.TradeInfo) api.Trade {
 		Time:   time.Unix(trade.Time, 0),
 		Meta:   make(map[string]interface{}),
 		Active: active,
+		Live:   live,
 		Type:   t,
 	}
 }
