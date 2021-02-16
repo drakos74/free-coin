@@ -14,6 +14,7 @@ type Stats struct {
 	first, last    float64
 	min, max       float64
 	mean, dSquared float64
+	ema            float64
 }
 
 // NewStats creates a new Stats.
@@ -33,6 +34,9 @@ func (s *Stats) Push(v float64) {
 	s.dSquared += squaredDiff
 	s.mean = mean
 
+	w := 2 / float64(s.count)
+	s.ema = v*w + s.ema*(1-w)
+
 	if s.count == 1 {
 		s.first = v
 	}
@@ -51,6 +55,11 @@ func (s *Stats) Push(v float64) {
 // Avg returns the average value of the set.
 func (s Stats) Avg() float64 {
 	return s.mean
+}
+
+// EMA is the exponential moving average of the set.
+func (s Stats) EMA() float64 {
+	return s.ema
 }
 
 // Avg returns the average value of the set.

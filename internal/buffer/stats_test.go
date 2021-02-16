@@ -1,9 +1,10 @@
 package buffer
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStats_Push(t *testing.T) {
@@ -18,6 +19,7 @@ func TestStats_Push(t *testing.T) {
 		stDev     float64
 		variance  float64
 		sum       float64
+		ema       float64
 	}
 
 	tests := map[string]test{
@@ -31,6 +33,7 @@ func TestStats_Push(t *testing.T) {
 			diff:     float64(l) - 1,
 			stDev:    289,
 			variance: 83500,
+			ema:      10,
 		},
 		"monotonically-increasing-0": {
 			transform: func(i int) float64 {
@@ -144,6 +147,7 @@ func TestStats_Push(t *testing.T) {
 			assert.Equal(t, tt.diff, math.Round(stats.Diff()))
 			assert.Equal(t, tt.stDev, math.Round(stats.StDev()))
 			assert.Equal(t, tt.variance, math.Round(stats.Variance()))
+			assert.Equal(t, tt.ema, math.Round(stats.EMA()))
 		})
 	}
 
