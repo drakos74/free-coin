@@ -36,9 +36,16 @@ type consumerKey struct {
 	prefix string
 }
 
+type executableTrigger struct {
+	message *tgbotapi.Message
+	trigger *api.Trigger
+	replyID int
+}
+
 // Bot defines the telegram bot coinapi.UserInterface api implementation.
 type Bot struct {
 	bot             botAPI
+	process         chan executableTrigger
 	messages        map[int]string
 	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
@@ -55,6 +62,7 @@ func NewBot() (*Bot, error) {
 	bot.Buffer = 0
 	return &Bot{
 		bot:             bot,
+		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
@@ -72,6 +80,7 @@ func (b *Bot) Run(ctx context.Context) error {
 		return err
 	}
 
+	go b.processExecution()
 	go b.listenToUpdates(ctx, updates)
 	return nil
 }
@@ -95,43 +104,6 @@ func (b *Bot) Send(message *api.Message, trigger *api.Trigger) int {
 		return 0
 	}
 	return msgID
-}
-
-// send will send a message and store the appropriate trigger.
-// it will automatically execute the default command if user does not reply.
-// TODO : send confirmation of auto-invoke - use tgbotapi.Message here
-func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
-	// before sending check for blocked triggers ...
-	if txt, ok := b.checkIfBlocked(trigger); ok {
-		sent, err := b.bot.Send(addLine(msg, txt))
-		return sent.MessageID, err
-	}
-	// otherwise send the message and add the trigger
-	// TODO : refactor and wrap up this logic
-	t := defaultTimeout
-	if trigger != nil {
-		if trigger.Timeout > 0 {
-			t = trigger.Timeout
-		}
-	}
-	// TODO : be able to expose more details on the trigger
-	if trigger != nil && len(trigger.Default) > 0 {
-		msg = addLine(msg, fmt.Sprintf("[%s] %vs -> %v", trigger.Description, t.Seconds(), trigger.Default))
-	}
-	sent, err := b.bot.Send(msg)
-	if err != nil {
-		return 0, err
-	}
-	if trigger != nil {
-		// store the message for potential replies on the trigger.
-		b.messages[sent.MessageID] = trigger.ID
-		b.triggers[trigger.ID] = trigger
-
-		if len(trigger.Default) > 0 {
-			go b.deferExecute(t, sent.MessageID, trigger)
-		}
-	}
-	return sent.MessageID, nil
 }
 
 // checkIfBlocked checks if the trigger is currently blocked.

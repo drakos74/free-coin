@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ func (m *mockBot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) *Bot {
 	return &Bot{
 		bot:             &mockBot{input: input, output: output},
+		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
@@ -57,8 +59,8 @@ func TestBot_Listen(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(10)
 
-	producerCount := 0
-	validMessageCount := 0
+	var producerCount int64
+	var validMessageCount int64
 	go func() {
 		for {
 			index := rand.Intn(3)
@@ -71,9 +73,9 @@ func TestBot_Listen(t *testing.T) {
 					Text: fmt.Sprintf("%d ... my-message", index),
 				},
 			}
-			producerCount++
+			atomic.AddInt64(&producerCount, 1)
 			if index == 1 {
-				validMessageCount++
+				atomic.AddInt64(&validMessageCount, 1)
 				if validMessageCount >= 10 {
 					close(in)
 					return
@@ -95,8 +97,8 @@ func TestBot_Listen(t *testing.T) {
 	wg.Wait()
 	cnl()
 
-	assert.True(t, producerCount > count)
-	assert.Equal(t, validMessageCount, count)
+	assert.True(t, int(producerCount) > count)
+	assert.Equal(t, int(validMessageCount), count)
 
 }
 
@@ -140,15 +142,15 @@ func TestBot_SendTrigger(t *testing.T) {
 		"manual-trigger": {
 			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
 				return command.Content, nil
-			}).WithDefaults("cc").WithTimeout(30 * time.Second),
+			}).WithDefaults("cc").WithTimeout(3 * time.Second),
 			msgCount: 1,
-			// we get 2 because we also get the trigger expired message when we try to reply
+			// we get 3 because we also get the trigger expired message when we try to reply
 			count: 2,
 			tick:  time.Tick(5 * time.Second),
 			reply: func(msg tgbotapi.MessageConfig, in chan tgbotapi.Update) {
 				in <- tgbotapi.Update{
 					Message: &tgbotapi.Message{
-						MessageID: 0,
+						MessageID: rand.Int(),
 						From: &tgbotapi.User{
 							UserName: "@user",
 						},
@@ -178,13 +180,13 @@ func TestBot_SendTrigger(t *testing.T) {
 
 			msgs := make([]string, 0)
 
-			count := 0
-			go func() {
+			var count int64
+			go func(t *testing.T, tt test) {
 				for {
 					select {
 					case msg := <-out:
 						msgs = append(msgs, msg.Text)
-						count++
+						atomic.AddInt64(&count, 1)
 						wg.Done()
 						// reply , but not during message confirmation
 						if tt.reply != nil && !strings.HasPrefix(msg.Text, "[trigger]") {
@@ -196,7 +198,7 @@ func TestBot_SendTrigger(t *testing.T) {
 						return
 					}
 				}
-			}()
+			}(t, tt)
 
 			for i := 0; i < tt.msgCount; i++ {
 				// send a message to the user
@@ -209,7 +211,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			for i, m := range msgs {
 				assert.True(t, strings.Contains(m, tt.msgs[i]))
 			}
-			assert.Equal(t, tt.count, count)
+			assert.Equal(t, tt.count, int(count))
 		})
 	}
 
