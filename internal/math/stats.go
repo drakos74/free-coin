@@ -1,6 +1,9 @@
 package math
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // RSI is an RSI streaming calculator
 type RSI struct {
@@ -14,13 +17,15 @@ func (rsi *RSI) Add(f float64) int {
 	if f > 0 {
 		rsi.pos += f
 	} else {
-		rsi.neg += f
+		rsi.neg += math.Abs(f)
 	}
 	rsi.count++
 
 	c := float64(rsi.count)
 
 	si := (rsi.pos / c) / (rsi.neg / c)
+
+	fmt.Println(fmt.Sprintf("count = %v,pos = %+v,neg = %+v,si = %+v", rsi.count, rsi.pos, rsi.neg, si))
 
 	return int(math.Round(100 - (100 / (1 + si))))
 }
