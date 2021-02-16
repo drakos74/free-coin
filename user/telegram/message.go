@@ -49,10 +49,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 				continue
 			}
 
+			var chatID int64
+			if update.Message.Chat != nil {
+				chatID = update.Message.Chat.ID
+			}
 			log.Info().
 				Str("from", update.Message.From.UserName).
 				Str("text", update.Message.Text).
-				Int64("chat", update.Message.Chat.ID).
+				Int64("chat", chatID).
 				Msg("message received")
 
 			for k, consumer := range b.consumers {
@@ -64,7 +68,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 						User:    update.Message.From.UserName,
 						Content: update.Message.Text,
 					}:
-					case <-time.Tick(1 * time.Second):
+					case <-time.After(1 * time.Second):
 						log.Warn().Str("prefix", k.prefix).Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
 					}
 				}
@@ -79,7 +83,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 // deferExecute plans the execution of the given trigger (with the defaults)
 // at the specified timeout
 func (b *Bot) deferExecute(timeout time.Duration, replyID int, trigger *api.Trigger) {
-	<-time.Tick(timeout)
+	<-time.After(timeout)
 	if trigger, ok := b.triggers[trigger.ID]; ok {
 		if txt, ok := b.checkIfBlocked(trigger); ok {
 			b.Send(api.NewMessage(txt).ReplyTo(replyID), nil)
@@ -130,7 +134,7 @@ func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command, opts ...stri
 	b.blockedTriggers[trigger.ID] = time.Now()
 	// remove the trigger if its not used
 	go func() {
-		<-time.Tick(blockTimeout)
+		<-time.After(blockTimeout)
 		delete(b.blockedTriggers, trigger.ID)
 	}()
 	b.Send(api.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)

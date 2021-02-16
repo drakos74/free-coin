@@ -33,7 +33,7 @@ func Pair(p api.Coin) string {
 	case api.XRP:
 		return XXRPZEUR
 	default:
-		panic(fmt.Sprintf("unknown coin: %d", p))
+		panic(fmt.Sprintf("unknown coin: %s", p))
 	}
 }
 

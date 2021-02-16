@@ -139,7 +139,7 @@ func (b *Bot) checkIfBlocked(trigger *api.Trigger) (string, bool) {
 	if trigger != nil {
 		if blockedTime, ok := b.blockedTriggers[trigger.ID]; ok {
 			// trigger has been blocked
-			blocked := time.Now().Sub(blockedTime)
+			blocked := time.Since(blockedTime)
 			if blocked > blockTimeout {
 				// unblock ...
 				delete(b.blockedTriggers, trigger.ID)

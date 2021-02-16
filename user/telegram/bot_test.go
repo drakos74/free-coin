@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -100,6 +101,8 @@ func TestBot_Listen(t *testing.T) {
 }
 
 func TestBot_SendTrigger(t *testing.T) {
+
+	os.Setenv(telegramChatID, "-1")
 
 	defaultTimeout = 1 * time.Second
 
