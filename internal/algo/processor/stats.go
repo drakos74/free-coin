@@ -277,7 +277,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 
 	// TODO : make this formatting easier
 	// format the status message for the processor.
-	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f\nrsi:%d\n%s",
+	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f\nrsi:%d (%d)\n%s",
 		p.Coin,
 		cfg.duration.Minutes(),
 		strings.Join(emojiValues, " "),
@@ -286,6 +286,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 		last.Ratio*100,
 		last.StdDev*100,
 		rsi,
+		len(values),
 		strings.Join(pp, "\n"),
 	)
 

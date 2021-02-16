@@ -5,6 +5,8 @@ import (
 	"math"
 )
 
+// TODO: add moving average
+
 // Stats is a set of statistical properties of a set of numbers.
 type Stats struct {
 	count          int
