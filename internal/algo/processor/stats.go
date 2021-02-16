@@ -271,7 +271,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 
 	// format the past values
 	emojiValues := make([]string, len(values))
-	for j := 0; j < len(values)-1; j++ {
+	for j := 0; j < len(values); j++ {
 		emojiValues[j] = emoji.MapToSymbol(values[j])
 	}
 
