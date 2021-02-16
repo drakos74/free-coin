@@ -33,7 +33,8 @@ func TestStats_Push(t *testing.T) {
 			diff:     float64(l) - 1,
 			stDev:    289,
 			variance: 83500,
-			ema:      10,
+			// note : ema is higher than the average as th sequence grows
+			ema: 667,
 		},
 		"monotonically-increasing-0": {
 			transform: func(i int) float64 {
@@ -46,6 +47,8 @@ func TestStats_Push(t *testing.T) {
 			diff:     float64(l) - 1,
 			stDev:    289,
 			variance: 83500,
+			// note : ema is higher than the average , as the sequence grows.
+			ema: 167,
 		},
 		"monotonically-increasing--": {
 			transform: func(i int) float64 {
@@ -58,6 +61,8 @@ func TestStats_Push(t *testing.T) {
 			diff:     float64(l) - 1,
 			stDev:    289,
 			variance: 83500,
+			// note : ema is higher than the average , as the sequence grows.
+			ema: -333,
 		},
 		"monotonically-decreasing-+": {
 			transform: func(i int) float64 {
@@ -70,6 +75,8 @@ func TestStats_Push(t *testing.T) {
 			// NOTE : these are the same as for the increasing case
 			stDev:    289,
 			variance: 83500,
+			// note : ema is lower than the average , as the sequence shrinks.
+			ema: 334,
 		},
 		"monotonically-decreasing-0": {
 			transform: func(i int) float64 {
@@ -82,6 +89,8 @@ func TestStats_Push(t *testing.T) {
 			// NOTE : these are the same as for the increasing case
 			stDev:    289,
 			variance: 83500,
+			// note : ema is lower than the average , as the sequence shrinks.
+			ema: -167,
 		},
 		"monotonically-decreasing--": {
 			transform: func(i int) float64 {
@@ -94,6 +103,8 @@ func TestStats_Push(t *testing.T) {
 			// NOTE : these are the same as the one above
 			stDev:    289,
 			variance: 83500,
+			// note : ema is lower than the average , as the sequence shrinks.
+			ema: -667,
 		},
 		"abs-+": {
 			transform: func(i int) float64 {
@@ -106,6 +117,8 @@ func TestStats_Push(t *testing.T) {
 			// NOTE : these are half of the monotonical case
 			stDev:    289 / 2,
 			variance: 83500 / 4,
+			// note : ema is the same as th average, as it is a symmetrical distribution
+			ema: 250,
 		},
 		"abs--": {
 			transform: func(i int) float64 {
@@ -118,6 +131,8 @@ func TestStats_Push(t *testing.T) {
 			// NOTE : these are half of the monotonical case
 			stDev:    289 / 2,
 			variance: 83500 / 4,
+			// note : ema is the same as th average, as it is a symmetrical distribution
+			ema: -250,
 		},
 		"sin": {
 			transform: func(i int) float64 {
@@ -129,18 +144,18 @@ func TestStats_Push(t *testing.T) {
 			diff:     828,
 			stDev:    708,    // NOTE : how much larger this is now
 			variance: 500692, // NOTE : how much larger this is now
+			// note : ema is very close to the average, as it is a symmetrical distribution
+			ema: 0,
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			stats := NewStats()
-
 			for i := 0; i < l; i++ {
 				v := tt.transform(i)
 				stats.Push(v)
 			}
-
 			assert.Equal(t, tt.avg, math.Round(stats.Avg()))
 			assert.Equal(t, tt.count, stats.Count())
 			assert.Equal(t, tt.sum, math.Round(stats.Sum()))
