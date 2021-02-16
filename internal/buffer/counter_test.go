@@ -179,7 +179,6 @@ func TestCounter_Add(t *testing.T) {
 						index[k] = tt.transform(i - l)
 						l++
 					}
-
 					vv[strings.Join(index, ":")] = struct{}{}
 				}
 

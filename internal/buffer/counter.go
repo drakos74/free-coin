@@ -3,6 +3,7 @@ package buffer
 import (
 	"container/ring"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -92,26 +93,32 @@ func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction)
 }
 
 func (c *Counter) predict(key string) *Prediction {
-	if _, ok := c.counter[key]; ok {
+	if count, ok := c.counter[key]; ok {
 		var m int
 		var r string
 		var s int
-		if count, ok := c.counter[key]; ok {
-			for k, c := range count {
-				s += c
-				if c > m {
-					r = k
-					m = c
-				}
-			}
 
-			if s > 0 {
-				return &Prediction{
-					Value:       r,
-					Probability: float64(m) / float64(s),
-					Options:     len(count),
-					Sample:      s,
-				}
+		// TODO : make sure we find a better way to preserve the order in executions
+		keys := make([]string, len(count))
+		for k := range count {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, kk := range keys {
+			v := count[kk]
+			s += v
+			if v > m {
+				r = kk
+				m = v
+			}
+		}
+
+		if s > 0 {
+			return &Prediction{
+				Value:       r,
+				Probability: float64(m) / float64(s),
+				Options:     len(count),
+				Sample:      s,
 			}
 		}
 	}
