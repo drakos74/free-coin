@@ -160,7 +160,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						return nil
 					})
 
-					values, last := ExtractFromBuckets(buckets, order)
+					values, rsi, last := ExtractFromBuckets(buckets, order)
 
 					// count the occurrences
 					predictions := stats.windows[key][p.Coin].c.Add(values[len(values)-1])
@@ -170,7 +170,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					if user != nil {
 						// TODO : add tests for this
 						user.Send(
-							api.NewMessage(createStatsMessage(last, values, predictions, p, cfg)),
+							api.NewMessage(createStatsMessage(last, values, rsi, predictions, p, cfg)),
 							api.NewTrigger(openPositionTrigger(p, client)).
 								WithID(uuid.New().String()).
 								WithDescription("buy | sell"),
@@ -212,16 +212,19 @@ func ExtractLastBucket(coin api.Coin, key int64, trade *api.Trade) (buffer.TimeW
 	return buffer.TimeWindowView{}, false
 }
 
-func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, buffer.TimeWindowView) {
+func ExtractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, buffer.TimeWindowView) {
 	s := reflect.ValueOf(ifc)
 	bb := make([]string, s.Len())
 	var last buffer.TimeWindowView
+	rsiStream := &math.RSI{}
+	var rsi int
 	for i := 0; i < s.Len(); i++ {
 		b := s.Index(i).Interface().(buffer.TimeWindowView)
 		last = b
 		bb[i] = format(b)
+		rsi = rsiStream.Add(b.Diff)
 	}
-	return bb, last
+	return bb, rsi, last
 }
 
 func order(b buffer.TimeWindowView) string {
@@ -236,7 +239,7 @@ func order(b buffer.TimeWindowView) string {
 	return s
 }
 
-func createStatsMessage(last buffer.TimeWindowView, values []string, predictions map[string]buffer.Prediction, p api.Trade, cfg windowConfig) string {
+func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, predictions map[string]buffer.Prediction, p api.Trade, cfg windowConfig) string {
 
 	// TODO : make the trigger arguments more specific to current stats state
 	// identify the move of the coin.
@@ -272,8 +275,9 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, predictions
 		emojiValues[j] = emoji.MapToSymbol(values[j])
 	}
 
+	// TODO : make this formatting easier
 	// format the status message for the processor.
-	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f\n%s",
+	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f\nrsi:%d\n%s",
 		p.Coin,
 		cfg.duration.Minutes(),
 		strings.Join(emojiValues, " "),
@@ -281,6 +285,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, predictions
 		math.Format(p.Price),
 		last.Ratio*100,
 		last.StdDev*100,
+		rsi,
 		strings.Join(pp, "\n"),
 	)
 
