@@ -124,3 +124,7 @@ func (c *Client) ClosePosition(position api.Position) error {
 func (c *Client) OpenPosition(position api.Position) error {
 	return fmt.Errorf("not implemented OpenPosition for %+v", position)
 }
+
+func (c *Client) OpenPositions(ctx context.Context) (*api.PositionBatch, error) {
+	panic("implement me")
+}
