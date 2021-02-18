@@ -25,7 +25,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 		Count:   bucket.Size(),
 		Price:   avg,
 		Diff:    diff,
-		EMADiff: (ema - avg) / avg,
+		EMADiff: 100 * (ema - avg) / avg,
 		Ratio:   diff / avg,
 		StdDev:  bucket.Values().Stats()[index].StDev(),
 	}
