@@ -342,7 +342,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, em
 
 	// TODO : make this formatting easier
 	// format the status message for the processor.
-	return fmt.Sprintf("%s\n %s\n %s\n %s",
+	return fmt.Sprintf("%s\n %s\n %s\n%s",
 		ps,
 		mv,
 		st,
