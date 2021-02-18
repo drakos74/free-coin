@@ -10,6 +10,7 @@ import (
 // TradeClient exposes the low level interface for interacting with a trade source.
 type TradeClient interface {
 	Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.Condition) (api.TradeSource, error)
+	OpenPositions(ctx context.Context) (*api.PositionBatch, error)
 	OpenPosition(position api.Position) error
 	ClosePosition(position api.Position) error
 }

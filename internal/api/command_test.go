@@ -24,7 +24,7 @@ func TestCommand_Validate(t *testing.T) {
 	tests := map[string]test{
 		"no-user-any": {
 			cmd:           Command{},
-			userValidator: Any(),
+			userValidator: AnyUser(),
 		},
 		"no-user-err": {
 			cmd:           Command{},

@@ -23,6 +23,18 @@ const (
 	DotWater = "💧"
 )
 
+// MapToSign maps the given float value according to it's sign.
+func MapToSign(f float64) string {
+	emo := DotSnow
+	if f > 0 {
+		emo = DotFire
+	} else if f < 0 {
+		emo = DotWater
+	}
+	return emo
+}
+
+// MapToSymbol maps the given number according to it's order.
 func MapToSymbol(i string) string {
 	symbol := HalfEclipse
 	switch i {

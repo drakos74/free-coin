@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	telegramBotToken = "TELEGRAM_BOT_TOKEN"
-	telegramChatID   = "TELEGRAM_CHAT_ID"
+	telegramBotToken        = "TELEGRAM_BOT_TOKEN"
+	telegramChatID          = "TELEGRAM_CHAT_ID"
+	privateTelegramBotToken = "PRIVATE_TELEGRAM_BOT_TOKEN"
+	privateTelegramChatID   = "PRIVATE_TELEGRAM_CHAT_ID"
 )
 
 // allow to change these for the tests

@@ -100,7 +100,7 @@ func (o *OverWatch) Run() {
 		var c string
 		var action string
 		err := command.Validate(
-			api.Any(),
+			api.AnyUser(),
 			api.Contains("?c", "?coin"),
 			api.OneOf(&c, model.KnownCoins()...),
 			api.OneOf(&action, "start", "stop"))

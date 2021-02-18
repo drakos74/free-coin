@@ -58,15 +58,13 @@ func trackUserActions(user model.UserInterface, stats *state) {
 		var duration int
 		var action string
 		err := command.Validate(
-			api.Any(),
+			api.AnyUser(),
 			api.Contains("?n", "?notify"),
 			api.Int(&duration),
 			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
-			model.Reply(user,
-				api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).
-					ReplyTo(command.ID), err)
+			model.Reply(user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 		timeDuration := time.Duration(duration) * time.Minute
@@ -178,13 +176,14 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					predictions := stats.windows[key][trade.Coin].c.Add(values[len(values)-1])
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
-					//trade.Enrich(MetaKey(trade.Coin, int64(cfg.duration.Seconds())), buffer)
+					//trade.Enrich(MetaKey(trade.coin, int64(cfg.duration.Seconds())), buffer)
 					metaKey := MetaKey(trade.Coin, key)
-					trade.Meta[fmt.Sprintf("%s|%s", metaKey, "rsi")] = RSIStats{
+					trade.Meta[MetaKeyRSI(metaKey)] = RSIStats{
 						RSI:    rsi,
 						Sample: len(values),
 					}
-					trade.Meta[fmt.Sprintf("%s|%s", metaKey, "predictios")] = predictions
+					trade.Meta[MetaStatsPredictionsKey(metaKey)] = predictions
+					trade.Meta[MetaBucketKey(metaKey)] = last
 
 					// TODO : send messages only if we are consuming live ...
 					if user != nil && trade.Live {
@@ -202,6 +201,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 			}
 			out <- trade
 		}
+		log.Info().Str("processor", statsProcessorName).Msg("closing processor")
 	}
 }
 
@@ -215,11 +215,6 @@ func MetaKeyRSI(metaKey string) string {
 	return fmt.Sprintf("%s|%s", metaKey, "rsi")
 }
 
-// MetaStatsPredictionsKey returns the metadata key for the stats predictions.
-func MetaStatsPredictionsKey(metaKey string) string {
-	return fmt.Sprintf("%s|%s", metaKey, "predictios")
-}
-
 // MetaRSI returns the RSI stats from the metadata of the trade.
 func MetaRSI(trade *api.Trade, duration time.Duration) RSIStats {
 	metaKey := MetaKey(trade.Coin, duration)
@@ -227,6 +222,25 @@ func MetaRSI(trade *api.Trade, duration time.Duration) RSIStats {
 		return rsi
 	}
 	return RSIStats{}
+}
+
+// MetaBucketKey returns the metadata key for the last bucket stats.
+func MetaBucketKey(metaKey string) string {
+	return fmt.Sprintf("%s|%s", metaKey, "bucket")
+}
+
+// MetaBucket returns the last bucket stats from the metadata of the trade.
+func MetaBucket(trade *api.Trade, duration time.Duration) buffer.TimeWindowView {
+	metaKey := MetaKey(trade.Coin, duration)
+	if bucketView, ok := trade.Meta[MetaBucketKey(metaKey)].(buffer.TimeWindowView); ok {
+		return bucketView
+	}
+	return buffer.TimeWindowView{}
+}
+
+// MetaStatsPredictionsKey returns the metadata key for the stats predictions.
+func MetaStatsPredictionsKey(metaKey string) string {
+	return fmt.Sprintf("%s|%s", metaKey, "predictios")
 }
 
 // MetaStatsPredictions returns the statistical predictions from the trade metadata.
@@ -301,18 +315,28 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 		emojiValues[j] = emoji.MapToSymbol(values[j])
 	}
 
-	// TODO : make this formatting easier
-	// format the status message for the processor.
-	return fmt.Sprintf("%s|%.0fm: %s ... \n %s %s : %.2f : %.2f\nrsi:%d (%d)\n%s",
+	ps := fmt.Sprintf("%s|%.0fm: %s ...",
 		p.Coin,
 		cfg.duration.Minutes(),
-		strings.Join(emojiValues, " "),
+		strings.Join(emojiValues, " "))
+
+	mv := fmt.Sprintf("%s %s : %.2f : %.2f",
 		move,
 		math.Format(p.Price),
 		last.Ratio*100,
-		last.StdDev*100,
+		last.StdDev*100)
+
+	st := fmt.Sprintf("rsi:%d (%d) ema:%.2f",
 		rsi,
 		len(values),
+		last.EMADiff)
+
+	// TODO : make this formatting easier
+	// format the status message for the processor.
+	return fmt.Sprintf("%s\n %s\n %s\n %s",
+		ps,
+		mv,
+		st,
 		strings.Join(pp, "\n"),
 	)
 

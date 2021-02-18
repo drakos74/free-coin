@@ -57,8 +57,8 @@ func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, arg
 	return nil
 }
 
-// Any is a predefined validator for any value.
-func Any() map[string]struct{} {
+// AnyUser is a predefined validator for any value.
+func AnyUser() map[string]struct{} {
 	return map[string]struct{}{}
 }
 
@@ -72,14 +72,17 @@ func Contains(arg ...string) map[string]struct{} {
 }
 
 // NotEmpty is a predefined Validator that checks if the argument is empty.
-func NotEmpty(s string) error {
-	if s == "" {
-		return fmt.Errorf("cannot be empty")
+func NotEmpty(v *string) Validator {
+	return func(s string) error {
+		if s == "" {
+			return fmt.Errorf("cannot be empty")
+		}
+		*v = s
+		return nil
 	}
-	return nil
 }
 
-// OneOf is a predefined Validator checking that the value is on of the provided arguments.
+// OneOf is a predefined Validator checking that the value is one of the provided arguments.
 // it passes the reference to the value to the given interface argument.
 func OneOf(v *string, args ...string) Validator {
 	return func(s string) error {
@@ -112,6 +115,25 @@ func Int(d *int) Validator {
 		}
 		i := int(number)
 		*d = i
+		return nil
+	}
+}
+
+// Float is a predefined Validator checking that the argument is a float.
+// it passes the reference to the value to the given interface argument.
+func Float(f *float64) Validator {
+	return func(s string) error {
+		if s == "" {
+			i := 0.0
+			f = &i
+			return nil
+		}
+		number, err := strconv.ParseFloat(s, 10)
+		if err != nil {
+			return err
+		}
+		i := number
+		*f = i
 		return nil
 	}
 }
