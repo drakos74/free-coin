@@ -326,18 +326,18 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, em
 		strings.Join(emojiValues, " "),
 	)
 
-	mv := fmt.Sprintf("%s %s : %.2f : %.2f",
+	mv := fmt.Sprintf("%s %s : %.2f : %.2f : %f",
 		move,
 		math.Format(p.Price),
 		last.Ratio*100,
-		last.StdDev*100,
+		last.StdDev,
+		last.EMADiff,
 	)
 
-	st := fmt.Sprintf("rsi:%d ema:%.2f (%d) %f ",
+	st := fmt.Sprintf("rsi:%d ema:%.2f (%d)",
 		rsi,
 		ema-last.Price,
 		len(values),
-		last.EMADiff,
 	)
 
 	// TODO : make this formatting easier
