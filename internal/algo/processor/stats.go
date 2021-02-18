@@ -326,7 +326,7 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, em
 		strings.Join(emojiValues, " "),
 	)
 
-	mv := fmt.Sprintf("%s %s : %.2f : %.2f : %.2f",
+	mv := fmt.Sprintf("%s %s ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
 		math.Format(p.Price),
 		last.Ratio*100,
