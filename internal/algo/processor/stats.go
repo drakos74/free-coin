@@ -170,7 +170,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						return nil
 					})
 
-					values, rsi, last := extractFromBuckets(buckets, order)
+					values, rsi, ema, last := extractFromBuckets(buckets, order)
 
 					// count the occurrences
 					predictions := stats.windows[key][trade.Coin].c.Add(values[len(values)-1])
@@ -178,8 +178,9 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
 					//trade.Enrich(MetaKey(trade.coin, int64(cfg.duration.Seconds())), buffer)
 					metaKey := MetaKey(trade.Coin, key)
-					trade.Meta[MetaKeyRSI(metaKey)] = RSIStats{
+					trade.Meta[MetaKeyRSI(metaKey)] = AggregateStats{
 						RSI:    rsi,
+						EMA:    ema,
 						Sample: len(values),
 					}
 					trade.Meta[MetaStatsPredictionsKey(metaKey)] = predictions
@@ -189,7 +190,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					if user != nil && trade.Live {
 						// TODO : add tests for this
 						user.Send(
-							api.NewMessage(createStatsMessage(last, values, rsi, predictions, trade, cfg)),
+							api.NewMessage(createStatsMessage(last, values, rsi, ema, predictions, trade, cfg)),
 							api.NewTrigger(openPositionTrigger(trade, client)).
 								WithID(uuid.New().String()).
 								WithDescription("buy | sell"),
@@ -216,12 +217,12 @@ func MetaKeyRSI(metaKey string) string {
 }
 
 // MetaRSI returns the RSI stats from the metadata of the trade.
-func MetaRSI(trade *api.Trade, duration time.Duration) RSIStats {
+func MetaRSI(trade *api.Trade, duration time.Duration) AggregateStats {
 	metaKey := MetaKey(trade.Coin, duration)
-	if rsi, ok := trade.Meta[MetaKeyRSI(metaKey)].(RSIStats); ok {
+	if rsi, ok := trade.Meta[MetaKeyRSI(metaKey)].(AggregateStats); ok {
 		return rsi
 	}
-	return RSIStats{}
+	return AggregateStats{}
 }
 
 // MetaBucketKey returns the metadata key for the last bucket stats.
@@ -253,19 +254,23 @@ func MetaStatsPredictions(trade *api.Trade, duration time.Duration) map[string]b
 }
 
 // extractFromBuckets extracts from the given buckets the needed values
-func extractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, buffer.TimeWindowView) {
+func extractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, float64, buffer.TimeWindowView) {
 	s := reflect.ValueOf(ifc)
 	bb := make([]string, s.Len())
 	var last buffer.TimeWindowView
 	rsiStream := &math.RSI{}
 	var rsi int
-	for i := 0; i < s.Len(); i++ {
+	var ema float64
+	l := s.Len()
+	for i := 0; i < l; i++ {
 		b := s.Index(i).Interface().(buffer.TimeWindowView)
 		last = b
 		bb[i] = format(b)
 		rsi, _ = rsiStream.Add(b.Diff)
+		w := 2 / float64(l)
+		ema = b.Price*w + ema*(1-w)
 	}
-	return bb, rsi, last
+	return bb, rsi, ema, last
 }
 
 func order(b buffer.TimeWindowView) string {
@@ -280,7 +285,7 @@ func order(b buffer.TimeWindowView) string {
 	return s
 }
 
-func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, predictions map[string]buffer.Prediction, p *api.Trade, cfg windowConfig) string {
+func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, ema float64, predictions map[string]buffer.Prediction, p *api.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats state
 	// identify the move of the coin.
 	move := emoji.Zero
@@ -318,18 +323,22 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 	ps := fmt.Sprintf("%s|%.0fm: %s ...",
 		p.Coin,
 		cfg.duration.Minutes(),
-		strings.Join(emojiValues, " "))
+		strings.Join(emojiValues, " "),
+	)
 
 	mv := fmt.Sprintf("%s %s : %.2f : %.2f",
 		move,
 		math.Format(p.Price),
 		last.Ratio*100,
-		last.StdDev*100)
+		last.StdDev*100,
+	)
 
-	st := fmt.Sprintf("rsi:%d (%d) ema:%.2f",
+	st := fmt.Sprintf("rsi:%d ema:%.2f (%d) %f ",
 		rsi,
+		ema-last.Price,
 		len(values),
-		last.EMADiff)
+		last.EMADiff,
+	)
 
 	// TODO : make this formatting easier
 	// format the status message for the processor.
@@ -342,7 +351,9 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, pr
 
 }
 
-type RSIStats struct {
+// AggregateStats are the aggregate stats of the bucket windows.
+type AggregateStats struct {
 	RSI    int
+	EMA    float64
 	Sample int
 }
