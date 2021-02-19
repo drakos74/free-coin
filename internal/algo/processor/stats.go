@@ -157,7 +157,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						Msg("started stats processor")
 				}
 
-				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price, trade.Volume); ok {
+				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
 					buckets := stats.windows[key][trade.Coin].w.Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
