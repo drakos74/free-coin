@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-// NewCounter creates a new counter.
-func NewCounter(sizes ...int) *Counter {
+// NewMultiHMM creates a new counter.
+func NewMultiHMM(sizes ...int) *HMM {
 	var max int
 	for _, s := range sizes {
 		if s > max {
 			max = s
 		}
 	}
-	return &Counter{
+	return &HMM{
 		max:      max,
 		sequence: ring.New(max + 1),
 		config:   sizes,
@@ -23,8 +23,9 @@ func NewCounter(sizes ...int) *Counter {
 	}
 }
 
-// Counter counts occurrences in a sequence of strings.
-type Counter struct {
+// HMM counts occurrences in a sequence of strings.
+// It implements effectively several hidden markov model of the n-grams lengths provided in the config.
+type HMM struct {
 	max      int
 	sequence *ring.Ring
 	config   []int
@@ -40,7 +41,7 @@ type Prediction struct {
 }
 
 // Add adds a string to the counter sequence.
-func (c *Counter) Add(s string) map[string]Prediction {
+func (c *HMM) Add(s string) map[string]Prediction {
 
 	values := make([]string, 0)
 
@@ -63,7 +64,7 @@ func (c *Counter) Add(s string) map[string]Prediction {
 	return prediction
 }
 
-func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction) {
+func (c *HMM) addKey(l int, values []string, v string) (string, *Prediction) {
 	// create the key for each of the configs
 	k := values[len(values)-l:]
 	key := strings.Join(k, ":")
@@ -92,7 +93,7 @@ func (c *Counter) addKey(l int, values []string, v string) (string, *Prediction)
 	return pKey, prediction
 }
 
-func (c *Counter) predict(key string) *Prediction {
+func (c *HMM) predict(key string) *Prediction {
 	if count, ok := c.counter[key]; ok {
 		var m int
 		var r string

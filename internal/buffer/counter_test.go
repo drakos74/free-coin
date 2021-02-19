@@ -163,7 +163,7 @@ func TestCounter_Add(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := NewCounter(tt.sizes...)
+			c := NewMultiHMM(tt.sizes...)
 			p := make(map[string]Prediction)
 			for i := 0; i < 100; i++ {
 				// we keep track of the last prediction to assert on all possible outcomes

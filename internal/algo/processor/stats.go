@@ -45,7 +45,7 @@ func newWindowConfig(duration time.Duration) windowConfig {
 
 type window struct {
 	w *buffer.HistoryWindow
-	c *buffer.Counter
+	c *buffer.HMM
 }
 
 type state struct {
@@ -148,7 +148,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 				if _, ok := stats.windows[key][trade.Coin]; !ok {
 					stats.windows[key][trade.Coin] = window{
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
-						c: buffer.NewCounter(cfg.counterSizes...),
+						c: buffer.NewMultiHMM(cfg.counterSizes...),
 					}
 					log.Info().
 						Ints("counters", cfg.counterSizes).
