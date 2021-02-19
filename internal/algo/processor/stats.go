@@ -180,7 +180,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						}))
 
 					// count the occurrences
-					predictions := stats.windows[key][trade.Coin].c.Add(values[0][len(values)-1])
+					predictions := stats.windows[key][trade.Coin].c.Add(values[0][len(values[0])-1])
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
 					//trade.Enrich(MetaKey(trade.coin, int64(cfg.duration.Seconds())), buffer)
