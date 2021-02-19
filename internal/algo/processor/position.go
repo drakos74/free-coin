@@ -54,7 +54,9 @@ func Position(client model.TradeClient, user model.UserInterface) api.Processor 
 				// update the position current price
 				k := key(trade.Coin, id)
 				positions.updatePrice(k, trade.Price)
-				positions.checkClosePosition(client, user, k)
+				if trade.Live {
+					positions.checkClosePosition(client, user, k)
+				}
 			}
 
 			out <- trade
@@ -194,18 +196,18 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 		Msg("check position")
 	if p.config.DoClose(p.position) {
 		fmt.Println(fmt.Sprintf("p = %+v", p))
-		//msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
-		//	emoji.MapToSign(net),
-		//	string(p.position.Coin),
-		//	math.Format(profit),
-		//	math.Format(net),
-		//	math.Format(p.config.Live))
-		//user.Send(model.Private, api.NewMessage(msg), &api.Trigger{
-		//	ID:      p.position.ID,
-		//	Default: []string{"close"},
-		//	Exec:    tp.closePositionTrigger(client, key),
-		//	Timeout: 1 * time.Minute,
-		//})
+		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
+			emoji.MapToSign(net),
+			string(p.position.Coin),
+			math.Format(profit),
+			math.Format(net),
+			math.Format(p.config.Live))
+		user.Send(model.Private, api.NewMessage(msg), &api.Trigger{
+			ID:      p.position.ID,
+			Default: []string{"close"},
+			Exec:    tp.closePositionTrigger(client, key),
+			Timeout: 1 * time.Minute,
+		})
 	} else {
 		// TODO : check also for trailing stop-loss
 	}
