@@ -7,7 +7,7 @@ import (
 )
 
 // TriggerFunc defines an execution logic based on the command and options arguments.
-type TriggerFunc func(command Command, options ...string) (string, error)
+type TriggerFunc func(command Command) (string, error)
 
 // Trigger wraps a trigger func into a re-usable object.
 type Trigger struct {

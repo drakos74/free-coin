@@ -99,7 +99,7 @@ func (o *OverWatch) Run() {
 	for command := range o.user.Listen("overwatch", "?c") {
 		var c string
 		var action string
-		err := command.Validate(
+		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?c", "?coin"),
 			api.OneOf(&c, model.KnownCoins()...),

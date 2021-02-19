@@ -45,6 +45,7 @@ func Position(client model.TradeClient, user model.UserInterface) api.Processor 
 			// check on the existing positions
 			// ignore if it s not the closing trade of the batch
 			if !trade.Active {
+				out <- trade
 				continue
 			}
 
@@ -55,6 +56,8 @@ func Position(client model.TradeClient, user model.UserInterface) api.Processor 
 				positions.updatePrice(k, trade.Price)
 				positions.checkClosePosition(client, user, k)
 			}
+
+			out <- trade
 		}
 		log.Info().Str("processor", positionProcessorName).Msg("closing processor")
 	}
@@ -93,6 +96,9 @@ func (tp tradePositions) update(client model.TradeClient) error {
 		if p, ok := tp[p.Coin][p.ID]; ok {
 			cfg = p.config
 		}
+		if _, ok := tp[p.Coin]; !ok {
+			tp[p.Coin] = make(map[string]*tradePosition)
+		}
 		tp[p.Coin][p.ID] = &tradePosition{
 			position: p,
 			config:   cfg,
@@ -117,16 +123,18 @@ func (tp tradePositions) track(client model.TradeClient, ticker *time.Ticker, qu
 	}
 }
 
+const noPositionMsg = "no open positions"
+
 func (tp tradePositions) trackUserActions(client model.TradeClient, user model.UserInterface) {
 	for command := range user.Listen("trade", "?p") {
 		var action string
 		var coin string
 		var defVolume float64
-		err := command.Validate(
+		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p", "?pos", "?positions"),
+			api.Any(&coin),
 			api.OneOf(&action, "buy", "sell", ""),
-			api.NotEmpty(&coin),
 			api.Float(&defVolume),
 		)
 		if err != nil {
@@ -145,29 +153,32 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 				model.Reply(user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
 			}
 			i := 0
-			for id, p := range tp[c] {
-				net, profit := p.position.Value()
-				profitThreshold := p.config.profit
-				stopLossThreshold := p.config.stopLoss
-				configMsg := fmt.Sprintf("[ profit : %.2f , stop-loss : %.2f ]", profitThreshold, stopLossThreshold)
-				msg := fmt.Sprintf("%s %s:%.2f%s(%.2f§) <- %v at %v",
-					emoji.MapToSign(net),
-					p.position.Coin,
-					profit,
-					"%",
-					net,
-					p.position.Type,
-					math.Format(p.position.OpenPrice))
-				// TODO : send a trigger for each position to give access to adjust it
-				user.Send(api.NewMessage(msg).AddLine(configMsg), api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id))))
-				i++
+			if len(tp) == 0 {
+				user.Send(api.NewMessage(noPositionMsg), nil)
+				continue
 			}
-		case "config":
-			// TODO : configure the defaults
-		case "buy":
-			// TODO : buy
-		case "sell":
-			// TODO : sell
+			for coin, pos := range tp {
+				if c == "" || coin == c {
+					for id, p := range pos {
+						net, profit := p.position.Value()
+						profitThreshold := p.config.profit
+						stopLossThreshold := p.config.stopLoss
+						configMsg := fmt.Sprintf("[ profit : %.2f , stop-loss : %.2f ]", profitThreshold, stopLossThreshold)
+						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f§) <- %v at %v",
+							emoji.MapToSign(net),
+							p.position.Coin,
+							profit,
+							"%",
+							net,
+							p.position.Type,
+							math.Format(p.position.OpenPrice))
+						// TODO : send a trigger for each position to give access to adjust it
+						trigger := api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id)))
+						user.Send(api.NewMessage(msg).AddLine(configMsg), trigger)
+						i++
+					}
+				}
+			}
 		}
 	}
 }
@@ -188,7 +199,6 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 			math.Format(profit),
 			math.Format(net),
 			math.Format(p.config.Live))
-
 		user.Send(api.NewMessage(msg), &api.Trigger{
 			ID:      p.position.ID,
 			Default: []string{"close"},
@@ -201,14 +211,12 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 }
 
 func (tp tradePositions) closePositionTrigger(client model.TradeClient, key tpKey) api.TriggerFunc {
-	return func(command api.Command, options ...string) (string, error) {
-		var action string
+	return func(command api.Command) (string, error) {
 		var nProfit float64
 		var nStopLoss float64
-		err := command.Validate(
+		exec, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("skip", "extend", "reverse", "close"),
-			api.OneOf(&action, "buy", "sell", ""),
 			api.Float(&nProfit),
 			api.Float(&nStopLoss),
 		)
@@ -217,14 +225,16 @@ func (tp tradePositions) closePositionTrigger(client model.TradeClient, key tpKe
 		}
 		position := tp[key.coin][key.id].position
 		net, profit := position.Value()
-		switch action {
+		switch exec {
 		case "skip":
 			// avoid to complete the trigger in any case
 			return "no action", nil
 		case "extend":
-			// TODO : adjust profit and stop-loss
+			if nProfit == 0 || nStopLoss == 0 {
+				return "", fmt.Errorf("cannot adjust profit and loss: %v - %v", nProfit, nStopLoss)
+			}
 			tp.updateConfig(key, nProfit, nStopLoss)
-			return fmt.Sprintf("adjusted [ profit = %f , stop-loss = %f]", nProfit, nStopLoss), nil
+			return fmt.Sprintf("%s position for %s [ profit = %f , stop-loss = %f]", exec, string(position.Coin), tp[key.coin][key.id].config.profit, tp[key.coin][key.id].config.stopLoss), nil
 		case "reverse":
 			position.Volume = 2 * position.Volume
 			fallthrough
@@ -237,7 +247,7 @@ func (tp tradePositions) closePositionTrigger(client model.TradeClient, key tpKe
 			} else {
 				log.Info().Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 				delete(tp[key.coin], key.id)
-				return fmt.Sprintf("closed position for %s at %v", string(position.Coin), math.Format(net)), nil
+				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, math.Format(net), position.Volume), nil
 			}
 		}
 		return "", fmt.Errorf("only allowed commands are [ close , extend , reverse , skip ]")

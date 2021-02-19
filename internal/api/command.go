@@ -14,32 +14,31 @@ type Command struct {
 }
 
 // ParseCommand parses a command from a message details.
-func ParseCommand(id int, user, txt string) (Command, []string) {
+func ParseCommand(id int, user, txt string) Command {
 	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
-	cmd := strings.Split(txt, " ")
 	return Command{
 		ID:      id,
 		User:    user,
-		Content: cmd[0],
-	}, cmd[1:]
+		Content: txt,
+	}
 }
 
 // Validator is a validation function that checks the string for the given type.
 type Validator func(string) error
 
 // Validate validates the command with the given arguments.
-func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, args ...Validator) error {
+func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, args ...Validator) (string, error) {
 	if _, ok := user[c.User]; !ok && len(user) > 0 {
-		return fmt.Errorf("command cannot be executed: %s", c.User)
+		return "", fmt.Errorf("command cannot be executed: %s", c.User)
 	}
 	// TODO : find a better way to parse the arguments i.e. with regex
 	cmd := strings.Split(c.Content, " ")
 	if len(cmd) == 0 {
-		return fmt.Errorf("cannot parse empty command: %s", c.Content)
+		return "", fmt.Errorf("cannot parse empty command: %s", c.Content)
 	}
 	exec := cmd[0]
 	if _, ok := exe[exec]; !ok && len(exe) > 0 {
-		return fmt.Errorf("unknown command: %s", exec)
+		return "", fmt.Errorf("unknown command: %s", exec)
 	}
 
 	options := cmd[1:]
@@ -51,10 +50,10 @@ func (c Command) Validate(user map[string]struct{}, exe map[string]struct{}, arg
 		}
 		err := arg(opt)
 		if err != nil {
-			return fmt.Errorf("error for argument '%s' at %d: %w", opt, i, err)
+			return "", fmt.Errorf("error for argument '%s' at %d: %w", opt, i, err)
 		}
 	}
-	return nil
+	return exec, nil
 }
 
 // AnyUser is a predefined validator for any value.
@@ -69,6 +68,14 @@ func Contains(arg ...string) map[string]struct{} {
 		args[a] = struct{}{}
 	}
 	return args
+}
+
+// Any is effectively no validator, as it allows any argument.
+func Any(v *string) Validator {
+	return func(s string) error {
+		*v = s
+		return nil
+	}
 }
 
 // NotEmpty is a predefined Validator that checks if the argument is empty.

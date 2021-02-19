@@ -105,7 +105,7 @@ func TestCommand_Validate(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := tt.cmd.Validate(tt.userValidator, tt.execValidator, tt.options...)
+			_, err := tt.cmd.Validate(tt.userValidator, tt.execValidator, tt.options...)
 			if tt.err {
 				assert.Error(t, err)
 			} else {

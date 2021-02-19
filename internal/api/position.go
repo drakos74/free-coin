@@ -1,5 +1,7 @@
 package api
 
+import "github.com/google/uuid"
+
 // PositionBatch is a batch of open positions.
 type PositionBatch struct {
 	Positions []Position
@@ -20,11 +22,15 @@ type Position struct {
 }
 
 // NewPosition creates a new position.
-func NewPosition(trade Trade) Position {
+// it inherits the coin, type and price of the current trade,
+// but specifies its own quantity.
+func NewPosition(trade Trade, volume float64) Position {
 	return Position{
+		ID:        uuid.New().String(),
 		Coin:      trade.Coin,
 		Type:      trade.Type,
 		OpenPrice: trade.Price,
+		Volume:    volume,
 	}
 }
 

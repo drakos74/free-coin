@@ -56,7 +56,7 @@ func trackUserActions(user model.UserInterface, stats *state) {
 	for command := range user.Listen("stats", "?n") {
 		var duration int
 		var action string
-		err := command.Validate(
+		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?n", "?notify"),
 			api.Int(&duration),
@@ -95,7 +95,7 @@ func trackUserActions(user model.UserInterface, stats *state) {
 }
 
 func openPositionTrigger(p *api.Trade, client model.TradeClient) api.TriggerFunc {
-	return func(command api.Command, options ...string) (string, error) {
+	return func(command api.Command) (string, error) {
 		var t api.Type
 		switch command.Content {
 		case "buy":

@@ -156,8 +156,8 @@ func (b *Bot) deferExecute(trigger *api.Trigger, replyID int) {
 			return
 		}
 		b.executeTrigger(trigger, api.Command{
-			Content: trigger.Default[0],
-		}, trigger.Default[1:]...)
+			Content: strings.Join(trigger.Default, " "),
+		})
 	}
 	delete(b.triggers, trigger.ID)
 	delete(b.messages, replyID)
@@ -169,8 +169,8 @@ func (b *Bot) execute(message *tgbotapi.Message, replyID int) {
 	if triggerID, ok := b.messages[replyID]; ok {
 		// try to find trigger id if it s still valid
 		if trigger, ok := b.triggers[triggerID]; ok {
-			cmd, opts := api.ParseCommand(message.MessageID, message.From.UserName, message.Text)
-			b.executeTrigger(trigger, cmd, opts...)
+			cmd := api.ParseCommand(message.MessageID, message.From.UserName, message.Text)
+			b.executeTrigger(trigger, cmd)
 		} else {
 			// no trigger found for this id (could be already consumed)
 			log.Debug().Int("id", replyID).Msg("trigger already applied")
@@ -186,8 +186,8 @@ func (b *Bot) execute(message *tgbotapi.Message, replyID int) {
 
 // executeTrigger will execute the given trigger.
 // it will make sure the block on the trigger and state regarding this event are handled accordingly.
-func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command, opts ...string) {
-	rsp, err := trigger.Exec(cmd, opts...)
+func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command) {
+	rsp, err := trigger.Exec(cmd)
 	if err != nil {
 		b.Send(api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
 		return
