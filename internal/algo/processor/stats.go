@@ -334,7 +334,6 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 
 	// format the past values
 	emojiValues := make([]string, len(values[0]))
-	println(fmt.Sprintf("values[0] = %+v", values[0]))
 	for j := 0; j < len(values[0]); j++ {
 		emojiValues[j] = emoji.MapToSymbol(values[0][j])
 	}
