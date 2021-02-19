@@ -2,6 +2,7 @@ package private
 
 import (
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/client/kraken/model"
 	"github.com/drakos74/free-coin/internal/api"
 )
 
@@ -11,8 +12,8 @@ func NewPosition(id string, response krakenapi.Position) api.Position {
 	fees := response.Fee * 2
 	return api.Position{
 		ID:           id,
-		Coin:         api.Coin(response.Pair),
-		Type:         api.Type(response.PositionType),
+		Coin:         model.Coin(response.Pair),
+		Type:         model.Type(response.PositionType),
 		OpenPrice:    response.Cost / response.Volume,
 		CurrentPrice: response.Value / response.Volume,
 		Cost:         response.Cost,
