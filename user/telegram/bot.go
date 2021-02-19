@@ -102,13 +102,19 @@ func (b *Bot) Run(ctx context.Context) error {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 10
 
-	updates, err := b.publicBot.GetUpdatesChan(u)
+	publicUpdates, err := b.publicBot.GetUpdatesChan(u)
+	if err != nil {
+		return err
+	}
+
+	privateUpdates, err := b.privateBot.GetUpdatesChan(u)
 	if err != nil {
 		return err
 	}
 
 	go b.processExecution()
-	go b.listenToUpdates(ctx, updates)
+	go b.listenToUpdates(ctx, publicUpdates)
+	go b.listenToUpdates(ctx, privateUpdates)
 	return nil
 }
 
