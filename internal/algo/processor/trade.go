@@ -33,7 +33,7 @@ func Trader(client model.TradeClient, user model.UserInterface) api.Processor {
 				rsi := MetaRSI(trade, dd)
 				bucketView := MetaBucket(trade, dd)
 				predictions := MetaStatsPredictions(trade, dd)
-				if len(predictions) > 0 && rsi.RSI > 0 && math.Abs(bucketView.EMADiff) > 10 {
+				if len(predictions) > 0 && rsi.RSI > 0 && math.Abs(bucketView.price.EMADiff) > 10 {
 					// check if we should make a buy order
 				}
 			}
