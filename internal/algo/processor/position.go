@@ -193,6 +193,7 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 		Float64("profit", profit).
 		Msg("check position")
 	if p.config.DoClose(p.position) {
+		fmt.Println(fmt.Sprintf("p = %+v", p))
 		//msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
 		//	emoji.MapToSign(net),
 		//	string(p.position.Coin),
@@ -273,11 +274,13 @@ type closingConfig struct {
 // TODO : test this logic
 func (c *closingConfig) DoClose(position api.Position) bool {
 	net, p := position.Value()
+	fmt.Println(fmt.Sprintf("net = %+v", net))
+	fmt.Println(fmt.Sprintf("p = %+v", p))
 	if net > 0 && p > c.profit {
 		// only close if the market is going down
 		return c.Live <= 0
 	}
-	if net < 0 && p < c.stopLoss {
+	if net < 0 && p < -1*c.stopLoss {
 		// only close if the market is going up
 		return c.Live >= 0
 	}
@@ -288,7 +291,7 @@ var defaultClosingConfig = map[api.Coin]closingConfig{
 	api.BTC: {
 		coin:     api.BTC,
 		profit:   1.5,
-		stopLoss: -1.5,
+		stopLoss: 1.5,
 	},
 }
 
