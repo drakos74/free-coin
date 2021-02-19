@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	RatioKey           = "RATIO"
 	statsProcessorName = "stats"
 )
 
@@ -158,22 +157,30 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 						Msg("started stats processor")
 				}
 
-				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price); ok {
+				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price, trade.Volume); ok {
 					buckets := stats.windows[key][trade.Coin].w.Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
 							// get the 'zerowth' stats element, as we are only assing the price a few lines above,
 							// there is nothing more to retrieve from the bucket.
-							return buffer.NewView(b, 0)
+							priceView := buffer.NewView(b, 0)
+							volumeView := buffer.NewView(b, 1)
+							return windowView{
+								price:  priceView,
+								volume: volumeView,
+							}
 						}
 						// TODO : this will break things a lot if we missed something ... 😅
 						return nil
 					})
 
-					values, rsi, ema, last := extractFromBuckets(buckets, order)
+					values, rsi, ema, last := extractFromBuckets(buckets,
+						order(func(b windowView) float64 {
+							return b.price.Ratio
+						}))
 
 					// count the occurrences
-					predictions := stats.windows[key][trade.Coin].c.Add(values[len(values)-1])
+					predictions := stats.windows[key][trade.Coin].c.Add(values[0][len(values)-1])
 
 					// TODO : implement enrich on the model.Trade to pass data to downstream processors
 					//trade.Enrich(MetaKey(trade.coin, int64(cfg.duration.Seconds())), buffer)
@@ -231,12 +238,12 @@ func MetaBucketKey(metaKey string) string {
 }
 
 // MetaBucket returns the last bucket stats from the metadata of the trade.
-func MetaBucket(trade *api.Trade, duration time.Duration) buffer.TimeWindowView {
+func MetaBucket(trade *api.Trade, duration time.Duration) windowView {
 	metaKey := MetaKey(trade.Coin, duration)
-	if bucketView, ok := trade.Meta[MetaBucketKey(metaKey)].(buffer.TimeWindowView); ok {
+	if bucketView, ok := trade.Meta[MetaBucketKey(metaKey)].(windowView); ok {
 		return bucketView
 	}
-	return buffer.TimeWindowView{}
+	return windowView{}
 }
 
 // MetaStatsPredictionsKey returns the metadata key for the stats predictions.
@@ -253,45 +260,56 @@ func MetaStatsPredictions(trade *api.Trade, duration time.Duration) map[string]b
 	return map[string]buffer.Prediction{}
 }
 
+type windowView struct {
+	price  buffer.TimeWindowView
+	volume buffer.TimeWindowView
+}
+
 // extractFromBuckets extracts from the given buckets the needed values
-func extractFromBuckets(ifc interface{}, format func(b buffer.TimeWindowView) string) ([]string, int, float64, buffer.TimeWindowView) {
+func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([][]string, int, float64, windowView) {
 	s := reflect.ValueOf(ifc)
-	bb := make([]string, s.Len())
-	var last buffer.TimeWindowView
+	pp := make([][]string, s.Len())
+	var last windowView
 	rsiStream := &math.RSI{}
 	var rsi int
 	var ema float64
 	l := s.Len()
 	for i := 0; i < l; i++ {
-		b := s.Index(i).Interface().(buffer.TimeWindowView)
+		b := s.Index(i).Interface().(windowView)
 		last = b
-		bb[i] = format(b)
-		rsi, _ = rsiStream.Add(b.Diff)
+		pp[i] = make([]string, len(format))
+		for j, f := range format {
+			pp[i][j] = f(b)
+		}
+		rsi, _ = rsiStream.Add(b.price.Diff)
 		w := 2 / float64(l)
-		ema = b.Price*w + ema*(1-w)
+		ema = b.price.Value*w + ema*(1-w)
 	}
-	return bb, rsi, ema, last
+	return pp, rsi, ema, last
 }
 
-func order(b buffer.TimeWindowView) string {
-	v := math.O10(b.Ratio)
-	fs := "%d"
-	if b.Ratio > 0 {
-		fs = fmt.Sprintf("+%s", fs)
-	} else if b.Ratio < 0 {
-		fs = fmt.Sprintf("-%s", fs)
+func order(extract func(b windowView) float64) func(b windowView) string {
+	return func(b windowView) string {
+		f := extract(b)
+		v := math.O10(f)
+		fs := "%d"
+		if f > 0 {
+			fs = fmt.Sprintf("+%s", fs)
+		} else if f < 0 {
+			fs = fmt.Sprintf("-%s", fs)
+		}
+		s := fmt.Sprintf(fs, v)
+		return s
 	}
-	s := fmt.Sprintf(fs, v)
-	return s
 }
 
-func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, ema float64, predictions map[string]buffer.Prediction, p *api.Trade, cfg windowConfig) string {
+func createStatsMessage(last windowView, values [][]string, rsi int, ema float64, predictions map[string]buffer.Prediction, p *api.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats state
 	// identify the move of the coin.
 	move := emoji.Zero
-	if last.Ratio > 0 {
+	if last.price.Ratio > 0 {
 		move = emoji.Up
-	} else if last.Ratio < 0 {
+	} else if last.price.Ratio < 0 {
 		move = emoji.Down
 	}
 
@@ -315,37 +333,46 @@ func createStatsMessage(last buffer.TimeWindowView, values []string, rsi int, em
 	}
 
 	// format the past values
-	emojiValues := make([]string, len(values))
+	emojiValues := make([]string, len(values[0]))
 	for j := 0; j < len(values); j++ {
-		emojiValues[j] = emoji.MapToSymbol(values[j])
+		emojiValues[j] = emoji.MapToSymbol(values[0][j])
 	}
 
+	// stats processor details
 	ps := fmt.Sprintf("%s|%.0fm: %s ...",
 		p.Coin,
 		cfg.duration.Minutes(),
-		strings.Join(emojiValues, " "),
-	)
+		strings.Join(emojiValues, " "))
 
-	mv := fmt.Sprintf("%s %s ratio:%.2f stdv:%.2f ema:%.2f",
+	// last bucket price details
+	mp := fmt.Sprintf("%s %s ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
 		math.Format(p.Price),
-		last.Ratio*100,
-		last.StdDev,
-		last.EMADiff,
-	)
+		last.price.Ratio*100,
+		last.price.StdDev,
+		last.price.EMADiff)
 
+	mv := fmt.Sprintf("%f %s ratio:%.2f stdv:%.2f ema:%.2f",
+		last.volume.Diff,
+		math.Format(last.volume.Value),
+		last.volume.Ratio*100,
+		last.volume.StdDev,
+		last.price.EMADiff)
+
+	// bucket collector details
 	st := fmt.Sprintf("rsi:%d ema:%.2f (%d)",
 		rsi,
-		100*(ema-last.Price)/last.Price,
-		len(values),
-	)
+		100*(ema-last.price.Value)/last.price.Value,
+		len(values))
 
 	// TODO : make this formatting easier
 	// format the status message for the processor.
-	return fmt.Sprintf("%s\n %s\n %s\n %s",
+	return fmt.Sprintf("%s\n %s\n %s\n %s\n %s",
 		ps,
+		mp,
 		mv,
 		st,
+		// predictions details
 		strings.Join(pp, "\n "),
 	)
 

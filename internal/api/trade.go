@@ -9,7 +9,7 @@ type TradeSource chan *Trade
 type Trade struct {
 	ID     string                 `json:"id"`
 	Coin   Coin                   `json:"coin"`
-	Price  float64                `json:"Price"`
+	Price  float64                `json:"Value"`
 	Volume float64                `json:"Volume"`
 	Time   time.Time              `json:"time"`
 	Type   Type                   `json:"Type"`

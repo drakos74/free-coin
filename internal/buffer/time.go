@@ -8,7 +8,7 @@ import "time"
 type TimeWindowView struct {
 	Time    time.Time `json:"time"`
 	Count   int       `json:"count"`
-	Price   float64   `json:"price"`
+	Value   float64   `json:"value"`
 	EMADiff float64   `json:"ema_diff"`
 	Diff    float64   `json:"diff"`
 	Ratio   float64   `json:"ratio"`
@@ -20,14 +20,16 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 	avg := bucket.Values().Stats()[index].Avg()
 	ema := bucket.Values().Stats()[index].EMA()
 	diff := bucket.Values().Stats()[index].Diff()
+	// Note: trying to make all values relative to the price
+	// so that they have a unified meaning
 	return TimeWindowView{
 		Time:    bucket.Time,
 		Count:   bucket.Size(),
-		Price:   avg,
+		Value:   avg,
 		Diff:    diff,
 		EMADiff: 100 * (ema - avg) / avg,
 		Ratio:   diff / avg,
-		StdDev:  bucket.Values().Stats()[index].StDev(),
+		StdDev:  100 * bucket.Values().Stats()[index].StDev() / avg,
 	}
 }
 

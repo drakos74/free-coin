@@ -41,6 +41,8 @@ type Prediction struct {
 }
 
 // Add adds a string to the counter sequence.
+// TODO : reverse the logic by accepting the result instead of the input.
+// (This should allow us to filter out irrelevant data)
 func (c *HMM) Add(s string) map[string]Prediction {
 
 	values := make([]string, 0)
