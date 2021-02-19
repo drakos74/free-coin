@@ -7,6 +7,7 @@ import (
 	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/client/kraken/private"
 	"github.com/drakos74/free-coin/internal/api"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
@@ -126,5 +127,34 @@ func (c *Client) OpenPosition(position api.Position) error {
 }
 
 func (c *Client) OpenPositions(ctx context.Context) (*api.PositionBatch, error) {
-	panic("implement me")
+	params := map[string]string{
+		"docalcs": "true",
+	}
+	response, err := c.Api.PrivateApi.OpenPositions(params)
+	if err != nil {
+		return nil, fmt.Errorf("could not get positions: %w", err)
+	}
+
+	if response == nil {
+		return nil, fmt.Errorf("received invalid response: %v", response)
+	}
+
+	positionsResponse := *response
+	if len(positionsResponse) == 0 {
+		return &api.PositionBatch{
+			Positions: []api.Position{},
+			Index:     time.Now().Unix(),
+		}, nil
+	}
+
+	positions := make([]api.Position, len(positionsResponse))
+	i := 0
+	for k, pos := range *response {
+		positions[i] = private.NewPosition(k, pos)
+		i++
+	}
+	return &api.PositionBatch{
+		Positions: positions,
+		Index:     time.Now().Unix(),
+	}, nil
 }
