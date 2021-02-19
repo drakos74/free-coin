@@ -75,7 +75,7 @@ func TestPosition_Update(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			client, _, _, cmds, cnfs := run(Position)
+			client, _, _, cmds, msgs := run(Position)
 
 			wg := new(sync.WaitGroup)
 			if len(tt.positions) == 0 {
@@ -92,15 +92,15 @@ func TestPosition_Update(t *testing.T) {
 
 			go func() {
 				i := 0
-				for cnf := range cnfs {
-					assert.Contains(t, cnf.msg.Text, tt.msg[i])
-					println(fmt.Sprintf("user.Text = %+v", cnf.msg.Text))
+				for msg := range msgs {
+					assert.Contains(t, msg.msg.Text, tt.msg[i])
+					println(fmt.Sprintf("user.Text = %+v", msg.msg.Text))
 					if tt.reply != nil && len(tt.reply) > i {
 						userCommand := tt.reply[i]
 						if userCommand != "" {
 							// emulate the user replying ...
 							cmd := api.ParseCommand(0, "iam", userCommand)
-							reply, err := cnf.trigger.Exec(cmd)
+							reply, err := msg.trigger.Exec(cmd)
 							assert.NoError(t, err)
 							// we know that our default mock positions are on btc
 							assert.Contains(t, reply, tt.replyMsg[i])

@@ -158,6 +158,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 				}
 
 				if _, ok := stats.windows[key][trade.Coin].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
+					println(fmt.Sprintf("ok = %+v", ok))
 					buckets := stats.windows[key][trade.Coin].w.Get(func(bucket interface{}) interface{} {
 						// it's a history window , so we expect to have history buckets inside
 						if b, ok := bucket.(buffer.TimeBucket); ok {
@@ -274,16 +275,16 @@ func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([
 	var rsi int
 	var ema float64
 	l := s.Len()
-	for i := 0; i < l; i++ {
-		b := s.Index(i).Interface().(windowView)
-		last = b
-		pp[i] = make([]string, len(format))
-		for j, f := range format {
-			pp[i][j] = f(b)
+	for j, f := range format {
+		pp[j] = make([]string, l)
+		for i := 0; i < l; i++ {
+			b := s.Index(i).Interface().(windowView)
+			last = b
+			pp[j][i] = f(b)
+			rsi, _ = rsiStream.Add(b.price.Diff)
+			w := 2 / float64(l)
+			ema = b.price.Value*w + ema*(1-w)
 		}
-		rsi, _ = rsiStream.Add(b.price.Diff)
-		w := 2 / float64(l)
-		ema = b.price.Value*w + ema*(1-w)
 	}
 	return pp, rsi, ema, last
 }
@@ -334,6 +335,7 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 
 	// format the past values
 	emojiValues := make([]string, len(values[0]))
+	println(fmt.Sprintf("values[0] = %+v", values[0]))
 	for j := 0; j < len(values[0]); j++ {
 		emojiValues[j] = emoji.MapToSymbol(values[0][j])
 	}
