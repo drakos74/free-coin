@@ -43,6 +43,12 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 
 			reply := update.Message.ReplyToMessage
 			if reply != nil {
+				log.Info().
+					Str("from", update.Message.From.UserName).
+					Str("text", update.Message.Text).
+					Int64("chat", update.Message.Chat.ID).
+					Int("messageID", reply.MessageID).
+					Msg("reply received")
 				// if it s a reply , we are responsible to act on the trigger
 				b.process <- executableTrigger{
 					message: update.Message,
@@ -64,6 +70,11 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 			for k, consumer := range b.consumers {
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.prefix) {
+					log.Info().
+						Str("from", update.Message.From.UserName).
+						Str("text", update.Message.Text).
+						Str("consumer", fmt.Sprintf("%+v", k)).
+						Msg("message propagated")
 					select {
 					case consumer <- api.Command{
 						ID:      update.Message.MessageID,
