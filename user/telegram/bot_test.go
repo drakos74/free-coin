@@ -119,7 +119,7 @@ func TestBot_SendTrigger(t *testing.T) {
 
 	tests := map[string]test{
 		"auto-trigger": {
-			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command) (string, error) {
 				return command.Content, nil
 			}),
 			msgCount: 1,
@@ -128,7 +128,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs:     []string{"text"},
 		},
 		"no-auto-trigger": {
-			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command) (string, error) {
 				// options[0] should be the 2nd argument of the defaults
 				return command.Content, nil
 			}).WithDefaults("cc").WithTimeout(1 * time.Second),
@@ -140,7 +140,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs: []string{"text", "cc"},
 		},
 		"manual-trigger": {
-			trigger: api.NewTrigger(func(command api.Command, options ...string) (string, error) {
+			trigger: api.NewTrigger(func(command api.Command) (string, error) {
 				return command.Content, nil
 			}).WithDefaults("cc").WithTimeout(3 * time.Second),
 			msgCount: 1,

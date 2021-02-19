@@ -23,14 +23,12 @@ func testTradeProcessing(t *testing.T, processor func(client model.TradeClient, 
 		start := time.Now()
 		for i := 0; i < num; i++ {
 			trade := newTrade(api.BTC, 30000, 1, api.Buy, start.Add(1*time.Second))
-			println(fmt.Sprintf("in trade = %+v", trade))
 			in <- trade
 		}
 	}()
 
 	go func() {
-		for trade := range out {
-			println(fmt.Sprintf("out trade = %+v", trade))
+		for range out {
 			wg.Done()
 		}
 	}()

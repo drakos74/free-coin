@@ -26,6 +26,8 @@ type UserInterface interface {
 	Listen(key, prefix string) <-chan api.Command
 	// Send sends a message to the user adn returns the message ID
 	Send(message *api.Message, trigger *api.Trigger) int
+	// Send sends a message to the user adn returns the message ID
+	SendPrivate(message *api.Message, trigger *api.Trigger) int
 }
 
 // Reply sends a reply message based on the given error to the user.

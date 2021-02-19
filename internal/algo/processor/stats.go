@@ -373,8 +373,7 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 		mv,
 		st,
 		// predictions details
-		strings.Join(pp, "\n "),
-	)
+		strings.Join(pp, "\n "))
 
 }
 

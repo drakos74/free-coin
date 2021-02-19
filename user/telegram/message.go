@@ -3,8 +3,6 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,11 +13,10 @@ import (
 )
 
 // NewMessage creates a new telegram message config
-func NewMessage(message *api.Message) tgbotapi.MessageConfig {
-	cID := os.Getenv(telegramChatID)
-	tgChatID, err := strconv.ParseInt(cID, 10, 64)
-	if err != nil {
-		panic("invalid chat id")
+func (b *Bot) newMessage(private bool, message *api.Message) tgbotapi.MessageConfig {
+	tgChatID := b.publicChatID
+	if private {
+		tgChatID = b.privateChatID
 	}
 	msg := tgbotapi.NewMessage(tgChatID, message.Text)
 	if message.Reply > 0 {
@@ -94,9 +91,9 @@ func (b *Bot) processExecution() {
 			continue
 		}
 		if exec.message != nil {
-			b.execute(exec.message, exec.replyID)
+			b.execute(exec.private, exec.message, exec.replyID)
 		} else if exec.trigger != nil {
-			b.deferExecute(exec.trigger, exec.replyID)
+			b.deferExecute(exec.private, exec.trigger, exec.replyID)
 		} else {
 			panic("invalid executable trigger received")
 		}
@@ -106,10 +103,14 @@ func (b *Bot) processExecution() {
 // send will send a message and store the appropriate trigger.
 // it will automatically execute the default command if user does not reply.
 // TODO : send confirmation of auto-invoke - use tgbotapi.Message here
-func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
+func (b *Bot) send(private bool, msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
 	// before sending check for blocked triggers ...
 	if txt, ok := b.checkIfBlocked(trigger); ok {
-		sent, err := b.bot.Send(addLine(msg, txt))
+		if private {
+			sent, err := b.privateBot.Send(addLine(msg, txt))
+			return sent.MessageID, err
+		}
+		sent, err := b.publicBot.Send(addLine(msg, txt))
 		return sent.MessageID, err
 	}
 	// otherwise send the message and add the trigger
@@ -124,7 +125,13 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 	if trigger != nil && len(trigger.Default) > 0 {
 		msg = addLine(msg, fmt.Sprintf("[%s] %vs -> %v", trigger.Description, t.Seconds(), trigger.Default))
 	}
-	sent, err := b.bot.Send(msg)
+	var sent tgbotapi.Message
+	var err error
+	if private {
+		sent, err = b.privateBot.Send(msg)
+	} else {
+		sent, err = b.publicBot.Send(msg)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -133,6 +140,7 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 		b.process <- executableTrigger{
 			message: &sent,
 			trigger: trigger,
+			private: private,
 		}
 		if len(trigger.Default) > 0 {
 			go func() {
@@ -140,6 +148,7 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 				b.process <- executableTrigger{
 					trigger: trigger,
 					replyID: sent.MessageID,
+					private: private,
 				}
 			}()
 		}
@@ -149,13 +158,13 @@ func (b *Bot) send(msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error
 
 // deferExecute plans the execution of the given trigger (with the defaults)
 // at the specified timeout
-func (b *Bot) deferExecute(trigger *api.Trigger, replyID int) {
+func (b *Bot) deferExecute(private bool, trigger *api.Trigger, replyID int) {
 	if trigger, ok := b.triggers[trigger.ID]; ok {
 		if txt, ok := b.checkIfBlocked(trigger); ok {
-			b.Send(api.NewMessage(txt).ReplyTo(replyID), nil)
+			b.Send(private, api.NewMessage(txt).ReplyTo(replyID), nil)
 			return
 		}
-		b.executeTrigger(trigger, api.Command{
+		b.executeTrigger(private, trigger, api.Command{
 			Content: strings.Join(trigger.Default, " "),
 		})
 	}
@@ -164,32 +173,32 @@ func (b *Bot) deferExecute(trigger *api.Trigger, replyID int) {
 }
 
 // execute will try to find and execute the trigger attached to the replied message.
-func (b *Bot) execute(message *tgbotapi.Message, replyID int) {
+func (b *Bot) execute(private bool, message *tgbotapi.Message, replyID int) {
 	// find the replyTo to the message
 	if triggerID, ok := b.messages[replyID]; ok {
 		// try to find trigger id if it s still valid
 		if trigger, ok := b.triggers[triggerID]; ok {
 			cmd := api.ParseCommand(message.MessageID, message.From.UserName, message.Text)
-			b.executeTrigger(trigger, cmd)
+			b.executeTrigger(private, trigger, cmd)
 		} else {
 			// no trigger found for this id (could be already consumed)
 			log.Debug().Int("id", replyID).Msg("trigger already applied")
-			b.Send(api.NewMessage("trigger already applied").ReplyTo(message.MessageID), nil)
+			b.Send(private, api.NewMessage("trigger already applied").ReplyTo(message.MessageID), nil)
 		}
 		// clean up the initial message cache
 		delete(b.messages, replyID)
 	} else {
 		log.Error().Int("id", replyID).Msg("trigger expired")
-		b.Send(api.NewMessage("trigger expired").ReplyTo(message.MessageID), nil)
+		b.Send(private, api.NewMessage("trigger expired").ReplyTo(message.MessageID), nil)
 	}
 }
 
 // executeTrigger will execute the given trigger.
 // it will make sure the block on the trigger and state regarding this event are handled accordingly.
-func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command) {
+func (b *Bot) executeTrigger(private bool, trigger *api.Trigger, cmd api.Command) {
 	rsp, err := trigger.Exec(cmd)
 	if err != nil {
-		b.Send(api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
+		b.Send(private, api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
 		return
 	}
 	// TODO : check how and when to delete the triggers
@@ -201,5 +210,5 @@ func (b *Bot) executeTrigger(trigger *api.Trigger, cmd api.Command) {
 		<-time.After(blockTimeout)
 		delete(b.blockedTriggers, trigger.ID)
 	}()
-	b.Send(api.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)
+	b.Send(private, api.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)
 }
