@@ -22,8 +22,8 @@ func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
 
-	//client := kraken.New(ctx, cointime.LastXHours(48), 10*time.Second)
-	client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
+	client := kraken.New(ctx, cointime.LastXHours(48), 10*time.Second)
+	//client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
 
 	user, err := telegram.NewBot()
 	if err != nil {

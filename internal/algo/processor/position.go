@@ -276,8 +276,6 @@ type closingConfig struct {
 // TODO : test this logic
 func (c *closingConfig) DoClose(position api.Position) bool {
 	net, p := position.Value()
-	fmt.Println(fmt.Sprintf("net = %+v", net))
-	fmt.Println(fmt.Sprintf("p = %+v", p))
 	if net > 0 && p > c.profit {
 		// only close if the market is going down
 		return c.Live <= 0
