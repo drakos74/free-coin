@@ -36,7 +36,7 @@ func (m *mockBot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 
 func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) *Bot {
 	return &Bot{
-		bot:             &mockBot{input: input, output: output},
+		publicBot:       &mockBot{input: input, output: output},
 		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
@@ -202,7 +202,7 @@ func TestBot_SendTrigger(t *testing.T) {
 
 			for i := 0; i < tt.msgCount; i++ {
 				// send a message to the user
-				b.Send(api.NewMessage("text"), tt.trigger)
+				b.Send(false, api.NewMessage("text"), tt.trigger)
 			}
 
 			wg.Wait()

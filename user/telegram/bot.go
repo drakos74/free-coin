@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/model"
+
 	"github.com/drakos74/free-coin/internal/api"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -43,7 +45,7 @@ type executableTrigger struct {
 	message *tgbotapi.Message
 	trigger *api.Trigger
 	replyID int
-	private bool
+	private model.Index
 }
 
 // Bot defines the telegram bot coinapi.UserInterface api implementation.
@@ -129,7 +131,7 @@ func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 }
 
 // Send sends the given message with the attached details to the specified telegram chat.
-func (b *Bot) Send(private bool, message *api.Message, trigger *api.Trigger) int {
+func (b *Bot) Send(private model.Index, message *api.Message, trigger *api.Trigger) int {
 	msg := b.newMessage(private, message)
 	msgID, err := b.send(private, msg, trigger)
 	if err != nil {

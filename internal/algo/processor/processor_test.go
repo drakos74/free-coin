@@ -76,7 +76,7 @@ func (u *mockUser) Listen(key, prefix string) <-chan api.Command {
 	return u.action
 }
 
-func (u *mockUser) Send(message *api.Message, trigger *api.Trigger) int {
+func (u *mockUser) Send(private model.Index, message *api.Message, trigger *api.Trigger) int {
 	u.sent <- sendAction{
 		msg:     message,
 		trigger: trigger,

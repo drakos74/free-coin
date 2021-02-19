@@ -63,7 +63,7 @@ func trackUserActions(user model.UserInterface, stats *state) {
 			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
-			model.Reply(user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			model.Reply(model.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 		timeDuration := time.Duration(duration) * time.Minute
@@ -73,7 +73,7 @@ func trackUserActions(user model.UserInterface, stats *state) {
 			// TODO : return the currently running stats processes
 		case "start":
 			if _, ok := stats.configs[timeDuration]; ok {
-				model.Reply(user,
+				model.Reply(model.Private, user,
 					api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
 						ReplyTo(command.ID), nil)
 				continue
@@ -81,13 +81,13 @@ func trackUserActions(user model.UserInterface, stats *state) {
 			// TODO : decide how to handle the historySizes, especially in combination with the counterSizes.
 			stats.configs[timeDuration] = newWindowConfig(timeDuration)
 			stats.windows[timeDuration] = make(map[api.Coin]window)
-			model.Reply(user,
+			model.Reply(model.Private, user,
 				api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
 					ReplyTo(command.ID), nil)
 		case "stop":
 			delete(stats.configs, timeDuration)
 			delete(stats.windows, timeDuration)
-			model.Reply(user,
+			model.Reply(model.Private, user,
 				api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
 					ReplyTo(command.ID), nil)
 		}
@@ -196,7 +196,7 @@ func MultiStats(client model.TradeClient, user model.UserInterface) api.Processo
 					// TODO : send messages only if we are consuming live ...
 					if user != nil && trade.Live {
 						// TODO : add tests for this
-						user.Send(
+						user.Send(model.Public,
 							api.NewMessage(createStatsMessage(last, values, rsi, ema, predictions, trade, cfg)),
 							api.NewTrigger(openPositionTrigger(trade, client)).
 								WithID(uuid.New().String()).

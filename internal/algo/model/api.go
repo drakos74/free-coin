@@ -7,6 +7,14 @@ import (
 	"github.com/drakos74/free-coin/internal/api"
 )
 
+type Index bool
+
+// TODO : star simple now, but we can make it an int64 in the future ;)
+const (
+	Public  Index = false
+	Private Index = true
+)
+
 // TradeClient exposes the low level interface for interacting with a trade source.
 // TODO : split the trade retrieval and ordering logic.
 type TradeClient interface {
@@ -25,15 +33,13 @@ type UserInterface interface {
 	// additionally the caller can define a prefix to avoid being spammed with messages not relevant to them.
 	Listen(key, prefix string) <-chan api.Command
 	// Send sends a message to the user adn returns the message ID
-	Send(message *api.Message, trigger *api.Trigger) int
-	// Send sends a message to the user adn returns the message ID
-	SendPrivate(message *api.Message, trigger *api.Trigger) int
+	Send(channel Index, message *api.Message, trigger *api.Trigger) int
 }
 
 // Reply sends a reply message based on the given error to the user.
-func Reply(user UserInterface, message *api.Message, err error) {
+func Reply(private Index, user UserInterface, message *api.Message, err error) {
 	if err != nil {
 		message.AddLine(fmt.Sprintf("error:%s", err.Error()))
 	}
-	user.Send(message, nil)
+	user.Send(private, message, nil)
 }

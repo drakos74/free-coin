@@ -138,7 +138,7 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 			api.Float(&defVolume),
 		)
 		if err != nil {
-			model.Reply(user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			model.Reply(model.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -150,11 +150,11 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
-				model.Reply(user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
+				model.Reply(model.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
 			}
 			i := 0
 			if len(tp) == 0 {
-				user.Send(api.NewMessage(noPositionMsg), nil)
+				user.Send(model.Private, api.NewMessage(noPositionMsg), nil)
 				continue
 			}
 			for coin, pos := range tp {
@@ -174,7 +174,7 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 							math.Format(p.position.OpenPrice))
 						// TODO : send a trigger for each position to give access to adjust it
 						trigger := api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id)))
-						user.Send(api.NewMessage(msg).AddLine(configMsg), trigger)
+						user.Send(model.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
 						i++
 					}
 				}
@@ -199,7 +199,7 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 			math.Format(profit),
 			math.Format(net),
 			math.Format(p.config.Live))
-		user.Send(api.NewMessage(msg), &api.Trigger{
+		user.Send(model.Private, api.NewMessage(msg), &api.Trigger{
 			ID:      p.position.ID,
 			Default: []string{"close"},
 			Exec:    tp.closePositionTrigger(client, key),
