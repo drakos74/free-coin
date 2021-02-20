@@ -75,14 +75,14 @@ func (o *Order) Buy() *Order {
 
 // WithPrice defines the price for the order (if needed).
 func (o *Order) WithPrice(p float64) *Order {
-	o.mustBeZero(p)
+	o.mustBeZero(o.Price)
 	o.Price = p
 	return o
 }
 
 // WithVolume defines the volume for this order.
 func (o *Order) WithVolume(v float64) *Order {
-	o.mustBeZero(v)
+	o.mustBeZero(o.Volume)
 	o.Volume = v
 	return o
 }
@@ -149,7 +149,7 @@ func (o *Order) mustNotBeZero(t float64) {
 
 func (o *Order) mustBeZero(t float64) {
 	if t != 0.0 {
-		panic(fmt.Sprintf("value cannot be empty: %f", t))
+		panic(fmt.Sprintf("value must be empty: %f", t))
 	}
 }
 

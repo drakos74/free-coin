@@ -113,8 +113,8 @@ func (b *Bot) Run(ctx context.Context) error {
 	}
 
 	go b.processExecution()
-	go b.listenToUpdates(ctx, publicUpdates)
-	go b.listenToUpdates(ctx, privateUpdates)
+	go b.listenToUpdates(ctx, api.Public, publicUpdates)
+	go b.listenToUpdates(ctx, api.Private, privateUpdates)
 	return nil
 }
 

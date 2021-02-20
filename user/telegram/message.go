@@ -31,7 +31,7 @@ func addLine(msg tgbotapi.MessageConfig, txt string) tgbotapi.MessageConfig {
 }
 
 // listenToUpdates listens to updates for the telegram bot.
-func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChannel) {
+func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tgbotapi.UpdatesChannel) {
 	for {
 		select {
 		case update := <-updates:
@@ -45,12 +45,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 					Str("from", update.Message.From.UserName).
 					Str("text", update.Message.Text).
 					Int64("chat", update.Message.Chat.ID).
+					Str("private", fmt.Sprintf("%v", private)).
 					Int("messageID", reply.MessageID).
 					Msg("reply received")
 				// if it s a reply , we are responsible to act on the trigger
 				b.process <- executableTrigger{
 					message: update.Message,
 					replyID: reply.MessageID,
+					private: private,
 				}
 				continue
 			}
@@ -63,6 +65,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, updates tgbotapi.UpdatesChann
 				Str("from", update.Message.From.UserName).
 				Str("text", update.Message.Text).
 				Int64("chat", chatID).
+				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
 
 			for k, consumer := range b.consumers {
@@ -147,12 +150,6 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 		return 0, err
 	}
 	if trigger != nil {
-		// store the message for potential replies on the trigger.
-		b.process <- executableTrigger{
-			message: &sent,
-			trigger: trigger,
-			private: private,
-		}
 		if len(trigger.Default) > 0 {
 			go func() {
 				<-time.After(t)
