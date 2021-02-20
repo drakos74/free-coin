@@ -30,10 +30,10 @@ func Trader(client api.TradeClient, user api.UserInterface) api.Processor {
 
 			// decide if we open a new position
 			for _, dd := range defaultDurations {
-				rsi := MetaRSI(trade, dd)
+				stats := MetaIndicators(trade, dd)
 				bucketView := MetaBucket(trade, dd)
 				predictions := MetaStatsPredictions(trade, dd)
-				if len(predictions) > 0 && rsi.RSI > 0 && math.Abs(bucketView.price.EMADiff) > 10 {
+				if len(predictions) > 0 && stats.RSI > 0 && math.Abs(bucketView.price.EMADiff) > 10 {
 					// check if we should make a buy order
 				}
 			}
