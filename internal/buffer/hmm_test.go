@@ -13,7 +13,7 @@ func TestCounter_Add(t *testing.T) {
 	type test struct {
 		transform   func(i int) string
 		predictions map[string]Prediction
-		sizes       []int
+		configs     []HMMConfig
 	}
 
 	tests := map[string]test{
@@ -29,7 +29,10 @@ func TestCounter_Add(t *testing.T) {
 					Sample:      98,
 				},
 			},
-			sizes: []int{1},
+			configs: []HMMConfig{{
+				PrevSize:   1,
+				TargetSize: 1,
+			}},
 		},
 		"single-Value": {
 			transform: func(i int) string {
@@ -43,7 +46,10 @@ func TestCounter_Add(t *testing.T) {
 					Sample:      97,
 				},
 			},
-			sizes: []int{2},
+			configs: []HMMConfig{{
+				PrevSize:   2,
+				TargetSize: 1,
+			}},
 		},
 		"dual-Value": {
 			transform: func(i int) string {
@@ -67,7 +73,10 @@ func TestCounter_Add(t *testing.T) {
 					Sample: 48,
 				},
 			},
-			sizes: []int{2},
+			configs: []HMMConfig{{
+				PrevSize:   2,
+				TargetSize: 1,
+			}},
 		},
 		"sequence-value": {
 			transform: func(i int) string {
@@ -112,7 +121,12 @@ func TestCounter_Add(t *testing.T) {
 					Sample:      15,
 				},
 			},
-			sizes: []int{3},
+			configs: []HMMConfig{
+				{
+					PrevSize:   3,
+					TargetSize: 1,
+				},
+			},
 		},
 		"multi-length": {
 			transform: func(i int) string {
@@ -157,25 +171,34 @@ func TestCounter_Add(t *testing.T) {
 					Sample:      32,
 				},
 			},
-			sizes: []int{1, 2},
+			configs: []HMMConfig{
+				{
+					PrevSize:   1,
+					TargetSize: 1,
+				},
+				{
+					PrevSize:   2,
+					TargetSize: 1,
+				},
+			},
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := NewMultiHMM(tt.sizes...)
+			c := NewMultiHMM(tt.configs...)
 			p := make(map[string]Prediction)
 			for i := 0; i < 100; i++ {
 				// we keep track of the last prediction to assert on all possible outcomes
 				s := tt.transform(i)
 				pp := c.Add(s)
 
-				// track the last j sizes
+				// track the last j configs
 				vv := make(map[string]struct{})
-				for _, j := range tt.sizes {
-					index := make([]string, j)
+				for _, j := range tt.configs {
+					index := make([]string, j.PrevSize)
 					l := 0
-					for k := j - 1; k >= 0; k-- {
+					for k := j.PrevSize - 1; k >= 0; k-- {
 						index[k] = tt.transform(i - l)
 						l++
 					}

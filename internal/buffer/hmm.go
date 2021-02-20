@@ -7,19 +7,25 @@ import (
 	"strings"
 )
 
-// NewMultiHMM creates a new counter.
-func NewMultiHMM(sizes ...int) *HMM {
+// HMMConfig defines the configuration for the hidden markov model analysis.
+type HMMConfig struct {
+	PrevSize   int
+	TargetSize int
+}
+
+// NewMultiHMM creates a new hmm.
+func NewMultiHMM(config ...HMMConfig) *HMM {
 	var max int
-	for _, s := range sizes {
-		if s > max {
-			max = s
+	for _, s := range config {
+		if s.PrevSize+s.TargetSize > max {
+			max = s.PrevSize + s.TargetSize
 		}
 	}
 	return &HMM{
 		max:      max,
 		sequence: ring.New(max + 1),
-		config:   sizes,
-		counter:  make(map[string]map[string]int),
+		config:   config,
+		hmm:      make(map[string]map[string]int),
 	}
 }
 
@@ -28,8 +34,8 @@ func NewMultiHMM(sizes ...int) *HMM {
 type HMM struct {
 	max      int
 	sequence *ring.Ring
-	config   []int
-	counter  map[string]map[string]int
+	config   []HMMConfig
+	hmm      map[string]map[string]int
 }
 
 // Prediction defines a prediction result with the computed Probability
@@ -40,9 +46,10 @@ type Prediction struct {
 	Sample      int
 }
 
-// Add adds a string to the counter sequence.
+// Add adds a string to the hmm sequence.
 // TODO : reverse the logic by accepting the result instead of the input.
-// (This should allow us to filter out irrelevant data)
+// (This should allow us to filter out irrelevant data adn save space,
+// Note : hmm is expensive in terms of memory storage )
 func (c *HMM) Add(s string) map[string]Prediction {
 
 	values := make([]string, 0)
@@ -53,8 +60,8 @@ func (c *HMM) Add(s string) map[string]Prediction {
 
 	prediction := make(map[string]Prediction)
 
-	for _, l := range c.config {
-		if k, predict := c.addKey(l, values, s); predict != nil {
+	for _, cfg := range c.config {
+		if k, predict := c.addKey(cfg, values, s); predict != nil {
 			prediction[k] = *predict
 		}
 	}
@@ -66,37 +73,46 @@ func (c *HMM) Add(s string) map[string]Prediction {
 	return prediction
 }
 
-func (c *HMM) addKey(l int, values []string, v string) (string, *Prediction) {
+func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Prediction) {
+	// we want to extract the value from the given values + the new one
+	valueSize := cfg.TargetSize - 1
 	// create the key for each of the configs
-	k := values[len(values)-l:]
+	keySize := cfg.PrevSize + valueSize
+	k := values[len(values)-keySize:]
 	key := strings.Join(k, ":")
 
+	v := append(values[len(values)-valueSize:], s)
+	value := strings.Join(k, ":")
+	// if we have not encountered that meany values yet ... just skip
 	if strings.Contains(key, "<nil>") {
 		return "", nil
 	}
 
-	if _, ok := c.counter[key]; !ok {
-		c.counter[key] = make(map[string]int)
+	// init the counter map for this key, if it s not there
+	if _, ok := c.hmm[key]; !ok {
+		c.hmm[key] = make(map[string]int)
+	}
+	if _, ok := c.hmm[key][value]; !ok {
+		c.hmm[key][value] = 0
 	}
 
-	if _, ok := c.counter[key][v]; !ok {
-		c.counter[key][v] = 0
-	}
-
-	kk := append(k[1:], v)
+	// work to make the prediction by shifting the key for the desired target size
+	kk := append(k[cfg.TargetSize:], v...)
 	pKey := strings.Join(kk, ":")
 	var prediction *Prediction
 	if !strings.Contains(pKey, "<nil>") {
 		prediction = c.predict(pKey)
 	}
 
-	c.counter[key][v]++
+	// add the value to the counter map, note we do this after we make the prediction
+	// to avoid affecting it by itself
+	c.hmm[key][value]++
 
 	return pKey, prediction
 }
 
 func (c *HMM) predict(key string) *Prediction {
-	if count, ok := c.counter[key]; ok {
+	if count, ok := c.hmm[key]; ok {
 		var m int
 		var r string
 		var s int

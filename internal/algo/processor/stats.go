@@ -31,14 +31,18 @@ var (
 type windowConfig struct {
 	duration     time.Duration
 	historySizes int64
-	counterSizes []int
+	counterSizes []buffer.HMMConfig
 }
 
 func newWindowConfig(duration time.Duration) windowConfig {
 	return windowConfig{
 		duration:     duration,
 		historySizes: 14,
-		counterSizes: []int{3, 4, 5},
+		counterSizes: []buffer.HMMConfig{
+			{PrevSize: 3, TargetSize: 1},
+			{PrevSize: 4, TargetSize: 2},
+			{PrevSize: 5, TargetSize: 3},
+		},
 	}
 }
 
@@ -150,7 +154,7 @@ func MultiStats(client api.TradeClient, user api.UserInterface) api.Processor {
 						c: buffer.NewMultiHMM(cfg.counterSizes...),
 					}
 					log.Info().
-						Ints("counters", cfg.counterSizes).
+						Str("counters", fmt.Sprintf("%+v", cfg.counterSizes)).
 						Int64("size", cfg.historySizes).
 						Float64("duration", cfg.duration.Minutes()).
 						Str("coin", string(trade.Coin)).
