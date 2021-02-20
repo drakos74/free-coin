@@ -348,7 +348,7 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 	mp := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
 		coinmath.Format(p.Price),
-		last.price.Ratio,
+		last.price.Ratio*100,
 		last.price.StdDev,
 		last.price.EMADiff)
 
@@ -357,7 +357,7 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 	mv := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
 		vol,
 		coinmath.Format(last.volume.Value),
-		last.volume.Ratio,
+		last.volume.Ratio*100,
 		last.volume.StdDev,
 		last.volume.EMADiff)
 

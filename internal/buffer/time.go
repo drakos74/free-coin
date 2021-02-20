@@ -28,7 +28,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 		Value:   avg,
 		Diff:    diff,
 		EMADiff: 100 * (ema - avg) / avg,
-		Ratio:   100 * diff / avg,
+		Ratio:   diff / avg,
 		StdDev:  100 * bucket.Values().Stats()[index].StDev() / avg,
 	}
 }
