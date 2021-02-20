@@ -3,16 +3,14 @@ package kraken
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/math"
-
-	"github.com/drakos74/free-coin/client/kraken/model"
-
-	"github.com/drakos74/free-coin/internal/api"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/client/kraken/model"
+	"github.com/drakos74/free-coin/internal/api"
+	coinmath "github.com/drakos74/free-coin/internal/math"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
@@ -118,7 +116,10 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 			// calculate percentage ...
 			progress := status.Sub(start).Minutes()
 			total := time.Since(start).Minutes()
-			log.Info().Str("coin", string(coin)).Str("percent", math.Format(100*(progress/total-1))).Msg("progress")
+			percent := 100 * (progress/total - 1)
+			if math.Abs(percent) > 1 {
+				log.Info().Str("coin", string(coin)).Str("percent", coinmath.Format(percent)).Msg("progress")
+			}
 			s.last = tradeResponse.Index
 			return nil
 		}
