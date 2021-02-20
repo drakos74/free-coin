@@ -19,6 +19,7 @@ type Remote struct {
 	private   *krakenapi.KrakenAPI
 }
 
+// Trades retrieves the next trades batch from kraken.
 func (r *Remote) Trades(coin coinmodel.Coin, since int64) (*model.TradeBatch, error) {
 	pair := r.converter.Coin.Pair(coin)
 	log.Trace().
@@ -57,15 +58,16 @@ func (r *Remote) transform(pair string, interval time.Duration, response *kraken
 	}, nil
 }
 
+// AssetPairs retrieves the active asset pairs with their trading details from kraken.
 func (r *Remote) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
 	return r.public.AssetPairs()
 }
 
+// Order opens an order in kraken.
 func (r *Remote) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
 	params := make(map[string]string)
 
 	if order.Leverage != coinmodel.NoLeverage {
-		// TODO : check the max leverage (?)
 		params["leverage"] = r.converter.Leverage.For(order)
 	}
 
@@ -86,6 +88,7 @@ func (r *Remote) Order(order coinmodel.Order) (*coinmodel.Order, []string, error
 	return r.newOrder(response.Description), response.TransactionIds, nil
 }
 
+// Close closes the kraken client.
 func (r *Remote) Close() error {
 	return nil
 }

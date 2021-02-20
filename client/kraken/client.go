@@ -138,7 +138,18 @@ func (c *Client) ClosePosition(position coinmodel.Position) error {
 }
 
 func (c *Client) OpenPosition(position coinmodel.Position) error {
-	return fmt.Errorf("not implemented OpenPosition for %+v", position)
+	order := coinmodel.NewOrder(position.Coin).
+		Market().
+		WithVolume(position.Volume).
+		WithLeverage(coinmodel.L_5).
+		WithType(position.Type).
+		Create()
+
+	_, _, err := c.Api.Order(order)
+	if err != nil {
+		return fmt.Errorf("could not open position: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
