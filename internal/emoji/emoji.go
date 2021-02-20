@@ -7,15 +7,15 @@ const (
 	ThirdEclipse = "🌒"
 	FullEclipse  = "🌑"
 	EclipseFace  = "🌚"
-	Comet        = "☄"
+	Comet        = "🪐" // ☄
 
 	FirstEclipse = "🌔"
 	FullMoon     = "🌕"
 	SunFace      = "🌞"
 	Star         = "🌟"
 
-	Zero = "🕸" //🥜
-	Down = "🥀" //🌶
+	Zero = "🥜" //🕸
+	Down = "🐞" //🌶 // 🥀
 	Up   = "🦠" //🥦
 
 	DotSnow  = "❄"
