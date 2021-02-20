@@ -195,7 +195,6 @@ func (tp tradePositions) checkClosePosition(client api.TradeClient, user api.Use
 		Float64("profit", profit).
 		Msg("check position")
 	if p.config.DoClose(p.position) {
-		fmt.Println(fmt.Sprintf("p = %+v", p))
 		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
 			emoji.MapToSign(net),
 			string(p.position.Coin),

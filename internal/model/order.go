@@ -135,18 +135,6 @@ func (o *Order) Create() Order {
 	return *o
 }
 
-func (o *Order) mustBeVoid(t string) {
-	if t != "" {
-		panic(fmt.Sprintf("value must be void: %s", t))
-	}
-}
-
-func (o *Order) mustBeSet(t string) {
-	if t == "" {
-		panic(fmt.Sprintf("value must be set: %s", t))
-	}
-}
-
 func (o *Order) mustBeEmpty(t int) {
 	if t != 0 {
 		panic(fmt.Sprintf("value must be empty: %s", t))
@@ -162,12 +150,6 @@ func (o *Order) mustNotBeZero(t float64) {
 func (o *Order) mustBeZero(t float64) {
 	if t != 0.0 {
 		panic(fmt.Sprintf("value cannot be empty: %f", t))
-	}
-}
-
-func (o *Order) mustBe(b byte, equals byte) {
-	if b != equals {
-		panic(fmt.Sprintf("value cannot be other than %v: %v", equals, b))
 	}
 }
 

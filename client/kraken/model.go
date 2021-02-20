@@ -9,9 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// tradeInfo  is the channel for receiving trade information.
-type tradeInfo chan<- krakenapi.TradeInfo
-
 // newTrade creates a new trade from the kraken trade response.
 func (r *Remote) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) coinmodel.Trade {
 	var t coinmodel.Type

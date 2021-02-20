@@ -36,8 +36,6 @@ type CoinConverter struct {
 
 // Pair transforms the internal coin type to an exchange traded pair.
 func (c CoinConverter) Pair(p model.Coin) string {
-	fmt.Println(fmt.Sprintf("p = %+v", p))
-	fmt.Println(fmt.Sprintf("c.coins = %+v", c.coins))
 	if coin, ok := c.coins[p]; ok {
 		return coin
 	}

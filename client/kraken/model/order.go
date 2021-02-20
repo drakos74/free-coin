@@ -35,7 +35,7 @@ func (lv LeverageConverter) For(order model.Order) string {
 	if leverage > lv.max[order.Coin] {
 		leverage = lv.max[order.Coin]
 	}
-	if s, ok := lv.l[order.Leverage]; ok {
+	if s, ok := lv.l[leverage]; ok {
 		return s
 	}
 	return "1:1"
