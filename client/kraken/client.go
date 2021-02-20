@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/math"
+
 	"github.com/drakos74/free-coin/client/kraken/model"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -95,6 +97,8 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 			last: c.since,
 		}
 
+		start := cointime.FromNano(c.since)
+
 		return func() error {
 			tradeResponse, err := c.Api.Trades(coin, s.last)
 			if err != nil || tradeResponse == nil {
@@ -110,6 +114,11 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 				trade.Active = active
 				trades <- &trade //public.OpenTrade(coin, trade, active)
 			}
+			status := cointime.FromNano(tradeResponse.Index)
+			// calculate percentage ...
+			progress := status.Sub(start).Minutes()
+			total := time.Since(start).Minutes()
+			log.Info().Str("coin", string(coin)).Str("percent", math.Format(100*(1-progress/total))).Msg("progress")
 			s.last = tradeResponse.Index
 			return nil
 		}

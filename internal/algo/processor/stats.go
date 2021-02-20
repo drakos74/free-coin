@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute, 4 * time.Hour, 12 * time.Hour}
+	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute}
 )
 
 type windowConfig struct {
@@ -311,14 +311,19 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 	pp := make([]string, len(predictions))
 	i := 0
 	for k, v := range predictions {
-		valueSlice := strings.Split(k, ":")
-		emojiSlice := make([]string, len(valueSlice))
-		for j, vs := range valueSlice {
-			emojiSlice[j] = emoji.MapToSymbol(vs)
+		keySlice := strings.Split(k, ":")
+		valueSlice := strings.Split(v.Value, ":")
+		emojiKeySlice := make([]string, len(keySlice))
+		for j, ks := range keySlice {
+			emojiKeySlice[j] = emoji.MapToSymbol(ks)
+		}
+		emojiValueSlice := make([]string, len(valueSlice))
+		for k, vs := range valueSlice {
+			emojiValueSlice[k] = emoji.MapToSymbol(vs)
 		}
 		pp[i] = fmt.Sprintf("%s <- %s ( %.2f : %.2f : %v ) ",
-			emoji.MapToSymbol(v.Value),
-			strings.Join(emojiSlice, " "),
+			strings.Join(emojiValueSlice, " "),
+			strings.Join(emojiKeySlice, " "),
 			v.Probability,
 			1/float64(v.Options),
 			v.Sample,
