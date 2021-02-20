@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute}
+	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute, 2 * time.Hour, 6 * time.Hour, 12 * time.Hour}
 )
 
 type windowConfig struct {
