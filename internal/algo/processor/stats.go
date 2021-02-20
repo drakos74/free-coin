@@ -355,11 +355,10 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		last.volume.EMADiff)
 
 	// bucket collector details
-	st := fmt.Sprintf("rsi:%d ersi:%d ema:%.2f rsima:%.2f (%d)",
+	st := fmt.Sprintf("rsi:%d ersi:%d ema:%.2f (%d)",
 		aggregateStats.RSI,
 		aggregateStats.ERSI,
 		100*(aggregateStats.EMA-last.price.Value)/last.price.Value,
-		aggregateStats.RSIMA,
 		aggregateStats.Sample)
 
 	// TODO : make this formatting easier
