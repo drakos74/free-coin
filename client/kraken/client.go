@@ -117,7 +117,8 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 			progress := status.Sub(start).Minutes()
 			total := time.Since(start).Minutes()
 			percent := 100 * (1 - (total-progress)/total)
-			if math.Abs(percent) > 1 {
+			if math.Abs(percent) < 97 {
+				// TODO : send a message instead
 				log.Info().Str("coin", string(coin)).Str("percent", coinmath.Format(percent)).Msg("progress")
 			}
 			s.last = tradeResponse.Index
