@@ -21,6 +21,10 @@ func O10(f float64) int {
 // O2 returns the binary order of the value on a decimal basis
 // NOTE : this does not differentiate between values bigger or smaller than 1
 func O2(f float64) int {
+	sign := 1
+	if f < 0 {
+		sign = -1
+	}
 	log2 := math.Log(math.Abs(f))
-	return int(math.Abs(log2))
+	return sign * int(math.Abs(log2))
 }

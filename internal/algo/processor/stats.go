@@ -2,21 +2,18 @@ package processor
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/metrics"
-
 	"github.com/drakos74/free-coin/internal/api"
-
-	"github.com/google/uuid"
-
-	"github.com/drakos74/free-coin/internal/emoji"
-	"github.com/drakos74/free-coin/internal/math"
-
 	"github.com/drakos74/free-coin/internal/buffer"
+	"github.com/drakos74/free-coin/internal/emoji"
+	coinmath "github.com/drakos74/free-coin/internal/math"
+	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -25,7 +22,7 @@ const (
 )
 
 var (
-	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute}
+	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute, 4 * time.Hour, 12 * time.Hour}
 )
 
 type windowConfig struct {
@@ -274,7 +271,7 @@ func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([
 	s := reflect.ValueOf(ifc)
 	pp := make([][]string, s.Len())
 	var last windowView
-	rsiStream := &math.RSI{}
+	rsiStream := &coinmath.RSI{}
 	var rsi int
 	var ema float64
 	l := s.Len()
@@ -295,7 +292,7 @@ func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([
 func order(extract func(b windowView) float64) func(b windowView) string {
 	return func(b windowView) string {
 		f := extract(b)
-		v := math.O10(f)
+		v := coinmath.O10(f)
 		fs := "%d"
 		if f > 0 {
 			fs = fmt.Sprintf("+%s", fs)
@@ -309,13 +306,6 @@ func order(extract func(b windowView) float64) func(b windowView) string {
 
 func createStatsMessage(last windowView, values [][]string, rsi int, ema float64, predictions map[string]buffer.Prediction, p *model.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats state
-	// identify the move of the coin.
-	move := emoji.Zero
-	if last.price.Ratio > 0 {
-		move = emoji.Up
-	} else if last.price.Ratio < 0 {
-		move = emoji.Down
-	}
 
 	// format the predictions.
 	pp := make([]string, len(predictions))
@@ -349,19 +339,22 @@ func createStatsMessage(last windowView, values [][]string, rsi int, ema float64
 		strings.Join(emojiValues, " "))
 
 	// last bucket price details
-	mp := fmt.Sprintf("%s %s ratio:%.2f stdv:%.2f ema:%.2f",
+	move := emoji.MapToSentiment(last.price.Ratio)
+	mp := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
-		math.Format(p.Price),
-		last.price.Ratio*100,
+		coinmath.Format(p.Price),
+		last.price.Ratio,
 		last.price.StdDev,
 		last.price.EMADiff)
 
-	mv := fmt.Sprintf("%f %s ratio:%.2f stdv:%.2f ema:%.2f",
-		last.volume.Diff,
-		math.Format(last.volume.Value),
-		last.volume.Ratio*100,
+	// ignore the values smaller than '0' just to be certain
+	vol := emoji.MapNumber(coinmath.O2(math.Round(last.volume.Diff)))
+	mv := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
+		vol,
+		coinmath.Format(last.volume.Value),
+		last.volume.Ratio,
 		last.volume.StdDev,
-		last.price.EMADiff)
+		last.volume.EMADiff)
 
 	// bucket collector details
 	st := fmt.Sprintf("rsi:%d ema:%.2f (%d)",
