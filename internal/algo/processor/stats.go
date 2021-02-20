@@ -350,7 +350,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	mv := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
 		vol,
 		coinmath.Format(last.volume.Value),
-		last.volume.Ratio*100,
+		last.volume.Ratio,
 		last.volume.StdDev,
 		last.volume.EMADiff)
 
