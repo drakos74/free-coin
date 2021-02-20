@@ -17,7 +17,7 @@ func TestCounter_Add(t *testing.T) {
 	}
 
 	tests := map[string]test{
-		"only-Value": {
+		"only-value": {
 			transform: func(i int) string {
 				return "1"
 			},
@@ -34,7 +34,7 @@ func TestCounter_Add(t *testing.T) {
 				TargetSize: 1,
 			}},
 		},
-		"single-Value": {
+		"single-value": {
 			transform: func(i int) string {
 				return "1"
 			},
@@ -51,7 +51,7 @@ func TestCounter_Add(t *testing.T) {
 				TargetSize: 1,
 			}},
 		},
-		"dual-Value": {
+		"dual-value": {
 			transform: func(i int) string {
 				if i%2 == 0 {
 					return "1"
@@ -76,6 +76,33 @@ func TestCounter_Add(t *testing.T) {
 			configs: []HMMConfig{{
 				PrevSize:   2,
 				TargetSize: 1,
+			}},
+		},
+		"dual-target-value": {
+			transform: func(i int) string {
+				if i%2 == 0 {
+					return "1"
+				}
+				return "2"
+			},
+			predictions: map[string]Prediction{
+				"1:2": {
+					Value:       "1:2",
+					Probability: 1,
+					Options:     1,
+					Sample:      48,
+				},
+				"2:1": {
+					Value:       "2:1",
+					Probability: 1,
+					Options:     1,
+					// NOTE : it s one less, because the first instance is the other option.
+					Sample: 47,
+				},
+			},
+			configs: []HMMConfig{{
+				PrevSize:   2,
+				TargetSize: 2,
 			}},
 		},
 		"sequence-value": {
@@ -125,6 +152,56 @@ func TestCounter_Add(t *testing.T) {
 				{
 					PrevSize:   3,
 					TargetSize: 1,
+				},
+			},
+		},
+		"sequence-target-value": {
+			transform: func(i int) string {
+				if i%2 == 0 {
+					return "1"
+				} else if i%3 == 0 {
+					return "1"
+				}
+				return "2"
+			},
+			predictions: map[string]Prediction{
+				"1:2:1": {
+					Value:       "1:1",
+					Probability: 0.52,
+					Options:     2,
+					Sample:      31,
+				},
+				// NOTE : this never comes up
+				//"1:2:2": {},
+				"1:1:1": {
+					Value:       "2:1",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
+				},
+				"1:1:2": {
+					Value:       "1:2",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
+				},
+				"2:1:1": {
+					Value:       "1:2",
+					Probability: 1,
+					Options:     1,
+					Sample:      16,
+				},
+				"2:1:2": {
+					Value:       "1:1",
+					Probability: 1,
+					Options:     1,
+					Sample:      15,
+				},
+			},
+			configs: []HMMConfig{
+				{
+					PrevSize:   3,
+					TargetSize: 2,
 				},
 			},
 		},
@@ -213,7 +290,7 @@ func TestCounter_Add(t *testing.T) {
 				}
 			}
 
-			assert.Equal(t, len(p), len(tt.predictions))
+			assert.Equal(t, len(tt.predictions), len(p))
 
 			for k, prediction := range tt.predictions {
 				pp, ok := p[k]

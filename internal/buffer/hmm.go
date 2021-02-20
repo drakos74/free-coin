@@ -74,15 +74,14 @@ func (c *HMM) Add(s string) map[string]Prediction {
 }
 
 func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Prediction) {
+	// gather all available values
+	vv := append(values, s)
 	// we want to extract the value from the given values + the new one
-	valueSize := cfg.TargetSize - 1
-	// create the key for each of the configs
-	keySize := cfg.PrevSize + valueSize
-	k := values[len(values)-keySize:]
+	k := vv[len(vv)-(cfg.PrevSize+cfg.TargetSize) : len(vv)-cfg.TargetSize]
 	key := strings.Join(k, ":")
 
-	v := append(values[len(values)-valueSize:], s)
-	value := strings.Join(k, ":")
+	v := vv[len(vv)-cfg.TargetSize:]
+	value := strings.Join(v, ":")
 	// if we have not encountered that meany values yet ... just skip
 	if strings.Contains(key, "<nil>") {
 		return "", nil
@@ -97,7 +96,7 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	}
 
 	// work to make the prediction by shifting the key for the desired target size
-	kk := append(k[cfg.TargetSize:], v...)
+	kk := vv[len(vv)-cfg.PrevSize:]
 	pKey := strings.Join(kk, ":")
 	var prediction *Prediction
 	if !strings.Contains(pKey, "<nil>") {
