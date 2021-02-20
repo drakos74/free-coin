@@ -1,4 +1,4 @@
-package api
+package model
 
 // Coin defines a custom coin type
 type Coin string
@@ -22,6 +22,27 @@ const (
 	XRP Coin = "XRP"
 )
 
+// Config contains coin related configuration.
+var Coins = map[string]Coin{
+	"BTC":   BTC,
+	"ETH":   ETH,
+	"EOS":   EOS,
+	"LINK":  LINK,
+	"WAVES": WAVES,
+	"DOT":   DOT,
+	"XRP":   XRP,
+}
+
+func KnownCoins() []string {
+	cc := make([]string, len(Coins))
+	i := 0
+	for c := range Coins {
+		cc[i] = c
+		i++
+	}
+	return cc
+}
+
 // Type defines the type of the order/movement buy or sell.
 type Type byte
 
@@ -33,3 +54,25 @@ const (
 	// Sell defines a sell order.
 	Sell
 )
+
+// Sign returns the appropriate sign for the given type for mathematical operations.
+func (t Type) Sign() float64 {
+	switch t {
+	case Buy:
+		return 1.0
+	case Sell:
+		return -1.0
+	}
+	return 0.0
+}
+
+// Inv inverts the type action.
+func (t Type) Inv() Type {
+	switch t {
+	case Buy:
+		return Sell
+	case Sell:
+		return Buy
+	}
+	return NoType
+}

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/math"
+	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -18,10 +18,10 @@ const (
 )
 
 // PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
-func Position(client model.TradeClient, user model.UserInterface) api.Processor {
+func Position(client api.TradeClient, user api.UserInterface) api.Processor {
 
 	// define our internal global state
-	var positions tradePositions = make(map[api.Coin]map[string]*tradePosition)
+	var positions tradePositions = make(map[model.Coin]map[string]*tradePosition)
 
 	ticker := time.NewTicker(positionRefreshInterval)
 	quit := make(chan struct{})
@@ -34,7 +34,7 @@ func Position(client model.TradeClient, user model.UserInterface) api.Processor 
 		log.Error().Err(err).Msg("could not get initial positions")
 	}
 
-	return func(in <-chan *api.Trade, out chan<- *api.Trade) {
+	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
 		defer func() {
 			log.Info().Str("processor", positionProcessorName).Msg("closing' strategy")
@@ -66,18 +66,18 @@ func Position(client model.TradeClient, user model.UserInterface) api.Processor 
 }
 
 type tpKey struct {
-	coin api.Coin
+	coin model.Coin
 	id   string
 }
 
-func key(c api.Coin, id string) tpKey {
+func key(c model.Coin, id string) tpKey {
 	return tpKey{
 		coin: c,
 		id:   id,
 	}
 }
 
-type tradePositions map[api.Coin]map[string]*tradePosition
+type tradePositions map[model.Coin]map[string]*tradePosition
 
 func (tp tradePositions) updatePrice(key tpKey, price float64) {
 	tp[key.coin][key.id].position.CurrentPrice = price
@@ -88,7 +88,7 @@ func (tp tradePositions) updateConfig(key tpKey, profit, stopLoss float64) {
 	tp[key.coin][key.id].config.stopLoss = stopLoss
 }
 
-func (tp tradePositions) update(client model.TradeClient) error {
+func (tp tradePositions) update(client api.TradeClient) error {
 	pp, err := client.OpenPositions(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not get positions: %w", err)
@@ -109,7 +109,7 @@ func (tp tradePositions) update(client model.TradeClient) error {
 	return nil
 }
 
-func (tp tradePositions) track(client model.TradeClient, ticker *time.Ticker, quit chan struct{}) {
+func (tp tradePositions) track(client api.TradeClient, ticker *time.Ticker, quit chan struct{}) {
 	// and update the positions at the predefined interval.
 	for {
 		select {
@@ -127,7 +127,7 @@ func (tp tradePositions) track(client model.TradeClient, ticker *time.Ticker, qu
 
 const noPositionMsg = "no open positions"
 
-func (tp tradePositions) trackUserActions(client model.TradeClient, user model.UserInterface) {
+func (tp tradePositions) trackUserActions(client api.TradeClient, user api.UserInterface) {
 	for command := range user.Listen("trade", "?p") {
 		var action string
 		var coin string
@@ -140,11 +140,11 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 			api.Float(&defVolume),
 		)
 		if err != nil {
-			model.Reply(model.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 
-		c := api.Coin(coin)
+		c := model.Coin(coin)
 
 		switch action {
 		case "":
@@ -152,11 +152,11 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
-				model.Reply(model.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
+				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
 			}
 			i := 0
 			if len(tp) == 0 {
-				user.Send(model.Private, api.NewMessage(noPositionMsg), nil)
+				user.Send(api.Private, api.NewMessage(noPositionMsg), nil)
 				continue
 			}
 			for coin, pos := range tp {
@@ -176,7 +176,7 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 							math.Format(p.position.OpenPrice))
 						// TODO : send a trigger for each position to give access to adjust it
 						trigger := api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id)))
-						user.Send(model.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
+						user.Send(api.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
 						i++
 					}
 				}
@@ -185,7 +185,7 @@ func (tp tradePositions) trackUserActions(client model.TradeClient, user model.U
 	}
 }
 
-func (tp tradePositions) checkClosePosition(client model.TradeClient, user model.UserInterface, key tpKey) {
+func (tp tradePositions) checkClosePosition(client api.TradeClient, user api.UserInterface, key tpKey) {
 	p := tp[key.coin][key.id]
 	net, profit := p.position.Value()
 	log.Debug().
@@ -202,7 +202,7 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 			math.Format(profit),
 			math.Format(net),
 			math.Format(p.config.Live))
-		user.Send(model.Private, api.NewMessage(msg), &api.Trigger{
+		user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
 			ID:      p.position.ID,
 			Default: []string{"close"},
 			Exec:    tp.closePositionTrigger(client, key),
@@ -213,7 +213,7 @@ func (tp tradePositions) checkClosePosition(client model.TradeClient, user model
 	}
 }
 
-func (tp tradePositions) closePositionTrigger(client model.TradeClient, key tpKey) api.TriggerFunc {
+func (tp tradePositions) closePositionTrigger(client api.TradeClient, key tpKey) api.TriggerFunc {
 	return func(command api.Command) (string, error) {
 		var nProfit float64
 		var nStopLoss float64
@@ -258,12 +258,12 @@ func (tp tradePositions) closePositionTrigger(client model.TradeClient, key tpKe
 }
 
 type tradePosition struct {
-	position api.Position
+	position model.Position
 	config   closingConfig
 }
 
 type closingConfig struct {
-	coin api.Coin
+	coin model.Coin
 	// profit is the profit percentage
 	profit float64
 	// stopLoss is the stop loss percentage
@@ -274,7 +274,7 @@ type closingConfig struct {
 
 // DoClose checks if the given position should be closed, based on the current configuration.
 // TODO : test this logic
-func (c *closingConfig) DoClose(position api.Position) bool {
+func (c *closingConfig) DoClose(position model.Position) bool {
 	net, p := position.Value()
 	if net > 0 && p > c.profit {
 		// only close if the market is going down
@@ -287,20 +287,20 @@ func (c *closingConfig) DoClose(position api.Position) bool {
 	return false
 }
 
-var defaultClosingConfig = map[api.Coin]closingConfig{
-	api.BTC: {
-		coin:     api.BTC,
+var defaultClosingConfig = map[model.Coin]closingConfig{
+	model.BTC: {
+		coin:     model.BTC,
 		profit:   1.5,
 		stopLoss: 1.5,
 	},
 }
 
-func getConfiguration(coin api.Coin) closingConfig {
+func getConfiguration(coin model.Coin) closingConfig {
 	if cfg, ok := defaultClosingConfig[coin]; ok {
 		return cfg
 	}
 	// create a new one from copying the btc
-	cfg := defaultClosingConfig[api.BTC]
+	cfg := defaultClosingConfig[model.BTC]
 	return closingConfig{
 		coin:     coin,
 		profit:   cfg.profit,

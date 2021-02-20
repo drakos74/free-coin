@@ -5,14 +5,13 @@ import (
 	"strings"
 
 	"github.com/drakos74/free-coin/internal/api"
-
-	"github.com/drakos74/free-coin/internal/algo/model"
+	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
 // Engine defines a trade source engine with the required processors to execute a trade source pipeline.
 type Engine struct {
-	coin       api.Coin
+	coin       model.Coin
 	main       Processor
 	processors []api.Processor
 	autoStop   api.Condition
@@ -23,7 +22,7 @@ type Engine struct {
 // c is the coin for this engine
 // main can be used to extract trade information from an engine, which is inherently bound to one exchange
 // autoStop is an automatically stop trigger
-func NewEngine(c api.Coin, main Processor, autoStop api.Condition) *Engine {
+func NewEngine(c model.Coin, main Processor, autoStop api.Condition) *Engine {
 	return &Engine{
 		coin:       c,
 		main:       main,
@@ -40,7 +39,7 @@ func (engine *Engine) AddProcessor(processor api.Processor) *Engine {
 }
 
 // RunWith starts the engine with the given client.
-func (engine *Engine) RunWith(client model.TradeClient) (*Engine, error) {
+func (engine *Engine) RunWith(client api.TradeClient) (*Engine, error) {
 
 	trades, err := client.Trades(engine.stop, engine.coin, engine.autoStop)
 
@@ -50,7 +49,7 @@ func (engine *Engine) RunWith(client model.TradeClient) (*Engine, error) {
 
 	for _, process := range engine.processors {
 
-		tradeSource := make(chan *api.Trade)
+		tradeSource := make(chan *model.Trade)
 
 		go process(trades, tradeSource)
 
@@ -81,12 +80,12 @@ func (engine *Engine) Close() error {
 // OverWatch is the main applications wrapper that orchestrates and controls engines.
 type OverWatch struct {
 	engines map[string]*Engine
-	client  model.TradeClient
-	user    model.UserInterface
+	client  api.TradeClient
+	user    api.UserInterface
 }
 
 // New creates a new OverWatch instance.
-func New(client model.TradeClient, user model.UserInterface) *OverWatch {
+func New(client api.TradeClient, user api.UserInterface) *OverWatch {
 	return &OverWatch{
 		engines: make(map[string]*Engine),
 		client:  client,
@@ -105,23 +104,23 @@ func (o *OverWatch) Run() {
 			api.OneOf(&c, model.KnownCoins()...),
 			api.OneOf(&action, "start", "stop"))
 		if err != nil {
-			model.Reply(true, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+			api.Reply(true, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 			continue
 		}
 		// ...execute
 		switch action {
 		case "start":
 			err = o.Start(model.Coins[strings.ToUpper(c)], Void())
-			model.Reply(model.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case "stop":
 			err = o.Stop(model.Coins[strings.ToUpper(c)])
 		}
-		model.Reply(model.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+		api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 	}
 }
 
 // Start starts an engine for the given coin and arguments.
-func (o *OverWatch) Start(c api.Coin, processor Processor, processors ...api.Processor) error {
+func (o *OverWatch) Start(c model.Coin, processor Processor, processors ...api.Processor) error {
 	engine := NewEngine(c, processor, api.NonStop)
 	for _, proc := range processors {
 		engine.AddProcessor(proc)
@@ -137,7 +136,7 @@ func (o *OverWatch) Start(c api.Coin, processor Processor, processors ...api.Pro
 }
 
 // Stop stops an engine for the given coin.
-func (o *OverWatch) Stop(c api.Coin) error {
+func (o *OverWatch) Stop(c model.Coin) error {
 	// TODO : make the key more generic to accommodate multiple clients per coin
 	if e, ok := o.engines[string(c)]; ok {
 		err := e.Close()
@@ -154,7 +153,7 @@ func (o *OverWatch) Stop(c api.Coin) error {
 // The difference with the internal processors is that this one allows cross-engine communication
 // or interactions with the OverWatch.
 type Processor interface {
-	Process(trade *api.Trade)
+	Process(trade *model.Trade)
 	Gather()
 }
 
@@ -168,7 +167,7 @@ type VoidProcessor struct {
 }
 
 // Process for the void processor does nothing.
-func (v VoidProcessor) Process(trade *api.Trade) {
+func (v VoidProcessor) Process(trade *model.Trade) {
 	// nothing to do
 }
 

@@ -6,9 +6,12 @@ import (
 	"os"
 	"time"
 
-	krakenapi "github.com/beldur/kraken-go-api-client"
-	"github.com/drakos74/free-coin/client/kraken/private"
+	"github.com/drakos74/free-coin/client/kraken/model"
+
 	"github.com/drakos74/free-coin/internal/api"
+
+	krakenapi "github.com/beldur/kraken-go-api-client"
+	coinmodel "github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
 )
@@ -34,9 +37,10 @@ func New(ctx context.Context, since int64, interval time.Duration) *Client {
 		since:    since,
 		interval: interval,
 		Api: &Remote{
-			Interval:   interval,
-			PublicApi:  krakenapi.New("KEY", "SECRET"),
-			PrivateApi: krakenapi.New(os.Getenv(key), os.Getenv(secret)),
+			Interval:  interval,
+			converter: model.NewConverter(),
+			public:    krakenapi.New("KEY", "SECRET"),
+			private:   krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},
 	}
 	return client
@@ -53,15 +57,15 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.Condition) (api.TradeSource, error) {
+func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution api.Condition) (coinmodel.TradeSource, error) {
 
-	out := make(chan *api.Trade)
+	out := make(chan *coinmodel.Trade)
 
 	// receive and delegate tick events To the output
-	trades := make(chan *api.Trade)
+	trades := make(chan *coinmodel.Trade)
 
 	// controller decides To delegate trade for processing, or stop execution
-	go func(trades chan *api.Trade) {
+	go func(trades chan *coinmodel.Trade) {
 		defer func() {
 			log.Info().Msg("closing trade controller")
 			close(out)
@@ -81,7 +85,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.C
 	}(trades)
 
 	// executor for polling trades
-	go cointime.Execute(stop, c.interval, func(trades chan<- *api.Trade) func() error {
+	go cointime.Execute(stop, c.interval, func(trades chan<- *coinmodel.Trade) func() error {
 
 		type state struct {
 			last int64
@@ -118,19 +122,30 @@ func (c *Client) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.C
 
 }
 
-func (c *Client) ClosePosition(position api.Position) error {
-	return fmt.Errorf("not implemented ClosePosition for %+v", position)
+func (c *Client) ClosePosition(position coinmodel.Position) error {
+	order := coinmodel.NewOrder(position.Coin).
+		Market().
+		WithVolume(position.Volume).
+		WithLeverage(coinmodel.L_5).
+		WithType(position.Type.Inv()).
+		Create()
+
+	_, _, err := c.Api.Order(order)
+	if err != nil {
+		return fmt.Errorf("could not close position: %w", err)
+	}
+	return nil
 }
 
-func (c *Client) OpenPosition(position api.Position) error {
+func (c *Client) OpenPosition(position coinmodel.Position) error {
 	return fmt.Errorf("not implemented OpenPosition for %+v", position)
 }
 
-func (c *Client) OpenPositions(ctx context.Context) (*api.PositionBatch, error) {
+func (c *Client) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
 	params := map[string]string{
 		"docalcs": "true",
 	}
-	response, err := c.Api.PrivateApi.OpenPositions(params)
+	response, err := c.Api.private.OpenPositions(params)
 	if err != nil {
 		return nil, fmt.Errorf("could not get positions: %w", err)
 	}
@@ -141,19 +156,19 @@ func (c *Client) OpenPositions(ctx context.Context) (*api.PositionBatch, error) 
 
 	positionsResponse := *response
 	if len(positionsResponse) == 0 {
-		return &api.PositionBatch{
-			Positions: []api.Position{},
+		return &coinmodel.PositionBatch{
+			Positions: []coinmodel.Position{},
 			Index:     time.Now().Unix(),
 		}, nil
 	}
 
-	positions := make([]api.Position, len(positionsResponse))
+	positions := make([]coinmodel.Position, len(positionsResponse))
 	i := 0
 	for k, pos := range *response {
-		positions[i] = private.NewPosition(k, pos)
+		positions[i] = c.Api.newPosition(k, pos)
 		i++
 	}
-	return &api.PositionBatch{
+	return &coinmodel.PositionBatch{
 		Positions: positions,
 		Index:     time.Now().Unix(),
 	}, nil

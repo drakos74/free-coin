@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/model"
 )
 
 func TestStats_TradeProcessing(t *testing.T) {
@@ -33,7 +33,7 @@ func TestStats_Gather(t *testing.T) {
 	go func() {
 		start := time.Now()
 		for i := 0; i < num; i++ {
-			trade := newTrade(api.BTC, math.Sin(float64(i/10)*40000), 1, api.Buy, start.Add(time.Duration(i*15)*time.Second))
+			trade := newTrade(model.BTC, math.Sin(float64(i/10)*40000), 1, model.Buy, start.Add(time.Duration(i*15)*time.Second))
 			// enable trade to publish messages
 			trade.Live = true
 			in <- trade

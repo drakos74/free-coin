@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
+	"github.com/drakos74/free-coin/internal/model"
 
 	"github.com/drakos74/free-coin/internal/api"
 )
 
-func testTradeProcessing(t *testing.T, processor func(client model.TradeClient, user model.UserInterface) api.Processor) {
+func testTradeProcessing(t *testing.T, processor func(client api.TradeClient, user api.UserInterface) api.Processor) {
 
 	_, in, out, _, _ := run(processor)
 
@@ -22,7 +22,7 @@ func testTradeProcessing(t *testing.T, processor func(client model.TradeClient, 
 	go func() {
 		start := time.Now()
 		for i := 0; i < num; i++ {
-			trade := newTrade(api.BTC, 30000, 1, api.Buy, start.Add(1*time.Second))
+			trade := newTrade(model.BTC, 30000, 1, model.Buy, start.Add(1*time.Second))
 			in <- trade
 		}
 	}()
@@ -36,15 +36,15 @@ func testTradeProcessing(t *testing.T, processor func(client model.TradeClient, 
 	wg.Wait()
 }
 
-func run(processor func(client model.TradeClient, user model.UserInterface) api.Processor) (client model.TradeClient, in, out chan *api.Trade, commands chan api.Command, confirms chan sendAction) {
+func run(processor func(client api.TradeClient, user api.UserInterface) api.Processor) (client api.TradeClient, in, out chan *model.Trade, commands chan api.Command, confirms chan sendAction) {
 	client = newMockClient()
 
 	commands = make(chan api.Command)
 	confirms = make(chan sendAction)
 	user := newMockUser(commands, confirms)
 
-	in = make(chan *api.Trade)
-	out = make(chan *api.Trade)
+	in = make(chan *model.Trade)
+	out = make(chan *model.Trade)
 
 	go processor(client, user)(in, out)
 
@@ -76,7 +76,7 @@ func (u *mockUser) Listen(key, prefix string) <-chan api.Command {
 	return u.action
 }
 
-func (u *mockUser) Send(private model.Index, message *api.Message, trigger *api.Trigger) int {
+func (u *mockUser) Send(private api.Index, message *api.Message, trigger *api.Trigger) int {
 	u.sent <- sendAction{
 		msg:     message,
 		trigger: trigger,
@@ -85,36 +85,36 @@ func (u *mockUser) Send(private model.Index, message *api.Message, trigger *api.
 }
 
 type mockClient struct {
-	positions []api.Position
+	positions []model.Position
 }
 
 func newMockClient() *mockClient {
-	return &mockClient{positions: make([]api.Position, 0)}
+	return &mockClient{positions: make([]model.Position, 0)}
 }
 
-func (c *mockClient) Trades(stop <-chan struct{}, coin api.Coin, stopExecution api.Condition) (api.TradeSource, error) {
+func (c *mockClient) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {
 	panic("implement me")
 }
 
-func (c *mockClient) OpenPositions(ctx context.Context) (*api.PositionBatch, error) {
-	return &api.PositionBatch{
+func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
+	return &model.PositionBatch{
 		Positions: c.positions,
 		Index:     0,
 	}, nil
 }
 
-func (c *mockClient) OpenPosition(position api.Position) error {
+func (c *mockClient) OpenPosition(position model.Position) error {
 	c.positions = append(c.positions, position)
 	return nil
 }
 
-func (c *mockClient) ClosePosition(position api.Position) error {
+func (c *mockClient) ClosePosition(position model.Position) error {
 	if position.ID == "" {
 		// for now, just fail if we dont handle normal ids
 		// without them we might miss some inconsistency
 		return fmt.Errorf("test without ID is invalid")
 	}
-	pp := make([]api.Position, 0)
+	pp := make([]model.Position, 0)
 	var removed bool
 	for _, p := range c.positions {
 		if p.ID != position.ID {
@@ -130,8 +130,8 @@ func (c *mockClient) ClosePosition(position api.Position) error {
 	return fmt.Errorf("could not remove position")
 }
 
-func mockTrade(c api.Coin, t api.Type) *api.Trade {
-	return &api.Trade{
+func mockTrade(c model.Coin, t model.Type) *model.Trade {
+	return &model.Trade{
 		Coin:   c,
 		Price:  400000,
 		Volume: 1,
@@ -141,8 +141,8 @@ func mockTrade(c api.Coin, t api.Type) *api.Trade {
 	}
 }
 
-func newTrade(c api.Coin, price, volume float64, t api.Type, time time.Time) *api.Trade {
-	return &api.Trade{
+func newTrade(c model.Coin, price, volume float64, t model.Type, time time.Time) *model.Trade {
+	return &model.Trade{
 		Coin:   c,
 		Price:  price,
 		Volume: volume,

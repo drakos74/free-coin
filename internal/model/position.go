@@ -1,6 +1,8 @@
-package api
+package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 // PositionBatch is a batch of open positions.
 type PositionBatch struct {
@@ -45,4 +47,11 @@ func (p *Position) Value() (value, percent float64) {
 	}
 	value = (net * p.Volume) - p.Fees
 	return value, 100 * value / (p.OpenPrice * p.Volume)
+}
+
+func OpenPosition(coin Coin, t Type) Position {
+	return Position{
+		Coin: coin,
+		Type: t,
+	}
 }

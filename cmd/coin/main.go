@@ -6,8 +6,8 @@ import (
 
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
-	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/algo/processor"
+	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/rs/zerolog"

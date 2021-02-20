@@ -5,7 +5,7 @@ import (
 
 	"github.com/drakos74/free-coin/internal/storage"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
+	"github.com/drakos74/free-coin/internal/model"
 
 	"github.com/drakos74/free-coin/internal/api"
 )

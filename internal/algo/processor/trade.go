@@ -3,9 +3,9 @@ package processor
 import (
 	"math"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
+	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,11 +14,11 @@ const tradeProcessorName = "trade"
 // Trades is the processor responsible for making trade decisions.
 // this processor should analyse the triggers from previous processors and ...
 // open positions, track and close appropriately.
-func Trader(client model.TradeClient, user model.UserInterface) api.Processor {
+func Trader(client api.TradeClient, user api.UserInterface) api.Processor {
 
 	//configuration := make(map[api.Coin]*openConfig)
 
-	return func(in <-chan *api.Trade, out chan<- *api.Trade) {
+	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
 			log.Info().Str("processor", tradeProcessorName).Msg("closing' strategy")
 			close(out)
@@ -45,17 +45,17 @@ func Trader(client model.TradeClient, user model.UserInterface) api.Processor {
 }
 
 type openConfig struct {
-	coin   api.Coin
+	coin   model.Coin
 	volume float64
 }
 
-var defaultOpenConfig = map[api.Coin]openConfig{
-	api.BTC: {
-		coin:   api.BTC,
+var defaultOpenConfig = map[model.Coin]openConfig{
+	model.BTC: {
+		coin:   model.BTC,
 		volume: 0.01,
 	},
-	api.ETH: {
-		coin:   api.ETH,
+	model.ETH: {
+		coin:   model.ETH,
 		volume: 0.1,
 	},
 }

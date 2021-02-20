@@ -1,11 +1,19 @@
 package model
 
-import (
-	"github.com/drakos74/free-coin/internal/api"
-)
+// Converter encapsulates all conversion logic for the kraken exchange.
+type Converter struct {
+	Coin      CoinConverter
+	Type      TypeConverter
+	OrderType OrderTypeConverter
+	Leverage  LeverageConverter
+}
 
-// TradeBatch defines a generic grouping of trades
-type TradeBatch struct {
-	Trades []api.Trade
-	Index  int64
+// NewConverter creates a new converter.
+func NewConverter() Converter {
+	return Converter{
+		Coin:      Coin(),
+		Type:      Type(),
+		OrderType: OrderType(),
+		Leverage:  Leverage(),
+	}
 }

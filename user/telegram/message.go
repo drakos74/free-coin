@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/algo/model"
-
 	"github.com/drakos74/free-coin/internal/api"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -15,7 +13,7 @@ import (
 )
 
 // NewMessage creates a new telegram message config
-func (b *Bot) newMessage(private model.Index, message *api.Message) tgbotapi.MessageConfig {
+func (b *Bot) newMessage(private api.Index, message *api.Message) tgbotapi.MessageConfig {
 	tgChatID := b.publicChatID
 	if private {
 		tgChatID = b.privateChatID
@@ -116,7 +114,7 @@ func (b *Bot) processExecution() {
 // send will send a message and store the appropriate trigger.
 // it will automatically execute the default command if user does not reply.
 // TODO : send confirmation of auto-invoke - use tgbotapi.Message here
-func (b *Bot) send(private model.Index, msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
+func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
 	// before sending check for blocked triggers ...
 	if txt, ok := b.checkIfBlocked(trigger); ok {
 		if private {
@@ -171,7 +169,7 @@ func (b *Bot) send(private model.Index, msg tgbotapi.MessageConfig, trigger *api
 
 // deferExecute plans the execution of the given trigger (with the defaults)
 // at the specified timeout
-func (b *Bot) deferExecute(private model.Index, trigger *api.Trigger, replyID int) {
+func (b *Bot) deferExecute(private api.Index, trigger *api.Trigger, replyID int) {
 	if trigger, ok := b.triggers[trigger.ID]; ok {
 		if txt, ok := b.checkIfBlocked(trigger); ok {
 			b.Send(private, api.NewMessage(txt).ReplyTo(replyID), nil)
@@ -186,7 +184,7 @@ func (b *Bot) deferExecute(private model.Index, trigger *api.Trigger, replyID in
 }
 
 // execute will try to find and execute the trigger attached to the replied message.
-func (b *Bot) execute(private model.Index, message *tgbotapi.Message, replyID int) {
+func (b *Bot) execute(private api.Index, message *tgbotapi.Message, replyID int) {
 	// find the replyTo to the message
 	if triggerID, ok := b.messages[replyID]; ok {
 		// try to find trigger id if it s still valid
@@ -208,7 +206,7 @@ func (b *Bot) execute(private model.Index, message *tgbotapi.Message, replyID in
 
 // executeTrigger will execute the given trigger.
 // it will make sure the block on the trigger and state regarding this event are handled accordingly.
-func (b *Bot) executeTrigger(private model.Index, trigger *api.Trigger, cmd api.Command) {
+func (b *Bot) executeTrigger(private api.Index, trigger *api.Trigger, cmd api.Command) {
 	rsp, err := trigger.Exec(cmd)
 	if err != nil {
 		b.Send(private, api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)

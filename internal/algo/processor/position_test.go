@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/drakos74/free-coin/internal/model"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +21,7 @@ func TestPosition_Update(t *testing.T) {
 	type test struct {
 		msg       []string
 		cmd       string
-		positions []api.Position
+		positions []model.Position
 		reply     []string
 		replyMsg  []string
 		fp        int
@@ -32,31 +34,31 @@ func TestPosition_Update(t *testing.T) {
 		},
 		"one-positions": {
 			cmd:       "?p",
-			msg:       []string{string(api.BTC)},
-			positions: []api.Position{api.NewPosition(*mockTrade(api.BTC, api.Buy), 1)},
+			msg:       []string{string(model.BTC)},
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			fp:        1,
 		},
 		"many-positions": {
 			cmd: "?p",
-			msg: []string{string(api.BTC), string(api.ETH), string(api.LINK)},
-			positions: []api.Position{
-				api.NewPosition(*mockTrade(api.BTC, api.Buy), 0.5),
-				api.NewPosition(*mockTrade(api.ETH, api.Sell), 1),
-				api.NewPosition(*mockTrade(api.LINK, api.Buy), 100),
+			msg: []string{string(model.BTC), string(model.ETH), string(model.LINK)},
+			positions: []model.Position{
+				model.NewPosition(*mockTrade(model.BTC, model.Buy), 0.5),
+				model.NewPosition(*mockTrade(model.ETH, model.Sell), 1),
+				model.NewPosition(*mockTrade(model.LINK, model.Buy), 100),
 			},
 			fp: 3,
 		},
 		"close-positions": {
 			cmd:       "?p",
-			msg:       []string{string(api.BTC)},
-			positions: []api.Position{api.NewPosition(*mockTrade(api.BTC, api.Buy), 1)},
+			msg:       []string{string(model.BTC)},
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			reply:     []string{"close"},
 			replyMsg:  []string{"close position for BTC"},
 		},
 		"reverse-positions": {
 			cmd:       "?p",
-			msg:       []string{string(api.ETH)},
-			positions: []api.Position{api.NewPosition(*mockTrade(api.ETH, api.Buy), 1)},
+			msg:       []string{string(model.ETH)},
+			positions: []model.Position{model.NewPosition(*mockTrade(model.ETH, model.Buy), 1)},
 			reply:     []string{"reverse"},
 			replyMsg:  []string{"reverse position for ETH"},
 			// note we get 0 ,  because we have not implemented the reverse close for our test.
@@ -65,8 +67,8 @@ func TestPosition_Update(t *testing.T) {
 		},
 		"extend-positions": {
 			cmd:       "?p",
-			msg:       []string{string(api.LINK)},
-			positions: []api.Position{api.NewPosition(*mockTrade(api.LINK, api.Buy), 1)},
+			msg:       []string{string(model.LINK)},
+			positions: []model.Position{model.NewPosition(*mockTrade(model.LINK, model.Buy), 1)},
 			reply:     []string{"extend 2 2"},
 			replyMsg:  []string{"extend position for LINK"},
 			fp:        1,
