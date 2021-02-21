@@ -10,6 +10,28 @@ import (
 	"github.com/drakos74/free-coin/internal/storage"
 )
 
+var DefaultDir = "file-storage"
+
+type BlobStorage struct {
+	path  string
+	table string
+	shard string
+}
+
+func (s BlobStorage) Store(k storage.Key, value interface{}) error {
+	return Save(filepath.Join(s.path, s.table, s.shard), k.Path(), value)
+}
+
+func (s BlobStorage) Load(k storage.Key, value interface{}) error {
+	return Load(filepath.Join(s.path, s.table, s.shard), k.Path(), value)
+}
+
+// table has the same schema
+// shard is a logical split
+func NewJsonBlob(table, shard string) *BlobStorage {
+	return &BlobStorage{table: table, shard: shard, path: DefaultDir}
+}
+
 // Save saves the given json struct into the given path with the provided filename.
 func Save(filePath string, fileName string, value interface{}) error {
 	// check if filepath exists
