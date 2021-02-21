@@ -22,6 +22,10 @@ func (v VoidClient) OpenPositions(ctx context.Context) (*model.PositionBatch, er
 	panic("implement me")
 }
 
+func (v VoidClient) OpenOrder(position model.Order) error {
+	panic("implement me")
+}
+
 func (v VoidClient) OpenPosition(position model.Position) error {
 	panic("implement me")
 }

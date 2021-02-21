@@ -178,6 +178,14 @@ func (e *Exchange) OpenPosition(position coinmodel.Position) error {
 	return nil
 }
 
+func (e *Exchange) OpenOrder(order coinmodel.Order) error {
+	_, _, err := e.Api.Order(order)
+	if err != nil {
+		return fmt.Errorf("could not open order: %w", err)
+	}
+	return nil
+}
+
 func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
 	params := map[string]string{
 		"docalcs": "true",

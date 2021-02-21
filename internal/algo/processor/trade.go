@@ -1,7 +1,8 @@
 package processor
 
 import (
-	"math"
+	"fmt"
+	"strings"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
@@ -14,7 +15,7 @@ const tradeProcessorName = "trade"
 // Trades is the processor responsible for making trade decisions.
 // this processor should analyse the triggers from previous processors and ...
 // open positions, track and close appropriately.
-func Trader(client api.Client, user api.User) api.Processor {
+func Trader(client api.Exchange, user api.User) api.Processor {
 
 	//configuration := make(map[api.Coin]*openConfig)
 
@@ -30,11 +31,49 @@ func Trader(client api.Client, user api.User) api.Processor {
 
 			// decide if we open a new position
 			for _, dd := range defaultDurations {
-				stats := MetaIndicators(trade, dd)
-				bucketView := MetaBucket(trade, dd)
+				//stats := MetaIndicators(trade, dd)
+				//bucketView := MetaBucket(trade, dd)
 				predictions := MetaStatsPredictions(trade, dd)
-				if len(predictions) > 0 && stats.RSI > 0 && math.Abs(bucketView.price.EMADiff) > 10 {
+				if len(predictions) > 0 {
 					// check if we should make a buy order
+					var buy bool
+					var sell bool
+					for k, p := range predictions {
+						if strings.HasPrefix(k, "+1") ||
+							strings.HasPrefix(k, "+0") ||
+							strings.HasPrefix(k, "+2:+1") ||
+							strings.HasPrefix(k, "+2:+2") {
+							if p.Probability > 0.55 && p.Sample > 10 {
+								buy = true
+							}
+						} else if strings.HasPrefix(k, "-1") ||
+							strings.HasPrefix(k, "-0") ||
+							strings.HasPrefix(k, "-2:-1") ||
+							strings.HasPrefix(k, "-2:-2") {
+							if p.Probability > 0.55 && p.Sample > 10 {
+								sell = true
+							}
+						}
+					}
+					if buy != sell {
+						t := model.NoType
+						if buy {
+							t = model.Buy
+						} else if sell {
+							t = model.Sell
+						}
+						if vol, ok := defaultOpenConfig[trade.Coin]; ok {
+							err := client.OpenOrder(model.NewOrder(trade.Coin).
+								WithLeverage(model.L_5).
+								WithVolume(vol.volume).
+								WithType(t).
+								Market().
+								Create())
+							api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("open %v %f %s at %f", t, vol.volume, trade.Coin, trade.Price)), err)
+						}
+					} else {
+						log.Warn().Bool("buy", buy).Bool("sell", sell).Msg("inconclusive buy signal")
+					}
 				}
 			}
 
@@ -56,6 +95,18 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	},
 	model.ETH: {
 		coin:   model.ETH,
-		volume: 0.1,
+		volume: 0.5,
+	},
+	model.LINK: {
+		coin:   model.LINK,
+		volume: 20,
+	},
+	model.DOT: {
+		coin:   model.DOT,
+		volume: 20,
+	},
+	model.XRP: {
+		coin:   model.XRP,
+		volume: 1000,
 	},
 }

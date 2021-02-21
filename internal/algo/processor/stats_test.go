@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -16,17 +15,13 @@ func TestStats_TradeProcessing(t *testing.T) {
 
 func TestStats_Gather(t *testing.T) {
 
-	_, in, out, _, msgs := run(MultiStats)
+	in := make(chan *model.Trade)
+	out := make(chan *model.Trade)
+
+	_, _, msgs := run(in, out, MultiStats)
 	wg := new(sync.WaitGroup)
 	wg.Add(33)
-	go func() {
-		i := 0
-		for msg := range msgs {
-			println(fmt.Sprintf("msg = %+v", msg.msg.Text))
-			wg.Done()
-			i++
-		}
-	}()
+	go logMessages("stats", wg, msgs)
 
 	num := 1000
 	wg.Add(num)

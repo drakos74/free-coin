@@ -77,7 +77,9 @@ func TestPosition_Update(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			client, _, _, cmds, msgs := run(Position)
+			in := make(chan *model.Trade)
+			out := make(chan *model.Trade)
+			client, cmds, msgs := run(in, out, Position)
 
 			wg := new(sync.WaitGroup)
 			if len(tt.positions) == 0 {

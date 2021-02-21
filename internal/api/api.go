@@ -25,6 +25,7 @@ type Client interface {
 type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
 	OpenPosition(position model.Position) error
+	OpenOrder(position model.Order) error
 	ClosePosition(position model.Position) error
 }
 

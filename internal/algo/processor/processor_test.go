@@ -12,9 +12,12 @@ import (
 	"github.com/drakos74/free-coin/internal/api"
 )
 
-func testTradeProcessing(t *testing.T, processor func(client api.Client, user api.User) api.Processor) {
+func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user api.User) api.Processor) {
 
-	_, in, out, _, _ := run(processor)
+	in := make(chan *model.Trade)
+	out := make(chan *model.Trade)
+
+	run(in, out, processor)
 
 	num := 1000
 	wg := new(sync.WaitGroup)
@@ -36,19 +39,25 @@ func testTradeProcessing(t *testing.T, processor func(client api.Client, user ap
 	wg.Wait()
 }
 
-func run(processor func(client api.Client, user api.User) api.Processor) (client api.Client, in, out chan *model.Trade, commands chan api.Command, confirms chan sendAction) {
+func run(in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (client api.Exchange, commands chan api.Command, confirms chan sendAction) {
 	client = newMockClient()
 
 	commands = make(chan api.Command)
 	confirms = make(chan sendAction)
 	user := newMockUser(commands, confirms)
 
-	in = make(chan *model.Trade)
-	out = make(chan *model.Trade)
-
 	go processor(client, user)(in, out)
 
 	return
+}
+
+func logMessages(name string, wg *sync.WaitGroup, msgs chan sendAction) {
+	i := 0
+	for msg := range msgs {
+		println(fmt.Sprintf("%s: msg = %+v", name, msg.msg.Text))
+		wg.Done()
+		i++
+	}
 }
 
 type sendAction struct {
@@ -101,6 +110,10 @@ func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, e
 		Positions: c.positions,
 		Index:     0,
 	}, nil
+}
+
+func (c *mockClient) OpenOrder(position model.Order) error {
+	return nil
 }
 
 func (c *mockClient) OpenPosition(position model.Position) error {

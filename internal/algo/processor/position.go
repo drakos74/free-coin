@@ -269,6 +269,8 @@ type closingConfig struct {
 	stopLoss float64
 	// Live defines the current / live status of the coin pair
 	Live float64
+	// lastProfit is the last net value, in order to track trailing stop-loss
+	lastProfit float64
 }
 
 // DoClose checks if the given position should be closed, based on the current configuration.
@@ -276,6 +278,18 @@ type closingConfig struct {
 func (c *closingConfig) DoClose(position model.Position) bool {
 	net, p := position.Value()
 	if net > 0 && p > c.profit {
+		// check the previous profit in order to extend profit
+		if p > c.lastProfit {
+			// if we are making more ... ignore
+			c.lastProfit = p
+			return false
+		}
+		diff := c.lastProfit - p
+		if diff < 0.5 {
+			// leave for now, hoping profit will go up again
+			// but dont update our highest value
+			return false
+		}
 		// only close if the market is going down
 		return c.Live <= 0
 	}
@@ -283,7 +297,8 @@ func (c *closingConfig) DoClose(position model.Position) bool {
 		// only close if the market is going up
 		return c.Live >= 0
 	}
-	return false
+	// check if we missed a profit opportunity here
+	return c.lastProfit > 0
 }
 
 var defaultClosingConfig = map[model.Coin]closingConfig{
