@@ -11,16 +11,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Remote defines a remote api for interaction with kraken exchange.
-type Remote struct {
+// RemoteClient defines a remote api for interaction with kraken exchange.
+type RemoteClient struct {
 	converter model.Converter
 	Interval  time.Duration
 	public    *krakenapi.KrakenAPI
-	private   *krakenapi.KrakenAPI
+}
+
+// AssetPairs retrieves the active asset pairs with their trading details from kraken.
+func (r *RemoteClient) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
+	return r.public.AssetPairs()
 }
 
 // Trades retrieves the next trades batch from kraken.
-func (r *Remote) Trades(coin coinmodel.Coin, since int64) (*model.TradeBatch, error) {
+func (r *RemoteClient) Trades(coin coinmodel.Coin, since int64) (*model.TradeBatch, error) {
 	pair := r.converter.Coin.Pair(coin)
 	log.Trace().
 		Str("method", "Count").
@@ -35,7 +39,7 @@ func (r *Remote) Trades(coin coinmodel.Coin, since int64) (*model.TradeBatch, er
 	return r.transform(pair, r.Interval, response)
 }
 
-func (r *Remote) transform(pair string, interval time.Duration, response *krakenapi.TradesResponse) (*model.TradeBatch, error) {
+func (r *RemoteClient) transform(pair string, interval time.Duration, response *krakenapi.TradesResponse) (*model.TradeBatch, error) {
 	l := len(response.Trades)
 	if l == 0 {
 		return &model.TradeBatch{
@@ -58,13 +62,14 @@ func (r *Remote) transform(pair string, interval time.Duration, response *kraken
 	}, nil
 }
 
-// AssetPairs retrieves the active asset pairs with their trading details from kraken.
-func (r *Remote) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
-	return r.public.AssetPairs()
+// RemoteExchange implements the exchange api for kraken.
+type RemoteExchange struct {
+	converter model.Converter
+	private   *krakenapi.KrakenAPI
 }
 
 // Order opens an order in kraken.
-func (r *Remote) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
+func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
 	params := make(map[string]string)
 
 	if order.Leverage != coinmodel.NoLeverage {
@@ -89,6 +94,6 @@ func (r *Remote) Order(order coinmodel.Order) (*coinmodel.Order, []string, error
 }
 
 // Close closes the kraken client.
-func (r *Remote) Close() error {
+func (r *RemoteClient) Close() error {
 	return nil
 }

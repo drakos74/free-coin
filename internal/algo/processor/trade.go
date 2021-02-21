@@ -14,7 +14,7 @@ const tradeProcessorName = "trade"
 // Trades is the processor responsible for making trade decisions.
 // this processor should analyse the triggers from previous processors and ...
 // open positions, track and close appropriately.
-func Trader(client api.TradeClient, user api.UserInterface) api.Processor {
+func Trader(client api.Client, user api.User) api.Processor {
 
 	//configuration := make(map[api.Coin]*openConfig)
 

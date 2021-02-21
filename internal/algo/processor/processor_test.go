@@ -12,7 +12,7 @@ import (
 	"github.com/drakos74/free-coin/internal/api"
 )
 
-func testTradeProcessing(t *testing.T, processor func(client api.TradeClient, user api.UserInterface) api.Processor) {
+func testTradeProcessing(t *testing.T, processor func(client api.Client, user api.User) api.Processor) {
 
 	_, in, out, _, _ := run(processor)
 
@@ -36,7 +36,7 @@ func testTradeProcessing(t *testing.T, processor func(client api.TradeClient, us
 	wg.Wait()
 }
 
-func run(processor func(client api.TradeClient, user api.UserInterface) api.Processor) (client api.TradeClient, in, out chan *model.Trade, commands chan api.Command, confirms chan sendAction) {
+func run(processor func(client api.Client, user api.User) api.Processor) (client api.Client, in, out chan *model.Trade, commands chan api.Command, confirms chan sendAction) {
 	client = newMockClient()
 
 	commands = make(chan api.Command)

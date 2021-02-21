@@ -39,7 +39,7 @@ func (engine *Engine) AddProcessor(processor api.Processor) *Engine {
 }
 
 // RunWith starts the engine with the given client.
-func (engine *Engine) RunWith(client api.TradeClient) (*Engine, error) {
+func (engine *Engine) RunWith(client api.Client) (*Engine, error) {
 
 	trades, err := client.Trades(engine.stop, engine.coin, engine.autoStop)
 
@@ -80,12 +80,12 @@ func (engine *Engine) Close() error {
 // OverWatch is the main applications wrapper that orchestrates and controls engines.
 type OverWatch struct {
 	engines map[string]*Engine
-	client  api.TradeClient
-	user    api.UserInterface
+	client  api.Client
+	user    api.User
 }
 
 // New creates a new OverWatch instance.
-func New(client api.TradeClient, user api.UserInterface) *OverWatch {
+func New(client api.Client, user api.User) *OverWatch {
 	return &OverWatch{
 		engines: make(map[string]*Engine),
 		client:  client,

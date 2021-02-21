@@ -26,21 +26,20 @@ type Client struct {
 	since    int64
 	current  int
 	interval time.Duration
-	Api      *Remote
+	Api      *RemoteClient
 }
 
-// New creates a new client.
+// NewClient creates a new client.
 // since is the time in nanoseconds from when to start requesting trades.
 // interval is the interval at which the client will poll for new trades.
-func New(ctx context.Context, since int64, interval time.Duration) *Client {
+func NewClient(ctx context.Context, since int64, interval time.Duration) *Client {
 	client := &Client{
 		since:    since,
 		interval: interval,
-		Api: &Remote{
+		Api: &RemoteClient{
 			Interval:  interval,
 			converter: model.NewConverter(),
 			public:    krakenapi.New("KEY", "SECRET"),
-			private:   krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},
 	}
 	return client
@@ -133,7 +132,23 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 
 }
 
-func (c *Client) ClosePosition(position coinmodel.Position) error {
+// Exchange implements the exchange interface for kraken.
+type Exchange struct {
+	Api *RemoteExchange
+}
+
+// NewExchange creates a new exchange client.
+func NewExchange(ctx context.Context) api.Exchange {
+	client := &Exchange{
+		Api: &RemoteExchange{
+			converter: model.NewConverter(),
+			private:   krakenapi.New(os.Getenv(key), os.Getenv(secret)),
+		},
+	}
+	return client
+}
+
+func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 	order := coinmodel.NewOrder(position.Coin).
 		Market().
 		WithVolume(position.Volume).
@@ -141,14 +156,14 @@ func (c *Client) ClosePosition(position coinmodel.Position) error {
 		WithType(position.Type.Inv()).
 		Create()
 
-	_, _, err := c.Api.Order(order)
+	_, _, err := e.Api.Order(order)
 	if err != nil {
 		return fmt.Errorf("could not close position: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) OpenPosition(position coinmodel.Position) error {
+func (e *Exchange) OpenPosition(position coinmodel.Position) error {
 	order := coinmodel.NewOrder(position.Coin).
 		Market().
 		WithVolume(position.Volume).
@@ -156,18 +171,18 @@ func (c *Client) OpenPosition(position coinmodel.Position) error {
 		WithType(position.Type).
 		Create()
 
-	_, _, err := c.Api.Order(order)
+	_, _, err := e.Api.Order(order)
 	if err != nil {
 		return fmt.Errorf("could not open position: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
+func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
 	params := map[string]string{
 		"docalcs": "true",
 	}
-	response, err := c.Api.private.OpenPositions(params)
+	response, err := e.Api.private.OpenPositions(params)
 	if err != nil {
 		return nil, fmt.Errorf("could not get positions: %w", err)
 	}
@@ -187,7 +202,7 @@ func (c *Client) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, e
 	positions := make([]coinmodel.Position, len(positionsResponse))
 	i := 0
 	for k, pos := range *response {
-		positions[i] = c.Api.newPosition(k, pos)
+		positions[i] = e.Api.newPosition(k, pos)
 		i++
 	}
 	return &coinmodel.PositionBatch{

@@ -21,9 +21,17 @@ func init() {
 func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
-
-	client := kraken.New(ctx, cointime.LastXHours(96), 15*time.Second)
-	//client := kraken.New(ctx, cointime.ThisInstant(), 10*time.Second)
+	exchange := kraken.NewExchange(ctx)
+	//upstream := func(since int64) (api.Client, error) {
+	//	return kraken.NewClient(ctx, since, 15*time.Second), nil
+	//}
+	//persistence := func(shard string) (storage.Persistence, error) {
+	//	return json.NewJsonBlob("trades", shard), nil
+	//}
+	//client := local.NewClient(ctx, cointime.LastXHours(96)).
+	//	WithUpstream(upstream).
+	//	WithPersistence(persistence)
+	client := kraken.NewClient(ctx, cointime.ThisInstant(), 10*time.Second)
 
 	user, err := telegram.NewBot()
 	if err != nil {
@@ -40,8 +48,8 @@ func main() {
 	overWatch := coin.New(client, user)
 	go overWatch.Run()
 
-	statsProcessor := processor.MultiStats(client, user)
-	positionProcessor := processor.Position(client, user)
+	statsProcessor := processor.MultiStats(exchange, user)
+	positionProcessor := processor.Position(exchange, user)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Void(),
 			statsProcessor,

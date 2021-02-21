@@ -53,7 +53,7 @@ type state struct {
 	windows map[time.Duration]map[model.Coin]window
 }
 
-func trackUserActions(user api.UserInterface, stats *state) {
+func trackUserActions(user api.User, stats *state) {
 	for command := range user.Listen("stats", "?n") {
 		var duration int
 		var action string
@@ -95,7 +95,7 @@ func trackUserActions(user api.UserInterface, stats *state) {
 	}
 }
 
-func openPositionTrigger(p *model.Trade, client api.TradeClient) api.TriggerFunc {
+func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
 	return func(command api.Command) (string, error) {
 		var t model.Type
 		switch command.Content {
@@ -112,7 +112,7 @@ func openPositionTrigger(p *model.Trade, client api.TradeClient) api.TriggerFunc
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(client api.TradeClient, user api.UserInterface) api.Processor {
+func MultiStats(client api.Exchange, user api.User) api.Processor {
 
 	stats := &state{
 		configs: make(map[time.Duration]windowConfig),

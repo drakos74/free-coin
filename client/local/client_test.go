@@ -55,7 +55,7 @@ func TestClient_Trades(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var since int64 = 0
 			client := NewClient(context.Background(), since).
-				WithUpstream(func(since int64) (api.TradeClient, error) {
+				WithUpstream(func(since int64) (api.Client, error) {
 					tt.client.start = cointime.FromNano(since)
 					return tt.client, nil
 				}).

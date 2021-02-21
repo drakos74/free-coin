@@ -22,7 +22,7 @@ const timeFormat = "2006_01_02_15"
 // It can be used as a simulation environment for testing processors and business logic.
 type Client struct {
 	since       int64
-	upstream    func(since int64) (api.TradeClient, error)
+	upstream    func(since int64) (api.Client, error)
 	persistence func(shard string) (storage.Persistence, error)
 	trades      model.TradeSource
 	hash        cointime.Hash
@@ -34,7 +34,7 @@ func NewClient(ctx context.Context, since int64) *Client {
 		since:  since,
 		hash:   cointime.NewHash(8 * time.Hour),
 		trades: make(chan *model.Trade),
-		upstream: func(since int64) (api.TradeClient, error) {
+		upstream: func(since int64) (api.Client, error) {
 			return Void(), nil
 		},
 		persistence: func(shard string) (storage.Persistence, error) {
@@ -44,7 +44,7 @@ func NewClient(ctx context.Context, since int64) *Client {
 }
 
 // WithUpstream adds an upstream client to the local client.
-func (c *Client) WithUpstream(upstream func(since int64) (api.TradeClient, error)) *Client {
+func (c *Client) WithUpstream(upstream func(since int64) (api.Client, error)) *Client {
 	c.upstream = upstream
 	return c
 }
@@ -170,16 +170,4 @@ func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage
 		}
 	}
 	return nil
-}
-
-func (c *Client) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
-	panic("implement me")
-}
-
-func (c *Client) OpenPosition(position model.Position) error {
-	panic("implement me")
-}
-
-func (c *Client) ClosePosition(position model.Position) error {
-	panic("implement me")
 }

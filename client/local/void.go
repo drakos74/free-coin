@@ -10,7 +10,7 @@ import (
 type VoidClient struct {
 }
 
-func Void() api.TradeClient {
+func Void() api.Client {
 	return &VoidClient{}
 }
 

@@ -18,7 +18,7 @@ const (
 )
 
 // PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
-func Position(client api.TradeClient, user api.UserInterface) api.Processor {
+func Position(client api.Exchange, user api.User) api.Processor {
 
 	// define our internal global state
 	var positions tradePositions = make(map[model.Coin]map[string]*tradePosition)
@@ -88,7 +88,7 @@ func (tp tradePositions) updateConfig(key tpKey, profit, stopLoss float64) {
 	tp[key.coin][key.id].config.stopLoss = stopLoss
 }
 
-func (tp tradePositions) update(client api.TradeClient) error {
+func (tp tradePositions) update(client api.Exchange) error {
 	pp, err := client.OpenPositions(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not get positions: %w", err)
@@ -109,7 +109,7 @@ func (tp tradePositions) update(client api.TradeClient) error {
 	return nil
 }
 
-func (tp tradePositions) track(client api.TradeClient, ticker *time.Ticker, quit chan struct{}) {
+func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit chan struct{}) {
 	// and update the positions at the predefined interval.
 	for {
 		select {
@@ -127,7 +127,7 @@ func (tp tradePositions) track(client api.TradeClient, ticker *time.Ticker, quit
 
 const noPositionMsg = "no open positions"
 
-func (tp tradePositions) trackUserActions(client api.TradeClient, user api.UserInterface) {
+func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	for command := range user.Listen("trade", "?p") {
 		var action string
 		var coin string
@@ -185,7 +185,7 @@ func (tp tradePositions) trackUserActions(client api.TradeClient, user api.UserI
 	}
 }
 
-func (tp tradePositions) checkClosePosition(client api.TradeClient, user api.UserInterface, key tpKey) {
+func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, key tpKey) {
 	p := tp[key.coin][key.id]
 	net, profit := p.position.Value()
 	log.Debug().
@@ -212,7 +212,7 @@ func (tp tradePositions) checkClosePosition(client api.TradeClient, user api.Use
 	}
 }
 
-func (tp tradePositions) closePositionTrigger(client api.TradeClient, key tpKey) api.TriggerFunc {
+func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) api.TriggerFunc {
 	return func(command api.Command) (string, error) {
 		var nProfit float64
 		var nStopLoss float64

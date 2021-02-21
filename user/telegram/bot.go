@@ -46,7 +46,7 @@ type executableTrigger struct {
 	private api.Index
 }
 
-// Bot defines the telegram bot coinapi.UserInterface api implementation.
+// Bot defines the telegram bot coinapi.User api implementation.
 type Bot struct {
 	publicBot       botAPI
 	publicChatID    int64
@@ -59,7 +59,7 @@ type Bot struct {
 	consumers       map[consumerKey]chan api.Command
 }
 
-// NewBot creates a new telegram bot implementing the coinapi.UserInterface api.
+// NewBot creates a new telegram bot implementing the coinapi.User api.
 func NewBot() (*Bot, error) {
 	// public bot set up
 	publicBot, err := tgbotapi.NewBotAPI(os.Getenv(telegramBotToken))

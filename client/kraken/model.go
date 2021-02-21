@@ -10,7 +10,7 @@ import (
 )
 
 // newTrade creates a new trade from the kraken trade response.
-func (r *Remote) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) coinmodel.Trade {
+func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) coinmodel.Trade {
 	var t coinmodel.Type
 	if trade.Buy {
 		t = coinmodel.Buy
@@ -30,7 +30,7 @@ func (r *Remote) newTrade(pair string, active bool, live bool, trade krakenapi.T
 }
 
 // newOrder creates a new order from a kraken order description.
-func (r *Remote) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
+func (r *RemoteExchange) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
 	price, err := strconv.ParseFloat(order.PrimaryPrice, 64)
 	if err != nil {
 		log.Error().Err(err).Str("price", order.PrimaryPrice).Msg("could not read price")
@@ -45,7 +45,7 @@ func (r *Remote) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
 }
 
 // newPosition creates a new position based on the kraken position response.
-func (r *Remote) newPosition(id string, response krakenapi.Position) coinmodel.Position {
+func (r *RemoteExchange) newPosition(id string, response krakenapi.Position) coinmodel.Position {
 	net := float64(response.Net)
 	fees := response.Fee * 2
 	return coinmodel.Position{
