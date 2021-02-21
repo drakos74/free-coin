@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const timeFormat = "2006_01_02"
+const timeFormat = "2006_01_02_15"
 
 // Client will retrieve trades from the given key value storage.
 // It will be able to retrieve and store data from an upstream client,
@@ -25,12 +25,14 @@ type Client struct {
 	upstream    func(since int64) (api.TradeClient, error)
 	persistence func(shard string) (storage.Persistence, error)
 	trades      model.TradeSource
+	hash        cointime.Hash
 }
 
 // NewClient creates a new client for trade processing.
 func NewClient(ctx context.Context, since int64) *Client {
 	return &Client{
 		since:  since,
+		hash:   cointime.NewHash(8 * time.Hour),
 		trades: make(chan *model.Trade),
 		upstream: func(since int64) (api.TradeClient, error) {
 			return Void(), nil
@@ -53,17 +55,6 @@ func (c *Client) WithPersistence(persistence func(shard string) (storage.Persist
 	return c
 }
 
-// TODO : make these in the time package
-// hash hashes the given trade to the appropriate bucket
-func (c *Client) hash(t time.Time) int64 {
-	return t.Unix() / int64(24*time.Hour.Seconds())
-}
-
-// rehash retrieves the original data from the given hash
-func (c *Client) rehash(s int64) time.Time {
-	return time.Unix(s*int64(24*time.Hour.Seconds()), 0)
-}
-
 // Trades returns the trades starting at since.
 // it will try to get trades from the persistence layer if available by day
 // otherwise it will call the upstream client if available.
@@ -73,7 +64,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api
 	// check if we have trades in the store ...
 	start := cointime.FromNano(c.since)
 
-	h := c.hash(start)
+	h := c.hash.Do(start)
 
 	go func() {
 		hash := h
@@ -99,7 +90,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api
 }
 
 func (c *Client) consumeBatch(h int64, coin model.Coin) (int64, error) {
-	startTime := c.rehash(h)
+	startTime := c.hash.Undo(h)
 
 	k := c.key(h, coin)
 	store, err := c.persistence(string(coin))
@@ -127,12 +118,12 @@ func (c *Client) key(h int64, coin model.Coin) storage.Key {
 		Hash: h,
 		Pair: string(coin),
 		// TODO : make a method for this
-		Label: fmt.Sprintf("from_%s_to_%s", c.rehash(h).Format(timeFormat), c.rehash(h+1).Format(timeFormat)),
+		Label: fmt.Sprintf("from_%s_to_%s", c.hash.Undo(h).Format(timeFormat), c.hash.Undo(h+1).Format(timeFormat)),
 	}
 }
 
 func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage.Persistence, err error) error {
-	startTime := c.rehash(h)
+	startTime := c.hash.Undo(h)
 	k := c.key(h, coin)
 	trades := make([]model.Trade, 0)
 	// any other error we ll effectively overwrite
@@ -161,7 +152,7 @@ func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage
 		}
 		to = trade.Time
 		// get the trades hash to see if it still belongs to our key
-		hash := c.hash(trade.Time)
+		hash := c.hash.Do(trade.Time)
 		if hash == h {
 			trades = append(trades, *trade)
 			c.trades <- trade

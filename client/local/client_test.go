@@ -39,7 +39,7 @@ func TestClient_Trades(t *testing.T) {
 			shard:             "tmp-shard",
 			trades:            49 * int(time.Hour.Minutes()),
 			lastTradeTime:     time.Unix(0, 0).Add(49 * time.Hour).Add(-1 * time.Second),
-			maxUpstreamTrades: 2947,
+			maxUpstreamTrades: 2955,
 		},
 		"from-cache": {
 			client:            newMockSource(0),

@@ -32,6 +32,26 @@ func ThisInstant() int64 {
 	return time.Now().Unix() * time.Second.Nanoseconds()
 }
 
+// Hash is a time hash helper
+type Hash struct {
+	duration int64
+}
+
+// NewHash creates a new time hash for the given duration.
+func NewHash(duration time.Duration) Hash {
+	return Hash{duration: int64(duration.Seconds())}
+}
+
+// Do converts the time to the hash.
+func (h Hash) Do(t time.Time) int64 {
+	return t.Unix() / h.duration
+}
+
+// Undo converts back the hash to the time.
+func (h Hash) Undo(t int64) time.Time {
+	return time.Unix(t*h.duration, 0)
+}
+
 // Execute executes the given function at the specified interval providing also a shutdown hook.
 func Execute(stop <-chan struct{}, interval time.Duration, exec func() error, shutdown func()) {
 	ticker := time.NewTicker(interval)
