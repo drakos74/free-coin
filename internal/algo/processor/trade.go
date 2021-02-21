@@ -71,7 +71,7 @@ func Trade(client api.Exchange, user api.User) api.Processor {
 								Create())
 							api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("open %v %f %s at %f", t, vol.volume, trade.Coin, trade.Price)), err)
 						}
-					} else {
+					} else if buy && sell {
 						log.Warn().Bool("buy", buy).Bool("sell", sell).Msg("inconclusive buy signal")
 					}
 				}
