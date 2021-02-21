@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
-	cointime "github.com/drakos74/free-coin/internal/time"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
+	cointime "github.com/drakos74/free-coin/internal/time"
+	"github.com/rs/zerolog/log"
 )
 
 const timeFormat = "2006_01_02"
