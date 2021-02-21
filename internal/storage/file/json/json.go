@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/drakos74/free-coin/internal/storage"
 )
 
 // Save saves the given json struct into the given path with the provided filename.
@@ -51,12 +53,12 @@ func Load(filePath string, fileName string, value interface{}) error {
 
 	data, err := ioutil.ReadFile(p)
 	if err != nil {
-		return fmt.Errorf("could not read file '%s': %w", p, err)
+		return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
 	}
 
 	err = json.Unmarshal(data, value)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal key: %w", err)
+		return fmt.Errorf("could not unmarshal key '%s': %w", err, storage.CouldNotLoadErr)
 	}
 
 	return nil

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -14,6 +15,11 @@ const (
 	defaultDir = "file-storage"
 	BookDir    = "book"
 	HistoryDir = "history"
+)
+
+var (
+	NotFoundErr     = errors.New("not found")
+	CouldNotLoadErr = errors.New("could not load")
 )
 
 type Key struct {
