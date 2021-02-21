@@ -52,10 +52,12 @@ func main() {
 
 	statsProcessor := processor.MultiStats(exchange, user)
 	positionProcessor := processor.Position(exchange, user)
+	tradeProcessor := processor.Trade(exchange, user)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Void(),
 			statsProcessor,
 			positionProcessor,
+			tradeProcessor,
 		)
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")

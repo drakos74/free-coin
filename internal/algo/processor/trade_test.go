@@ -40,7 +40,7 @@ func TestTrader_Gather(t *testing.T) {
 			_, _, statsMessages := run(in, st, MultiStats)
 
 			out := make(chan *model.Trade)
-			_, _, tradeMessages := run(st, out, Trader)
+			_, _, tradeMessages := run(st, out, Trade)
 			wg := new(sync.WaitGroup)
 			wg.Add(100)
 			go logMessages("stats", wg, statsMessages)
