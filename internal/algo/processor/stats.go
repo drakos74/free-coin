@@ -314,9 +314,9 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		for k, vs := range valueSlice {
 			emojiValueSlice[k] = emoji.MapToSymbol(vs)
 		}
-		pp[i] = fmt.Sprintf("%s <- %s ( %.2f : %.2f : %v ) ",
-			strings.Join(emojiValueSlice, " "),
+		pp[i] = fmt.Sprintf("%s -> %s ( %.2f : %.2f : %v ) ",
 			strings.Join(emojiKeySlice, " "),
+			strings.Join(emojiValueSlice, " "),
 			v.Probability,
 			1/float64(v.Options),
 			v.Sample,

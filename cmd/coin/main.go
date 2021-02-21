@@ -32,7 +32,7 @@ func main() {
 	//client := local.NewClient(ctx, cointime.LastXHours(96)).
 	//	WithUpstream(upstream).
 	//	WithPersistence(persistence)
-	client := kraken.NewClient(ctx, cointime.LastXHours(96), 10*time.Second)
+	client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
 
 	user, err := telegram.NewBot()
 	//user, err := user.NewVoid()

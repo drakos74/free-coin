@@ -24,13 +24,13 @@ const (
 
 // Config contains coin related configuration.
 var Coins = map[string]Coin{
-	"BTC":   BTC,
-	"ETH":   ETH,
-	"EOS":   EOS,
-	"LINK":  LINK,
-	"WAVES": WAVES,
-	"DOT":   DOT,
-	"XRP":   XRP,
+	"BTC": BTC,
+	"ETH": ETH,
+	//"EOS":   EOS,
+	"LINK": LINK,
+	//"WAVES": WAVES,
+	"DOT": DOT,
+	"XRP": XRP,
 }
 
 func KnownCoins() []string {
