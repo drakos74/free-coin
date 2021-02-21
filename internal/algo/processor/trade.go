@@ -95,15 +95,15 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	},
 	model.ETH: {
 		coin:   model.ETH,
-		volume: 0.5,
+		volume: 0.3,
 	},
 	model.LINK: {
 		coin:   model.LINK,
-		volume: 20,
+		volume: 15,
 	},
 	model.DOT: {
 		coin:   model.DOT,
-		volume: 20,
+		volume: 15,
 	},
 	model.XRP: {
 		coin:   model.XRP,
