@@ -41,10 +41,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 
 			reply := update.Message.ReplyToMessage
 			if reply != nil {
+				var chatID int64
+				if update.Message.Chat != nil {
+					chatID = update.Message.Chat.ID
+				}
 				log.Info().
 					Str("from", update.Message.From.UserName).
 					Str("text", update.Message.Text).
-					Int64("chat", update.Message.Chat.ID).
+					Int64("chat", chatID).
 					Str("private", fmt.Sprintf("%v", private)).
 					Int("messageID", reply.MessageID).
 					Msg("reply received")
@@ -150,6 +154,12 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 		return 0, err
 	}
 	if trigger != nil {
+		// store the message for potential replies on the trigger.
+		b.process <- executableTrigger{
+			message: &sent,
+			trigger: trigger,
+			private: private,
+		}
 		if len(trigger.Default) > 0 {
 			go func() {
 				<-time.After(t)

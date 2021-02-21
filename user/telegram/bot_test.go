@@ -37,6 +37,7 @@ func (m *mockBot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) *Bot {
 	return &Bot{
 		publicBot:       &mockBot{input: input, output: output},
+		privateBot:      &Void{},
 		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
@@ -118,7 +119,7 @@ func TestBot_SendTrigger(t *testing.T) {
 	}
 
 	tests := map[string]test{
-		"auto-trigger": {
+		"no-auto-trigger": {
 			trigger: api.NewTrigger(func(command api.Command) (string, error) {
 				return command.Content, nil
 			}),
@@ -127,7 +128,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			tick:     time.Tick(5 * time.Second),
 			msgs:     []string{"text"},
 		},
-		"no-auto-trigger": {
+		"auto-trigger": {
 			trigger: api.NewTrigger(func(command api.Command) (string, error) {
 				// options[0] should be the 2nd argument of the defaults
 				return command.Content, nil
@@ -209,6 +210,7 @@ func TestBot_SendTrigger(t *testing.T) {
 			cnl()
 
 			for i, m := range msgs {
+				println(fmt.Sprintf("message %d = %+v", i, m))
 				assert.True(t, strings.Contains(m, tt.msgs[i]))
 			}
 			assert.Equal(t, tt.count, int(count))
