@@ -29,6 +29,11 @@ func Trade(client api.Exchange, user api.User) api.Processor {
 
 			metrics.Observer.IncrementTrades(string(trade.Coin), tradeProcessorName)
 
+			if !trade.Live {
+				out <- trade
+				continue
+			}
+
 			// decide if we open a new position
 			for _, dd := range defaultDurations {
 				//stats := MetaIndicators(trade, dd)
@@ -63,6 +68,10 @@ func Trade(client api.Exchange, user api.User) api.Processor {
 							t = model.Sell
 						}
 						if vol, ok := defaultOpenConfig[trade.Coin]; ok {
+							log.Info().
+								Str("predictions", fmt.Sprintf("%+v", predictions)).
+								Str("coin", string(trade.Coin)).
+								Msg("open order")
 							err := client.OpenOrder(model.NewOrder(trade.Coin).
 								WithLeverage(model.L_5).
 								WithVolume(vol.volume).
