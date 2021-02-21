@@ -49,7 +49,7 @@ func (c CoinConverter) Coin(p string) model.Coin {
 			return coin
 		}
 	}
-	panic(fmt.Sprintf("unknown pair %s", p))
+	panic(fmt.Sprintf("unknown pair '%s'", p))
 }
 
 // Type creates a new type converter for kraken.

@@ -289,7 +289,7 @@ func (c *closingConfig) DoClose(position model.Position) bool {
 var defaultClosingConfig = map[model.Coin]closingConfig{
 	model.BTC: {
 		coin:     model.BTC,
-		profit:   1.5,
+		profit:   1,
 		stopLoss: 1.5,
 	},
 }

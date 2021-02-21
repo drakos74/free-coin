@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/rs/zerolog/log"
 )
 
 var DefaultDir = "file-storage"
@@ -47,7 +48,7 @@ func Save(filePath string, fileName string, value interface{}) error {
 
 	// create the output file
 	p := filepath.Join(filePath, fileName)
-	f, err := os.Create(p)
+	f, err := os.Create(fmt.Sprintf("%s.json", p))
 	if err != nil {
 		return fmt.Errorf("could not create file '%s': %w", p, err)
 	}
@@ -64,6 +65,7 @@ func Save(filePath string, fileName string, value interface{}) error {
 		return fmt.Errorf("could not write bytes '%+v' to file '%v' : %w", p, f, err)
 	}
 
+	log.Info().Str("file", p).Msg("stored json file")
 	return nil
 
 }
@@ -73,7 +75,7 @@ func Load(filePath string, fileName string, value interface{}) error {
 
 	p := filepath.Join(filePath, fileName)
 
-	data, err := ioutil.ReadFile(p)
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s.json", p))
 	if err != nil {
 		return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
 	}

@@ -31,17 +31,11 @@ func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krake
 
 // newOrder creates a new order from a kraken order description.
 func (r *RemoteExchange) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
-	price, err := strconv.ParseFloat(order.PrimaryPrice, 64)
+	_, err := strconv.ParseFloat(order.PrimaryPrice, 64)
 	if err != nil {
 		log.Error().Err(err).Str("price", order.PrimaryPrice).Msg("could not read price")
 	}
-	return &coinmodel.Order{
-		Coin:     r.converter.Coin.Coin(order.AssetPair),
-		Type:     r.converter.Type.To(order.Type),
-		OType:    r.converter.OrderType.To(order.OrderType),
-		Leverage: r.converter.Leverage.From(order.Leverage),
-		Price:    price,
-	}
+	return nil
 }
 
 // newPosition creates a new position based on the kraken position response.

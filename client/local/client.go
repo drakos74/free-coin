@@ -107,6 +107,10 @@ func (c *Client) consumeBatch(h int64, coin model.Coin) (int64, error) {
 	}
 
 	for _, trade := range trades {
+		// add the meta map, which is ignored in the json
+		trade.Meta = make(map[string]interface{})
+		trade.Live = false
+		trade.Active = false
 		c.trades <- &trade
 	}
 
@@ -124,8 +128,7 @@ func (c *Client) key(h int64, coin model.Coin) storage.Key {
 
 func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage.Persistence, err error) error {
 	startTime := c.hash.Undo(h)
-	k := c.key(h, coin)
-	trades := make([]model.Trade, 0)
+
 	// any other error we ll effectively overwrite
 	if errors.Is(err, storage.UnrecoverableErr) {
 		log.Error().Err(err).Msg("initialise persistence")
@@ -144,13 +147,15 @@ func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage
 		log.Error().Err(err).Msg("could not get trades from upstream")
 		return err
 	}
+	k := c.key(h, coin)
+	trades := make([]model.Trade, 0)
 	var from *time.Time
-	var to time.Time
+	var to *time.Time
 	for trade := range source {
 		if from == nil {
 			from = &trade.Time
 		}
-		to = trade.Time
+		to = &trade.Time
 		// get the trades hash to see if it still belongs to our key
 		hash := c.hash.Do(trade.Time)
 		if hash == h {
@@ -164,9 +169,12 @@ func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage
 				log.Error().Err(err).Msg("could not store trades")
 				return err
 			}
-			log.Info().Time("from", *from).Time("to", to).Err(err).Int64("hash", h).Msg("storing trade batch")
-			// update values for the next batch ...
-			stop <- struct{}{}
+			log.Info().Time("from", *from).Time("to", *to).Err(err).Int64("hash", h).Msg("storing trade batch")
+			h = hash
+			k = c.key(h, coin)
+			trades = make([]model.Trade, 0)
+			from = nil
+			to = nil
 		}
 	}
 	return nil

@@ -4,12 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/drakos74/free-coin/user/telegram"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
-	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -31,9 +32,10 @@ func main() {
 	//client := local.NewClient(ctx, cointime.LastXHours(96)).
 	//	WithUpstream(upstream).
 	//	WithPersistence(persistence)
-	client := kraken.NewClient(ctx, cointime.ThisInstant(), 10*time.Second)
+	client := kraken.NewClient(ctx, cointime.LastXHours(96), 10*time.Second)
 
 	user, err := telegram.NewBot()
+	//user, err := user.NewVoid()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())

@@ -159,19 +159,22 @@ type Processor interface {
 
 // Void is a void processsor.
 func Void() Processor {
-	return VoidProcessor{}
+	return &VoidProcessor{}
 }
 
 // VoidProcessor is the void processor struct.
 type VoidProcessor struct {
+	n int
 }
 
 // Process for the void processor does nothing.
-func (v VoidProcessor) Process(trade *model.Trade) {
+func (v *VoidProcessor) Process(trade *model.Trade) {
 	// nothing to do
+	v.n++
 }
 
 // Gather for the void processor does nothing.
-func (v VoidProcessor) Gather() {
+func (v *VoidProcessor) Gather() {
 	// nothing to do
+	fmt.Println(fmt.Sprintf("v.n = %+v", v.n))
 }
