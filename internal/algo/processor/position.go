@@ -194,7 +194,7 @@ func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, 
 		Float64("net", net).
 		Float64("profit", profit).
 		Msg("check position")
-	if p.config.DoClose(p.position) {
+	if p.DoClose() {
 		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
 			emoji.MapToSign(net),
 			string(p.position.Coin),
@@ -212,7 +212,28 @@ func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, 
 	}
 }
 
+func (tp tradePositions) exists(key tpKey) bool {
+	// ok, here we might encounter the case that we closed the position from another trigger
+	if _, ok := tp[key.coin]; !ok {
+		return false
+	}
+	if _, ok := tp[key.coin][key.id]; !ok {
+		return false
+	}
+	return true
+}
+
 func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) api.TriggerFunc {
+	// add a flag to the position that we want to close it
+	if tp.exists(key) {
+		toClose := tp[key.coin][key.id].config.toClose
+		if toClose {
+			// position is already triggered for close ...
+			return func(command api.Command) (string, error) {
+				return "", fmt.Errorf("position already closing for key %+v", key)
+			}
+		}
+	}
 	return func(command api.Command) (string, error) {
 		var nProfit float64
 		var nStopLoss float64
@@ -226,13 +247,15 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 			return "", fmt.Errorf("invalid command: %w", err)
 		}
 		// ok, here we might encounter the case that we closed the position from another trigger
-		if _, ok := tp[key.coin]; !ok {
-			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("could not find previous open position for coin")
-			return "", fmt.Errorf("could not find previous open position for coin")
+		if !tp.exists(key) {
+			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("could not find previous open position")
+			return "", fmt.Errorf("could not find previous open position")
 		}
-		if _, ok := tp[key.coin][key.id]; !ok {
-			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("could not find previous open position for id")
-			return "", fmt.Errorf("could not find previous open position for id")
+		// check if closing conditions still hold
+		// TODO : make this only for the negative case
+		if !tp[key.coin][key.id].DoClose() {
+			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("position conditions reversed")
+			return "", fmt.Errorf("position conditions reversed")
 		}
 		position := tp[key.coin][key.id].position
 		net, profit := position.Value()
@@ -270,6 +293,34 @@ type tradePosition struct {
 	config   closingConfig
 }
 
+// DoClose checks if the given position should be closed, based on the current configuration.
+// TODO : test this logic
+func (tp *tradePosition) DoClose() bool {
+	net, p := tp.position.Value()
+	if net > 0 && p > tp.config.profit {
+		// check the previous profit in order to extend profit
+		if p > tp.config.lastProfit {
+			// if we are making more ... ignore
+			tp.config.lastProfit = p
+			return false
+		}
+		diff := tp.config.lastProfit - p
+		if diff < 0.5 {
+			// leave for now, hoping profit will go up again
+			// but dont update our highest value
+			return false
+		}
+		// only close if the market is going down
+		return tp.config.Live <= 0
+	}
+	if net < 0 && p < -1*tp.config.stopLoss {
+		// only close if the market is going up
+		return tp.config.Live >= 0
+	}
+	// check if we missed a profit opportunity here
+	return tp.config.lastProfit > 0
+}
+
 type closingConfig struct {
 	coin model.Coin
 	// profit is the profit percentage
@@ -280,34 +331,8 @@ type closingConfig struct {
 	Live float64
 	// lastProfit is the last net value, in order to track trailing stop-loss
 	lastProfit float64
-}
-
-// DoClose checks if the given position should be closed, based on the current configuration.
-// TODO : test this logic
-func (c *closingConfig) DoClose(position model.Position) bool {
-	net, p := position.Value()
-	if net > 0 && p > c.profit {
-		// check the previous profit in order to extend profit
-		if p > c.lastProfit {
-			// if we are making more ... ignore
-			c.lastProfit = p
-			return false
-		}
-		diff := c.lastProfit - p
-		if diff < 0.5 {
-			// leave for now, hoping profit will go up again
-			// but dont update our highest value
-			return false
-		}
-		// only close if the market is going down
-		return c.Live <= 0
-	}
-	if net < 0 && p < -1*c.stopLoss {
-		// only close if the market is going up
-		return c.Live >= 0
-	}
-	// check if we missed a profit opportunity here
-	return c.lastProfit > 0
+	// toClose defines if the position is already flagged for closing
+	toClose bool
 }
 
 var defaultClosingConfig = map[model.Coin]closingConfig{
