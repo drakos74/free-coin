@@ -205,7 +205,7 @@ func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, 
 			ID:      p.position.ID,
 			Default: []string{"close"},
 			Exec:    tp.closePositionTrigger(client, key),
-			Timeout: 1 * time.Minute,
+			// TODO : instead of a big timeout check again when we want to close how the position is doing ...
 		})
 	} else {
 		// TODO : check also for trailing stop-loss
