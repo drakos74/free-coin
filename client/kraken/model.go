@@ -21,7 +21,6 @@ func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krake
 		Price:  trade.PriceFloat,
 		Volume: trade.VolumeFloat,
 		Time:   time.Unix(trade.Time, 0),
-		Meta:   make(map[string]interface{}),
 		Active: active,
 		Live:   live,
 		Type:   t,

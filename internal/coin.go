@@ -1,6 +1,7 @@
 package coin
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -94,29 +95,36 @@ func New(client api.Client, user api.User) *OverWatch {
 }
 
 // Run executes starts the OverWatch instance.
-func (o *OverWatch) Run() {
-	for command := range o.user.Listen("overwatch", "?c") {
-		var c string
-		var action string
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?c", "?coin"),
-			api.OneOf(&c, model.KnownCoins()...),
-			api.OneOf(&action, "start", "stop"))
-		if err != nil {
-			api.Reply(true, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
-			continue
-		}
-		// ...execute
-		switch action {
-		case "start":
-			err = o.Start(model.Coins[strings.ToUpper(c)], Void())
+func (o *OverWatch) Run(ctx context.Context) {
+	for {
+		select {
+		case command := <-o.user.Listen("overwatch", "?c"):
+			var c string
+			var action string
+			_, err := command.Validate(
+				api.AnyUser(),
+				api.Contains("?c", "?coin"),
+				api.OneOf(&c, model.KnownCoins()...),
+				api.OneOf(&action, "start", "stop"))
+			if err != nil {
+				api.Reply(true, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+				continue
+			}
+			// ...execute
+			switch action {
+			case "start":
+				err = o.Start(model.Coins[strings.ToUpper(c)], Log())
+				api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			case "stop":
+				err = o.Stop(model.Coins[strings.ToUpper(c)])
+			}
 			api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
-		case "stop":
-			err = o.Stop(model.Coins[strings.ToUpper(c)])
+		case <-ctx.Done():
+			// kill the engines one by one
+			fmt.Println(fmt.Sprintf("o = %+v", o))
 		}
-		api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 	}
+
 }
 
 // Start starts an engine for the given coin and arguments.
@@ -157,8 +165,8 @@ type Processor interface {
 	Gather()
 }
 
-// Void is a void processsor.
-func Void() Processor {
+// Log is a void processsor.
+func Log() Processor {
 	return &VoidProcessor{}
 }
 
@@ -169,12 +177,13 @@ type VoidProcessor struct {
 
 // Process for the void processor does nothing.
 func (v *VoidProcessor) Process(trade *model.Trade) {
-	// nothing to do
+	// TODO : keep track of other properties of the trades
 	v.n++
+
 }
 
 // Gather for the void processor does nothing.
 func (v *VoidProcessor) Gather() {
-	// nothing to do
+	// TODO : print the tracked properties for this processor.
 	fmt.Println(fmt.Sprintf("v.n = %+v", v.n))
 }

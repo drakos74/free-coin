@@ -11,6 +11,12 @@ import (
 // TODO : add load and save functionality for processors interface to allow saving and loading state.
 type Processor func(in <-chan *model.Trade, out chan<- *model.Trade)
 
+// Signal is a generic envelop for packing generic objects and passing them from process to process.
+type Signal struct {
+	Type  string
+	Value interface{}
+}
+
 // Condition defines a boundary condition to stop execution based on the consumed trades.
 type Condition func(trade *model.Trade, numberOfTrades int) bool
 

@@ -181,7 +181,6 @@ func (b Bucket) Index() int64 {
 type Window struct {
 	size      int64
 	lastIndex int64
-	last      *Bucket
 	current   Bucket
 }
 
@@ -198,11 +197,13 @@ func NewWindow(size int64) *Window {
 // (Note that based on this logic we ll only know when a window closed only on the initiation of a new one)
 // (Note that the index must be increasing for this logic to work)
 // NOTE : This is not a hashmap implementation !
-func (w *Window) Push(index int64, value ...float64) (int64, bool) {
+func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 
 	ready := false
 
 	lastIndex := w.lastIndex
+
+	var last Bucket
 
 	if index == 0 {
 		// new start ...
@@ -210,14 +211,9 @@ func (w *Window) Push(index int64, value ...float64) (int64, bool) {
 		w.current = NewBucket(index, len(value))
 	} else if index >= w.lastIndex+w.size {
 		// start a new one
-		// but first close the last one
-		if w.last != nil {
-			panic("last bucket has not been consumed. Cant create a new one!")
-		}
-
 		if w.current.Size() > 0 {
 			tmpBucket := w.current
-			w.last = &tmpBucket
+			last = tmpBucket
 			ready = true
 		}
 
@@ -227,7 +223,7 @@ func (w *Window) Push(index int64, value ...float64) (int64, bool) {
 
 	w.current.Push(w.lastIndex, value...)
 
-	return lastIndex, ready
+	return lastIndex, last, ready
 
 }
 
@@ -239,11 +235,4 @@ func (w *Window) Current() int64 {
 // Next is the next index at which a new bucket will be created
 func (w *Window) Next() int64 {
 	return w.lastIndex + w.size
-}
-
-// Get returns the last complete Bucket.
-func (w *Window) Get() Bucket {
-	tmpBucket := *w.last
-	w.last = nil
-	return tmpBucket
 }

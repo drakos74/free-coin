@@ -1,11 +1,15 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Message defines a message that should be sent to the user or group.
 type Message struct {
 	Text  string
 	Reply int
+	Ref   time.Time
 }
 
 // NewMessage creates a new message.
@@ -24,5 +28,12 @@ func (m *Message) ReplyTo(msgID int) *Message {
 // AddLine adds a line argument to the message.
 func (m *Message) AddLine(txt string) *Message {
 	m.Text = fmt.Sprintf("%s\n%s", m.Text, txt)
+	return m
+}
+
+// ReferenceTime adds a reference time to the message.
+// This is especially useful for back-testing adn debugging.
+func (m *Message) ReferenceTime(t time.Time) *Message {
+	m.Ref = t
 	return m
 }

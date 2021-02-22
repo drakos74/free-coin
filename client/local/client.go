@@ -1,10 +1,10 @@
 package local
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -29,7 +29,7 @@ type Client struct {
 }
 
 // NewClient creates a new client for trade processing.
-func NewClient(ctx context.Context, since int64) *Client {
+func NewClient(since int64) *Client {
 	return &Client{
 		since:  since,
 		hash:   cointime.NewHash(8 * time.Hour),
@@ -60,61 +60,107 @@ func (c *Client) WithPersistence(persistence func(shard string) (storage.Persist
 // otherwise it will call the upstream client if available.
 // In that sense it works always in batches of one day interval.
 func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {
-
 	// check if we have trades in the store ...
-	start := cointime.FromNano(c.since)
 
-	h := c.hash.Do(start)
+	// NOTE : we are making a major assumption here that timestamps will always increase.
+	go func(since int64) {
 
-	go func() {
-		hash := h
-		for {
-			select {
-			case <-stop:
-				// we need to close our processing
-				log.Info().Msg("closing local client")
-				return
-			default:
-				nextHash, err := c.consumeBatch(hash, coin)
-				if nextHash == hash || err != nil {
-					log.Error().Err(err).Msg("error during batch processing")
-					return
-				}
-				hash = nextHash
-			}
+		store, err := c.persistence(string(coin))
+		if err != nil {
+			log.Error().Err(err).Msg("could not initialise storage")
+			// TODO : we need to signal back to the caller (maybe use stop channel ?)
+			return
 		}
-	}()
+
+		for {
+			endTime, err := c.localTrades(since, coin, store)
+			if err != nil {
+				// get from upstream trades not found or local storage is not working
+				break
+			}
+			// calculate the next batch
+			since = endTime.UnixNano()
+		}
+
+		// we need to load this batch from the upstream
+		cl, err := c.upstream(since)
+		if err != nil {
+			log.Error().Err(err).Msg("could not create upstream")
+			return
+		}
+		stop := make(chan struct{}, 10)
+		source, err := cl.Trades(stop, coin, api.NonStop)
+		if err != nil {
+			log.Error().Err(err).Msg("could not get trades from upstream")
+			return
+		}
+
+		startTime := cointime.FromNano(since)
+		hash := c.hash.Do(startTime)
+		k := c.key(hash, coin)
+
+		trades := make([]model.Trade, 0)
+		var from *time.Time
+		var to *time.Time
+		for trade := range source {
+			if from == nil {
+				from = &trade.Time
+			}
+			to = &trade.Time
+			// get the trades hash to see if it still belongs to our key
+			h := c.hash.Do(trade.Time)
+			// give an id to the trade
+			if trade.ID == "" {
+				trade.ID = uuid.New().String()
+			}
+			trades = append(trades, *trade)
+			if h > hash {
+				// signals to flush and start a new batch
+				err = store.Store(k, trades)
+				if err != nil {
+					log.Error().Err(err).Msg("could not store trades")
+					// dont exit here ... lets at least continue (?)
+					// return
+				}
+				log.Info().Time("from", *from).Time("to", *to).Err(err).Int64("hash", h).Msg("storing trade batch")
+				hash = h
+				k = c.key(hash, coin)
+				trades = make([]model.Trade, 0)
+				from = nil
+				to = nil
+			}
+			c.trades <- trade
+		}
+	}(c.since)
 
 	return c.trades, nil
 
 }
 
-func (c *Client) consumeBatch(h int64, coin model.Coin) (int64, error) {
-	startTime := c.hash.Undo(h)
-
-	k := c.key(h, coin)
-	store, err := c.persistence(string(coin))
-	if err != nil {
-		return h, err
-	}
-
+func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persistence) (time.Time, error) {
+	startTime := cointime.FromNano(since)
+	hash := c.hash.Do(startTime)
+	k := c.key(hash, coin)
 	trades := make([]model.Trade, 0)
-	err = store.Load(k, &trades)
-	log.Info().Err(err).Int64("hash", k.Hash).Time("from", startTime).Str("coin", string(coin)).Msg("loaded trades from local persistence")
-
+	err := store.Load(k, &trades)
+	log.Info().Err(err).
+		Int("trades", len(trades)).
+		Int64("hash", k.Hash).
+		Time("from", startTime).
+		Str("coin", string(coin)).
+		Msg("loaded trades from local storage")
 	if err != nil {
-		return h + 1, c.serveTradesFromUpstream(h, coin, store, err)
+		return startTime, err
 	}
-
-	for _, trade := range trades {
+	// just get all the local trades we got ... while updating our since index
+	for _, localTrade := range trades {
 		// add the meta map, which is ignored in the json
-		trade.Meta = make(map[string]interface{})
-		trade.Live = false
-		trade.Active = false
-		c.trades <- &trade
+		localTrade.Live = false
+		localTrade.Active = false
+		c.trades <- &localTrade
+		startTime = localTrade.Time
 	}
-
-	return h + 1, nil
+	return startTime, nil
 }
 
 func (c *Client) key(h int64, coin model.Coin) storage.Key {
@@ -124,58 +170,4 @@ func (c *Client) key(h int64, coin model.Coin) storage.Key {
 		// TODO : make a method for this
 		Label: fmt.Sprintf("from_%s_to_%s", c.hash.Undo(h).Format(timeFormat), c.hash.Undo(h+1).Format(timeFormat)),
 	}
-}
-
-func (c *Client) serveTradesFromUpstream(h int64, coin model.Coin, store storage.Persistence, err error) error {
-	startTime := c.hash.Undo(h)
-
-	// any other error we ll effectively overwrite
-	if errors.Is(err, storage.UnrecoverableErr) {
-		log.Error().Err(err).Msg("initialise persistence")
-		return err
-	}
-
-	// we need to load this batch from the upstream
-	cl, err := c.upstream(startTime.UnixNano())
-	if err != nil {
-		log.Error().Err(err).Msg("could not create upstream")
-		return err
-	}
-	stop := make(chan struct{}, 10)
-	source, err := cl.Trades(stop, coin, api.NonStop)
-	if err != nil {
-		log.Error().Err(err).Msg("could not get trades from upstream")
-		return err
-	}
-	k := c.key(h, coin)
-	trades := make([]model.Trade, 0)
-	var from *time.Time
-	var to *time.Time
-	for trade := range source {
-		if from == nil {
-			from = &trade.Time
-		}
-		to = &trade.Time
-		// get the trades hash to see if it still belongs to our key
-		hash := c.hash.Do(trade.Time)
-		if hash == h {
-			trades = append(trades, *trade)
-			c.trades <- trade
-		} else if hash > h {
-			// the case where we got the first trade that is bigger than what we intended to get
-			// we should have stopped now, because the channel should have closed.
-			err = store.Store(k, trades)
-			if err != nil {
-				log.Error().Err(err).Msg("could not store trades")
-				return err
-			}
-			log.Info().Time("from", *from).Time("to", *to).Err(err).Int64("hash", h).Msg("storing trade batch")
-			h = hash
-			k = c.key(h, coin)
-			trades = make([]model.Trade, 0)
-			from = nil
-			to = nil
-		}
-	}
-	return nil
 }

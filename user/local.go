@@ -7,6 +7,8 @@ import (
 	"github.com/drakos74/free-coin/internal/api"
 )
 
+const dateFormat = "Jan _2 15:04:05"
+
 type Void struct {
 }
 
@@ -24,6 +26,6 @@ func (v *Void) Listen(key, prefix string) <-chan api.Command {
 
 func (v *Void) Send(channel api.Index, message *api.Message, trigger *api.Trigger) int {
 	// do nothing ...
-	fmt.Println(fmt.Sprintf("message = %+v", message.Text))
+	fmt.Println(fmt.Sprintf("%s | message = %+v", message.Ref.Format(dateFormat), message.Text))
 	return -1
 }

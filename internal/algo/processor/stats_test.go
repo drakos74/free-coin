@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/drakos74/free-coin/internal/model"
 )
 
 func TestStats_TradeProcessing(t *testing.T) {
-	testTradeProcessing(t, MultiStats)
+	testTradeProcessing(t, testMultiStats())
 }
 
 func TestStats_Gather(t *testing.T) {
@@ -18,7 +20,7 @@ func TestStats_Gather(t *testing.T) {
 	in := make(chan *model.Trade)
 	out := make(chan *model.Trade)
 
-	_, _, msgs := run(in, out, MultiStats)
+	_, _, msgs := run(in, out, testMultiStats())
 	wg := new(sync.WaitGroup)
 	wg.Add(33)
 	go logMessages("stats", wg, msgs)
@@ -43,4 +45,16 @@ func TestStats_Gather(t *testing.T) {
 
 	wg.Wait()
 
+}
+
+func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
+	return func(client api.Exchange, user api.User) api.Processor {
+		signal := make(chan api.Signal)
+		go func() {
+			for range signal {
+				// nothing to do just consume, so that the stats processor can proceed
+			}
+		}()
+		return MultiStats(client, user, signal)
+	}
 }

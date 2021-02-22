@@ -54,7 +54,7 @@ func TestClient_Trades(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var since int64 = 0
-			client := NewClient(context.Background(), since).
+			client := NewClient(since).
 				WithUpstream(func(since int64) (api.Client, error) {
 					tt.client.start = cointime.FromNano(since)
 					return tt.client, nil
@@ -110,13 +110,13 @@ func (m *mockSource) Trades(stop <-chan struct{}, coin model.Coin, stopExecution
 				return
 			default:
 				// generate some trades ... but be careful of the time
-				trade := &model.Trade{
+				trade := model.Trade{
 					Coin: coin,
 					Time: m.start.Add(time.Duration(i) * time.Minute),
-				}
+				}.Init()
 				i++
 				m.trades++
-				trades <- trade
+				trades <- &trade
 			}
 		}
 	}()

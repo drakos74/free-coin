@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -37,10 +39,14 @@ func TestTrader_Gather(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in := make(chan *model.Trade)
 			st := make(chan *model.Trade)
-			_, _, statsMessages := run(in, st, MultiStats)
-
+			signals := make(chan api.Signal)
+			_, _, statsMessages := run(in, st, func(client api.Exchange, user api.User) api.Processor {
+				return MultiStats(client, user, signals)
+			})
 			out := make(chan *model.Trade)
-			_, _, tradeMessages := run(st, out, Trade)
+			_, _, tradeMessages := run(st, out, func(client api.Exchange, user api.User) api.Processor {
+				return Trade(client, user, signals)
+			})
 			wg := new(sync.WaitGroup)
 			wg.Add(100)
 			go logMessages("stats", wg, statsMessages)

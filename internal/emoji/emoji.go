@@ -45,6 +45,14 @@ func MapToSentiment(f float64) string {
 	return emo
 }
 
+func MapToSymbols(ss []string) []string {
+	emojiSlice := make([]string, len(ss))
+	for j, s := range ss {
+		emojiSlice[j] = MapToSymbol(s)
+	}
+	return emojiSlice
+}
+
 // MapToSymbol maps the given number according to it's order.
 func MapToSymbol(i string) string {
 	symbol := HalfEclipse

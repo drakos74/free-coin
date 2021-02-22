@@ -144,23 +144,23 @@ func (c *mockClient) ClosePosition(position model.Position) error {
 }
 
 func mockTrade(c model.Coin, t model.Type) *model.Trade {
-	return &model.Trade{
+	trade := model.Trade{
 		Coin:   c,
 		Price:  400000,
 		Volume: 1,
 		Time:   time.Now(),
 		Type:   t,
-		Meta:   make(map[string]interface{}),
 	}
+	return &trade
 }
 
 func newTrade(c model.Coin, price, volume float64, t model.Type, time time.Time) *model.Trade {
-	return &model.Trade{
+	trade := model.Trade{
 		Coin:   c,
 		Price:  price,
 		Volume: volume,
 		Time:   time,
 		Type:   t,
-		Meta:   make(map[string]interface{}),
 	}
+	return &trade
 }

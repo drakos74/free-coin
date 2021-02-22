@@ -312,7 +312,7 @@ func (tp *tradePosition) DoClose() bool {
 			return false
 		}
 		diff := tp.config.lastProfit - p
-		if diff < 0.5 {
+		if diff < 0.4 {
 			// leave for now, hoping profit will go up again
 			// but dont update our highest value
 			return false

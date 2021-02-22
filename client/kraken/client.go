@@ -32,7 +32,7 @@ type Client struct {
 // NewClient creates a new client.
 // since is the time in nanoseconds from when to start requesting trades.
 // interval is the interval at which the client will poll for new trades.
-func NewClient(ctx context.Context, since int64, interval time.Duration) *Client {
+func NewClient(since int64, interval time.Duration) *Client {
 	client := &Client{
 		since:    since,
 		interval: interval,
