@@ -128,7 +128,7 @@ func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit ch
 const noPositionMsg = "no open positions"
 
 func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
-	for command := range user.Listen("trade", "?p") {
+	for command := range user.Listen("position", "?p") {
 		var action string
 		var coin string
 		var defVolume float64
@@ -139,12 +139,19 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			api.OneOf(&action, "buy", "sell", ""),
 			api.Float(&defVolume),
 		)
+		c := model.Coin(coin)
+
+		log.Info().
+			Str("action", action).
+			Str("coin-argument", coin).
+			Str("coin", string(c)).
+			Float64("defVolume", defVolume).
+			Err(err).
+			Msg("received user action")
 		if err != nil {
 			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
-
-		c := model.Coin(coin)
 
 		switch action {
 		case "":
