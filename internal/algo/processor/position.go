@@ -225,6 +225,15 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 		if err != nil {
 			return "", fmt.Errorf("invalid command: %w", err)
 		}
+		// ok, here we might encounter the case that we closed the position from another trigger
+		if _, ok := tp[key.coin]; !ok {
+			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("could not find previous open position for coin")
+			return "", fmt.Errorf("could not find previous open position for coin")
+		}
+		if _, ok := tp[key.coin][key.id]; !ok {
+			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("could not find previous open position for id")
+			return "", fmt.Errorf("could not find previous open position for id")
+		}
 		position := tp[key.coin][key.id].position
 		net, profit := position.Value()
 		switch exec {

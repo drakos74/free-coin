@@ -28,10 +28,10 @@ type Leverage byte
 const (
 	// NoLeverage defines an order with no leverage
 	NoLeverage Leverage = iota
-	// L_5 defines a margin of 5 to 1
-	L_5
 	// L_3 defines a margin of 3 to 1
 	L_3
+	// L_5 defines a margin of 5 to 1
+	L_5
 )
 
 // Order defines an order
