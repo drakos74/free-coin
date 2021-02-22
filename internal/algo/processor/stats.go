@@ -222,12 +222,9 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 						order(func(b windowView) float64 {
 							return b.price.Ratio
 						}))
-
+					// count the occurrences
+					predictions := stats.add(key, trade.Coin, values[0][len(values[0])-1])
 					if trade.Live {
-						// count the occurrences
-						predictions := stats.add(key, trade.Coin, values[0][len(values[0])-1])
-						// TODO : implement enrich on the model.Trade to pass data to downstream processors
-						//trade.Enrich(MetaKey(trade.coin, int64(cfg.duration.Seconds())), buffer)
 						aggregateStats := coinmath.NewAggregateStats(indicators)
 						signal <- api.Signal{
 							Type: "tradeSignal",
