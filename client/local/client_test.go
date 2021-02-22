@@ -113,7 +113,7 @@ func (m *mockSource) Trades(stop <-chan struct{}, coin model.Coin, stopExecution
 				trade := model.Trade{
 					Coin: coin,
 					Time: m.start.Add(time.Duration(i) * time.Minute),
-				}.Init()
+				}
 				i++
 				m.trades++
 				trades <- &trade

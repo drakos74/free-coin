@@ -49,15 +49,15 @@ type window struct {
 	c *buffer.HMM
 }
 
-type state struct {
+type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
 	lock    sync.RWMutex
 	configs map[time.Duration]windowConfig
 	windows map[time.Duration]map[model.Coin]window
 }
 
-func newStats(config []time.Duration) *state {
-	stats := &state{
+func newStats(config []time.Duration) *statsCollector {
+	stats := &statsCollector{
 		lock:    sync.RWMutex{},
 		configs: make(map[time.Duration]windowConfig),
 		windows: make(map[time.Duration]map[model.Coin]window),
@@ -71,7 +71,7 @@ func newStats(config []time.Duration) *state {
 	return stats
 }
 
-func (s *state) hasOrAddDuration(dd time.Duration) bool {
+func (s *statsCollector) hasOrAddDuration(dd time.Duration) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	if _, ok := s.configs[dd]; ok {
@@ -81,7 +81,7 @@ func (s *state) hasOrAddDuration(dd time.Duration) bool {
 	return false
 }
 
-func (s *state) start(dd time.Duration, coin model.Coin) {
+func (s *statsCollector) start(dd time.Duration, coin model.Coin) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	cfg := s.configs[dd]
@@ -99,14 +99,14 @@ func (s *state) start(dd time.Duration, coin model.Coin) {
 	}
 }
 
-func (s *state) stop(dd time.Duration) {
+func (s *statsCollector) stop(dd time.Duration) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	delete(s.configs, dd)
 	delete(s.windows, dd)
 }
 
-func (s *state) push(dd time.Duration, trade *model.Trade) ([]interface{}, bool) {
+func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface{}, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, ok := s.windows[dd][trade.Coin].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
@@ -130,13 +130,13 @@ func (s *state) push(dd time.Duration, trade *model.Trade) ([]interface{}, bool)
 	return nil, false
 }
 
-func (s *state) add(dd time.Duration, coin model.Coin, v string) map[string]buffer.Prediction {
+func (s *statsCollector) add(dd time.Duration, coin model.Coin, v string) map[string]buffer.Prediction {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.windows[dd][coin].c.Add(v)
+	return s.windows[dd][coin].c.Add(v, fmt.Sprintf("%dm", int(dd.Minutes())))
 }
 
-func trackUserActions(user api.User, stats *state) {
+func trackStatsActions(user api.User, stats *statsCollector) {
 	for command := range user.Listen("stats", "?n") {
 		var duration int
 		var action string
@@ -199,7 +199,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 
 	//cmdSample := "?notify [time in minutes] [start/stop]"
 
-	go trackUserActions(user, stats)
+	go trackStatsActions(user, stats)
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
@@ -234,6 +234,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 							Value: tradeSignal{
 								coin:           trade.Coin,
 								price:          trade.Price,
+								time:           trade.Time,
 								duration:       key,
 								predictions:    predictions,
 								aggregateStats: aggregateStats,
@@ -263,6 +264,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 type tradeSignal struct {
 	coin           model.Coin
 	price          float64
+	time           time.Time
 	duration       time.Duration
 	predictions    map[string]buffer.Prediction
 	aggregateStats coinmath.AggregateStats
@@ -308,7 +310,7 @@ func order(extract func(b windowView) float64) func(b windowView) string {
 }
 
 func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, p *model.Trade, cfg windowConfig) string {
-	// TODO : make the trigger arguments more specific to current stats state
+	// TODO : make the trigger arguments more specific to current stats statsCollector
 
 	// format the predictions.
 	pp := make([]string, len(predictions))

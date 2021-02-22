@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/model"
 
@@ -79,26 +80,27 @@ func TestPosition_Update(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in := make(chan *model.Trade)
 			out := make(chan *model.Trade)
-			client, cmds, msgs := run(in, out, Position)
+			client := newMockClient()
+
+			// add some positions
+			if tt.positions != nil {
+				for _, p := range tt.positions {
+					err := client.OpenPosition(p)
+					assert.NoError(t, err)
+				}
+			}
+
+			cmds, msgs := run(client, in, out, Position)
 
 			wg := new(sync.WaitGroup)
 			if len(tt.positions) == 0 {
 				wg.Add(1)
-			}
-			// add some positions
-			if tt.positions != nil {
-				for _, p := range tt.positions {
-					wg.Add(1)
-					err := client.OpenPosition(p)
-					assert.NoError(t, err)
-				}
 			}
 
 			go func() {
 				i := 0
 				for msg := range msgs {
 					assert.Contains(t, msg.msg.Text, tt.msg[i])
-					println(fmt.Sprintf("user.Text = %+v", msg.msg.Text))
 					if tt.reply != nil && len(tt.reply) > i {
 						userCommand := tt.reply[i]
 						if userCommand != "" {
@@ -134,6 +136,99 @@ func TestPosition_Update(t *testing.T) {
 
 }
 
+// TODO : fix this test
 func TestPosition_Track(t *testing.T) {
+	type test struct {
+		positions    []model.Position
+		transform    func(i int) float64
+		nextMessage  bool
+		finalMessage bool
+		close        bool
+	}
 
+	tests := map[string]test{
+		"increasing-loss": { // we should get messages continously
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				return basePrice - 100*float64(i)
+			},
+		},
+		"closing-improving-loss": { // we should only get one message
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				return (basePrice - 10000) + 100*float64(i)
+			},
+		},
+		"closing-better-loss": { // we should get only a few messages
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				if i > 50 {
+					return basePrice - 100*float64(i)
+				}
+				return (basePrice - 10000) + 100*float64(i)
+			},
+		},
+		"increasing-profit": { // we should get no message as we are doing continously profit
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				return basePrice + 100*float64(i)
+			},
+		},
+		"trailing-loss-profit": { // we should close position at a good level
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				if i > 50 {
+					return basePrice + 100*50.0 - 100*float64(i-50)
+				}
+				return basePrice + 100*float64(i)
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			in := make(chan *model.Trade)
+			out := make(chan *model.Trade)
+			client := newMockClient()
+
+			// add some positions
+			if tt.positions != nil {
+				for _, p := range tt.positions {
+					err := client.OpenPosition(p)
+					assert.NoError(t, err)
+				}
+			}
+
+			_, msgs := run(client, in, out, Position)
+			go func() {
+				for msg := range msgs {
+					println(fmt.Sprintf("msg.msg.Text = %+v", msg.msg.Text))
+				}
+			}()
+
+			wg := new(sync.WaitGroup)
+			wg.Add(100)
+			// consume from the output
+			go func() {
+				for range out {
+					// nothing to do
+					wg.Done()
+				}
+			}()
+
+			//we ll wait to consume all trades here
+			start := time.Now()
+			for i := 0; i < 100; i++ {
+				// send a trade ...
+				trade := newTrade(model.BTC, tt.transform(i), 1, model.Buy, start.Add(time.Duration(i*15)*time.Second))
+				// enable trade to publish messages
+				trade.Live = true
+				trade.Active = true
+				in <- trade
+			}
+
+			wg.Wait()
+
+		})
+	}
 }

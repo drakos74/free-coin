@@ -44,13 +44,14 @@ type Prediction struct {
 	Probability float64
 	Options     int
 	Sample      int
+	Label       string
 }
 
 // Add adds a string to the hmm sequence.
 // TODO : reverse the logic by accepting the result instead of the input.
 // (This should allow us to filter out irrelevant data adn save space,
 // Note : hmm is expensive in terms of memory storage )
-func (c *HMM) Add(s string) map[string]Prediction {
+func (c *HMM) Add(s string, label string) map[string]Prediction {
 
 	values := make([]string, 0)
 
@@ -62,6 +63,7 @@ func (c *HMM) Add(s string) map[string]Prediction {
 
 	for _, cfg := range c.config {
 		if k, predict := c.addKey(cfg, values, s); predict != nil {
+			predict.Label = label
 			prediction[k] = *predict
 		}
 	}

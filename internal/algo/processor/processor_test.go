@@ -16,8 +16,9 @@ func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user 
 
 	in := make(chan *model.Trade)
 	out := make(chan *model.Trade)
+	client := newMockClient()
 
-	run(in, out, processor)
+	run(client, in, out, processor)
 
 	num := 1000
 	wg := new(sync.WaitGroup)
@@ -39,8 +40,7 @@ func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user 
 	wg.Wait()
 }
 
-func run(in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (client api.Exchange, commands chan api.Command, confirms chan sendAction) {
-	client = newMockClient()
+func run(client api.Exchange, in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (commands chan api.Command, confirms chan sendAction) {
 
 	commands = make(chan api.Command)
 	confirms = make(chan sendAction)
@@ -55,8 +55,11 @@ func logMessages(name string, wg *sync.WaitGroup, msgs chan sendAction) {
 	i := 0
 	for msg := range msgs {
 		println(fmt.Sprintf("%s: msg = %+v", name, msg.msg.Text))
-		wg.Done()
+		if wg != nil {
+			wg.Done()
+		}
 		i++
+		println(fmt.Sprintf("i = %+v", i))
 	}
 }
 
@@ -106,6 +109,7 @@ func (c *mockClient) Trades(stop <-chan struct{}, coin model.Coin, stopExecution
 }
 
 func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
+	println(fmt.Sprintf("ctx = %+v", ctx))
 	return &model.PositionBatch{
 		Positions: c.positions,
 		Index:     0,
@@ -143,10 +147,12 @@ func (c *mockClient) ClosePosition(position model.Position) error {
 	return fmt.Errorf("could not remove position")
 }
 
+const basePrice = 40000
+
 func mockTrade(c model.Coin, t model.Type) *model.Trade {
 	trade := model.Trade{
 		Coin:   c,
-		Price:  400000,
+		Price:  basePrice,
 		Volume: 1,
 		Time:   time.Now(),
 		Type:   t,

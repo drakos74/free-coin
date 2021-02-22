@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/drakos74/free-coin/client/local"
-	"github.com/drakos74/free-coin/internal/api"
-	"github.com/drakos74/free-coin/internal/storage"
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-	"github.com/drakos74/free-coin/user"
+	"github.com/drakos74/free-coin/user/telegram"
 
 	"github.com/drakos74/free-coin/client/kraken"
+	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/processor"
+	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -33,13 +33,13 @@ func main() {
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
 	}
-	client := local.NewClient(cointime.LastXHours(96)).
+	client := local.NewClient(cointime.LastXHours(120)).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
 	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
 
-	//user, err := telegram.NewBot()
-	user, err := user.NewVoid()
+	user, err := telegram.NewBot()
+	//user, err := user.NewVoid()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())
@@ -57,12 +57,12 @@ func main() {
 	singals := make(chan api.Signal)
 
 	statsProcessor := processor.MultiStats(exchange, user, singals)
-	//positionProcessor := processor.Position(exchange, user)
+	positionProcessor := processor.Position(exchange, user)
 	tradeProcessor := processor.Trade(exchange, user, singals)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log(),
 			statsProcessor,
-			//positionProcessor,
+			positionProcessor,
 			tradeProcessor,
 		)
 		if err != nil {

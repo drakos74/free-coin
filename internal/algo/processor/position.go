@@ -7,7 +7,7 @@ import (
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
-	"github.com/drakos74/free-coin/internal/math"
+	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -20,7 +20,7 @@ const (
 // PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
 func Position(client api.Exchange, user api.User) api.Processor {
 
-	// define our internal global state
+	// define our internal global statsCollector
 	var positions tradePositions = make(map[model.Coin]map[string]*tradePosition)
 
 	ticker := time.NewTicker(positionRefreshInterval)
@@ -180,7 +180,7 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 							"%",
 							net,
 							p.position.Type,
-							math.Format(p.position.OpenPrice))
+							coinmath.Format(p.position.OpenPrice))
 						// TODO : send a trigger for each position to give access to adjust it
 						trigger := api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id)))
 						user.Send(api.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
@@ -195,7 +195,7 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, key tpKey) {
 	p := tp[key.coin][key.id]
 	net, profit := p.position.Value()
-	log.Debug().
+	log.Info().
 		Str("ID", key.id).
 		Str("coin", string(p.position.Coin)).
 		Float64("net", net).
@@ -205,9 +205,9 @@ func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, 
 		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
 			emoji.MapToSign(net),
 			string(p.position.Coin),
-			math.Format(profit),
-			math.Format(net),
-			math.Format(p.config.Live))
+			coinmath.Format(profit),
+			coinmath.Format(net),
+			coinmath.Format(p.config.Live))
 		user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
 			ID:      p.position.ID,
 			Default: []string{"close"},
@@ -232,15 +232,15 @@ func (tp tradePositions) exists(key tpKey) bool {
 
 func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) api.TriggerFunc {
 	// add a flag to the position that we want to close it
-	if tp.exists(key) {
-		toClose := tp[key.coin][key.id].config.toClose
-		if toClose {
-			// position is already triggered for close ...
-			return func(command api.Command) (string, error) {
-				return "", fmt.Errorf("position already closing for key %+v", key)
-			}
-		}
-	}
+	//if tp.exists(key) {
+	//	blockClose := tp[key.coin][key.id].config.blockClose
+	//	if blockClose {
+	//		// position is already triggered for close ...
+	//		return func(command api.Command) (string, error) {
+	//			return "", fmt.Errorf("position already closing for key %+v", key)
+	//		}
+	//	}
+	//}
 	return func(command api.Command) (string, error) {
 		var nProfit float64
 		var nStopLoss float64
@@ -288,7 +288,7 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 			} else {
 				log.Info().Float64("volume", position.Volume).Str("id", key.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 				delete(tp[key.coin], key.id)
-				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, math.Format(net), position.Volume), nil
+				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, coinmath.Format(net), position.Volume), nil
 			}
 		}
 		return "", fmt.Errorf("only allowed commands are [ close , extend , reverse , skip ]")
@@ -304,9 +304,12 @@ type tradePosition struct {
 // TODO : test this logic
 func (tp *tradePosition) DoClose() bool {
 	net, p := tp.position.Value()
+	println(fmt.Sprintf("net = %+v", net))
+	println(fmt.Sprintf("p = %+v", p))
 	if net > 0 && p > tp.config.profit {
 		// check the previous profit in order to extend profit
 		if p > tp.config.lastProfit {
+			println(fmt.Sprintf("tp.config.lastProfit = %+v", tp.config.lastProfit))
 			// if we are making more ... ignore
 			tp.config.lastProfit = p
 			return false
@@ -321,6 +324,12 @@ func (tp *tradePosition) DoClose() bool {
 		return tp.config.Live <= 0
 	}
 	if net < 0 && p < -1*tp.config.stopLoss {
+		if tp.config.lastLoss <= p {
+			tp.config.lastLoss = p
+			// we are improving our position ... so give it a bit of time.
+			return false
+		}
+		tp.config.lastLoss = p
 		// only close if the market is going up
 		return tp.config.Live >= 0
 	}
@@ -338,8 +347,12 @@ type closingConfig struct {
 	Live float64
 	// lastProfit is the last net value, in order to track trailing stop-loss
 	lastProfit float64
+	// lastLoss is the last net loss value, in order to track reversing conditions
+	lastLoss float64
 	// toClose defines if the position is already flagged for closing
 	toClose bool
+	// blockClose defines if the position should be blocked for closing
+	blockClose bool
 }
 
 var defaultClosingConfig = map[model.Coin]closingConfig{
