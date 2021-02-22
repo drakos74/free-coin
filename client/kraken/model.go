@@ -1,12 +1,11 @@
 package kraken
 
 import (
-	"strconv"
+	"fmt"
 	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
-	"github.com/rs/zerolog/log"
 )
 
 // newTrade creates a new trade from the kraken trade response.
@@ -30,11 +29,13 @@ func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krake
 }
 
 // newOrder creates a new order from a kraken order description.
+// TODO : find out why this fails ... e.g. orderdescription is empty
 func (r *RemoteExchange) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
-	_, err := strconv.ParseFloat(order.PrimaryPrice, 64)
-	if err != nil {
-		log.Error().Err(err).Str("price", order.PrimaryPrice).Msg("could not read price")
-	}
+	fmt.Println(fmt.Sprintf("order-description-from-kraken = %+v", order))
+	//_, err := strconv.ParseFloat(order.PrimaryPrice, 64)
+	//if err != nil {
+	//	log.Error().Err(err).Str("price", order.PrimaryPrice).Msg("could not read price")
+	//}
 	return nil
 }
 

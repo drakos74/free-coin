@@ -253,10 +253,10 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 			// TODO : check also market conditions from enriched trades !!!
 			err := client.ClosePosition(position)
 			if err != nil {
-				log.Error().Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("could not close position")
+				log.Error().Float64("volume", position.Volume).Str("id", key.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("could not close position")
 				return "", fmt.Errorf("could not complete command: %w", err)
 			} else {
-				log.Info().Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
+				log.Info().Float64("volume", position.Volume).Str("id", key.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 				delete(tp[key.coin], key.id)
 				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, math.Format(net), position.Volume), nil
 			}
