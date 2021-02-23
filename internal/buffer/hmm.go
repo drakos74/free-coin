@@ -43,11 +43,20 @@ type HMM struct {
 
 // Prediction defines a prediction result with the computed Probability
 type Prediction struct {
-	Value       string
+	// Value for the prediction . Essentially the concatenated string of the predicted sequence
+	Value string
+	// Probability for the current prediction
 	Probability float64
-	Options     int
-	Sample      int
-	Label       string
+	// Options is the pool of possible value combinations from which the current one was the winner
+	Options int
+	// Sample is the number of previous incidents of the source sequence that generated the current probability matrix
+	Sample int
+	// Count is the number of events processed by the model
+	Count int
+	// Groups is the number of groups / combinations of source sequences encountered.
+	Groups int
+	// Label is a string acting as metadata for the prediction
+	Label string
 }
 
 type Sample struct {
@@ -86,6 +95,8 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 	for _, cfg := range c.config {
 		if k, predict, cc := c.addKey(cfg, values, s); predict != nil {
 			predict.Label = label
+			predict.Count = int(c.status.Count)
+			predict.Groups = cc
 			prediction[k] = *predict
 			s := fmt.Sprintf("%d -> %d", cfg.PrevSize, cfg.TargetSize)
 			if _, ok := c.status.Samples[s]; !ok {

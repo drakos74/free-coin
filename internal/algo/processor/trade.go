@@ -125,7 +125,7 @@ func trackTraderActions(user api.User, trader *trader) {
 // Trade is the processor responsible for making trade decisions.
 // this processor should analyse the triggers from previous processors and ...
 // open positions, track and close appropriately.
-func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Processor {
+func Trade(client api.Exchange, user api.User, action chan<- api.Action, signal <-chan api.Signal) api.Processor {
 
 	trader := newTrader()
 
@@ -175,7 +175,7 @@ func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Pro
 						}
 						if t != model.NoType {
 							if vol, ok := defaultOpenConfig[ts.coin]; ok {
-								log.Info().
+								log.Debug().
 									Str("predictions", fmt.Sprintf("%+v", predictions)).
 									Time("time", ts.time).
 									Str("coin", string(ts.coin)).
@@ -187,6 +187,8 @@ func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Pro
 									WithType(t).
 									Market().
 									Create())
+								// notify other processes
+								action <- api.Action{}
 								// TODO : combine with the trades to know of the price
 								api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.volume, ts.coin, ts.price)), err)
 							}
@@ -300,32 +302,32 @@ func toType(s string) model.Type {
 var defaultOpenConfig = map[model.Coin]openConfig{
 	model.BTC: {
 		coin:                 model.BTC,
-		sampleThreshold:      4,
-		probabilityThreshold: 0.55,
+		sampleThreshold:      3,
+		probabilityThreshold: 0.45,
 		volume:               0.01,
 	},
 	model.ETH: {
 		coin:                 model.ETH,
-		sampleThreshold:      4,
-		probabilityThreshold: 0.55,
+		sampleThreshold:      3,
+		probabilityThreshold: 0.45,
 		volume:               0.3,
 	},
 	model.LINK: {
 		coin:                 model.LINK,
-		sampleThreshold:      4,
-		probabilityThreshold: 0.55,
+		sampleThreshold:      3,
+		probabilityThreshold: 0.45,
 		volume:               15,
 	},
 	model.DOT: {
 		coin:                 model.DOT,
-		sampleThreshold:      4,
-		probabilityThreshold: 0.55,
+		sampleThreshold:      3,
+		probabilityThreshold: 0.45,
 		volume:               15,
 	},
 	model.XRP: {
 		coin:                 model.XRP,
-		sampleThreshold:      4,
-		probabilityThreshold: 0.55,
+		sampleThreshold:      3,
+		probabilityThreshold: 0.45,
 		volume:               1000,
 	},
 }

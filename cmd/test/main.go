@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/drakos74/free-coin/user/telegram"
-
 	"github.com/drakos74/free-coin/client/kraken"
+
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -15,9 +14,14 @@ import (
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
+	"github.com/drakos74/free-coin/user"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+// The same as for coin/main.go
+// just with a mock exchange client
+// and local trades
 
 func init() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -32,13 +36,13 @@ func main() {
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
 	}
+	// TODO : specify a concrete time
 	client := local.NewClient(cointime.LastXHours(120)).
 		WithUpstream(upstream).
-		WithPersistence(persistence)
-	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
+		WithPersistence(persistence).
+		Mock()
 
-	user, err := telegram.NewBot()
-	//user, err := user.NewVoid()
+	user, err := user.NewVoid()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())
@@ -55,12 +59,13 @@ func main() {
 
 	signals := make(chan api.Signal)
 	actions := make(chan api.Action)
-	exchange := kraken.NewExchange(ctx)
+
+	exchange := local.NewExchange()
 	statsProcessor := processor.MultiStats(exchange, user, signals)
 	positionProcessor := processor.Position(exchange, user, actions)
 	tradeProcessor := processor.Trade(exchange, user, actions, signals)
 	for _, c := range model.Coins {
-		err := overWatch.Start(c, coin.Log(),
+		err := overWatch.Start(c, exchange,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,

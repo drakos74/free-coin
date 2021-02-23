@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -166,23 +167,30 @@ type Processor interface {
 
 // Log is a void processsor.
 func Log() Processor {
-	return &VoidProcessor{}
+	return &VoidProcessor{
+		count: make(map[model.Coin]int),
+		lock:  new(sync.Mutex),
+	}
 }
 
 // VoidProcessor is the void processor struct.
 type VoidProcessor struct {
-	n int
+	count map[model.Coin]int
+	lock  *sync.Mutex
 }
 
 // Process for the void processor does nothing.
 func (v *VoidProcessor) Process(trade *model.Trade) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	// TODO : keep track of other properties of the trades
-	v.n++
-
+	v.count[trade.Coin]++
+	if v.count[trade.Coin]%1000 == 0 {
+		fmt.Println(fmt.Sprintf("%s = %d", trade.Coin, v.count[trade.Coin]))
+	}
 }
 
 // Gather for the void processor does nothing.
 func (v *VoidProcessor) Gather() {
 	// TODO : print the tracked properties for this processor.
-	fmt.Println(fmt.Sprintf("v.n = %+v", v.n))
 }

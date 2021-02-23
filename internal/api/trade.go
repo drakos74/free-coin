@@ -17,6 +17,11 @@ type Signal struct {
 	Value interface{}
 }
 
+// Action is a generic struct used to trigger actions on other processes.
+// it can hold several metadata information , but for now we leave it empty.
+type Action struct {
+}
+
 // Condition defines a boundary condition to stop execution based on the consumed trades.
 type Condition func(trade *model.Trade, numberOfTrades int) bool
 

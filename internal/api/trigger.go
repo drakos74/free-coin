@@ -6,12 +6,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// ConsumerKey is the internal consumer key for indexing and managing consumers.
+type ConsumerKey struct {
+	Key    string
+	Prefix string
+}
+
 // TriggerFunc defines an execution logic based on the command and options arguments.
 type TriggerFunc func(command Command) (string, error)
 
 // Trigger wraps a trigger func into a re-usable object.
 type Trigger struct {
 	ID          string
+	Key         *ConsumerKey
 	Default     []string
 	Description string
 	Exec        TriggerFunc

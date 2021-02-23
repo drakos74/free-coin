@@ -49,9 +49,13 @@ func (p *Position) Value() (value, percent float64) {
 	return value, 100 * value / (p.OpenPrice * p.Volume)
 }
 
-func OpenPosition(coin Coin, t Type) Position {
+// OpenPosition creates a position from a given order.
+func OpenPosition(order Order) Position {
 	return Position{
-		Coin: coin,
-		Type: t,
+		ID:        order.ID,
+		Coin:      order.Coin,
+		Type:      order.Type,
+		Volume:    order.Volume,
+		OpenPrice: order.Price,
 	}
 }

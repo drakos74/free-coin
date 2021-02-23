@@ -26,6 +26,7 @@ type Client struct {
 	persistence func(shard string) (storage.Persistence, error)
 	trades      model.TradeSource
 	hash        cointime.Hash
+	mock        bool
 }
 
 // NewClient creates a new client for trade processing.
@@ -52,6 +53,12 @@ func (c *Client) WithUpstream(upstream func(since int64) (api.Client, error)) *C
 // WithPersistence adds a storage layer to the local client.
 func (c *Client) WithPersistence(persistence func(shard string) (storage.Persistence, error)) *Client {
 	c.persistence = persistence
+	return c
+}
+
+// Mock will emulate all trades as active and live, so that processors can process them.
+func (c *Client) Mock() *Client {
+	c.mock = true
 	return c
 }
 
@@ -156,8 +163,13 @@ func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persist
 	// just get all the local trades we got ... while updating our since index
 	for _, localTrade := range trades {
 		// add the meta map, which is ignored in the json
-		localTrade.Live = false
-		localTrade.Active = false
+		if c.mock {
+			localTrade.Live = true
+			localTrade.Active = true
+		} else {
+			localTrade.Live = false
+			localTrade.Active = false
+		}
 		c.trades <- &localTrade
 		startTime = localTrade.Time
 	}

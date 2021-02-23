@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -17,52 +18,9 @@ const (
 	positionProcessorName   = "position"
 )
 
-// PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
-func Position(client api.Exchange, user api.User) api.Processor {
-
-	// define our internal global statsCollector
-	var positions tradePositions = make(map[model.Coin]map[string]*tradePosition)
-
-	ticker := time.NewTicker(positionRefreshInterval)
-	quit := make(chan struct{})
-	go positions.track(client, ticker, quit)
-
-	go positions.trackUserActions(client, user)
-
-	err := positions.update(client)
-	if err != nil {
-		log.Error().Err(err).Msg("could not get initial positions")
-	}
-
-	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
-
-		defer func() {
-			log.Info().Str("processor", positionProcessorName).Msg("closing' strategy")
-			close(out)
-		}()
-
-		for trade := range in {
-			// check on the existing positions
-			// ignore if it s not the closing trade of the batch
-			if !trade.Active {
-				out <- trade
-				continue
-			}
-
-			// TODO : integrate the above results to the 'Live' parameter
-			for id := range positions[trade.Coin] {
-				// update the position current price
-				k := key(trade.Coin, id)
-				positions.updatePrice(k, trade.Price)
-				if trade.Live {
-					positions.checkClosePosition(client, user, k)
-				}
-			}
-
-			out <- trade
-		}
-		log.Info().Str("processor", positionProcessorName).Msg("closing processor")
-	}
+var positionKey = api.ConsumerKey{
+	Key:    "position",
+	Prefix: "?p",
 }
 
 type tpKey struct {
@@ -77,31 +35,59 @@ func key(c model.Coin, id string) tpKey {
 	}
 }
 
-type tradePositions map[model.Coin]map[string]*tradePosition
+type tradePositions struct {
+	pos  map[model.Coin]map[string]*tradePosition
+	lock *sync.RWMutex
+}
 
-func (tp tradePositions) updatePrice(key tpKey, price float64) {
-	tp[key.coin][key.id].position.CurrentPrice = price
+func (tp tradePositions) checkClose(trade *model.Trade) (tpKey, model.Position, bool) {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	for c, positions := range tp.pos {
+		if c == trade.Coin {
+			for id, p := range positions {
+				tp.pos[c][id].position.CurrentPrice = trade.Price
+				if trade.Live {
+					net, profit := p.position.Value()
+					log.Debug().
+						Str("coin", string(p.position.Coin)).
+						Float64("net", net).
+						Float64("profit", profit).
+						Msg("check position")
+					return tpKey{
+						coin: c,
+						id:   id,
+					}, p.position, p.DoClose()
+				}
+			}
+		}
+	}
+	return tpKey{}, model.Position{}, false
 }
 
 func (tp tradePositions) updateConfig(key tpKey, profit, stopLoss float64) {
-	tp[key.coin][key.id].config.profit = profit
-	tp[key.coin][key.id].config.stopLoss = stopLoss
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	tp.pos[key.coin][key.id].config.profit = profit
+	tp.pos[key.coin][key.id].config.stopLoss = stopLoss
 }
 
 func (tp tradePositions) update(client api.Exchange) error {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
 	pp, err := client.OpenPositions(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not get positions: %w", err)
 	}
 	for _, p := range pp.Positions {
 		cfg := getConfiguration(p.Coin)
-		if p, ok := tp[p.Coin][p.ID]; ok {
+		if p, ok := tp.pos[p.Coin][p.ID]; ok {
 			cfg = p.config
 		}
-		if _, ok := tp[p.Coin]; !ok {
-			tp[p.Coin] = make(map[string]*tradePosition)
+		if _, ok := tp.pos[p.Coin]; !ok {
+			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
-		tp[p.Coin][p.ID] = &tradePosition{
+		tp.pos[p.Coin][p.ID] = &tradePosition{
 			position: p,
 			config:   cfg,
 		}
@@ -109,10 +95,15 @@ func (tp tradePositions) update(client api.Exchange) error {
 	return nil
 }
 
-func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit chan struct{}) {
+func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit chan struct{}, update <-chan api.Action) {
 	// and update the positions at the predefined interval.
 	for {
 		select {
+		case <-update:
+			err := tp.update(client)
+			if err != nil {
+				log.Error().Err(err).Msg("could not get positions")
+			}
 		case <-ticker.C:
 			err := tp.update(client)
 			if err != nil {
@@ -128,24 +119,26 @@ func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit ch
 const noPositionMsg = "no open positions"
 
 func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
-	for command := range user.Listen("position", "?p") {
+	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
 		var action string
 		var coin string
-		var defVolume float64
+		//var defVolume float64
+		var param string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p", "?pos", "?positions"),
 			api.Any(&coin),
-			api.OneOf(&action, "buy", "sell", ""),
-			api.Float(&defVolume),
+			api.OneOf(&action, "buy", "sell", "close"),
+			api.Any(&param),
+			//api.Float(&defVolume),
 		)
 		c := model.Coin(coin)
 
-		log.Info().
+		log.Debug().
 			Str("action", action).
 			Str("coin-argument", coin).
 			Str("coin", string(c)).
-			Float64("defVolume", defVolume).
+			Str("param", param).
 			Err(err).
 			Msg("received user action")
 		if err != nil {
@@ -154,19 +147,41 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		switch action {
+		case "close":
+			k := tpKey{
+				coin: c,
+				id:   param,
+			}
+			// close the damn position ...
+			// TODO : check also market conditions from enriched trades !!!
+			if position, ok := tp.get(k); ok {
+				net, profit := position.Value()
+				err := client.ClosePosition(position)
+				if err != nil {
+					log.Error().Float64("volume", position.Volume).Str("id", k.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("could not close position")
+				} else {
+					log.Info().Float64("volume", position.Volume).Str("id", k.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
+					delete(tp.pos[k.coin], k.id)
+				}
+			}
+			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
 		case "":
-			// TODO : return the current open positions
-			err := tp.update(client)
+			//defVolume, err := strconv.ParseFloat(param, 64)
+			if err != nil {
+				log.Error().Err(err).Msg("could not get positions")
+				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
+			}
+			err = tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
 				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
 			}
 			i := 0
-			if len(tp) == 0 {
+			if len(tp.pos) == 0 {
 				user.Send(api.Private, api.NewMessage(noPositionMsg), nil)
 				continue
 			}
-			for coin, pos := range tp {
+			for coin, pos := range tp.pos {
 				if c == "" || coin == c {
 					for id, p := range pos {
 						net, profit := p.position.Value()
@@ -192,37 +207,34 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	}
 }
 
-func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, key tpKey) {
-	p := tp[key.coin][key.id]
-	if net, profit, ok := p.DoClose(); ok {
-		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
-			emoji.MapToSign(net),
-			string(p.position.Coin),
-			coinmath.Format(profit),
-			coinmath.Format(net),
-			coinmath.Format(p.config.Live))
-		user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
-			ID:      p.position.ID,
-			Default: []string{"close"},
-			Exec:    tp.closePositionTrigger(client, key),
-			// TODO : instead of a big timeout check again when we want to close how the position is doing ...
-		})
-	} else {
-		// TODO : check also for trailing stop-loss
+func (tp tradePositions) get(key tpKey) (model.Position, bool) {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	// ok, here we might encounter the case that we closed the position from another trigger
+	if _, ok := tp.pos[key.coin]; !ok {
+		return model.Position{}, false
 	}
+	if _, ok := tp.pos[key.coin][key.id]; !ok {
+		return model.Position{}, false
+	}
+	return tp.pos[key.coin][key.id].position, true
 }
 
 func (tp tradePositions) exists(key tpKey) bool {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
 	// ok, here we might encounter the case that we closed the position from another trigger
-	if _, ok := tp[key.coin]; !ok {
+	if _, ok := tp.pos[key.coin]; !ok {
 		return false
 	}
-	if _, ok := tp[key.coin][key.id]; !ok {
+	if _, ok := tp.pos[key.coin][key.id]; !ok {
 		return false
 	}
 	return true
 }
 
+// TODO : refactor the whole trigger functionality for the command to return back to the processor.
+// TODO : Processor should have full control of it's actions and not delegate with closures !!!
 func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) api.TriggerFunc {
 	// add a flag to the position that we want to close it
 	//if tp.exists(key) {
@@ -235,6 +247,7 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 	//	}
 	//}
 	return func(command api.Command) (string, error) {
+		fmt.Println(fmt.Sprintf("command = %+v", command))
 		var nProfit float64
 		var nStopLoss float64
 		exec, err := command.Validate(
@@ -253,13 +266,12 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 		}
 		// check if closing conditions still hold
 		// TODO : make this only for the negative case
-		net, profit, ok := tp[key.coin][key.id].DoClose()
-		if !ok {
-			log.Error().Float64("profit", profit).Str("id", key.id).Str("coin", string(key.coin)).Msg("position conditions reversed")
-			return "", fmt.Errorf("position for %s conditions reversed at %v", string(key.coin), profit)
+		if !tp.pos[key.coin][key.id].DoClose() {
+			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("position conditions reversed")
+			return "", fmt.Errorf("position conditions reversed")
 		}
-		position := tp[key.coin][key.id].position
-		net, profit = position.Value()
+		position := tp.pos[key.coin][key.id].position
+		net, profit := position.Value()
 		switch exec {
 		case "skip":
 			// avoid to complete the trigger in any case
@@ -269,7 +281,7 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 				return "", fmt.Errorf("cannot adjust profit and loss: %v - %v", nProfit, nStopLoss)
 			}
 			tp.updateConfig(key, nProfit, nStopLoss)
-			return fmt.Sprintf("%s position for %s [ profit = %f , stop-loss = %f]", exec, string(position.Coin), tp[key.coin][key.id].config.profit, tp[key.coin][key.id].config.stopLoss), nil
+			return fmt.Sprintf("%s position for %s [ profit = %f , stop-loss = %f]", exec, string(position.Coin), tp.pos[key.coin][key.id].config.profit, tp.pos[key.coin][key.id].config.stopLoss), nil
 		case "reverse":
 			position.Volume = 2 * position.Volume
 			fallthrough
@@ -281,8 +293,8 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 				return "", fmt.Errorf("could not complete command: %w", err)
 			} else {
 				log.Info().Float64("volume", position.Volume).Str("id", key.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
-				delete(tp[key.coin], key.id)
-				return fmt.Sprintf("%s position for %s ( type : %v , net : %.2f , profit : %.2f , vol : %.2f )", exec, string(position.Coin), position.Type, net, profit, position.Volume), nil
+				delete(tp.pos[key.coin], key.id)
+				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, coinmath.Format(net), position.Volume), nil
 			}
 		}
 		return "", fmt.Errorf("only allowed commands are [ close , extend , reverse , skip ]")
@@ -296,35 +308,92 @@ type tradePosition struct {
 
 // DoClose checks if the given position should be closed, based on the current configuration.
 // TODO : test this logic
-func (tp *tradePosition) DoClose() (net, perc float64, doClose bool) {
+func (tp *tradePosition) DoClose() bool {
 	net, p := tp.position.Value()
 	if net > 0 && p > tp.config.profit {
 		// check the previous profit in order to extend profit
 		if p > tp.config.highProfit {
 			// if we are making more ... ignore
 			tp.config.highProfit = p
-			return net, p, false
+			return false
 		}
 		diff := tp.config.highProfit - p
 		if diff < 0.3 {
 			// leave for now, hoping profit will go up again
 			// but dont update our highest value
-			return net, p, false
+			return false
 		}
 		// only close if the market is going down
-		return net, p, tp.config.Live <= 0
+		return tp.config.Live <= 0
 	}
 	if net < 0 && p < -1*tp.config.stopLoss {
 		if p > tp.config.lowLoss {
 			tp.config.lowLoss = p
 			// we are improving our position ... so give it a bit of time.
-			return net, p, false
+			return false
 		}
 		tp.config.lowLoss = p
 		// only close if the market is going up
-		return net, p, tp.config.Live >= 0
+		return tp.config.Live >= 0
 	}
-	return net, p, false
+	// check if we missed a profit opportunity here
+	return false
+}
+
+// PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
+func Position(client api.Exchange, user api.User, update <-chan api.Action) api.Processor {
+
+	// define our internal global statsCollector
+	positions := tradePositions{
+		pos:  make(map[model.Coin]map[string]*tradePosition),
+		lock: new(sync.RWMutex),
+	}
+
+	ticker := time.NewTicker(positionRefreshInterval)
+	quit := make(chan struct{})
+	go positions.track(client, ticker, quit, update)
+
+	go positions.trackUserActions(client, user)
+
+	err := positions.update(client)
+	if err != nil {
+		log.Error().Err(err).Msg("could not get initial positions")
+	}
+
+	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
+
+		defer func() {
+			log.Info().Str("processor", positionProcessorName).Msg("closing' strategy")
+			close(out)
+		}()
+
+		for trade := range in {
+			// check on the existing positions
+			// ignore if it s not the closing trade of the batch
+			if !trade.Active {
+				out <- trade
+				continue
+			}
+
+			// TODO : integrate the above results to the 'Live' parameter
+			if k, position, ok := positions.checkClose(trade); ok {
+				net, profit := position.Value()
+				msg := fmt.Sprintf("%s %s:%s (%s)",
+					emoji.MapToSign(net),
+					string(trade.Coin),
+					coinmath.Format(profit),
+					coinmath.Format(net))
+				user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
+					ID:      position.ID,
+					Key:     &positionKey,
+					Default: []string{string(k.coin), "close", k.id},
+					// TODO : instead of a big timeout check again when we want to close how the position is doing ...
+				})
+			}
+			out <- trade
+		}
+		log.Info().Str("processor", positionProcessorName).Msg("closing processor")
+	}
 }
 
 type closingConfig struct {

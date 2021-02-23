@@ -33,12 +33,6 @@ type botAPI interface {
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 }
 
-// consumerKey is the internal consumer key for indexing and managing consumers.
-type consumerKey struct {
-	key    string
-	prefix string
-}
-
 type executableTrigger struct {
 	message *tgbotapi.Message
 	trigger *api.Trigger
@@ -56,7 +50,7 @@ type Bot struct {
 	messages        map[int]string
 	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
-	consumers       map[consumerKey]chan api.Command
+	consumers       map[api.ConsumerKey]chan api.Command
 	lock            *sync.Mutex
 }
 
@@ -94,7 +88,7 @@ func NewBot() (*Bot, error) {
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
-		consumers:       make(map[consumerKey]chan api.Command),
+		consumers:       make(map[api.ConsumerKey]chan api.Command),
 		lock:            new(sync.Mutex),
 	}, nil
 }
@@ -125,9 +119,9 @@ func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	ch := make(chan api.Command)
-	b.consumers[consumerKey{
-		key:    key,
-		prefix: prefix,
+	b.consumers[api.ConsumerKey{
+		Key:    key,
+		Prefix: prefix,
 	}] = ch
 	return ch
 }
