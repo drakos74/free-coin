@@ -75,11 +75,12 @@ func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api
 		for {
 			endTime, err := c.localTrades(since, coin, store)
 			if err != nil {
+				log.Warn().Err(err).Msg("could not load more local trades")
 				// get from upstream trades not found or local storage is not working
 				break
 			}
 			// calculate the next batch
-			since = endTime.UnixNano()
+			since = endTime.Add(1 * time.Millisecond).UnixNano()
 		}
 
 		// we need to load this batch from the upstream

@@ -130,7 +130,7 @@ func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface
 	return nil, false
 }
 
-func (s *statsCollector) add(dd time.Duration, coin model.Coin, v string) map[string]buffer.Prediction {
+func (s *statsCollector) add(dd time.Duration, coin model.Coin, v string) (map[string]buffer.Prediction, buffer.Status) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.windows[dd][coin].c.Add(v, fmt.Sprintf("%dm", int(dd.Minutes())))
@@ -178,6 +178,7 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 
 func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
 	return func(command api.Command) (string, error) {
+		// TODO: pars optionally the volume
 		var t model.Type
 		switch command.Content {
 		case "buy":
@@ -187,7 +188,18 @@ func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
 		default:
 			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
 		}
-		return fmt.Sprintf("opened position for %s", p.Coin), client.OpenPosition(model.OpenPosition(p.Coin, t))
+		if vol, ok := defaultOpenConfig[p.Coin]; ok {
+			order := model.NewOrder(p.Coin).
+				WithLeverage(model.L_5).
+				WithVolume(vol.volume).
+				WithType(t).
+				Market().
+				Create()
+			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(order)
+
+		} else {
+			return "could not open position", fmt.Errorf("no pre-defined volume for %s", p.Coin)
+		}
 	}
 }
 
@@ -223,7 +235,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 							return b.price.Ratio
 						}))
 					// count the occurrences
-					predictions := stats.add(key, trade.Coin, values[0][len(values[0])-1])
+					predictions, status := stats.add(key, trade.Coin, values[0][len(values[0])-1])
 					if trade.Live {
 						aggregateStats := coinmath.NewAggregateStats(indicators)
 						signal <- api.Signal{
@@ -240,7 +252,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 						if user != nil {
 							// TODO : add tests for this
 							user.Send(api.Public,
-								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, trade, cfg)).
+								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
 									ReferenceTime(trade.Time),
 								api.NewTrigger(openPositionTrigger(trade, client)).
 									WithID(uuid.New().String()).
@@ -306,12 +318,13 @@ func order(extract func(b windowView) float64) func(b windowView) string {
 	}
 }
 
-func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, p *model.Trade, cfg windowConfig) string {
+func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, status buffer.Status, p *model.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
 	// format the predictions.
 	pp := make([]string, len(predictions))
-	i := 0
+	pp[0] = fmt.Sprintf("%+v - %d", status.Count, len(status.Samples))
+	i := 1
 	for k, v := range predictions {
 		keySlice := strings.Split(k, ":")
 		valueSlice := strings.Split(v.Value, ":")

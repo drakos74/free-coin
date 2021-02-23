@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rs/zerolog/log"
 )
@@ -57,6 +57,7 @@ type Bot struct {
 	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
 	consumers       map[consumerKey]chan api.Command
+	lock            *sync.Mutex
 }
 
 // NewBot creates a new telegram bot implementing the coinapi.User api.
@@ -94,6 +95,7 @@ func NewBot() (*Bot, error) {
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
 		consumers:       make(map[consumerKey]chan api.Command),
+		lock:            new(sync.Mutex),
 	}, nil
 }
 
@@ -120,6 +122,8 @@ func (b *Bot) Run(ctx context.Context) error {
 
 // Listen exposes a channel to the caller with updates for the given prefix.
 func (b *Bot) Listen(key, prefix string) <-chan api.Command {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	ch := make(chan api.Command)
 	b.consumers[consumerKey{
 		key:    key,
