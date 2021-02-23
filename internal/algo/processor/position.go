@@ -359,7 +359,7 @@ var defaultClosingConfig = map[model.Coin]closingConfig{
 	model.BTC: {
 		coin:     model.BTC,
 		profit:   1,
-		stopLoss: 1.5,
+		stopLoss: 2.5,
 	},
 }
 
