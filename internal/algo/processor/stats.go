@@ -325,11 +325,11 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	pp := make([]string, len(predictions)+1)
 	samples := make([]string, len(status.Samples))
 	k := 0
-	for cfg, sample := range samples {
+	for cfg, sample := range status.Samples {
 		samples[k] = fmt.Sprintf("%v : %d", cfg, len(sample))
 		k++
 	}
-	pp[0] = fmt.Sprintf("%+v -> %s", status.Count, strings.Join(samples, " "))
+	pp[0] = fmt.Sprintf("%+v -> %s", status.Count, strings.Join(samples, " | "))
 	i := 1
 	for k, v := range predictions {
 		keySlice := strings.Split(k, ":")
