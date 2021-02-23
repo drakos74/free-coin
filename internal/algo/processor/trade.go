@@ -222,29 +222,77 @@ type openConfig struct {
 	sampleThreshold      int
 	probabilityThreshold float64
 	volume               float64
+	strategies           []tradingStrategy
+}
+
+type tradingStrategy struct {
+	name string
+	exec func(vv []string) model.Type
+}
+
+func newOpenConfig(c model.Coin, vol float64) openConfig {
+	return openConfig{
+		coin:   c,
+		volume: vol,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
+	}
+}
+func (c openConfig) withProbability(p float64) openConfig {
+	c.probabilityThreshold = p
+	return c
+}
+
+func (c openConfig) withSample(s int) openConfig {
+	c.sampleThreshold = s
+	return c
 }
 
 func (c openConfig) contains(vv []string) model.Type {
-	t := model.NoType
-	value := 0.0
-	w := 0.0
-	for _, v := range vv {
-		i, err := strconv.ParseFloat(v, 64)
-		if err != nil {
+	for _, strategy := range c.strategies {
+		if t := strategy.exec(vv); t != model.NoType {
 			return t
 		}
-		it := model.SignedType(i)
-		if t != model.NoType && it != t {
-			return model.NoType
-		}
-		t = it
-		if math.Abs(i) <= 2 {
-			value += i
-		}
-		w++
 	}
-	if value/w < 2 {
-		return t
+	return model.NoType
+}
+
+var simpleStrategy = tradingStrategy{
+	name: "simple",
+	exec: func(vv []string) model.Type {
+		t := model.NoType
+		value := 0.0
+		s := 0.0
+		// add weight to the first one
+		l := len(vv)
+		for w, v := range vv {
+			it := toType(v)
+			if t != model.NoType && it != t {
+				return model.NoType
+			}
+			t = it
+			i, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return t
+			}
+			g := float64(l-w) * i
+			value += g
+			s++
+		}
+		if math.Abs(value/s) <= 3 {
+			return t
+		}
+		return model.NoType
+	},
+}
+
+func toType(s string) model.Type {
+	if strings.HasPrefix(s, "+") {
+		return model.Buy
+	}
+	if strings.HasPrefix(s, "-") {
+		return model.Sell
 	}
 	return model.NoType
 }

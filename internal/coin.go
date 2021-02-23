@@ -121,7 +121,6 @@ func (o *OverWatch) Run(ctx context.Context) {
 			api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case <-ctx.Done():
 			// kill the engines one by one
-			fmt.Println(fmt.Sprintf("o = %+v", o))
 		}
 	}
 

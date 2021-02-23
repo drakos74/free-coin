@@ -43,7 +43,7 @@ func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user 
 func run(client api.Exchange, in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (commands chan api.Command, confirms chan sendAction) {
 
 	commands = make(chan api.Command)
-	confirms = make(chan sendAction)
+	confirms = make(chan sendAction, 10)
 	user := newMockUser(commands, confirms)
 
 	go processor(client, user)(in, out)

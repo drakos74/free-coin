@@ -194,14 +194,7 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 
 func (tp tradePositions) checkClosePosition(client api.Exchange, user api.User, key tpKey) {
 	p := tp[key.coin][key.id]
-	net, profit := p.position.Value()
-	log.Info().
-		Str("ID", key.id).
-		Str("coin", string(p.position.Coin)).
-		Float64("net", net).
-		Float64("profit", profit).
-		Msg("check position")
-	if p.DoClose() {
+	if net, profit, ok := p.DoClose(); ok {
 		msg := fmt.Sprintf("%s %s:%s (%s) -> %v",
 			emoji.MapToSign(net),
 			string(p.position.Coin),
@@ -260,12 +253,13 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 		}
 		// check if closing conditions still hold
 		// TODO : make this only for the negative case
-		if !tp[key.coin][key.id].DoClose() {
-			log.Error().Str("id", key.id).Str("coin", string(key.coin)).Msg("position conditions reversed")
-			return "", fmt.Errorf("position conditions reversed")
+		net, profit, ok := tp[key.coin][key.id].DoClose()
+		if !ok {
+			log.Error().Float64("profit", profit).Str("id", key.id).Str("coin", string(key.coin)).Msg("position conditions reversed")
+			return "", fmt.Errorf("position for %s conditions reversed at %v", string(key.coin), profit)
 		}
 		position := tp[key.coin][key.id].position
-		net, profit := position.Value()
+		net, profit = position.Value()
 		switch exec {
 		case "skip":
 			// avoid to complete the trigger in any case
@@ -288,7 +282,7 @@ func (tp tradePositions) closePositionTrigger(client api.Exchange, key tpKey) ap
 			} else {
 				log.Info().Float64("volume", position.Volume).Str("id", key.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 				delete(tp[key.coin], key.id)
-				return fmt.Sprintf("%s position for %s ( type : %v net : %v vol : %.2f )", exec, string(position.Coin), position.Type, coinmath.Format(net), position.Volume), nil
+				return fmt.Sprintf("%s position for %s ( type : %v , net : %.2f , profit : %.2f , vol : %.2f )", exec, string(position.Coin), position.Type, net, profit, position.Volume), nil
 			}
 		}
 		return "", fmt.Errorf("only allowed commands are [ close , extend , reverse , skip ]")
@@ -302,36 +296,35 @@ type tradePosition struct {
 
 // DoClose checks if the given position should be closed, based on the current configuration.
 // TODO : test this logic
-func (tp *tradePosition) DoClose() bool {
+func (tp *tradePosition) DoClose() (net, perc float64, doClose bool) {
 	net, p := tp.position.Value()
 	if net > 0 && p > tp.config.profit {
 		// check the previous profit in order to extend profit
-		if p > tp.config.lastProfit {
+		if p > tp.config.highProfit {
 			// if we are making more ... ignore
-			tp.config.lastProfit = p
-			return false
+			tp.config.highProfit = p
+			return net, p, false
 		}
-		diff := tp.config.lastProfit - p
-		if diff < 0.4 {
+		diff := tp.config.highProfit - p
+		if diff < 0.3 {
 			// leave for now, hoping profit will go up again
 			// but dont update our highest value
-			return false
+			return net, p, false
 		}
 		// only close if the market is going down
-		return tp.config.Live <= 0
+		return net, p, tp.config.Live <= 0
 	}
 	if net < 0 && p < -1*tp.config.stopLoss {
-		if tp.config.lastLoss < p {
-			tp.config.lastLoss = p
+		if p > tp.config.lowLoss {
+			tp.config.lowLoss = p
 			// we are improving our position ... so give it a bit of time.
-			return false
+			return net, p, false
 		}
-		tp.config.lastLoss = p
+		tp.config.lowLoss = p
 		// only close if the market is going up
-		return tp.config.Live >= 0
+		return net, p, tp.config.Live >= 0
 	}
-	// check if we missed a profit opportunity here
-	return tp.config.lastProfit > 0
+	return net, p, false
 }
 
 type closingConfig struct {
@@ -342,10 +335,10 @@ type closingConfig struct {
 	stopLoss float64
 	// Live defines the current / live status of the coin pair
 	Live float64
-	// lastProfit is the last net value, in order to track trailing stop-loss
-	lastProfit float64
-	// lastLoss is the last net loss value, in order to track reversing conditions
-	lastLoss float64
+	// highProfit is the max profit , under which we should sell
+	highProfit float64
+	// lowLoss is th low loss,
+	lowLoss float64
 	// toClose defines if the position is already flagged for closing
 	toClose bool
 	// blockClose defines if the position should be blocked for closing
@@ -356,7 +349,7 @@ var defaultClosingConfig = map[model.Coin]closingConfig{
 	model.BTC: {
 		coin:     model.BTC,
 		profit:   1,
-		stopLoss: 2.5,
+		stopLoss: 1.5,
 	},
 }
 
@@ -367,8 +360,10 @@ func getConfiguration(coin model.Coin) closingConfig {
 	// create a new one from copying the btc
 	cfg := defaultClosingConfig[model.BTC]
 	return closingConfig{
-		coin:     coin,
-		profit:   cfg.profit,
-		stopLoss: cfg.stopLoss,
+		coin:       coin,
+		profit:     cfg.profit,
+		highProfit: cfg.profit,
+		stopLoss:   cfg.stopLoss,
+		lowLoss:    cfg.stopLoss,
 	}
 }

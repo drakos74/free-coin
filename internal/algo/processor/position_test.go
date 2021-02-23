@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -139,19 +140,25 @@ func TestPosition_Update(t *testing.T) {
 // TODO : fix this test
 func TestPosition_Track(t *testing.T) {
 	type test struct {
-		positions    []model.Position
-		transform    func(i int) float64
-		nextMessage  bool
-		finalMessage bool
-		close        bool
+		positions []model.Position
+		transform func(i int) float64
+		profit    float64
 	}
 
 	tests := map[string]test{
+		"normal-loss": { // we should get messages continously
+			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			transform: func(i int) float64 {
+				return basePrice - 601 // we are right at the -1,5% stop loss
+			},
+			profit: -1.5,
+		},
 		"increasing-loss": { // we should get messages continously
 			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				return basePrice - 100*float64(i)
 			},
+			profit: -4.5,
 		},
 		"closing-improving-loss": { // we should only get one message
 			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
@@ -167,6 +174,7 @@ func TestPosition_Track(t *testing.T) {
 				}
 				return (basePrice - 10000) + 100*float64(i)
 			},
+			profit: -15.25,
 		},
 		"increasing-profit": { // we should get no message as we are doing continously profit
 			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
@@ -182,6 +190,7 @@ func TestPosition_Track(t *testing.T) {
 				}
 				return basePrice + 100*float64(i)
 			},
+			profit: 9.25,
 		},
 	}
 
@@ -203,6 +212,15 @@ func TestPosition_Track(t *testing.T) {
 			go func() {
 				for msg := range msgs {
 					println(fmt.Sprintf("msg.msg.Text = %+v", msg.msg.Text))
+					time.Sleep(100 * time.Millisecond)
+					if len(msg.trigger.Default) > 0 {
+						// TODO : assert on the closing profit
+						reply, err := msg.trigger.Exec(api.ParseCommand(1, "", strings.Join(msg.trigger.Default, " ")))
+						if err == nil {
+							println(fmt.Sprintf("reply = %+v", reply))
+						}
+					}
+
 				}
 			}()
 
