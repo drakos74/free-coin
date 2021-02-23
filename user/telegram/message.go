@@ -74,7 +74,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 
 			for k, consumer := range b.consumers {
 				// propagate the message
-				if strings.HasPrefix(update.Message.Text, k.prefix) {
+				if strings.HasPrefix(update.Message.Text, k.Prefix) {
 					log.Info().
 						Str("from", update.Message.From.UserName).
 						Str("text", update.Message.Text).
@@ -87,7 +87,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 						Content: update.Message.Text,
 					}:
 					case <-time.After(1 * time.Second):
-						log.Warn().Str("prefix", k.prefix).Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
+						log.Warn().Str("prefix", k.Prefix).Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
 					}
 				}
 			}
