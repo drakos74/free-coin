@@ -322,7 +322,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
 	// format the predictions.
-	pp := make([]string, len(predictions))
+	pp := make([]string, len(predictions)+1)
 	pp[0] = fmt.Sprintf("%+v - %d", status.Count, len(status.Samples))
 	i := 1
 	for k, v := range predictions {
