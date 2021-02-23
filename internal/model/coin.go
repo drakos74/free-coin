@@ -55,6 +55,16 @@ const (
 	Sell
 )
 
+// SignedType returns the type based on the given sign.
+func SignedType(v float64) Type {
+	if v > 0 {
+		return Buy
+	} else if v < 0 {
+		return Sell
+	}
+	return NoType
+}
+
 // Sign returns the appropriate sign for the given type for mathematical operations.
 func (t Type) Sign() float64 {
 	switch t {

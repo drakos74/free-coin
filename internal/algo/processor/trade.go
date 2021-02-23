@@ -2,6 +2,8 @@ package processor
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -154,32 +156,16 @@ func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Pro
 					if len(predictions) > 0 {
 						cfg := trader.get(ts.duration, ts.coin)
 						// check if we should make a buy order
-						var buy bool
-						var sell bool
+						t := model.NoType
 						pairs := make([]predictionPair, 0)
 						for k, p := range predictions {
-							v := p.Value
-							// TODO: add these conditions to the config
-							if strings.HasPrefix(v, "+1") ||
-								strings.HasPrefix(v, "+0") ||
-								strings.HasPrefix(v, "+2:+1") ||
-								strings.HasPrefix(v, "+2:+2") {
-								if p.Probability >= cfg.probabilityThreshold && p.Sample >= cfg.sampleThreshold {
-									buy = true
+							if p.Probability >= cfg.probabilityThreshold && p.Sample >= cfg.sampleThreshold {
+								// we know it s a good prediction. Lets check the value
+								v := p.Value
+								vv := strings.Split(v, ":")
+								if t = cfg.contains(vv); t > 0 {
 									pairs = append(pairs, predictionPair{
-										key:   k,
-										value: v,
-										label: p.Label,
-									})
-								}
-								// TODO: add these conditions to the config
-							} else if strings.HasPrefix(v, "-1") ||
-								strings.HasPrefix(v, "-0") ||
-								strings.HasPrefix(v, "-2:-1") ||
-								strings.HasPrefix(v, "-2:-2") {
-								if p.Probability >= cfg.probabilityThreshold && p.Sample >= cfg.sampleThreshold {
-									sell = true
-									pairs = append(pairs, predictionPair{
+										t:     t,
 										key:   k,
 										value: v,
 										label: p.Label,
@@ -187,13 +173,7 @@ func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Pro
 								}
 							}
 						}
-						if buy != sell {
-							t := model.NoType
-							if buy {
-								t = model.Buy
-							} else if sell {
-								t = model.Sell
-							}
+						if t != model.NoType {
 							if vol, ok := defaultOpenConfig[ts.coin]; ok {
 								log.Info().
 									Str("predictions", fmt.Sprintf("%+v", predictions)).
@@ -210,8 +190,6 @@ func Trade(client api.Exchange, user api.User, signal <-chan api.Signal) api.Pro
 								// TODO : combine with the trades to know of the price
 								api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.volume, ts.coin, ts.price)), err)
 							}
-						} else if buy && sell {
-							log.Warn().Bool("buy", buy).Bool("sell", sell).Msg("inconclusive buy signal")
 						}
 					}
 				}
@@ -236,6 +214,7 @@ type predictionPair struct {
 	label string
 	key   string
 	value string
+	t     model.Type
 }
 
 type openConfig struct {
@@ -245,34 +224,59 @@ type openConfig struct {
 	volume               float64
 }
 
+func (c openConfig) contains(vv []string) model.Type {
+	t := model.NoType
+	value := 0.0
+	w := 0.0
+	for _, v := range vv {
+		i, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return t
+		}
+		it := model.SignedType(i)
+		if t != model.NoType && it != t {
+			return model.NoType
+		}
+		t = it
+		if math.Abs(i) <= 2 {
+			value += i
+		}
+		w++
+	}
+	if value/w < 2 {
+		return t
+	}
+	return model.NoType
+}
+
 var defaultOpenConfig = map[model.Coin]openConfig{
 	model.BTC: {
 		coin:                 model.BTC,
-		sampleThreshold:      10,
+		sampleThreshold:      4,
 		probabilityThreshold: 0.55,
 		volume:               0.01,
 	},
 	model.ETH: {
 		coin:                 model.ETH,
-		sampleThreshold:      10,
+		sampleThreshold:      4,
 		probabilityThreshold: 0.55,
 		volume:               0.3,
 	},
 	model.LINK: {
 		coin:                 model.LINK,
-		sampleThreshold:      10,
+		sampleThreshold:      4,
 		probabilityThreshold: 0.55,
 		volume:               15,
 	},
 	model.DOT: {
 		coin:                 model.DOT,
-		sampleThreshold:      10,
+		sampleThreshold:      4,
 		probabilityThreshold: 0.55,
 		volume:               15,
 	},
 	model.XRP: {
 		coin:                 model.XRP,
-		sampleThreshold:      10,
+		sampleThreshold:      4,
 		probabilityThreshold: 0.55,
 		volume:               1000,
 	},
