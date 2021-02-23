@@ -304,12 +304,9 @@ type tradePosition struct {
 // TODO : test this logic
 func (tp *tradePosition) DoClose() bool {
 	net, p := tp.position.Value()
-	println(fmt.Sprintf("net = %+v", net))
-	println(fmt.Sprintf("p = %+v", p))
 	if net > 0 && p > tp.config.profit {
 		// check the previous profit in order to extend profit
 		if p > tp.config.lastProfit {
-			println(fmt.Sprintf("tp.config.lastProfit = %+v", tp.config.lastProfit))
 			// if we are making more ... ignore
 			tp.config.lastProfit = p
 			return false
@@ -324,7 +321,7 @@ func (tp *tradePosition) DoClose() bool {
 		return tp.config.Live <= 0
 	}
 	if net < 0 && p < -1*tp.config.stopLoss {
-		if tp.config.lastLoss <= p {
+		if tp.config.lastLoss < p {
 			tp.config.lastLoss = p
 			// we are improving our position ... so give it a bit of time.
 			return false
