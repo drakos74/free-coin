@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	local2 "github.com/drakos74/free-coin/user/local"
+
 	"github.com/drakos74/free-coin/client/kraken"
 
 	"github.com/drakos74/free-coin/client/local"
@@ -14,7 +16,6 @@ import (
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
-	"github.com/drakos74/free-coin/user"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -42,7 +43,7 @@ func main() {
 		WithPersistence(persistence).
 		Mock()
 
-	user, err := user.NewVoid()
+	user, err := local2.NewVoid()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())

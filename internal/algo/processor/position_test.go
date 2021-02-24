@@ -106,7 +106,7 @@ func TestPosition_Update(t *testing.T) {
 						userCommand := tt.reply[i]
 						if userCommand != "" {
 							// emulate the user replying ...
-							cmd := api.ParseCommand(0, "iam", userCommand)
+							cmd := api.NewCommand(0, "iam", userCommand)
 							reply, err := msg.trigger.Exec(cmd)
 							assert.NoError(t, err)
 							// we know that our default mock positions are on btc
@@ -119,7 +119,7 @@ func TestPosition_Update(t *testing.T) {
 				}
 			}()
 
-			command := api.ParseCommand(0, "iam", tt.cmd)
+			command := api.NewCommand(0, "iam", tt.cmd)
 			cmds <- command
 
 			wg.Wait()
@@ -215,7 +215,7 @@ func TestPosition_Track(t *testing.T) {
 					time.Sleep(100 * time.Millisecond)
 					if len(msg.trigger.Default) > 0 {
 						// TODO : assert on the closing profit
-						reply, err := msg.trigger.Exec(api.ParseCommand(1, "", strings.Join(msg.trigger.Default, " ")))
+						reply, err := msg.trigger.Exec(api.NewCommand(1, "", strings.Join(msg.trigger.Default, " ")))
 						if err == nil {
 							println(fmt.Sprintf("reply = %+v", reply))
 						}

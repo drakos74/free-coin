@@ -1,4 +1,4 @@
-package user
+package local
 
 import (
 	"context"
@@ -58,11 +58,9 @@ func (v *Void) Send(channel api.Index, message *api.Message, trigger *api.Trigge
 	}
 	// if it s an executable action ... act on it
 	if trigger != nil && len(trigger.Default) > 0 {
-		if trigger.Key != nil {
-			key := *trigger.Key
-			if ch, ok := v.consumers[key]; ok {
-				ch <- api.ParseCommand(1, "self", fmt.Sprintf("%s %s", key.Prefix, strings.Join(trigger.Default, " ")))
-			}
+		key := trigger.Key
+		if ch, ok := v.consumers[key]; ok {
+			ch <- api.NewCommand(1, "self", fmt.Sprintf("%s %s", key.Prefix, strings.Join(trigger.Default, " ")))
 		}
 	}
 	// do nothing ...

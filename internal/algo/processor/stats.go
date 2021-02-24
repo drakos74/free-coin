@@ -14,7 +14,6 @@ import (
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -176,32 +175,33 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 	}
 }
 
-func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
-	return func(command api.Command) (string, error) {
-		// TODO: pars optionally the volume
-		var t model.Type
-		switch command.Content {
-		case "buy":
-			t = model.Buy
-		case "sell":
-			t = model.Sell
-		default:
-			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
-		}
-		if vol, ok := defaultOpenConfig[p.Coin]; ok {
-			order := model.NewOrder(p.Coin).
-				WithLeverage(model.L_5).
-				WithVolume(vol.volume).
-				WithType(t).
-				Market().
-				Create()
-			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(order)
-
-		} else {
-			return "could not open position", fmt.Errorf("no pre-defined volume for %s", p.Coin)
-		}
-	}
-}
+// TODO : Removing the ordering capabilities on the stats processor for now (?)
+//func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
+//	return func(command api.Command) (string, error) {
+//		// TODO: pars optionally the volume
+//		var t model.Type
+//		switch command.Content {
+//		case "buy":
+//			t = model.Buy
+//		case "sell":
+//			t = model.Sell
+//		default:
+//			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
+//		}
+//		if vol, ok := defaultOpenConfig[p.Coin]; ok {
+//			order := model.NewOrder(p.Coin).
+//				WithLeverage(model.L_5).
+//				WithVolume(vol.volume).
+//				WithType(t).
+//				Market().
+//				Create()
+//			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(order)
+//
+//		} else {
+//			return "could not open position", fmt.Errorf("no pre-defined volume for %s", p.Coin)
+//		}
+//	}
+//}
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
@@ -253,11 +253,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 							// TODO : add tests for this
 							user.Send(api.Public,
 								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
-									ReferenceTime(trade.Time),
-								api.NewTrigger(openPositionTrigger(trade, client)).
-									WithID(uuid.New().String()).
-									WithDescription("buy | sell"),
-							)
+									ReferenceTime(trade.Time), nil)
 						}
 						// TODO : expose in metrics
 						//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))

@@ -35,7 +35,6 @@ type botAPI interface {
 
 type executableTrigger struct {
 	message *tgbotapi.Message
-	trigger *api.Trigger
 	replyID int
 	private api.Index
 }
@@ -46,7 +45,6 @@ type Bot struct {
 	publicChatID    int64
 	privateBot      botAPI
 	privateChatID   int64
-	process         chan executableTrigger
 	messages        map[int]string
 	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
@@ -84,7 +82,6 @@ func NewBot() (*Bot, error) {
 		publicChatID:    publicChatID,
 		privateBot:      privateBot,
 		privateChatID:   privateChatID,
-		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),

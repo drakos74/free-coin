@@ -13,13 +13,23 @@ type Command struct {
 	Content string
 }
 
-// ParseCommand parses a command from a message details.
-func ParseCommand(id int, user, txt string) Command {
+// NewCommand parses a command from a message details.
+func CommandFromMessage(id int, user, cmd string, opts ...string) Command {
 	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
 	return Command{
 		ID:      id,
 		User:    user,
-		Content: txt,
+		Content: fmt.Sprintf("%s %s", cmd, strings.Join(opts, " ")),
+	}
+}
+
+// NewCommand parses a command from a message details.
+func NewCommand(id int, user, cmd string, opts ...string) Command {
+	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
+	return Command{
+		ID:      id,
+		User:    user,
+		Content: fmt.Sprintf("%s %s", cmd, strings.Join(opts, " ")),
 	}
 }
 

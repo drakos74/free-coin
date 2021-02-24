@@ -3,6 +3,7 @@ package processor
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -171,12 +172,19 @@ func Trade(client api.Exchange, user api.User, action chan<- api.Action, signal 
 										label: p.Label,
 									})
 								}
+								log.Info().
+									Float64("probability", p.Probability).
+									Int("sample", p.Sample).
+									Strs("value", vv).
+									Str("type", t.String()).
+									Str("label", p.Label).
+									Str("coin", string(ts.coin)).
+									Msg("matched config")
 							}
 						}
 						if t != model.NoType {
 							if vol, ok := defaultOpenConfig[ts.coin]; ok {
-								log.Debug().
-									Str("predictions", fmt.Sprintf("%+v", predictions)).
+								log.Info().
 									Time("time", ts.time).
 									Str("coin", string(ts.coin)).
 									Msg("open order")
@@ -194,6 +202,11 @@ func Trade(client api.Exchange, user api.User, action chan<- api.Action, signal 
 							}
 						}
 					}
+				} else {
+					log.Warn().
+						Str("type", s.Type).
+						Str("value", reflect.TypeOf(s.Value).Name()).
+						Msg("could not parse signal")
 				}
 			}
 		}

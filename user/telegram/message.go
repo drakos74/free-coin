@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/user"
+
 	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -55,11 +57,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 					Int("messageID", reply.MessageID).
 					Msg("reply received")
 				// if it s a reply , we are responsible to act on the trigger
-				b.process <- executableTrigger{
-					message: update.Message,
-					replyID: reply.MessageID,
-					private: private,
-				}
+				b.execute(private, update.Message, reply.MessageID)
 				continue
 			}
 
@@ -100,26 +98,6 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 	}
 }
 
-// processExecution listens to execution commands.
-// this is to synchronise all commands in a single routine and avoid lock contention and race conditions.
-func (b *Bot) processExecution() {
-	for exec := range b.process {
-		if exec.message != nil && exec.trigger != nil {
-			// just to handle the adding of the trigger
-			b.messages[exec.message.MessageID] = exec.trigger.ID
-			b.triggers[exec.trigger.ID] = exec.trigger
-			continue
-		}
-		if exec.message != nil {
-			b.execute(exec.private, exec.message, exec.replyID)
-		} else if exec.trigger != nil {
-			b.deferExecute(exec.private, exec.trigger, exec.replyID)
-		} else {
-			panic("invalid executable trigger received")
-		}
-	}
-}
-
 // send will send a message and store the appropriate trigger.
 // it will automatically execute the default command if user does not reply.
 // TODO : send confirmation of auto-invoke - use tgbotapi.Message here
@@ -156,51 +134,12 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 		return 0, err
 	}
 	if trigger != nil {
-		if trigger.Key != nil {
-			// we know we can send it back
-			key := *trigger.Key
-			if ch, ok := b.consumers[key]; ok {
-				msgID := -1 * int(uuid.New().ID())
-				// TODO : check for finding a consistent way on the dummy messageIDs
-				ch <- api.ParseCommand(msgID, "bot", fmt.Sprintf("%s %s", key.Prefix, strings.Join(trigger.Default, " ")))
-				return msgID, nil
-			}
-			return 0, fmt.Errorf("couldl not find consumer: %v", key)
-		}
-		// store the message for potential replies on the trigger.
-		b.process <- executableTrigger{
-			message: &sent,
-			trigger: trigger,
-			private: private,
-		}
-		if len(trigger.Default) > 0 {
-			go func() {
-				<-time.After(t)
-				b.process <- executableTrigger{
-					trigger: trigger,
-					replyID: sent.MessageID,
-					private: private,
-				}
-			}()
-		}
+		// we know we can send it back
+		msgID := -1 * int(uuid.New().ID())
+		return msgID, b.executeTrigger(*trigger,
+			api.NewCommand(msgID, user.Bot, trigger.Default[0], trigger.Default[1:]...))
 	}
 	return sent.MessageID, nil
-}
-
-// deferExecute plans the execution of the given trigger (with the defaults)
-// at the specified timeout
-func (b *Bot) deferExecute(private api.Index, trigger *api.Trigger, replyID int) {
-	if trigger, ok := b.triggers[trigger.ID]; ok {
-		if txt, ok := b.checkIfBlocked(trigger); ok {
-			b.Send(private, api.NewMessage(txt).ReplyTo(replyID), nil)
-			return
-		}
-		b.executeTrigger(private, trigger, api.Command{
-			Content: strings.Join(trigger.Default, " "),
-		})
-	}
-	delete(b.triggers, trigger.ID)
-	delete(b.messages, replyID)
 }
 
 // execute will try to find and execute the trigger attached to the replied message.
@@ -209,8 +148,10 @@ func (b *Bot) execute(private api.Index, message *tgbotapi.Message, replyID int)
 	if triggerID, ok := b.messages[replyID]; ok {
 		// try to find trigger id if it s still valid
 		if trigger, ok := b.triggers[triggerID]; ok {
-			cmd := api.ParseCommand(message.MessageID, message.From.UserName, message.Text)
-			b.executeTrigger(private, trigger, cmd)
+			err := b.executeTrigger(*trigger, newCommand(message))
+			if err != nil {
+				b.Send(private, api.NewMessage("could not add trigger").AddLine(err.Error()).ReplyTo(message.MessageID), nil)
+			}
 		} else {
 			// no trigger found for this id (could be already consumed)
 			log.Debug().Int("id", replyID).Msg("trigger already applied")
@@ -226,20 +167,20 @@ func (b *Bot) execute(private api.Index, message *tgbotapi.Message, replyID int)
 
 // executeTrigger will execute the given trigger.
 // it will make sure the block on the trigger and state regarding this event are handled accordingly.
-func (b *Bot) executeTrigger(private api.Index, trigger *api.Trigger, cmd api.Command) {
-	rsp, err := trigger.Exec(cmd)
-	if err != nil {
-		b.Send(private, api.NewMessage(fmt.Sprintf("[trigger] error: %v", err)), nil)
-		return
+func (b *Bot) executeTrigger(trigger api.Trigger, cmd api.Command) error {
+	key := trigger.Key
+	// we basically propagate the trigger to the right processor
+	if ch, ok := b.consumers[key]; ok {
+		// TODO : check for finding a consistent way on the dummy messageIDs
+		ch <- cmd
+		return nil
 	}
-	// TODO : check how and when to delete the triggers
 	delete(b.triggers, trigger.ID)
-	// block for coming triggers of the same kind
-	b.blockedTriggers[trigger.ID] = time.Now()
-	// remove the trigger if its not used
-	go func() {
-		<-time.After(blockTimeout)
-		delete(b.blockedTriggers, trigger.ID)
-	}()
-	b.Send(private, api.NewMessage(fmt.Sprintf("[trigger] completed: %v", cmd)).AddLine(rsp), nil)
+	return fmt.Errorf("could not find consumer: %v", key)
+}
+
+// newCommand creates a new command based on the input message
+func newCommand(message *tgbotapi.Message) api.Command {
+	txt := strings.Split(message.Text, " ")
+	return api.NewCommand(message.MessageID, message.From.UserName, txt[0], txt[1:]...)
 }

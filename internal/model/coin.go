@@ -87,3 +87,14 @@ func (t Type) Inv() Type {
 	}
 	return NoType
 }
+
+// String returns a human readable form of the type.
+func (t Type) String() string {
+	switch t {
+	case Buy:
+		return "buy"
+	case Sell:
+		return "sell"
+	}
+	return "none"
+}

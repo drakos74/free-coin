@@ -8,6 +8,7 @@ import (
 
 // ConsumerKey is the internal consumer key for indexing and managing consumers.
 type ConsumerKey struct {
+	ID     string
 	Key    string
 	Prefix string
 }
@@ -18,18 +19,21 @@ type TriggerFunc func(command Command) (string, error)
 // Trigger wraps a trigger func into a re-usable object.
 type Trigger struct {
 	ID          string
-	Key         *ConsumerKey
+	Key         ConsumerKey
 	Default     []string
 	Description string
-	Exec        TriggerFunc
 	Timeout     time.Duration
 }
 
 // NewTrigger creates a new trigger.
-func NewTrigger(f TriggerFunc) *Trigger {
+func NewTrigger(key ConsumerKey) *Trigger {
+	id := key.ID
+	if id == "" {
+		id = uuid.New().String()
+	}
 	return &Trigger{
-		ID:   uuid.New().String(),
-		Exec: f,
+		ID:  id,
+		Key: key,
 	}
 }
 

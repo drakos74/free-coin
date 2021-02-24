@@ -99,17 +99,17 @@ func (tp tradePositions) track(client api.Exchange, ticker *time.Ticker, quit ch
 	// and update the positions at the predefined interval.
 	for {
 		select {
-		case <-update:
+		case <-update: // trigger update on the positions on external events/actions
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
 			}
-		case <-ticker.C:
+		case <-ticker.C: // trigger an update on the positions at regular intervals
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
 			}
-		case <-quit:
+		case <-quit: // stop the tracking of positions
 			ticker.Stop()
 			return
 		}
@@ -122,15 +122,13 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
 		var action string
 		var coin string
-		//var defVolume float64
 		var param string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p", "?pos", "?positions"),
 			api.Any(&coin),
-			api.OneOf(&action, "buy", "sell", "close"),
+			api.OneOf(&action, "buy", "sell", "close", ""),
 			api.Any(&param),
-			//api.Float(&defVolume),
 		)
 		c := model.Coin(coin)
 
@@ -153,24 +151,20 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				id:   param,
 			}
 			// close the damn position ...
-			// TODO : check also market conditions from enriched trades !!!
 			if position, ok := tp.get(k); ok {
 				net, profit := position.Value()
 				err := client.ClosePosition(position)
 				if err != nil {
 					log.Error().Float64("volume", position.Volume).Str("id", k.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("could not close position")
+					user.Send(api.Private, api.NewMessage(fmt.Sprintf("could not close %s [%s]: %s", k.coin, k.id, err.Error())), nil)
 				} else {
 					log.Info().Float64("volume", position.Volume).Str("id", k.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 					delete(tp.pos[k.coin], k.id)
+					user.Send(api.Private, api.NewMessage(fmt.Sprintf("closes %s at %.2f [%s]: %s", k.coin, profit, k.id, err.Error())), nil)
 				}
 			}
 			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
 		case "":
-			//defVolume, err := strconv.ParseFloat(param, 64)
-			if err != nil {
-				log.Error().Err(err).Msg("could not get positions")
-				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
-			}
 			err = tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
@@ -197,7 +191,10 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 							p.position.Type,
 							coinmath.Format(p.position.OpenPrice))
 						// TODO : send a trigger for each position to give access to adjust it
-						trigger := api.NewTrigger(tp.closePositionTrigger(client, key(p.position.Coin, id)))
+						trigger := &api.Trigger{
+							ID:  id,
+							Key: positionKey,
+						}
 						user.Send(api.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
 						i++
 					}
@@ -385,7 +382,7 @@ func Position(client api.Exchange, user api.User, update <-chan api.Action) api.
 					coinmath.Format(net))
 				user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
 					ID:      position.ID,
-					Key:     &positionKey,
+					Key:     positionKey,
 					Default: []string{string(k.coin), "close", k.id},
 					// TODO : instead of a big timeout check again when we want to close how the position is doing ...
 				})
