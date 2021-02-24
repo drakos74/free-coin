@@ -133,11 +133,16 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 	if err != nil {
 		return 0, err
 	}
-	if trigger != nil {
+	if trigger != nil && len(trigger.Default) > 0 {
 		// we know we can send it back
 		msgID := -1 * int(uuid.New().ID())
+		cmd := trigger.Default[0]
+		opts := make([]string, 0)
+		if len(trigger.Default) > 1 {
+			opts = trigger.Default[1:]
+		}
 		return msgID, b.executeTrigger(*trigger,
-			api.NewCommand(msgID, user.Bot, trigger.Default[0], trigger.Default[1:]...))
+			api.NewCommand(msgID, user.Bot, cmd, opts...))
 	}
 	return sent.MessageID, nil
 }
