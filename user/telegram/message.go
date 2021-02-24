@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/api"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -154,6 +156,17 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 		return 0, err
 	}
 	if trigger != nil {
+		if trigger.Key != nil {
+			// we know we can send it back
+			key := *trigger.Key
+			if ch, ok := b.consumers[key]; ok {
+				msgID := -1 * int(uuid.New().ID())
+				// TODO : check for finding a consistent way on the dummy messageIDs
+				ch <- api.ParseCommand(msgID, "bot", fmt.Sprintf("%s %s", key.Prefix, strings.Join(trigger.Default, " ")))
+				return msgID, nil
+			}
+			return 0, fmt.Errorf("couldl not find consumer: %v", key)
+		}
 		// store the message for potential replies on the trigger.
 		b.process <- executableTrigger{
 			message: &sent,
