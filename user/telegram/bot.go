@@ -105,7 +105,6 @@ func (b *Bot) Run(ctx context.Context) error {
 		return err
 	}
 
-	go b.processExecution()
 	go b.listenToUpdates(ctx, api.Public, publicUpdates)
 	go b.listenToUpdates(ctx, api.Private, privateUpdates)
 	return nil
