@@ -358,6 +358,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 		coin:                 model.DOT,
 		sampleThreshold:      3,
 		probabilityThreshold: 0.51,
+		volume:               15,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
