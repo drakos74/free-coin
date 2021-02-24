@@ -140,7 +140,7 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			Err(err).
 			Msg("received user action")
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("[%s cmd error]", positionProcessorName)).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -383,7 +383,7 @@ func Position(client api.Exchange, user api.User, update <-chan api.Action) api.
 				user.Send(api.Private, api.NewMessage(msg), &api.Trigger{
 					ID:      position.ID,
 					Key:     positionKey,
-					Default: []string{string(k.coin), "close", k.id},
+					Default: []string{"?p", string(k.coin), "close", k.id},
 					// TODO : instead of a big timeout check again when we want to close how the position is doing ...
 				})
 			}
