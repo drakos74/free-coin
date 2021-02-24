@@ -281,6 +281,20 @@ var simpleStrategy = tradingStrategy{
 		s := 0.0
 		// add weight to the first one
 		l := len(vv)
+		if len(vv) == 1 {
+			switch vv[0] {
+			case "+1":
+			case "+0":
+			case "+2":
+				return model.Buy
+			case "-1":
+			case "-0":
+			case "-2":
+				return model.Sell
+			default:
+				return model.NoType
+			}
+		}
 		for w, v := range vv {
 			it := toType(v)
 			if t != model.NoType && it != t {
@@ -318,29 +332,43 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 		sampleThreshold:      3,
 		probabilityThreshold: 0.45,
 		volume:               0.01,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
 	},
 	model.ETH: {
 		coin:                 model.ETH,
 		sampleThreshold:      3,
 		probabilityThreshold: 0.45,
 		volume:               0.3,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
 	},
 	model.LINK: {
 		coin:                 model.LINK,
 		sampleThreshold:      3,
 		probabilityThreshold: 0.45,
 		volume:               15,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
 	},
 	model.DOT: {
 		coin:                 model.DOT,
 		sampleThreshold:      3,
 		probabilityThreshold: 0.45,
-		volume:               15,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
 	},
 	model.XRP: {
 		coin:                 model.XRP,
 		sampleThreshold:      3,
 		probabilityThreshold: 0.45,
 		volume:               1000,
+		strategies: []tradingStrategy{
+			simpleStrategy,
+		},
 	},
 }
