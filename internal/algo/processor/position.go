@@ -414,8 +414,8 @@ type closingConfig struct {
 var defaultClosingConfig = map[model.Coin]closingConfig{
 	model.BTC: {
 		coin:     model.BTC,
-		profit:   1,
-		stopLoss: 1.5,
+		profit:   0.8,
+		stopLoss: 2.0,
 	},
 }
 

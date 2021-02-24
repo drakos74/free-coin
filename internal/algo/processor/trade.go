@@ -329,45 +329,45 @@ func toType(s string) model.Type {
 var defaultOpenConfig = map[model.Coin]openConfig{
 	model.BTC: {
 		coin:                 model.BTC,
-		sampleThreshold:      3,
+		sampleThreshold:      5,
 		probabilityThreshold: 0.51,
-		volume:               0.01,
+		volume:               0.005,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.ETH: {
 		coin:                 model.ETH,
-		sampleThreshold:      3,
+		sampleThreshold:      5,
 		probabilityThreshold: 0.51,
-		volume:               0.3,
+		volume:               0.15,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.LINK: {
 		coin:                 model.LINK,
-		sampleThreshold:      3,
+		sampleThreshold:      5,
 		probabilityThreshold: 0.51,
-		volume:               15,
+		volume:               10,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.DOT: {
 		coin:                 model.DOT,
-		sampleThreshold:      3,
+		sampleThreshold:      5,
 		probabilityThreshold: 0.51,
-		volume:               15,
+		volume:               10,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.XRP: {
 		coin:                 model.XRP,
-		sampleThreshold:      3,
+		sampleThreshold:      5,
 		probabilityThreshold: 0.51,
-		volume:               1000,
+		volume:               500,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
