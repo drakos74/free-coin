@@ -160,7 +160,7 @@ func (tp tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				} else {
 					log.Info().Float64("volume", position.Volume).Str("id", k.id).Str("coin", string(position.Coin)).Float64("net", net).Float64("profit", profit).Msg("closed position")
 					delete(tp.pos[k.coin], k.id)
-					user.Send(api.Private, api.NewMessage(fmt.Sprintf("closes %s at %.2f [%s]: %s", k.coin, profit, k.id, err.Error())), nil)
+					user.Send(api.Private, api.NewMessage(fmt.Sprintf("closed %s at %.2f [%s]", k.coin, profit, k.id)), nil)
 				}
 			}
 			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
