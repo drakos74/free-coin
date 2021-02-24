@@ -330,7 +330,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	model.BTC: {
 		coin:                 model.BTC,
 		sampleThreshold:      3,
-		probabilityThreshold: 0.45,
+		probabilityThreshold: 0.51,
 		volume:               0.01,
 		strategies: []tradingStrategy{
 			simpleStrategy,
@@ -339,7 +339,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	model.ETH: {
 		coin:                 model.ETH,
 		sampleThreshold:      3,
-		probabilityThreshold: 0.45,
+		probabilityThreshold: 0.51,
 		volume:               0.3,
 		strategies: []tradingStrategy{
 			simpleStrategy,
@@ -348,7 +348,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	model.LINK: {
 		coin:                 model.LINK,
 		sampleThreshold:      3,
-		probabilityThreshold: 0.45,
+		probabilityThreshold: 0.51,
 		volume:               15,
 		strategies: []tradingStrategy{
 			simpleStrategy,
@@ -357,7 +357,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	model.DOT: {
 		coin:                 model.DOT,
 		sampleThreshold:      3,
-		probabilityThreshold: 0.45,
+		probabilityThreshold: 0.51,
 		strategies: []tradingStrategy{
 			simpleStrategy,
 		},
@@ -365,7 +365,7 @@ var defaultOpenConfig = map[model.Coin]openConfig{
 	model.XRP: {
 		coin:                 model.XRP,
 		sampleThreshold:      3,
-		probabilityThreshold: 0.45,
+		probabilityThreshold: 0.51,
 		volume:               1000,
 		strategies: []tradingStrategy{
 			simpleStrategy,
