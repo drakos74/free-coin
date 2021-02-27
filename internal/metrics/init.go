@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -16,6 +17,9 @@ const port = 6040
 
 func init() {
 
+	// This is not ideal , but would do for now.
+	// We need to differentiate the metrics , because all processes run on the same server.
+	rand.Seed(time.Now().UTC().UnixNano())
 	p := port + rand.Intn(50)
 
 	Observer = &Metrics{
