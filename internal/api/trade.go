@@ -29,6 +29,16 @@ func NewBlock() Block {
 // Action is a generic struct used to trigger actions on other processes.
 // it can hold several metadata information , but for now we leave it empty.
 type Action struct {
+	Name string
+	Time time.Time
+}
+
+// NewAction creates a new action with the given name.
+func NewAction(name string) Action {
+	return Action{
+		Name: name,
+		Time: time.Now(),
+	}
 }
 
 // Condition defines a boundary condition to stop execution based on the consumed trades.

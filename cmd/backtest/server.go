@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/free-coin/cmd/backtest/coin"
@@ -29,10 +31,13 @@ func init() {
 }
 
 type Server struct {
+	block api.Block
 }
 
 func New() *Server {
-	return &Server{}
+	return &Server{
+		block: api.NewBlock(),
+	}
 }
 
 func Handle(method string, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +52,22 @@ func Handle(method string, handler func(w http.ResponseWriter, r *http.Request))
 }
 
 func (s *Server) Run() error {
+
+	go func() {
+		for action := range s.block.Action {
+			log.Error().
+				Time("time", action.Time).
+				Str("action", action.Name).
+				Msg("started execution")
+			reaction := <-s.block.ReAction
+			log.Error().
+				Time("time", action.Time).
+				Float64("duration", time.Since(action.Time).Seconds()).
+				Str("reaction", reaction.Name).
+				Msg("completed execution")
+		}
+	}()
+
 	http.HandleFunc(fmt.Sprintf("/%s", basePath), Handle(GET, s.live))
 	http.HandleFunc(fmt.Sprintf("/%s/search", basePath), Handle(POST, s.search))
 	http.HandleFunc(fmt.Sprintf("/%s/tag-keys", basePath), Handle(POST, s.keys))
@@ -62,6 +83,10 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) query(w http.ResponseWriter, r *http.Request) {
+
+	// we should only handle one request per time,
+	// in order to ease memory footprint.
+	s.block.Action <- api.NewAction("query")
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -200,6 +225,8 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(b)
 	w.WriteHeader(http.StatusOK)
+
+	s.block.ReAction <- api.NewAction("query")
 }
 
 func formatJsonData(v interface{}) interface{} {
