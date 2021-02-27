@@ -245,11 +245,9 @@ var simpleStrategy = TradingStrategy{
 		if len(vv) == 1 {
 			switch vv[0] {
 			case "+1":
-			case "+2":
 			case "+0":
 				return model.Buy
 			case "-1":
-			case "-2":
 			case "-0":
 				return model.Sell
 			default:
