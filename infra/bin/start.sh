@@ -80,7 +80,7 @@ restart_grafana() {
   stop "$process"
   echo "stopped $process"
 
-  ./home/ec2-user/Tools/grafana-7.4.3/start_grafana.sh
+  bash /home/ec2-user/Tools/grafana-7.4.3/start_grafana.sh
   echo "starting $process"
 
   check "$process"
