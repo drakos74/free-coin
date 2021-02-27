@@ -204,6 +204,8 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 							block.Action <- api.Action{}
 							api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.Volume, ts.Coin, ts.Price)), err)
 							<-block.ReAction
+							// dont open other positions in this round
+							continue
 						}
 					}
 				}
