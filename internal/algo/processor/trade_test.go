@@ -7,10 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
 	"github.com/drakos74/free-coin/internal/api"
-
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -19,7 +18,7 @@ func TestTrader_Gather(t *testing.T) {
 	type test struct {
 		transform func(i int) float64
 		msgCount  int
-		config    openConfig
+		config    trade.OpenConfig
 	}
 
 	tests := map[string]test{
@@ -28,11 +27,11 @@ func TestTrader_Gather(t *testing.T) {
 				return math.Sin(float64(i/10) * 40000)
 			},
 			msgCount: 13,
-			config: openConfig{
-				coin:                 model.BTC,
-				sampleThreshold:      1,
-				probabilityThreshold: 0.9,
-				volume:               0.1,
+			config: trade.OpenConfig{
+				Coin:                 model.BTC,
+				SampleThreshold:      1,
+				ProbabilityThreshold: 0.9,
+				Volume:               0.1,
 			},
 		},
 		"inc": {
@@ -54,21 +53,20 @@ func TestTrader_Gather(t *testing.T) {
 			in := make(chan *model.Trade)
 			st := make(chan *model.Trade)
 			client := newMockClient()
-
-			signals := make(chan api.Signal)
+			block := api.NewBlock()
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return MultiStats(client, user, signals)
+				return stats.MultiStats(client, user)
 			})
 			out := make(chan *model.Trade)
 			cmds, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
-				return Trade(client, user, signals)
+				return trade.Trade(client, user, block)
 			})
 
 			// send the config to the processor
 			cmds <- api.Command{
 				ID:      1,
 				User:    "",
-				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.probabilityThreshold, tt.config.sampleThreshold),
+				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.ProbabilityThreshold, tt.config.SampleThreshold),
 			}
 
 			wg := new(sync.WaitGroup)
@@ -95,97 +93,6 @@ func TestTrader_Gather(t *testing.T) {
 			}()
 
 			wg.Wait()
-		})
-	}
-
-}
-
-func TestTradeStrategy(t *testing.T) {
-
-	type test struct {
-		vv       [][]string
-		strategy tradingStrategy
-		ttyp     model.Type
-	}
-
-	tests := map[string]test{
-		"buy": {
-			vv: [][]string{
-				{"+0", "+1"},
-				{"+0", "+1", "+2"},
-				{"+0", "+2"},
-				{"+0", "+2", "+5"},
-				{"+0", "+3"},
-				{"+0", "+3", "+3"},
-				{"+0", "+4"},
-				{"+1", "+1"},
-				{"+1", "+1", "+4"},
-				{"+1", "+2"},
-				{"+1", "+2", "+2"},
-				{"+1", "+3"},
-				{"+1", "+3", "+0"},
-				{"+1", "+4"},
-				{"+2", "+0"},
-				{"+2", "+1"},
-				{"+2", "+1", "+1"},
-				{"+2", "+2"},
-				{"+3", "+0"},
-			},
-			strategy: simpleStrategy,
-			ttyp:     1,
-		},
-		"sell": {
-			vv: [][]string{
-				{"-0", "-1"},
-				{"-0", "-1", "-2"},
-				{"-0", "-2"},
-				{"-0", "-2", "-5"},
-				{"-0", "-3"},
-				{"-0", "-3", "-3"},
-				{"-0", "-4"},
-				{"-1", "-1"},
-				{"-1", "-1", "-4"},
-				{"-1", "-2"},
-				{"-1", "-2", "-2"},
-				{"-1", "-3"},
-				{"-1", "-3", "-0"},
-				{"-1", "-4"},
-				{"-2", "-0"},
-				{"-2", "-1"},
-				{"-2", "-1", "-1"},
-				{"-2", "-2"},
-				{"-3", "-0"},
-			},
-			strategy: simpleStrategy,
-			ttyp:     2,
-		},
-		"no-action": {
-			vv: [][]string{
-				{"+0", "-0"},
-				{"+1", "-1"},
-				{"+2", "-2"},
-				{"+3", "+1"},
-				{"+2", "+1", "+2"},
-				{"+0", "+3", "+4"},
-				{"+1", "+1", "+5"},
-				{"-3", "-1"},
-				{"-2", "-1", "-2"},
-				{"-0", "-3", "-4"},
-				{"-1", "-1", "-5"},
-			},
-			strategy: simpleStrategy,
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			cfg := newOpenConfig(model.BTC, 0.1)
-
-			for _, v := range tt.vv {
-				ttyp := cfg.contains(v)
-				assert.Equal(t, tt.ttyp, ttyp, fmt.Sprintf("failed %v for %v", tt.ttyp, v))
-			}
-
 		})
 	}
 

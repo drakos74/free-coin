@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Key represent a store key reference for the badger store.
@@ -50,7 +52,7 @@ func (k *Key) Save(filePath string) error {
 		return fmt.Errorf("could not write bytes '%+v' to file '%v' : %w", *k, f, err)
 	}
 
-	println(fmt.Sprintf("done saving %s", f.Name()))
+	log.Info().Str("file", f.Name()).Msg("stored")
 	return nil
 
 }

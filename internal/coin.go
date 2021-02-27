@@ -185,7 +185,7 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 	// TODO : keep track of other properties of the trades
 	v.count[trade.Coin]++
 	if v.count[trade.Coin]%10000 == 0 {
-		fmt.Println(fmt.Sprintf("%s = %d", trade.Coin, v.count[trade.Coin]))
+		log.Info().Str("coin", string(trade.Coin)).Int("coun", v.count[trade.Coin]).Msg("processed trades")
 	}
 }
 

@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 
+	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -79,12 +80,12 @@ func TestStats_Gather(t *testing.T) {
 
 func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 	return func(client api.Exchange, user api.User) api.Processor {
-		signal := make(chan api.Signal)
+		signal := make(chan model.Signal)
 		go func() {
 			for range signal {
 				// nothing to do just consume, so that the stats processor can proceed
 			}
 		}()
-		return MultiStats(client, user, signal)
+		return stats.MultiStats(client, user)
 	}
 }

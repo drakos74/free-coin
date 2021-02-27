@@ -1,7 +1,10 @@
 package model
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/free-coin/client/local"
 
@@ -35,7 +38,7 @@ func TradeData(field string, trade coinmodel.Trade) []float64 {
 	case "volume":
 		return []float64{trade.Type.Sign() * trade.Volume, t}
 	default:
-		//fmt.Println(fmt.Sprintf("note found %s in %+v", target, trade))
+		log.Warn().Str("field", field).Str("trade", fmt.Sprintf("%+v", trade)).Msg("field not found in trade")
 		return []float64{trade.Price, t}
 	}
 }

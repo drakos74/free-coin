@@ -188,6 +188,8 @@ func (e *Exchange) OpenOrder(order coinmodel.Order) error {
 	return nil
 }
 
+// TODO : make sure we reterieve all the positions.
+// If we have too many, the response might not have them all
 func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
 	params := map[string]string{
 		"docalcs": "true",

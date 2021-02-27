@@ -6,10 +6,15 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
+
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/client/local"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
 	coin "github.com/drakos74/free-coin/internal"
-	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -41,12 +46,18 @@ func (q *Query) Trades(reAction <-chan api.Action, coin coinmodel.Coin) (coinmod
 		for _, k := range q.keys {
 			store, err := q.store(k.Pair)
 			if err != nil {
-				fmt.Println(fmt.Sprintf("could not create store = %+v", err))
+				log.Warn().
+					Err(err).
+					Str("key", fmt.Sprintf("%+v", k)).
+					Msg("could not create store")
 			}
 			var batch []coinmodel.Trade
 			err = store.Load(k, &batch)
 			if err != nil {
-				fmt.Println(fmt.Sprintf("could not load trades = %+v", err))
+				log.Warn().
+					Err(err).
+					Str("key", fmt.Sprintf("%+v", k)).
+					Msg("could not load trades")
 			} else {
 				for _, trade := range batch {
 					trade.Live = true
@@ -86,16 +97,16 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 
 	allTrades := make(map[coinmodel.Coin][]coinmodel.Trade)
 	allPositions := make(map[coinmodel.Coin][]local.TrackedPosition)
-	// TODO : group by coin so that we dont do double the work
 	for _, q := range query.Targets {
 		c := coinmodel.Coin(q.Target)
 		// the only difference is in the coin,
 		// if we already got the trades for it, dont do it again ...
+		// TODO : this is really not the best.. but we need to stay with it , until we have our own data source plugin
 		if len(allTrades[c]) > 0 {
-			fmt.Println(fmt.Sprintf("skipping duplicate run for = %+v", c))
+			log.Info().Str("target", q.Target).Msg("skipping duplicate run")
 			continue
 		}
-		fmt.Println(fmt.Sprintf("run query for = %+v", c))
+		log.Info().Str("target", q.Target).Msg("run query")
 
 		tradesQuery := NewQuery(c, query.Range).
 			withStore(jsonstore.BlobShard("trades"))
@@ -106,18 +117,18 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		exchange := local.NewExchange("", finished.ReAction)
 
 		block := api.NewBlock()
-		multiStatsConfig := make([]processor.MultiStatsConfig, 0)
-		if statsConfig, ok := q.Data[processor.StatsProcessorName]; ok {
+		multiStatsConfig := make([]stats.MultiStatsConfig, 0)
+		if statsConfig, ok := q.Data[stats.ProcessorName]; ok {
 			config, err := FromJsonMap(statsConfig)
 			if err != nil {
-				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", processor.StatsProcessorName, err))
+				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", stats.ProcessorName, err))
 			}
 			multiStatsConfig = append(multiStatsConfig, config)
 		}
 
-		statsProcessor := processor.MultiStats(exchange, user, multiStatsConfig...)
-		positionProcessor := processor.Position(exchange, user, block, true)
-		tradeProcessor := processor.Trade(exchange, user, block)
+		statsProcessor := stats.MultiStats(exchange, user, multiStatsConfig...)
+		positionProcessor := position.Position(exchange, user, block, true)
+		tradeProcessor := trade.Trade(exchange, user, block)
 
 		err := overWatch.Start(finished, c, exchange,
 			statsProcessor,
@@ -141,10 +152,10 @@ func (s *Service) error(err error) (map[coinmodel.Coin][]coinmodel.Trade, map[co
 	return nil, nil, nil, err
 }
 
-func FromJsonMap(m interface{}) (processor.MultiStatsConfig, error) {
+func FromJsonMap(m interface{}) (stats.MultiStatsConfig, error) {
 	// try to parse as json
-	config := processor.MultiStatsConfig{
-		Targets: make([]processor.Target, 0),
+	config := stats.MultiStatsConfig{
+		Targets: make([]stats.Target, 0),
 	}
 	if configValues, ok := m.(map[string]interface{}); ok {
 		if duration, ok := configValues["duration"].(float64); ok {
@@ -163,7 +174,7 @@ func FromJsonMap(m interface{}) (processor.MultiStatsConfig, error) {
 		}
 		for i := 0; i < s.Len(); i++ {
 			cfg := s.Index(i).Interface()
-			target := processor.Target{}
+			target := stats.Target{}
 			if cc, ok := cfg.(map[string]interface{}); ok {
 				if lookBack, ok := cc["prev"].(float64); ok {
 					target.LookBack = int(lookBack)

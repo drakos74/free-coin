@@ -1,4 +1,4 @@
-package processor
+package position
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	NoPositionMsg = "no open positions"
+
 	positionRefreshInterval = 5 * time.Minute
 	positionProcessorName   = "position"
 )
@@ -51,20 +53,24 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	defer tp.lock.Unlock()
 	actions := make([]tradeAction, 0)
 	if positions, ok := tp.pos[trade.Coin]; ok {
+		log.Debug().
+			Time("server-time", time.Now()).
+			Time("trade-time", trade.Time).
+			Int("count", len(positions)).
+			Str("coin", string(trade.Coin)).
+			Msg("open positions")
 		for id, p := range positions {
 			p.position.CurrentPrice = trade.Price
 			if trade.Live {
 				net, profit := p.position.Value()
-				log.Debug().
+				log.Trace().
+					Str("ID", id).
 					Str("coin", string(p.position.Coin)).
 					Float64("net", net).
 					Float64("profit", profit).
 					Msg("check position")
 				actions = append(actions, tradeAction{
-					key: tpKey{
-						coin: trade.Coin,
-						id:   id,
-					},
+					key:      key(trade.Coin, id),
 					position: p,
 					doClose:  p.DoClose(),
 				})
@@ -129,8 +135,6 @@ func (tp *tradePositions) track(client api.Exchange, ticker *time.Ticker, quit c
 	}
 }
 
-const noPositionMsg = "no open positions"
-
 func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
 		var action string
@@ -160,10 +164,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 
 		switch action {
 		case "close":
-			k := tpKey{
-				coin: c,
-				id:   param,
-			}
+			k := key(c, param)
 			// close the damn position ...
 			tp.close(client, user, k)
 			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
@@ -175,7 +176,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			}
 			i := 0
 			if len(tp.pos) == 0 {
-				user.Send(api.Private, api.NewMessage(noPositionMsg), nil)
+				user.Send(api.Private, api.NewMessage(NoPositionMsg), nil)
 				continue
 			}
 			for coin, pos := range tp.getAll() {
@@ -221,21 +222,21 @@ func (tp *tradePositions) getAll() map[model.Coin]map[string]tradePosition {
 }
 
 func (tp *tradePositions) delete(k tpKey) {
-	ttp := make(map[model.Coin]map[string]*tradePosition)
-	for c, positions := range tp.pos {
-		if _, ok := ttp[c]; !ok {
-			ttp[c] = make(map[string]*tradePosition)
-		}
-		for id, pos := range positions {
-			key := tpKey{coin: c, id: id}
-			if key != k {
-				ttp[c][id] = pos
-			}
-		}
-	}
-	tp.pos = ttp
-	//delete(tp.pos[k.coin], k.id)
-	fmt.Println(fmt.Sprintf("delete = %+v", k))
+	//ttp := make(map[model.Coin]map[string]*tradePosition)
+	//for c, positions := range tp.pos {
+	//	if _, ok := ttp[c]; !ok {
+	//		ttp[c] = make(map[string]*tradePosition)
+	//	}
+	//	for id, pos := range positions {
+	//		key := key(c, id)
+	//		if key != k {
+	//			ttp[c][id] = pos
+	//		}
+	//	}
+	//}
+	//tp.pos = ttp
+	delete(tp.pos[k.coin], k.id)
+	log.Debug().Str("coin", string(k.coin)).Str("id", k.id).Msg("deleted position")
 }
 
 func (tp *tradePositions) exists(key tpKey) bool {
@@ -313,7 +314,7 @@ func Position(client api.Exchange, user api.User, block api.Block, closeInstant 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
 		defer func() {
-			log.Info().Str("processor", positionProcessorName).Msg("closing' strategy")
+			log.Info().Str("processor", positionProcessorName).Msg("closing processor")
 			close(out)
 		}()
 
@@ -349,7 +350,6 @@ func Position(client api.Exchange, user api.User, block api.Block, closeInstant 
 
 			out <- trade
 		}
-		log.Info().Str("processor", positionProcessorName).Msg("closing processor")
 	}
 }
 

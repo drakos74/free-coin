@@ -134,7 +134,7 @@ func (o *Order) Create() Order {
 	default:
 		panic(fmt.Sprintf("cannot create order without order type: %v", o.OType))
 	}
-	log.Info().Str("order", fmt.Sprintf("%+v", o)).Msg("creating order")
+	log.Debug().Str("order", fmt.Sprintf("%+v", o)).Msg("creating order")
 	return *o
 }
 

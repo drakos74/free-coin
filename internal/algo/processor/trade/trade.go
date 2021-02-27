@@ -1,4 +1,4 @@
-package processor
+package trade
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -19,13 +21,13 @@ const tradeProcessorName = "trade"
 type trader struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
 	lock    sync.RWMutex
-	configs map[time.Duration]map[model.Coin]openConfig
+	configs map[time.Duration]map[model.Coin]OpenConfig
 }
 
 func newTrader() *trader {
 	return &trader{
 		lock:    sync.RWMutex{},
-		configs: make(map[time.Duration]map[model.Coin]openConfig),
+		configs: make(map[time.Duration]map[model.Coin]OpenConfig),
 	}
 }
 
@@ -33,7 +35,7 @@ func (tr *trader) init(dd time.Duration, coin model.Coin) {
 	tr.lock.Lock()
 	defer tr.lock.Unlock()
 	if _, ok := tr.configs[dd]; !ok {
-		tr.configs[dd] = make(map[model.Coin]openConfig)
+		tr.configs[dd] = make(map[model.Coin]OpenConfig)
 	}
 	if _, ok := tr.configs[dd][coin]; !ok {
 		// take the config from btc
@@ -41,22 +43,22 @@ func (tr *trader) init(dd time.Duration, coin model.Coin) {
 			tr.configs[dd][coin] = tmpCfg
 			return
 		}
-		log.Error().Str("coin", string(coin)).Msg("could not init config")
+		log.Error().Str("Coin", string(coin)).Msg("could not init config")
 	}
 }
 
-func (tr *trader) get(dd time.Duration, coin model.Coin) openConfig {
+func (tr *trader) get(dd time.Duration, coin model.Coin) OpenConfig {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
 	return tr.configs[dd][coin]
 }
 
-func (tr *trader) getAll() map[time.Duration][]openConfig {
+func (tr *trader) getAll() map[time.Duration][]OpenConfig {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
-	configs := make(map[time.Duration][]openConfig)
+	configs := make(map[time.Duration][]OpenConfig)
 	for d, cfg := range tr.configs {
-		cfgs := make([]openConfig, 0)
+		cfgs := make([]OpenConfig, 0)
 		for _, config := range cfg {
 			cfgs = append(cfgs, config)
 		}
@@ -65,13 +67,13 @@ func (tr *trader) getAll() map[time.Duration][]openConfig {
 	return configs
 }
 
-func (tr *trader) set(dd time.Duration, coin model.Coin, probability float64, sample int) (time.Duration, openConfig) {
+func (tr *trader) set(dd time.Duration, coin model.Coin, probability float64, sample int) (time.Duration, OpenConfig) {
 	tr.init(dd, coin)
 	tr.lock.Lock()
 	defer tr.lock.Unlock()
 	cfg := tr.configs[dd][coin]
-	cfg.probabilityThreshold = probability
-	cfg.sampleThreshold = sample
+	cfg.ProbabilityThreshold = probability
+	cfg.SampleThreshold = sample
 	tr.configs[dd][coin] = cfg
 	return dd, tr.configs[dd][coin]
 }
@@ -101,20 +103,20 @@ func trackTraderActions(user api.User, trader *trader) {
 		if probability > 0 {
 			d, newConfig := trader.set(timeDuration, c, probability, sample)
 			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("%s %dm probability:%f sample:%d",
-				newConfig.coin,
+				newConfig.Coin,
 				int(d.Minutes()),
-				newConfig.probabilityThreshold,
-				newConfig.sampleThreshold)), nil)
+				newConfig.ProbabilityThreshold,
+				newConfig.SampleThreshold)), nil)
 		} else {
 			// return the current configs
 			for d, config := range trader.getAll() {
 				for _, cfg := range config {
 					user.Send(api.Private,
 						api.NewMessage(fmt.Sprintf("%s %dm probability:%f sample:%d",
-							cfg.coin,
+							cfg.Coin,
 							int(d.Minutes()),
-							cfg.probabilityThreshold,
-							cfg.sampleThreshold)), nil)
+							cfg.ProbabilityThreshold,
+							cfg.SampleThreshold)), nil)
 				}
 			}
 		}
@@ -132,7 +134,7 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
-			log.Info().Str("processor", tradeProcessorName).Msg("closing' strategy")
+			log.Info().Str("processor", tradeProcessorName).Msg("closing processor")
 			close(out)
 		}()
 
@@ -144,18 +146,18 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 				continue
 			}
 
-			if ts, ok := trade.Signal.Value.(tradeSignal); ok {
-				trader.init(ts.duration, ts.coin)
+			if ts, ok := trade.Signal.Value.(stats.TradeSignal); ok {
+				trader.init(ts.Duration, ts.Coin)
 				// TODO : use an internal state like for the stats processor
 				// we got a trade signal
-				predictions := ts.predictions
+				predictions := ts.Predictions
 				if len(predictions) > 0 {
-					cfg := trader.get(ts.duration, ts.coin)
+					cfg := trader.get(ts.Duration, ts.Coin)
 					// check if we should make a buy order
 					t := model.NoType
 					pairs := make([]predictionPair, 0)
 					for k, p := range predictions {
-						if p.Probability >= cfg.probabilityThreshold && p.Sample >= cfg.sampleThreshold {
+						if p.Probability >= cfg.ProbabilityThreshold && p.Sample >= cfg.SampleThreshold {
 							// we know it s a good prediction. Lets check the value
 							v := p.Value
 							vv := strings.Split(v, ":")
@@ -176,27 +178,28 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 								Strs("value", vv).
 								Str("type", t.String()).
 								Str("label", p.Label).
-								Str("coin", string(ts.coin)).
+								Str("Coin", string(ts.Coin)).
 								Msg("matched config")
 						}
 					}
 					if t != model.NoType {
-						if vol, ok := defaultOpenConfig[ts.coin]; ok {
-							log.Info().
-								Time("time", ts.time).
-								Str("coin", string(ts.coin)).
-								Msg("open order")
-							// TODO : print the prediction in the reply message
-							err := client.OpenOrder(model.NewOrder(ts.coin).
+						if vol, ok := defaultOpenConfig[ts.Coin]; ok {
+							order := model.NewOrder(ts.Coin).
 								WithLeverage(model.L_5).
-								WithVolume(vol.volume).
+								WithVolume(vol.Volume).
 								WithType(t).
 								Market().
-								Create())
+								Create()
+							log.Info().
+								Time("time", ts.Time).
+								Str("ID", order.ID).
+								Float64("price", ts.Price).
+								Str("Coin", string(ts.Coin)).
+								Msg("open position")
+							err := client.OpenOrder(order)
 							// notify other processes
 							block.Action <- api.Action{}
-							// TODO : combine with the trades to know of the price
-							api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.volume, ts.coin, ts.price)), err)
+							api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.Volume, ts.Coin, ts.Price)), err)
 							<-block.ReAction
 						}
 					}
@@ -228,48 +231,7 @@ type predictionPair struct {
 	t           model.Type
 }
 
-type openConfig struct {
-	coin                 model.Coin
-	sampleThreshold      int
-	probabilityThreshold float64
-	volume               float64
-	strategies           []tradingStrategy
-}
-
-type tradingStrategy struct {
-	name string
-	exec func(vv []string) model.Type
-}
-
-func newOpenConfig(c model.Coin, vol float64) openConfig {
-	return openConfig{
-		coin:   c,
-		volume: vol,
-		strategies: []tradingStrategy{
-			simpleStrategy,
-		},
-	}
-}
-func (c openConfig) withProbability(p float64) openConfig {
-	c.probabilityThreshold = p
-	return c
-}
-
-func (c openConfig) withSample(s int) openConfig {
-	c.sampleThreshold = s
-	return c
-}
-
-func (c openConfig) contains(vv []string) model.Type {
-	for _, strategy := range c.strategies {
-		if t := strategy.exec(vv); t != model.NoType {
-			return t
-		}
-	}
-	return model.NoType
-}
-
-var simpleStrategy = tradingStrategy{
+var simpleStrategy = TradingStrategy{
 	name: "simple",
 	exec: func(vv []string) model.Type {
 		t := model.NoType
@@ -322,49 +284,49 @@ func toType(s string) model.Type {
 	return model.NoType
 }
 
-var defaultOpenConfig = map[model.Coin]openConfig{
+var defaultOpenConfig = map[model.Coin]OpenConfig{
 	model.BTC: {
-		coin:                 model.BTC,
-		sampleThreshold:      5,
-		probabilityThreshold: 0.51,
-		volume:               0.005,
-		strategies: []tradingStrategy{
+		Coin:                 model.BTC,
+		SampleThreshold:      5,
+		ProbabilityThreshold: 0.51,
+		Volume:               0.005,
+		Strategies: []TradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.ETH: {
-		coin:                 model.ETH,
-		sampleThreshold:      5,
-		probabilityThreshold: 0.51,
-		volume:               0.15,
-		strategies: []tradingStrategy{
+		Coin:                 model.ETH,
+		SampleThreshold:      5,
+		ProbabilityThreshold: 0.51,
+		Volume:               0.15,
+		Strategies: []TradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.LINK: {
-		coin:                 model.LINK,
-		sampleThreshold:      5,
-		probabilityThreshold: 0.51,
-		volume:               10,
-		strategies: []tradingStrategy{
+		Coin:                 model.LINK,
+		SampleThreshold:      5,
+		ProbabilityThreshold: 0.51,
+		Volume:               10,
+		Strategies: []TradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.DOT: {
-		coin:                 model.DOT,
-		sampleThreshold:      5,
-		probabilityThreshold: 0.51,
-		volume:               10,
-		strategies: []tradingStrategy{
+		Coin:                 model.DOT,
+		SampleThreshold:      5,
+		ProbabilityThreshold: 0.51,
+		Volume:               10,
+		Strategies: []TradingStrategy{
 			simpleStrategy,
 		},
 	},
 	model.XRP: {
-		coin:                 model.XRP,
-		sampleThreshold:      5,
-		probabilityThreshold: 0.51,
-		volume:               500,
-		strategies: []tradingStrategy{
+		Coin:                 model.XRP,
+		SampleThreshold:      5,
+		ProbabilityThreshold: 0.51,
+		Volume:               500,
+		Strategies: []TradingStrategy{
 			simpleStrategy,
 		},
 	},

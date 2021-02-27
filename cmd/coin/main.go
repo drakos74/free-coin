@@ -4,12 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
+
 	"github.com/drakos74/free-coin/user/telegram"
 
 	"github.com/drakos74/free-coin/client/kraken"
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
-	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -56,9 +59,9 @@ func main() {
 	signals := make(chan api.Signal)
 	actions := make(chan api.Action)
 	exchange := kraken.NewExchange(ctx)
-	statsProcessor := processor.MultiStats(exchange, user, signals)
-	positionProcessor := processor.Position(exchange, user, actions)
-	tradeProcessor := processor.Trade(exchange, user, actions, signals)
+	statsProcessor := stats.MultiStats(exchange, user, signals)
+	positionProcessor := position.Position(exchange, user, actions)
+	tradeProcessor := trade.Trade(exchange, user, actions, signals)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log(),
 			statsProcessor,

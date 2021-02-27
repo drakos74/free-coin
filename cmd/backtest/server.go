@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/cmd/backtest/coin"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
@@ -125,7 +127,10 @@ func (s *Server) Run() error {
 				s.error(w, err)
 				return
 			}
-			fmt.Println(fmt.Sprintf("body = %+v", string(body)))
+			log.Debug().
+				Str("body", string(body)).
+				Str("endpoint", "annotations").
+				Msg("request body")
 			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
@@ -146,9 +151,14 @@ func (s *Server) Run() error {
 				s.error(w, err)
 				return
 			}
-			fmt.Println(fmt.Sprintf("query = %+v", query))
+			log.Debug().
+				Str("query", fmt.Sprintf("%+v", query)).
+				Str("endpoint", "query").
+				Msg("query")
 			service := coin.New()
 			trades, positions, messages, err := service.Run(query)
+
+			log.Info().Msg("service")
 
 			if err != nil {
 				s.error(w, err)
@@ -165,6 +175,7 @@ func (s *Server) Run() error {
 					if field, ok := target.Data[model.FieldKey]; ok {
 						if f, ok := field.(string); ok {
 							coinTrades := trades[c]
+							log.Info().Int("count", len(coinTrades)).Str("target", target.Target).Msg("adding trades")
 							points := model.TradesData(f, coinTrades)
 							data = append(data, model.Series{
 								Target:     fmt.Sprintf("%s %s", target.Target, field),
@@ -179,6 +190,7 @@ func (s *Server) Run() error {
 					if _, ok := target.Data[model.MultiStatsConfig]; ok {
 						profitSeries := make([][]float64, 0)
 						coinPositions := positions[c]
+						log.Info().Int("count", len(coinPositions)).Str("target", target.Target).Msg("adding positions")
 						var total float64
 						for _, pos := range coinPositions {
 							net, _ := pos.Position.Value()
@@ -215,6 +227,7 @@ func (s *Server) Run() error {
 							Type: "string",
 						},
 					)
+					log.Info().Int("count", len(messages)).Msg("adding messages")
 					for _, msg := range messages {
 						txt := strings.Split(msg.Text, "\n")
 						l := len(txt)
@@ -235,7 +248,6 @@ func (s *Server) Run() error {
 			}
 
 			response := make([]interface{}, 0)
-			fmt.Println(fmt.Sprintf("data.len = %+v", len(data)))
 			for _, table := range tables {
 				response = append(response, table)
 			}
@@ -263,7 +275,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) error(w http.ResponseWriter, err error) {
-	fmt.Println(fmt.Sprintf("err = %+v", err))
+	log.Error().Err(err).Msg("error for http request")
 	w.Write([]byte(err.Error()))
 	w.WriteHeader(http.StatusInternalServerError)
 }

@@ -1,4 +1,4 @@
-package processor
+package stats
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	StatsProcessorName = "stats"
+	ProcessorName = "stats"
 )
 
 // Target defines the prediction target intervals.
@@ -29,7 +29,7 @@ type Target struct {
 
 // MultiStatsConfig defines the configuration for the MultiStats processor.
 type MultiStatsConfig struct {
-	Duration time.Duration `json:"duration"`
+	Duration time.Duration `json:"Duration"`
 	Targets  []Target      `json:"targets"`
 }
 
@@ -40,7 +40,7 @@ type windowConfig struct {
 }
 
 func newWindowConfig(config MultiStatsConfig) windowConfig {
-	// check the max history duration we need to apply the given config
+	// check the max history Duration we need to apply the given config
 	var size int
 	hmmConfigs := make([]buffer.HMMConfig, len(config.Targets))
 	for _, target := range config.Targets {
@@ -87,7 +87,7 @@ func newStats(config []MultiStatsConfig) *statsCollector {
 		log.Info().
 			Str("intervals", fmt.Sprintf("%+v", dd.Targets)).
 			Int("min", int(dd.Duration.Minutes())).
-			Msg("added default duration stats")
+			Msg("added default Duration stats")
 		stats.configs[dd.Duration] = newWindowConfig(dd)
 		stats.windows[dd.Duration] = make(map[model.Coin]window)
 	}
@@ -116,8 +116,8 @@ func (s *statsCollector) start(dd time.Duration, coin model.Coin) {
 		log.Info().
 			Str("counters", fmt.Sprintf("%+v", cfg.counterSizes)).
 			Int64("size", cfg.historySizes).
-			Float64("duration", cfg.duration.Minutes()).
-			Str("coin", string(coin)).
+			Float64("Duration", cfg.duration.Minutes()).
+			Str("Coin", string(coin)).
 			Msg("started stats processor")
 	}
 }
@@ -136,7 +136,7 @@ func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface
 		buckets := s.windows[dd][trade.Coin].w.Get(func(bucket interface{}) interface{} {
 			// it's a history window , so we expect to have history buckets inside
 			if b, ok := bucket.(buffer.TimeBucket); ok {
-				// get the 'zerowth' stats element, as we are only assing the price a few lines above,
+				// get the 'zerowth' stats element, as we are only assing the Price a few lines above,
 				// there is nothing more to retrieve from the bucket.
 				priceView := buffer.NewView(b, 0)
 				volumeView := buffer.NewView(b, 1)
@@ -173,7 +173,7 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
-		//timeDuration := time.Duration(duration) * time.Minute
+		//timeDuration := Time.Duration(Duration) * Time.Minute
 
 		switch action {
 		case "":
@@ -237,20 +237,20 @@ func MultiStats(client api.Exchange, user api.User, configs ...MultiStatsConfig)
 
 	stats := newStats(configs)
 
-	//cmdSample := "?notify [time in minutes] [start/stop]"
+	//cmdSample := "?notify [Time in minutes] [start/stop]"
 
 	go trackStatsActions(user, stats)
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
 		defer func() {
-			log.Info().Str("processor", StatsProcessorName).Msg("closing' strategy")
+			log.Info().Str("processor", ProcessorName).Msg("closing processor")
 			close(out)
 		}()
 
 		for trade := range in {
 
-			metrics.Observer.IncrementTrades(string(trade.Coin), StatsProcessorName)
+			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 
 			for key, cfg := range stats.configs {
 				// we got the config, check if we need something to do in the windows
@@ -267,14 +267,14 @@ func MultiStats(client api.Exchange, user api.User, configs ...MultiStatsConfig)
 					if trade.Live {
 						aggregateStats := coinmath.NewAggregateStats(indicators)
 						trade.Signal = model.Signal{
-							Type: "tradeSignal",
-							Value: tradeSignal{
-								coin:           trade.Coin,
-								price:          trade.Price,
-								time:           trade.Time,
-								duration:       key,
-								predictions:    predictions,
-								aggregateStats: aggregateStats,
+							Type: "TradeSignal",
+							Value: TradeSignal{
+								Coin:           trade.Coin,
+								Price:          trade.Price,
+								Time:           trade.Time,
+								Duration:       key,
+								Predictions:    predictions,
+								AggregateStats: aggregateStats,
 							},
 						}
 						if user != nil {
@@ -290,17 +290,16 @@ func MultiStats(client api.Exchange, user api.User, configs ...MultiStatsConfig)
 			}
 			out <- trade
 		}
-		log.Info().Str("processor", StatsProcessorName).Msg("closing processor")
 	}
 }
 
-type tradeSignal struct {
-	coin           model.Coin
-	price          float64
-	time           time.Time
-	duration       time.Duration
-	predictions    map[string]buffer.Prediction
-	aggregateStats coinmath.AggregateStats
+type TradeSignal struct {
+	Coin           model.Coin
+	Price          float64
+	Time           time.Time
+	Duration       time.Duration
+	Predictions    map[string]buffer.Prediction
+	AggregateStats coinmath.AggregateStats
 }
 
 type windowView struct {
@@ -345,7 +344,7 @@ func order(extract func(b windowView) float64) func(b windowView) string {
 func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, status buffer.Status, p *model.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
-	// format the predictions.
+	// format the Predictions.
 	pp := make([]string, len(predictions)+1)
 	samples := make([]string, len(status.Samples))
 	k := 0
@@ -384,7 +383,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		cfg.duration.Minutes(),
 		strings.Join(emojiValues, " "))
 
-	// last bucket price details
+	// last bucket Price details
 	move := emoji.MapToSentiment(last.price.Ratio)
 	mp := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
@@ -416,7 +415,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		mp,
 		mv,
 		st,
-		// predictions details
+		// Predictions details
 		strings.Join(pp, "\n "))
 
 }

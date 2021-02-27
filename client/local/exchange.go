@@ -9,17 +9,17 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
-
 	"github.com/drakos74/free-coin/internal/model"
+	zlog "github.com/rs/zerolog/log"
 )
 
-// ExchangeTracker is a local exchange implementation that just tracks positions virtually
+// Exchange is a local exchange implementation that just tracks positions virtually
 // It is used for back-testing
-type ExchangeTracker struct {
+type Exchange struct {
 	trades          map[model.Coin]model.Trade
-	allTrades       map[model.Coin][]model.Trade
 	positions       map[string]TrackedPosition
-	closedPositions []TrackedPosition
+	allTrades       map[model.Coin][]model.Trade
+	closedPositions map[model.Coin][]TrackedPosition
 	count           map[model.Coin]int
 	mutex           *sync.Mutex
 	logger          *log.Logger
@@ -27,7 +27,7 @@ type ExchangeTracker struct {
 }
 
 // NewExchange creates a new local exchange
-func NewExchange(logFile string, action chan<- api.Action) *ExchangeTracker {
+func NewExchange(logFile string, action chan<- api.Action) *Exchange {
 	var logger *log.Logger
 	if logFile != "" {
 		file, err := os.OpenFile("cmd/test/logs/tracker_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
@@ -36,11 +36,11 @@ func NewExchange(logFile string, action chan<- api.Action) *ExchangeTracker {
 		}
 		logger = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	}
-	return &ExchangeTracker{
+	return &Exchange{
 		trades:          make(map[model.Coin]model.Trade),
-		allTrades:       make(map[model.Coin][]model.Trade),
 		positions:       make(map[string]TrackedPosition),
-		closedPositions: make([]TrackedPosition, 0),
+		allTrades:       make(map[model.Coin][]model.Trade),
+		closedPositions: make(map[model.Coin][]TrackedPosition),
 		count:           make(map[model.Coin]int),
 		mutex:           new(sync.Mutex),
 		logger:          logger,
@@ -48,7 +48,7 @@ func NewExchange(logFile string, action chan<- api.Action) *ExchangeTracker {
 	}
 }
 
-func (e *ExchangeTracker) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
+func (e *Exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	positions := make([]model.Position, len(e.positions))
@@ -59,17 +59,16 @@ func (e *ExchangeTracker) OpenPositions(ctx context.Context) (*model.PositionBat
 	}
 	return &model.PositionBatch{
 		Positions: positions,
-		Index:     0,
 	}, nil
 }
 
-func (e *ExchangeTracker) log(msg string) {
+func (e *Exchange) log(msg string) {
 	if e.logger != nil {
 		e.logger.Println(msg)
 	}
 }
 
-func (e *ExchangeTracker) OpenPosition(position model.Position) error {
+func (e *Exchange) OpenPosition(position model.Position) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	var price float64
@@ -92,7 +91,7 @@ func (e *ExchangeTracker) OpenPosition(position model.Position) error {
 	return nil
 }
 
-func (e *ExchangeTracker) OpenOrder(order model.Order) error {
+func (e *Exchange) OpenOrder(order model.Order) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// we assume here it s always market order
@@ -117,7 +116,7 @@ func (e *ExchangeTracker) OpenOrder(order model.Order) error {
 	return nil
 }
 
-func (e *ExchangeTracker) ClosePosition(position model.Position) error {
+func (e *Exchange) ClosePosition(position model.Position) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	var price float64
@@ -132,15 +131,19 @@ func (e *ExchangeTracker) ClosePosition(position model.Position) error {
 		pos.Position.CurrentPrice = price
 		e.positions[position.ID] = pos
 	} else {
-		fmt.Println(fmt.Sprintf("position not found = %+v", position.ID))
+		return fmt.Errorf("position not found: %s", position.ID)
 	}
-	e.closedPositions = append(e.closedPositions, e.positions[position.ID])
+	if _, ok := e.closedPositions[position.Coin]; !ok {
+		e.closedPositions[position.Coin] = make([]TrackedPosition, 0)
+	}
+	e.closedPositions[position.Coin] = append(e.closedPositions[position.Coin], e.positions[position.ID])
+	delete(e.positions, position.ID)
 	//fmt.Println(fmt.Sprintf("close position = %+v", e.positions[position.ID]))
 	e.log(fmt.Sprintf("close position %+v", e.positions[position.ID]))
 	return nil
 }
 
-func (e *ExchangeTracker) Process(trade *model.Trade) {
+func (e *Exchange) Process(trade *model.Trade) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// TODO : check why and when we are getting nil trades.
@@ -158,18 +161,20 @@ func (e *ExchangeTracker) Process(trade *model.Trade) {
 	e.action <- api.Action{}
 }
 
-func (e *ExchangeTracker) Gather() {
-	fmt.Println(fmt.Sprintf("processing fininshed = %+v", len(e.count)))
+func (e *Exchange) Gather() {
+	zlog.Info().Msg("processing finished")
 	for c, cc := range e.count {
-		fmt.Println(fmt.Sprintf("trades %s = %+v", string(c), cc))
+		zlog.Info().Str("coin", string(c)).Int("count", cc).Msg("trades")
+		zlog.Info().Str("coin", string(c)).Int("count", len(e.allTrades[c])).Msg("all trades")
+		zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
 	}
 }
 
 // Trades returns the processed trades.
-func (e *ExchangeTracker) Trades(coin model.Coin) []model.Trade {
+func (e *Exchange) Trades(coin model.Coin) []model.Trade {
 	return e.allTrades[coin]
 }
 
-func (e *ExchangeTracker) Positions(coin model.Coin) (positions []TrackedPosition) {
-	return e.closedPositions
+func (e *Exchange) Positions(coin model.Coin) (positions []TrackedPosition) {
+	return e.closedPositions[coin]
 }

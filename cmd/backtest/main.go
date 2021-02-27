@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+
+	start := time.Now()
 
 	ctx := context.Background()
 	srv := New()
@@ -17,5 +22,6 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	fmt.Println(fmt.Sprintf("shutting down = %+v", srv))
+	duration := time.Since(start)
+	log.Info().Str("duration", fmt.Sprintf("%v", duration)).Msg("back-test finished")
 }
