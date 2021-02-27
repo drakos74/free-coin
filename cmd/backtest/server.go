@@ -328,6 +328,9 @@ func formatJsonData(v interface{}) interface{} {
 	s = strings.ReplaceAll(s, ":", " ")
 	s = strings.ReplaceAll(s, ",", "|")
 	s = strings.ReplaceAll(s, "\"", "")
+	s = strings.ReplaceAll(s, "duration", "")
+	s = strings.ReplaceAll(s, "order", "")
+	s = strings.ReplaceAll(s, "targets", "")
 
 	return s
 
