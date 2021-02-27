@@ -55,12 +55,12 @@ func (s *Server) Run() error {
 
 	go func() {
 		for action := range s.block.Action {
-			log.Error().
+			log.Warn().
 				Time("time", action.Time).
 				Str("action", action.Name).
 				Msg("started execution")
 			reaction := <-s.block.ReAction
-			log.Error().
+			log.Warn().
 				Time("time", action.Time).
 				Float64("duration", time.Since(action.Time).Seconds()).
 				Str("reaction", reaction.Name).
@@ -87,6 +87,9 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
 	s.block.Action <- api.NewAction("query")
+	defer func() {
+		s.block.ReAction <- api.NewAction("query")
+	}()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -99,7 +102,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Debug().
+	log.Warn().
 		Str("query", fmt.Sprintf("%+v", query)).
 		Str("endpoint", "query").
 		Msg("query")
@@ -224,32 +227,6 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(b)
-	w.WriteHeader(http.StatusOK)
-
-	s.block.ReAction <- api.NewAction("query")
-}
-
-func formatJsonData(v interface{}) interface{} {
-
-	b, err := json.Marshal(v)
-	if err != nil {
-		log.Warn().Err(err).Msg("could not format json data")
-		return v
-	}
-
-	s := string(b)
-
-	fmt.Println(fmt.Sprintf("s = %+v", s))
-
-	s = strings.ReplaceAll(s, "{", "")
-	s = strings.ReplaceAll(s, "}", "")
-	s = strings.ReplaceAll(s, ":", " ")
-	s = strings.ReplaceAll(s, ",", " ")
-	s = strings.ReplaceAll(s, "\"", "")
-
-	fmt.Println(fmt.Sprintf("s = %+v", s))
-	return s
-
 }
 
 func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +297,6 @@ func (s *Server) live(w http.ResponseWriter, r *http.Request) {
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 	coins := make([]string, 0)
 	for _, coin := range coinmodel.Coins {
-		fmt.Println(fmt.Sprintf("coin = %+v", coin))
 		coins = append(coins, string(coin))
 	}
 	b, err := json.Marshal(coins)
@@ -335,4 +311,24 @@ func (s *Server) error(w http.ResponseWriter, err error) {
 	log.Error().Err(err).Msg("error for http request")
 	w.Write([]byte(err.Error()))
 	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func formatJsonData(v interface{}) interface{} {
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		log.Warn().Err(err).Msg("could not format json data")
+		return v
+	}
+
+	s := string(b)
+
+	s = strings.ReplaceAll(s, "{", "")
+	s = strings.ReplaceAll(s, "}", "")
+	s = strings.ReplaceAll(s, ":", " ")
+	s = strings.ReplaceAll(s, ",", "|")
+	s = strings.ReplaceAll(s, "\"", "")
+
+	return s
+
 }
