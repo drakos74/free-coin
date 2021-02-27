@@ -224,8 +224,12 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	pp := make([]string, len(predictions)+1)
 	samples := make([]string, len(status.Samples))
 	k := 0
-	for cfg, sample := range status.Samples {
-		samples[k] = fmt.Sprintf("%v : %d", cfg, len(sample))
+	for _, sample := range status.Samples {
+		var ss int
+		for _, smpl := range sample {
+			ss += smpl.Events
+		}
+		samples[k] = fmt.Sprintf("%d : %d", ss, len(sample))
 		k++
 	}
 	pp[0] = fmt.Sprintf("%+v -> %s", status.Count, strings.Join(samples, " | "))
@@ -235,7 +239,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		valueSlice := strings.Split(v.Value, ":")
 		emojiKeySlice := emoji.MapToSymbols(keySlice)
 		emojiValueSlice := emoji.MapToSymbols(valueSlice)
-		pp[i] = fmt.Sprintf("%s -> %s ( %.2f : %.2f : %v : %d : %d) ",
+		pp[i] = fmt.Sprintf("%s -> %s ( %.2f | %.2f | %v | %d | %d) ",
 			strings.Join(emojiKeySlice, " "),
 			strings.Join(emojiValueSlice, " "),
 			v.Probability,
