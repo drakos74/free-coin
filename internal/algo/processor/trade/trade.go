@@ -240,7 +240,7 @@ var simpleStrategy = TradingStrategy{
 		t := model.NoType
 		value := 0.0
 		s := 0.0
-		// add weight to the first one
+		// make it simple if we have one prediction
 		l := len(vv)
 		if len(vv) == 1 {
 			switch vv[0] {

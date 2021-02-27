@@ -24,7 +24,7 @@ const (
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(user api.User, configs ...MultiStatsConfig) api.Processor {
+func MultiStats(user api.User, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
@@ -50,17 +50,24 @@ func MultiStats(user api.User, configs ...MultiStatsConfig) api.Processor {
 		for trade := range in {
 
 			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
-
-			for key, cfg := range stats.configs {
+			// set up the config for the coin if it s not there.
+			// use "" as default ... if its missing i guess we ll fail hard at some point ...
+			if _, ok := stats.configs[trade.Coin]; !ok {
+				stats.configs[trade.Coin] = stats.configs[""]
+			}
+			for duration, cfg := range stats.configs[trade.Coin] {
+				k := sKey{
+					duration: duration,
+					coin:     trade.Coin,
+				}
 				// we got the config, check if we need something to do in the windows
-				stats.start(key, trade.Coin)
-
+				stats.start(k)
 				// push the trade data to the stats collector window
-				if buckets, ok := stats.push(key, trade); ok {
+				if buckets, ok := stats.push(k, trade); ok {
 					values, indicators, last := extractFromBuckets(buckets,
 						group(getPriceRatio, cfg.order))
 					// count the occurrences
-					predictions, status := stats.add(key, trade.Coin, values[0][len(values[0])-1])
+					predictions, status := stats.add(k, values[0][len(values[0])-1])
 					if trade.Live {
 						aggregateStats := coinmath.NewAggregateStats(indicators)
 						trade.Signal = model.Signal{
@@ -69,7 +76,7 @@ func MultiStats(user api.User, configs ...MultiStatsConfig) api.Processor {
 								Coin:           trade.Coin,
 								Price:          trade.Price,
 								Time:           trade.Time,
-								Duration:       key,
+								Duration:       k.duration,
 								Predictions:    predictions,
 								AggregateStats: aggregateStats,
 							},

@@ -13,16 +13,17 @@ type Target struct {
 	LookAhead int `json:"next"`
 }
 
-// MultiStatsConfig defines the configuration for the MultiStats processor.
-type MultiStatsConfig struct {
+// Config defines the configuration for the MultiStats processor.
+type Config struct {
+	Coin      string   `json:"coin"`
 	Duration  int      `json:"duration"`
 	Order     string   `json:"order"`
 	Intervals int      `json:"intervals"`
 	Targets   []Target `json:"targets"`
 }
 
-func loadDefaults() []MultiStatsConfig {
-	var configs []MultiStatsConfig
+func loadDefaults() []Config {
+	var configs []Config
 	config.MustLoad(ProcessorName, &configs)
 	return configs
 }

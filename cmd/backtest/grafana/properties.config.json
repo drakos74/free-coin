@@ -1,0 +1,32 @@
+{
+  "position": {
+    "profit": {
+      "min": 0.5,
+      "max": 1.5,
+      "trail": true
+    },
+    "loss": {
+      "min": 1,
+      "max": 1.5,
+      "trail": true
+    }
+  },
+  "stats": {
+    "duration": 5,
+    "order": "O10",
+    "targets": [
+      {
+        "prev": 3,
+        "next": 1
+      },
+      {
+        "prev": 4,
+        "next": 3
+      },
+      {
+        "prev": 5,
+        "next": 2
+      }
+    ]
+  }
+}

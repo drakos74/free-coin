@@ -18,31 +18,33 @@ type window struct {
 }
 
 type windowConfig struct {
+	coin         model.Coin
 	duration     time.Duration
 	order        orderFunc
 	historySizes int64
 	counterSizes []buffer.HMMConfig
 }
 
-func newWindowConfig(duration time.Duration, config MultiStatsConfig) (windowConfig, error) {
+func newWindowConfig(duration time.Duration, config Config) (windowConfig, error) {
 	// check the max history Duration we need to apply the given config
 	var size int
 	hmmConfigs := make([]buffer.HMMConfig, len(config.Targets))
-	for _, target := range config.Targets {
+	for i, target := range config.Targets {
 		max := target.LookAhead + target.LookBack + 1
 		if max > size {
 			size = max
 		}
-		hmmConfigs = append(hmmConfigs, buffer.HMMConfig{
+		hmmConfigs[i] = buffer.HMMConfig{
 			LookBack:  target.LookBack,
 			LookAhead: target.LookAhead,
-		})
+		}
 	}
 	orderFunction, err := getOrderFunc(config.Order)
 	if err != nil {
 		return windowConfig{}, fmt.Errorf("could not get order func: '%s'", config.Order)
 	}
 	return windowConfig{
+		coin:         model.Coin(config.Coin),
 		duration:     duration,
 		historySizes: int64(size),
 		counterSizes: hmmConfigs,
@@ -53,34 +55,46 @@ func newWindowConfig(duration time.Duration, config MultiStatsConfig) (windowCon
 type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
 	lock    sync.RWMutex
-	configs map[time.Duration]windowConfig
-	windows map[time.Duration]map[model.Coin]window
+	configs map[model.Coin]map[time.Duration]windowConfig
+	windows map[sKey]window
 }
 
-func newStats(configs []MultiStatsConfig) (*statsCollector, error) {
+func newStats(initialConfigs []Config) (*statsCollector, error) {
 	stats := &statsCollector{
 		lock:    sync.RWMutex{},
-		configs: make(map[time.Duration]windowConfig),
-		windows: make(map[time.Duration]map[model.Coin]window),
+		configs: make(map[model.Coin]map[time.Duration]windowConfig),
+		windows: make(map[sKey]window),
 	}
-	// add default configs to start with ...
-	for _, dd := range configs {
+	// add default initialConfigs to start with ...
+	for _, dd := range initialConfigs {
+		c := model.Coin(dd.Coin)
+
+		if _, ok := stats.configs[c]; !ok {
+			stats.configs[c] = make(map[time.Duration]windowConfig)
+		}
+
 		log.Info().
+			Str("coin", dd.Coin).
 			Str("intervals", fmt.Sprintf("%+v", dd.Targets)).
-			Int("min", dd.Duration).
-			Msg("added stats configs")
+			Int("duration", dd.Duration).
+			Msg("adding stats initialConfig")
 		duration := time.Duration(dd.Duration) * time.Minute
 		config, err := newWindowConfig(duration, dd)
 		if err != nil {
 			return nil, fmt.Errorf("could not init stats collector: %w", err)
 		}
-		stats.configs[duration] = config
-		stats.windows[duration] = make(map[model.Coin]window)
+
+		if _, ok := stats.configs[c][duration]; ok {
+			log.Error().Str("coin", string(c)).Int("duration", dd.Duration).Msg("duplicate stats config key")
+			continue
+		}
+		// we can have only one config per coin per duration
+		stats.configs[c][duration] = config
 	}
 	return stats, nil
 }
 
-//func (s *statsCollector) hasOrAddDuration(dd MultiStatsConfig) bool {
+//func (s *statsCollector) hasOrAddDuration(dd Config) bool {
 //	s.lock.RLock()
 //	defer s.lock.RUnlock()
 //	if _, ok := s.configs[dd.Duration]; ok {
@@ -90,12 +104,17 @@ func newStats(configs []MultiStatsConfig) (*statsCollector, error) {
 //	return false
 //}
 
-func (s *statsCollector) start(dd time.Duration, coin model.Coin) {
+type sKey struct {
+	duration time.Duration
+	coin     model.Coin
+}
+
+func (s *statsCollector) start(k sKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	cfg := s.configs[dd]
-	if _, ok := s.windows[dd][coin]; !ok {
-		s.windows[dd][coin] = window{
+	cfg := s.configs[k.coin][k.duration]
+	if _, ok := s.windows[k]; !ok {
+		s.windows[k] = window{
 			w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
 			c: buffer.NewMultiHMM(cfg.counterSizes...),
 		}
@@ -103,23 +122,23 @@ func (s *statsCollector) start(dd time.Duration, coin model.Coin) {
 			Str("counters", fmt.Sprintf("%+v", cfg.counterSizes)).
 			Int64("size", cfg.historySizes).
 			Float64("Duration", cfg.duration.Minutes()).
-			Str("Coin", string(coin)).
+			Str("Coin", string(k.coin)).
 			Msg("started stats processor")
 	}
 }
 
-func (s *statsCollector) stop(dd time.Duration) {
+func (s *statsCollector) stop(k sKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	delete(s.configs, dd)
-	delete(s.windows, dd)
+	delete(s.configs[k.coin], k.duration)
+	delete(s.windows, k)
 }
 
-func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface{}, bool) {
+func (s *statsCollector) push(k sKey, trade *model.Trade) ([]interface{}, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if _, ok := s.windows[dd][trade.Coin].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
-		buckets := s.windows[dd][trade.Coin].w.Get(func(bucket interface{}) interface{} {
+	if _, ok := s.windows[k].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
+		buckets := s.windows[k].w.Get(func(bucket interface{}) interface{} {
 			// it's a history window , so we expect to have history buckets inside
 			if b, ok := bucket.(buffer.TimeBucket); ok {
 				// get the 'zerowth' stats element, as we are only assing the Price a few lines above,
@@ -139,8 +158,8 @@ func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface
 	return nil, false
 }
 
-func (s *statsCollector) add(dd time.Duration, coin model.Coin, v string) (map[string]buffer.Prediction, buffer.Status) {
+func (s *statsCollector) add(k sKey, v string) (map[string]buffer.Prediction, buffer.Status) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.windows[dd][coin].c.Add(v, fmt.Sprintf("%dm", int(dd.Minutes())))
+	return s.windows[k].c.Add(v, fmt.Sprintf("%dm", int(k.duration.Minutes())))
 }

@@ -118,14 +118,24 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			OneOfEvery(100)
 
 		block := api.NewBlock()
-		multiStatsConfig := make([]stats.MultiStatsConfig, 0)
-		if cfg, ok := q.Data[stats.ProcessorName]; ok {
-			var config stats.MultiStatsConfig
-			err := FromJsonMap(stats.ProcessorName, cfg, &config)
+		multiStatsConfig := make([]stats.Config, 0)
+		if statsConfig, ok := q.Data[stats.ProcessorName]; ok {
+			var config stats.Config
+			err := FromJsonMap(stats.ProcessorName, statsConfig, &config)
 			if err != nil {
 				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", stats.ProcessorName, err))
 			}
 			multiStatsConfig = append(multiStatsConfig, config)
+		}
+
+		positionsConfig := make([]position.Config, 0)
+		if posConfig, ok := q.Data[position.ProcessorName]; ok {
+			var config position.Config
+			err := FromJsonMap(position.ProcessorName, posConfig, &config)
+			if err != nil {
+				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", position.ProcessorName, err))
+			}
+			positionsConfig = append(positionsConfig, config)
 		}
 
 		statsProcessor := stats.MultiStats(user, multiStatsConfig...)
@@ -162,6 +172,8 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 	}
 	switch name {
 	case stats.ProcessorName:
+		fallthrough
+	case position.ProcessorName:
 		return json.Unmarshal(b, n)
 	}
 	return fmt.Errorf("could not find json loader for config: %s", name)
