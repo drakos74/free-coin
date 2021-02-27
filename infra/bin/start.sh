@@ -70,6 +70,23 @@ restart() {
   echo "$process restarted!"
 }
 
+
+restart_grafana() {
+  process="$1"
+
+  dir=$(pwd)
+  echo "current directory '$dir'"
+
+  stop "$process"
+  echo "stopped $process"
+
+  ./home/ec2-user/Tools/grafana-7.4.3/start_grafana.sh
+  echo "starting $process"
+
+  check "$process"
+  echo "$process restarted!"
+}
+
 dir=$(pwd)
 echo "$dir"
 
@@ -86,6 +103,9 @@ restart "coin"
 
 # restart backtesting process
 restart "backtest"
+
+# just stop and start
+justrestart "grafana"
 
 echo "DONE!"
 exit 0
