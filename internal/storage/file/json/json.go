@@ -107,7 +107,7 @@ func Load(filePath string, fileName string, value interface{}) error {
 					data = fileData
 					return nil
 				}
-				log.Warn().Str("path", filePath).Str("file", fileName).Msg("not found")
+				log.Info().Str("path", filePath).Str("file", fileName).Msg("not found")
 			}
 			return nil
 		})
