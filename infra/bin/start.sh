@@ -81,8 +81,11 @@ fi
 # restart server process for ui and static file access
 restart "server"
 
-#restart coin process
+# restart coin process
 restart "coin"
+
+# restart backtesting process
+restart "backtest"
 
 echo "DONE!"
 exit 0
