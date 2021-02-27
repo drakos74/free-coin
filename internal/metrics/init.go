@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
 
@@ -11,9 +12,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const port = 6021
+const port = 6040
 
 func init() {
+
+	p := port + rand.Intn(50)
 
 	Observer = &Metrics{
 		mutex:      new(sync.RWMutex),
@@ -24,7 +27,8 @@ func init() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+		fmt.Printf(fmt.Sprintf("Starting metrics server at port %d\n", p))
+		err := http.ListenAndServe(fmt.Sprintf(":%d", p), nil)
 		if err != nil {
 			log.Error().Err(err).Msg("could not start metrics server")
 		}

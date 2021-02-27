@@ -54,7 +54,7 @@ func (s *Server) Run() error {
 	http.HandleFunc(fmt.Sprintf("/%s/annotations", basePath), Handle(POST, s.annotations))
 	http.HandleFunc(fmt.Sprintf("/%s/query", basePath), Handle(POST, s.query))
 
-	fmt.Printf(fmt.Sprintf("Starting server at port %d\n", port))
+	fmt.Printf(fmt.Sprintf("Starting backtest server at port %d\n", port))
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		return fmt.Errorf("could not start storage server: %w", err)
 	}
