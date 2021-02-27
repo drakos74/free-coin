@@ -105,7 +105,7 @@ restart "coin"
 restart "backtest"
 
 # just stop and start
-justrestart "grafana"
+restart_grafana "grafana"
 
 echo "DONE!"
 exit 0
