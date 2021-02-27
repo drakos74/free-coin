@@ -16,6 +16,7 @@ import (
 // Exchange is a local exchange implementation that just tracks positions virtually
 // It is used for back-testing
 type Exchange struct {
+	oneOfEvery      int
 	trades          map[model.Coin]model.Trade
 	positions       map[string]TrackedPosition
 	allTrades       map[model.Coin][]model.Trade
@@ -46,6 +47,11 @@ func NewExchange(logFile string, action chan<- api.Action) *Exchange {
 		logger:          logger,
 		action:          action,
 	}
+}
+
+func (e *Exchange) OneOfEvery(n int) *Exchange {
+	e.oneOfEvery = n
+	return e
 }
 
 func (e *Exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
@@ -154,9 +160,11 @@ func (e *Exchange) Process(trade *model.Trade) {
 		e.allTrades[trade.Coin] = make([]model.Trade, 0)
 	}
 	tr := *trade
-	e.allTrades[trade.Coin] = append(e.allTrades[trade.Coin], tr)
 	e.trades[trade.Coin] = tr
 	e.count[trade.Coin]++
+	if e.oneOfEvery == 0 || e.count[trade.Coin]%e.oneOfEvery == 0 {
+		e.allTrades[trade.Coin] = append(e.allTrades[trade.Coin], tr)
+	}
 	// signal to the source we are done processing this one
 	e.action <- api.Action{}
 }

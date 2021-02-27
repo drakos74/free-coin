@@ -113,7 +113,9 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		//go overWatch.Run(ctx)
 
 		finished := api.NewBlock()
-		exchange := local.NewExchange("", finished.ReAction)
+		exchange := local.
+			NewExchange("", finished.ReAction).
+			OneOfEvery(100)
 
 		block := api.NewBlock()
 		multiStatsConfig := make([]stats.MultiStatsConfig, 0)
