@@ -3,7 +3,6 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -97,7 +96,7 @@ func Load(filePath string, fileName string, value interface{}) error {
 	var num int64
 	if err != nil {
 		// TODO : temporary fix ... check with prefix
-		filepath.Walk(filePath, func(path string, info fs.FileInfo, err error) error {
+		err = filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
 			if !info.IsDir() {
 				if strings.HasPrefix(info.Name(), fileName) {
 					atomic.AddInt64(&num, 1)
@@ -108,11 +107,13 @@ func Load(filePath string, fileName string, value interface{}) error {
 					data = fileData
 					return nil
 				}
-				fmt.Errorf("not found: %s in %s", fileName, filePath)
+				log.Warn().Str("path", filePath).Str("file", fileName).Msg("not found")
 			}
 			return nil
 		})
-		//return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
+		if err != nil {
+			return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
+		}
 	} else {
 		num = 1
 	}
