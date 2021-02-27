@@ -159,6 +159,7 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 					// check if we should make a buy order
 					t := model.NoType
 					pairs := make([]predictionPair, 0)
+					var opened bool
 					for k, p := range predictions {
 						if p.Probability >= cfg.ProbabilityThreshold && p.Sample >= cfg.SampleThreshold {
 							// we know it s a good prediction. Lets check the value
@@ -186,7 +187,8 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 						}
 					}
 					if t != model.NoType {
-						if vol, ok := defaultOpenConfig[ts.Coin]; ok {
+						if vol, ok := defaultOpenConfig[ts.Coin]; ok && !opened {
+							opened = true
 							order := model.NewOrder(ts.Coin).
 								WithLeverage(model.L_5).
 								WithVolume(vol.Volume).
@@ -204,8 +206,6 @@ func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 							block.Action <- api.Action{}
 							api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol.Volume, ts.Coin, ts.Price)), err)
 							<-block.ReAction
-							// dont open other positions in this round
-							continue
 						}
 					}
 				}
