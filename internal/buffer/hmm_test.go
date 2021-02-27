@@ -30,8 +30,8 @@ func TestCounter_Add(t *testing.T) {
 				},
 			},
 			configs: []HMMConfig{{
-				PrevSize:   1,
-				TargetSize: 1,
+				LookBack:  1,
+				LookAhead: 1,
 			}},
 		},
 		"single-value": {
@@ -47,8 +47,8 @@ func TestCounter_Add(t *testing.T) {
 				},
 			},
 			configs: []HMMConfig{{
-				PrevSize:   2,
-				TargetSize: 1,
+				LookBack:  2,
+				LookAhead: 1,
 			}},
 		},
 		"dual-value": {
@@ -74,8 +74,8 @@ func TestCounter_Add(t *testing.T) {
 				},
 			},
 			configs: []HMMConfig{{
-				PrevSize:   2,
-				TargetSize: 1,
+				LookBack:  2,
+				LookAhead: 1,
 			}},
 		},
 		"dual-target-value": {
@@ -101,8 +101,8 @@ func TestCounter_Add(t *testing.T) {
 				},
 			},
 			configs: []HMMConfig{{
-				PrevSize:   2,
-				TargetSize: 2,
+				LookBack:  2,
+				LookAhead: 2,
 			}},
 		},
 		"sequence-value": {
@@ -150,8 +150,8 @@ func TestCounter_Add(t *testing.T) {
 			},
 			configs: []HMMConfig{
 				{
-					PrevSize:   3,
-					TargetSize: 1,
+					LookBack:  3,
+					LookAhead: 1,
 				},
 			},
 		},
@@ -200,8 +200,8 @@ func TestCounter_Add(t *testing.T) {
 			},
 			configs: []HMMConfig{
 				{
-					PrevSize:   3,
-					TargetSize: 2,
+					LookBack:  3,
+					LookAhead: 2,
 				},
 			},
 		},
@@ -250,12 +250,12 @@ func TestCounter_Add(t *testing.T) {
 			},
 			configs: []HMMConfig{
 				{
-					PrevSize:   1,
-					TargetSize: 1,
+					LookBack:  1,
+					LookAhead: 1,
 				},
 				{
-					PrevSize:   2,
-					TargetSize: 1,
+					LookBack:  2,
+					LookAhead: 1,
 				},
 			},
 		},
@@ -273,9 +273,9 @@ func TestCounter_Add(t *testing.T) {
 				// track the last j configs
 				vv := make(map[string]struct{})
 				for _, j := range tt.configs {
-					index := make([]string, j.PrevSize)
+					index := make([]string, j.LookBack)
 					l := 0
-					for k := j.PrevSize - 1; k >= 0; k-- {
+					for k := j.LookBack - 1; k >= 0; k-- {
 						index[k] = tt.transform(i - l)
 						l++
 					}

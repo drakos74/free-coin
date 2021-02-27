@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 
@@ -13,6 +14,12 @@ import (
 const port = 6021
 
 func init() {
+
+	Observer = &Metrics{
+		mutex:      new(sync.RWMutex),
+		prometheus: newPrometheusMetrics(),
+	}
+
 	prometheus.MustRegister(Observer.prometheus.Trades)
 
 	go func() {

@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+// Signal is a generic envelop for packing generic objects and passing them from process to process.
+type Signal struct {
+	Type  string
+	Value interface{}
+}
+
+// VoidSignal is a void signal
+var VoidSignal = Signal{}
+
 // TradeSource is a channel for receiving and sending trades.
 type TradeSource chan *Trade
 
@@ -17,4 +26,5 @@ type Trade struct {
 	Type   Type      `json:"Type"`
 	Active bool      `json:"active"`
 	Live   bool      `json:"live"`
+	Signal Signal    `json:"-"`
 }

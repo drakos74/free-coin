@@ -10,6 +10,9 @@ const (
 	HistoryDir = "history"
 )
 
+// Shard creates a new storage implementation for the given shard.
+type Shard func(shard string) (Persistence, error)
+
 var (
 	NotFoundErr      = errors.New("not found")
 	CouldNotLoadErr  = errors.New("could not load")

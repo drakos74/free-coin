@@ -32,7 +32,7 @@ func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
 	upstream := func(since int64) (api.Client, error) {
-		return kraken.NewClient(since, 15*time.Second), nil
+		return kraken.NewClient(since, 15*time.Second, api.NonStop), nil
 	}
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
@@ -43,7 +43,7 @@ func main() {
 		WithPersistence(persistence).
 		Mock()
 
-	user, err := local2.NewVoid()
+	user, err := local2.NewUser()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())

@@ -1,0 +1,11 @@
+{
+  "stats": {
+    "duration": 1,
+    "targets": [
+      {
+        "prev": 3,
+        "next": 1
+      }
+    ]
+  }
+}

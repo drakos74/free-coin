@@ -18,12 +18,20 @@ import (
 )
 
 const (
-	statsProcessorName = "stats"
+	StatsProcessorName = "stats"
 )
 
-var (
-	defaultDurations = []time.Duration{10 * time.Minute, 30 * time.Minute, 2 * time.Hour}
-)
+// Target defines the prediction target intervals.
+type Target struct {
+	LookBack  int `json:"prev"`
+	LookAhead int `json:"next"`
+}
+
+// MultiStatsConfig defines the configuration for the MultiStats processor.
+type MultiStatsConfig struct {
+	Duration time.Duration `json:"duration"`
+	Targets  []Target      `json:"targets"`
+}
 
 type windowConfig struct {
 	duration     time.Duration
@@ -31,14 +39,27 @@ type windowConfig struct {
 	counterSizes []buffer.HMMConfig
 }
 
-func newWindowConfig(duration time.Duration) windowConfig {
+func newWindowConfig(config MultiStatsConfig) windowConfig {
+	// check the max history duration we need to apply the given config
+	var size int
+	hmmConfigs := make([]buffer.HMMConfig, len(config.Targets))
+	for _, target := range config.Targets {
+		max := target.LookAhead + target.LookBack + 1
+		if max > size {
+			size = max
+		}
+		hmmConfigs = append(hmmConfigs, buffer.HMMConfig{
+			LookBack:  target.LookBack,
+			LookAhead: target.LookAhead,
+		})
+	}
 	return windowConfig{
-		duration:     duration,
-		historySizes: 14,
+		duration:     config.Duration,
+		historySizes: int64(size),
 		counterSizes: []buffer.HMMConfig{
-			{PrevSize: 3, TargetSize: 1},
-			{PrevSize: 4, TargetSize: 2},
-			{PrevSize: 5, TargetSize: 3},
+			{LookBack: 3, LookAhead: 1},
+			{LookBack: 4, LookAhead: 2},
+			{LookBack: 5, LookAhead: 3},
 		},
 	}
 }
@@ -55,7 +76,7 @@ type statsCollector struct {
 	windows map[time.Duration]map[model.Coin]window
 }
 
-func newStats(config []time.Duration) *statsCollector {
+func newStats(config []MultiStatsConfig) *statsCollector {
 	stats := &statsCollector{
 		lock:    sync.RWMutex{},
 		configs: make(map[time.Duration]windowConfig),
@@ -63,20 +84,23 @@ func newStats(config []time.Duration) *statsCollector {
 	}
 	// add default configs to start with ...
 	for _, dd := range config {
-		log.Info().Int("min", int(dd.Minutes())).Msg("added default duration stats")
-		stats.configs[dd] = newWindowConfig(dd)
-		stats.windows[dd] = make(map[model.Coin]window)
+		log.Info().
+			Str("intervals", fmt.Sprintf("%+v", dd.Targets)).
+			Int("min", int(dd.Duration.Minutes())).
+			Msg("added default duration stats")
+		stats.configs[dd.Duration] = newWindowConfig(dd)
+		stats.windows[dd.Duration] = make(map[model.Coin]window)
 	}
 	return stats
 }
 
-func (s *statsCollector) hasOrAddDuration(dd time.Duration) bool {
+func (s *statsCollector) hasOrAddDuration(dd MultiStatsConfig) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	if _, ok := s.configs[dd]; ok {
+	if _, ok := s.configs[dd.Duration]; ok {
 		return true
 	}
-	s.configs[dd] = newWindowConfig(dd)
+	s.configs[dd.Duration] = newWindowConfig(dd)
 	return false
 }
 
@@ -149,28 +173,28 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
-		timeDuration := time.Duration(duration) * time.Minute
+		//timeDuration := time.Duration(duration) * time.Minute
 
 		switch action {
 		case "":
 			// TODO : return the currently running stats processes
-		case "start":
-			// TODO : decide how to handle the historySizes, especially in combination with the counterSizes.
-			if stats.hasOrAddDuration(timeDuration) {
-				api.Reply(api.Private, user,
-					api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
-						ReplyTo(command.ID), nil)
-				continue
-			} else {
-				api.Reply(api.Private, user,
-					api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
-						ReplyTo(command.ID), nil)
-			}
-		case "stop":
-			stats.stop(timeDuration)
-			api.Reply(api.Private, user,
-				api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
-					ReplyTo(command.ID), nil)
+			//case "start":
+			//	// TODO : re-enable this functionality.
+			//	if stats.hasOrAddDuration(timeDuration) {
+			//		api.Reply(api.Private, user,
+			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
+			//				ReplyTo(command.ID), nil)
+			//		continue
+			//	} else {
+			//		api.Reply(api.Private, user,
+			//			api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
+			//				ReplyTo(command.ID), nil)
+			//	}
+			//case "stop":
+			//	stats.stop(timeDuration)
+			//	api.Reply(api.Private, user,
+			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
+			//			ReplyTo(command.ID), nil)
 		}
 	}
 }
@@ -205,9 +229,13 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) api.Processor {
+func MultiStats(client api.Exchange, user api.User, configs ...MultiStatsConfig) api.Processor {
 
-	stats := newStats(defaultDurations)
+	if len(configs) == 0 {
+		configs = defaultDurations
+	}
+
+	stats := newStats(configs)
 
 	//cmdSample := "?notify [time in minutes] [start/stop]"
 
@@ -216,13 +244,13 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
 		defer func() {
-			log.Info().Str("processor", statsProcessorName).Msg("closing' strategy")
+			log.Info().Str("processor", StatsProcessorName).Msg("closing' strategy")
 			close(out)
 		}()
 
 		for trade := range in {
 
-			metrics.Observer.IncrementTrades(string(trade.Coin), statsProcessorName)
+			metrics.Observer.IncrementTrades(string(trade.Coin), StatsProcessorName)
 
 			for key, cfg := range stats.configs {
 				// we got the config, check if we need something to do in the windows
@@ -238,7 +266,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 					predictions, status := stats.add(key, trade.Coin, values[0][len(values[0])-1])
 					if trade.Live {
 						aggregateStats := coinmath.NewAggregateStats(indicators)
-						signal <- api.Signal{
+						trade.Signal = model.Signal{
 							Type: "tradeSignal",
 							Value: tradeSignal{
 								coin:           trade.Coin,
@@ -262,7 +290,7 @@ func MultiStats(client api.Exchange, user api.User, signal chan<- api.Signal) ap
 			}
 			out <- trade
 		}
-		log.Info().Str("processor", statsProcessorName).Msg("closing processor")
+		log.Info().Str("processor", StatsProcessorName).Msg("closing processor")
 	}
 }
 
@@ -392,3 +420,42 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		strings.Join(pp, "\n "))
 
 }
+
+var (
+	defaultTargets = []Target{
+		{
+			LookBack:  3,
+			LookAhead: 1,
+		},
+		{
+			LookBack:  4,
+			LookAhead: 2,
+		},
+		{
+			LookBack:  5,
+			LookAhead: 3,
+		},
+	}
+	defaultDurations = []MultiStatsConfig{
+		{
+			Duration: 1 * time.Minute,
+			Targets:  defaultTargets,
+		},
+		{
+			Duration: 5 * time.Minute,
+			Targets:  defaultTargets,
+		},
+		{
+			Duration: 10 * time.Minute,
+			Targets:  defaultTargets,
+		},
+		{
+			Duration: 30 * time.Minute,
+			Targets:  defaultTargets,
+		},
+		{
+			Duration: 2 * time.Hour,
+			Targets:  defaultTargets,
+		},
+	}
+)

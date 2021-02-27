@@ -16,7 +16,6 @@ type Engine struct {
 	coin       model.Coin
 	main       Processor
 	processors []api.Processor
-	autoStop   api.Condition
 	stop       chan struct{}
 }
 
@@ -24,12 +23,11 @@ type Engine struct {
 // c is the coin for this engine
 // main can be used to extract trade information from an engine, which is inherently bound to one exchange
 // autoStop is an automatically stop trigger
-func NewEngine(c model.Coin, main Processor, autoStop api.Condition) *Engine {
+func NewEngine(c model.Coin, main Processor) *Engine {
 	return &Engine{
 		coin:       c,
 		main:       main,
 		processors: make([]api.Processor, 0),
-		autoStop:   autoStop,
 		stop:       make(chan struct{}),
 	}
 }
@@ -41,9 +39,9 @@ func (engine *Engine) AddProcessor(processor api.Processor) *Engine {
 }
 
 // RunWith starts the engine with the given client.
-func (engine *Engine) RunWith(client api.Client) (*Engine, error) {
+func (engine *Engine) RunWith(block api.Block, client api.Client) (*Engine, error) {
 
-	trades, err := client.Trades(engine.stop, engine.coin, engine.autoStop)
+	trades, err := client.Trades(block.ReAction, engine.coin)
 
 	if err != nil {
 		return nil, fmt.Errorf("could not init trade source: %w", err)
@@ -62,6 +60,7 @@ func (engine *Engine) RunWith(client api.Client) (*Engine, error) {
 		defer func() {
 			log.Info().Msg("engine closed")
 			engine.main.Gather()
+			block.Action <- struct{}{}
 		}()
 		for trade := range trades {
 			// pull the trades from the source through the processors
@@ -114,7 +113,7 @@ func (o *OverWatch) Run(ctx context.Context) {
 			// ...execute
 			switch action {
 			case "start":
-				err = o.Start(model.Coins[strings.ToUpper(c)], Log())
+				err = o.Start(api.NewBlock(), model.Coins[strings.ToUpper(c)], Log())
 				api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 			case "stop":
 				err = o.Stop(model.Coins[strings.ToUpper(c)])
@@ -128,13 +127,13 @@ func (o *OverWatch) Run(ctx context.Context) {
 }
 
 // Start starts an engine for the given coin and arguments.
-func (o *OverWatch) Start(c model.Coin, processor Processor, processors ...api.Processor) error {
-	engine := NewEngine(c, processor, api.NonStop)
+func (o *OverWatch) Start(block api.Block, c model.Coin, processor Processor, processors ...api.Processor) error {
+	engine := NewEngine(c, processor)
 	for _, proc := range processors {
 		engine.AddProcessor(proc)
 	}
 	// TODO : make the key more generic to accommodate multiple clients per coin
-	e, err := engine.RunWith(o.client)
+	e, err := engine.RunWith(block, o.client)
 	if err != nil {
 		return fmt.Errorf("could not start engine for %s: %w", c, err)
 	}

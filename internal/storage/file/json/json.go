@@ -3,9 +3,12 @@ package json
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
@@ -17,6 +20,12 @@ type BlobStorage struct {
 	path  string
 	table string
 	shard string
+}
+
+func BlobShard(table string) storage.Shard {
+	return func(shard string) (storage.Persistence, error) {
+		return NewJsonBlob(table, shard), nil
+	}
 }
 
 func (s BlobStorage) Store(k storage.Key, value interface{}) error {
@@ -72,17 +81,49 @@ func Save(filePath string, fileName string, value interface{}) error {
 
 // Load loads the payload from the given filePath and fileName.
 func Load(filePath string, fileName string, value interface{}) error {
+	//
+	//path, err := os.Getwd()
+	//if err != nil {
+	//	return err
+	//}
+	//fmt.Println(path)
+	//_, err = os.Stat("file-storage")
+	//fmt.Println(fmt.Sprintf("err = %+v", err))
+	//
 
 	p := filepath.Join(filePath, fileName)
 
 	data, err := ioutil.ReadFile(fmt.Sprintf("%s.json", p))
+	var num int64
 	if err != nil {
-		return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
+		// TODO : temporary fix ... check with prefix
+		filepath.Walk(filePath, func(path string, info fs.FileInfo, err error) error {
+			if !info.IsDir() {
+				if strings.HasPrefix(info.Name(), fileName) {
+					atomic.AddInt64(&num, 1)
+					fileData, err := ioutil.ReadFile(path)
+					if err != nil {
+						return err
+					}
+					data = fileData
+					return nil
+				}
+				fmt.Errorf("not found: %s in %s", fileName, filePath)
+			}
+			return nil
+		})
+		//return fmt.Errorf("could not read file '%s' %s: %w", p, err.Error(), storage.NotFoundErr)
+	} else {
+		num = 1
+	}
+
+	if num > 1 {
+		return fmt.Errorf("multiple sources found")
 	}
 
 	err = json.Unmarshal(data, value)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal key '%s': %w", err, storage.CouldNotLoadErr)
+		return fmt.Errorf("could not unmarshal key for '%s': '%v': %w", fileName, err, storage.CouldNotLoadErr)
 	}
 
 	return nil

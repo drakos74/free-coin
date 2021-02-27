@@ -9,16 +9,16 @@ import (
 
 // HMMConfig defines the configuration for the hidden markov model analysis.
 type HMMConfig struct {
-	PrevSize   int
-	TargetSize int
+	LookBack  int
+	LookAhead int
 }
 
 // NewMultiHMM creates a new hmm.
 func NewMultiHMM(config ...HMMConfig) *HMM {
 	var max int
 	for _, s := range config {
-		if s.PrevSize+s.TargetSize > max {
-			max = s.PrevSize + s.TargetSize
+		if s.LookBack+s.LookAhead > max {
+			max = s.LookBack + s.LookAhead
 		}
 	}
 	return &HMM{
@@ -98,7 +98,7 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 			predict.Count = int(c.status.Count)
 			predict.Groups = cc
 			prediction[k] = *predict
-			s := fmt.Sprintf("%d -> %d", cfg.PrevSize, cfg.TargetSize)
+			s := fmt.Sprintf("%d -> %d", cfg.LookBack, cfg.LookAhead)
 			if _, ok := c.status.Samples[s]; !ok {
 				c.status.Samples[s] = make(map[string]Sample)
 			}
@@ -120,10 +120,10 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	// gather all available values
 	vv := append(values, s)
 	// we want to extract the value from the given values + the new one
-	k := vv[len(vv)-(cfg.PrevSize+cfg.TargetSize) : len(vv)-cfg.TargetSize]
+	k := vv[len(vv)-(cfg.LookBack+cfg.LookAhead) : len(vv)-cfg.LookAhead]
 	key := strings.Join(k, ":")
 
-	v := vv[len(vv)-cfg.TargetSize:]
+	v := vv[len(vv)-cfg.LookAhead:]
 	value := strings.Join(v, ":")
 	// if we have not encountered that meany values yet ... just skip
 	if strings.Contains(key, "<nil>") {
@@ -139,7 +139,7 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	}
 
 	// work to make the prediction by shifting the key for the desired target size
-	kk := vv[len(vv)-cfg.PrevSize:]
+	kk := vv[len(vv)-cfg.LookBack:]
 	pKey := strings.Join(kk, ":")
 	var prediction *Prediction
 	if !strings.Contains(pKey, "<nil>") {

@@ -23,19 +23,21 @@ const (
 
 // Client is the exchange client used To interact with the exchange methods.
 type Client struct {
-	since    int64
-	current  int
-	interval time.Duration
-	Api      *RemoteClient
+	since         int64
+	stopExecution api.Condition
+	current       int
+	interval      time.Duration
+	Api           *RemoteClient
 }
 
 // NewClient creates a new client.
 // since is the time in nanoseconds from when to start requesting trades.
 // interval is the interval at which the client will poll for new trades.
-func NewClient(since int64, interval time.Duration) *Client {
+func NewClient(since int64, interval time.Duration, stopExecution api.Condition) *Client {
 	client := &Client{
-		since:    since,
-		interval: interval,
+		since:         since,
+		interval:      interval,
+		stopExecution: stopExecution,
 		Api: &RemoteClient{
 			Interval:  interval,
 			converter: model.NewConverter(),
@@ -56,7 +58,7 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution api.Condition) (coinmodel.TradeSource, error) {
+func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin) (coinmodel.TradeSource, error) {
 
 	out := make(chan *coinmodel.Trade)
 
@@ -71,7 +73,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin, stopExecution
 		}()
 		for trade := range trades {
 			c.current++
-			if stopExecution(trade, c.current) {
+			if c.stopExecution(trade, c.current) {
 				log.Info().Int("current", c.current).Msg("shutting down execution pipeline")
 				err := c.Close()
 				if err != nil {

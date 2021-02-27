@@ -3,6 +3,8 @@ package model
 import (
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -48,6 +50,7 @@ type Order struct {
 // NewOrder creates a new order for the given coin.
 func NewOrder(coin Coin) *Order {
 	return &Order{
+		ID:   uuid.New().String(),
 		Coin: coin,
 	}
 }

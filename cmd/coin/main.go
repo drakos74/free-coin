@@ -38,7 +38,7 @@ func main() {
 	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
 
 	user, err := telegram.NewBot()
-	//user, err := user.NewVoid()
+	//user, err := user.NewUser()
 	if err != nil {
 		if err != nil {
 			panic(err.Error())

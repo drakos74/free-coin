@@ -24,12 +24,17 @@ func CommandFromMessage(id int, user, cmd string, opts ...string) Command {
 }
 
 // NewCommand parses a command from a message details.
-func NewCommand(id int, user, cmd string, opts ...string) Command {
+func NewCommand(id int, user string, cmd ...string) Command {
 	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
+	prefix := cmd[0]
+	opts := make([]string, 0)
+	if len(cmd) > 1 {
+		opts = cmd[1:]
+	}
 	return Command{
 		ID:      id,
 		User:    user,
-		Content: fmt.Sprintf("%s %s", cmd, strings.Join(opts, " ")),
+		Content: fmt.Sprintf("%s %s", prefix, strings.Join(opts, " ")),
 	}
 }
 

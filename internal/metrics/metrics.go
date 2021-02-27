@@ -4,10 +4,7 @@ import (
 	"sync"
 )
 
-var Observer = &Metrics{
-	mutex:      new(sync.RWMutex),
-	prometheus: newPrometheusMetrics(),
-}
+var Observer *Metrics
 
 type Metrics struct {
 	mutex      *sync.RWMutex

@@ -11,10 +11,19 @@ import (
 // TODO : add load and save functionality for processors interface to allow saving and loading state.
 type Processor func(in <-chan *model.Trade, out chan<- *model.Trade)
 
-// Signal is a generic envelop for packing generic objects and passing them from process to process.
-type Signal struct {
-	Type  string
-	Value interface{}
+// Block allows 2 processes to sync
+type Block struct {
+	// Action block.Action <- api.Action{}
+	Action chan Action
+	// ReAction	<-block.ReAction
+	ReAction chan Action
+}
+
+func NewBlock() Block {
+	return Block{
+		Action:   make(chan Action),
+		ReAction: make(chan Action),
+	}
 }
 
 // Action is a generic struct used to trigger actions on other processes.

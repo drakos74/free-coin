@@ -136,13 +136,9 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 	if trigger != nil && len(trigger.Default) > 0 {
 		// we know we can send it back
 		msgID := -1 * int(uuid.New().ID())
-		cmd := trigger.Default[0]
-		opts := make([]string, 0)
-		if len(trigger.Default) > 1 {
-			opts = trigger.Default[1:]
-		}
+
 		return msgID, b.executeTrigger(*trigger,
-			api.NewCommand(msgID, user.Bot, cmd, opts...))
+			api.NewCommand(msgID, user.Bot, trigger.Default...))
 	}
 	return sent.MessageID, nil
 }
@@ -187,5 +183,5 @@ func (b *Bot) executeTrigger(trigger api.Trigger, cmd api.Command) error {
 // newCommand creates a new command based on the input message
 func newCommand(message *tgbotapi.Message) api.Command {
 	txt := strings.Split(message.Text, " ")
-	return api.NewCommand(message.MessageID, message.From.UserName, txt[0], txt[1:]...)
+	return api.NewCommand(message.MessageID, message.From.UserName, txt...)
 }

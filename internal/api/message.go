@@ -9,7 +9,7 @@ import (
 type Message struct {
 	Text  string
 	Reply int
-	Ref   time.Time
+	Time  time.Time
 }
 
 // NewMessage creates a new message.
@@ -34,6 +34,6 @@ func (m *Message) AddLine(txt string) *Message {
 // ReferenceTime adds a reference time to the message.
 // This is especially useful for back-testing adn debugging.
 func (m *Message) ReferenceTime(t time.Time) *Message {
-	m.Ref = t
+	m.Time = t
 	return m
 }

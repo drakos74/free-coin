@@ -66,7 +66,7 @@ func (c *Client) Mock() *Client {
 // it will try to get trades from the persistence layer if available by day
 // otherwise it will call the upstream client if available.
 // In that sense it works always in batches of one day interval.
-func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.TradeSource, error) {
 	// check if we have trades in the store ...
 
 	// NOTE : we are making a major assumption here that timestamps will always increase.
@@ -96,8 +96,7 @@ func (c *Client) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api
 			log.Error().Err(err).Msg("could not create upstream")
 			return
 		}
-		stop := make(chan struct{}, 10)
-		source, err := cl.Trades(stop, coin, api.NonStop)
+		source, err := cl.Trades(process, coin)
 		if err != nil {
 			log.Error().Err(err).Msg("could not get trades from upstream")
 			return
