@@ -292,6 +292,10 @@ func (tp *tradePosition) DoClose() bool {
 }
 
 // PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
+// client is the exchange client used for closing positions
+// user is the under interface for interacting with the user
+// block is the internal synchronisation mechanism used to report on the process of requests
+// closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
 func Position(client api.Exchange, user api.User, block api.Block, closeInstant bool) api.Processor {
 
 	// define our internal global statsCollector

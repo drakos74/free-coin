@@ -126,6 +126,9 @@ func trackTraderActions(user api.User, trader *trader) {
 // Trade is the processor responsible for making trade decisions.
 // this processor should analyse the triggers from previous processors and ...
 // open positions, track and close appropriately.
+// client is the exchange client used to open orders
+// user is the user interface for interacting with the user
+// block is the internal synchronisation mechanism used to make sure requests to the client are processed before proceeding
 func Trade(client api.Exchange, user api.User, block api.Block) api.Processor {
 
 	trader := newTrader()

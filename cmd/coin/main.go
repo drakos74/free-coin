@@ -30,7 +30,7 @@ func main() {
 
 	ctx, cnl := context.WithCancel(context.Background())
 	upstream := func(since int64) (api.Client, error) {
-		return kraken.NewClient(since, 15*time.Second), nil
+		return kraken.NewClient(since, 15*time.Second, api.NonStop), nil
 	}
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
@@ -56,14 +56,15 @@ func main() {
 	overWatch := coin.New(client, user)
 	go overWatch.Run(ctx)
 
-	signals := make(chan api.Signal)
-	actions := make(chan api.Action)
+	block := api.NewBlock()
+
 	exchange := kraken.NewExchange(ctx)
-	statsProcessor := stats.MultiStats(exchange, user, signals)
-	positionProcessor := position.Position(exchange, user, actions)
-	tradeProcessor := trade.Trade(exchange, user, actions, signals)
+	// note we dont provide any config for the stats processor. It should get it from the config folder
+	statsProcessor := stats.MultiStats(user)
+	positionProcessor := position.Position(exchange, user, block, false)
+	tradeProcessor := trade.Trade(exchange, user, block)
 	for _, c := range model.Coins {
-		err := overWatch.Start(c, coin.Log(),
+		err := overWatch.Start(block, c, coin.Log(),
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,

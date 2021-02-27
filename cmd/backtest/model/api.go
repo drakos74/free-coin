@@ -8,6 +8,7 @@ import (
 
 const (
 	MultiStatsConfig = "stats"
+	Messages         = "messages"
 	FieldKey         = "field"
 )
 

@@ -5,8 +5,9 @@ import (
 	"math"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -21,145 +22,127 @@ const (
 	ProcessorName = "stats"
 )
 
-// Target defines the prediction target intervals.
-type Target struct {
-	LookBack  int `json:"prev"`
-	LookAhead int `json:"next"`
-}
+// MultiStats allows the user to start and stop their own stats processors from the commands channel
+// TODO : split responsibilities of this class to make things more clean and re-usable
+func MultiStats(user api.User, configs ...MultiStatsConfig) api.Processor {
 
-// MultiStatsConfig defines the configuration for the MultiStats processor.
-type MultiStatsConfig struct {
-	Duration time.Duration `json:"Duration"`
-	Targets  []Target      `json:"targets"`
-}
-
-type windowConfig struct {
-	duration     time.Duration
-	historySizes int64
-	counterSizes []buffer.HMMConfig
-}
-
-func newWindowConfig(config MultiStatsConfig) windowConfig {
-	// check the max history Duration we need to apply the given config
-	var size int
-	hmmConfigs := make([]buffer.HMMConfig, len(config.Targets))
-	for _, target := range config.Targets {
-		max := target.LookAhead + target.LookBack + 1
-		if max > size {
-			size = max
-		}
-		hmmConfigs = append(hmmConfigs, buffer.HMMConfig{
-			LookBack:  target.LookBack,
-			LookAhead: target.LookAhead,
-		})
+	if len(configs) == 0 {
+		configs = loadDefaults()
 	}
-	return windowConfig{
-		duration:     config.Duration,
-		historySizes: int64(size),
-		counterSizes: []buffer.HMMConfig{
-			{LookBack: 3, LookAhead: 1},
-			{LookBack: 4, LookAhead: 2},
-			{LookBack: 5, LookAhead: 3},
-		},
+
+	stats, err := newStats(configs)
+	if err != nil {
+		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not init processor")
+		return processor.Void(ProcessorName)
 	}
-}
 
-type window struct {
-	w *buffer.HistoryWindow
-	c *buffer.HMM
-}
+	//cmdSample := "?notify [Time in minutes] [start/stop]"
 
-type statsCollector struct {
-	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	lock    sync.RWMutex
-	configs map[time.Duration]windowConfig
-	windows map[time.Duration]map[model.Coin]window
-}
+	go trackUserActions(user, stats)
 
-func newStats(config []MultiStatsConfig) *statsCollector {
-	stats := &statsCollector{
-		lock:    sync.RWMutex{},
-		configs: make(map[time.Duration]windowConfig),
-		windows: make(map[time.Duration]map[model.Coin]window),
-	}
-	// add default configs to start with ...
-	for _, dd := range config {
-		log.Info().
-			Str("intervals", fmt.Sprintf("%+v", dd.Targets)).
-			Int("min", int(dd.Duration.Minutes())).
-			Msg("added default Duration stats")
-		stats.configs[dd.Duration] = newWindowConfig(dd)
-		stats.windows[dd.Duration] = make(map[model.Coin]window)
-	}
-	return stats
-}
+	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
-func (s *statsCollector) hasOrAddDuration(dd MultiStatsConfig) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	if _, ok := s.configs[dd.Duration]; ok {
-		return true
-	}
-	s.configs[dd.Duration] = newWindowConfig(dd)
-	return false
-}
+		defer func() {
+			log.Info().Str("processor", ProcessorName).Msg("closing processor")
+			close(out)
+		}()
 
-func (s *statsCollector) start(dd time.Duration, coin model.Coin) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	cfg := s.configs[dd]
-	if _, ok := s.windows[dd][coin]; !ok {
-		s.windows[dd][coin] = window{
-			w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
-			c: buffer.NewMultiHMM(cfg.counterSizes...),
-		}
-		log.Info().
-			Str("counters", fmt.Sprintf("%+v", cfg.counterSizes)).
-			Int64("size", cfg.historySizes).
-			Float64("Duration", cfg.duration.Minutes()).
-			Str("Coin", string(coin)).
-			Msg("started stats processor")
-	}
-}
+		for trade := range in {
 
-func (s *statsCollector) stop(dd time.Duration) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	delete(s.configs, dd)
-	delete(s.windows, dd)
-}
+			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 
-func (s *statsCollector) push(dd time.Duration, trade *model.Trade) ([]interface{}, bool) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if _, ok := s.windows[dd][trade.Coin].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
-		buckets := s.windows[dd][trade.Coin].w.Get(func(bucket interface{}) interface{} {
-			// it's a history window , so we expect to have history buckets inside
-			if b, ok := bucket.(buffer.TimeBucket); ok {
-				// get the 'zerowth' stats element, as we are only assing the Price a few lines above,
-				// there is nothing more to retrieve from the bucket.
-				priceView := buffer.NewView(b, 0)
-				volumeView := buffer.NewView(b, 1)
-				return windowView{
-					price:  priceView,
-					volume: volumeView,
+			for key, cfg := range stats.configs {
+				// we got the config, check if we need something to do in the windows
+				stats.start(key, trade.Coin)
+
+				// push the trade data to the stats collector window
+				if buckets, ok := stats.push(key, trade); ok {
+					values, indicators, last := extractFromBuckets(buckets,
+						group(getPriceRatio, cfg.order))
+					// count the occurrences
+					predictions, status := stats.add(key, trade.Coin, values[0][len(values[0])-1])
+					if trade.Live {
+						aggregateStats := coinmath.NewAggregateStats(indicators)
+						trade.Signal = model.Signal{
+							Type: "TradeSignal",
+							Value: TradeSignal{
+								Coin:           trade.Coin,
+								Price:          trade.Price,
+								Time:           trade.Time,
+								Duration:       key,
+								Predictions:    predictions,
+								AggregateStats: aggregateStats,
+							},
+						}
+						if user != nil {
+							// TODO : add tests for this
+							user.Send(api.Public,
+								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
+									ReferenceTime(trade.Time), nil)
+						}
+						// TODO : expose in metrics
+						//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
+					}
 				}
 			}
-			// TODO : this will break things a lot if we missed something ... 😅
-			return nil
-		})
-		return buckets, ok
+			out <- trade
+		}
 	}
-	return nil, false
 }
 
-func (s *statsCollector) add(dd time.Duration, coin model.Coin, v string) (map[string]buffer.Prediction, buffer.Status) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.windows[dd][coin].c.Add(v, fmt.Sprintf("%dm", int(dd.Minutes())))
+type TradeSignal struct {
+	Coin           model.Coin
+	Price          float64
+	Time           time.Time
+	Duration       time.Duration
+	Predictions    map[string]buffer.Prediction
+	AggregateStats coinmath.AggregateStats
 }
 
-func trackStatsActions(user api.User, stats *statsCollector) {
+type windowView struct {
+	price  buffer.TimeWindowView
+	volume buffer.TimeWindowView
+}
+
+func getPriceRatio(b windowView) float64 {
+	return b.price.Ratio
+}
+
+// extractFromBuckets extracts from the given buckets the needed values
+func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([][]string, *coinmath.Indicators, windowView) {
+	s := reflect.ValueOf(ifc)
+	pp := make([][]string, s.Len())
+	var last windowView
+	stream := coinmath.NewIndicators()
+	l := s.Len()
+	for j, f := range format {
+		pp[j] = make([]string, l)
+		for i := 0; i < l; i++ {
+			b := s.Index(i).Interface().(windowView)
+			last = b
+			pp[j][i] = f(b)
+			stream.Add(b.price.Diff)
+		}
+	}
+	return pp, stream, last
+}
+
+func group(extract func(b windowView) float64, group func(f float64) int) func(b windowView) string {
+	return func(b windowView) string {
+		f := extract(b)
+		v := group(f)
+		fs := "%d"
+		if f > 0 {
+			fs = fmt.Sprintf("+%s", fs)
+		} else if f < 0 {
+			fs = fmt.Sprintf("-%s", fs)
+		}
+		s := fmt.Sprintf(fs, v)
+		return s
+	}
+}
+
+func trackUserActions(user api.User, stats *statsCollector) {
 	for command := range user.Listen("stats", "?n") {
 		var duration int
 		var action string
@@ -213,133 +196,19 @@ func trackStatsActions(user api.User, stats *statsCollector) {
 //			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
 //		}
 //		if vol, ok := defaultOpenConfig[p.Coin]; ok {
-//			order := model.NewOrder(p.Coin).
+//			group := model.NewOrder(p.Coin).
 //				WithLeverage(model.L_5).
 //				WithVolume(vol.volume).
 //				WithType(t).
 //				Market().
 //				Create()
-//			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(order)
+//			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(group)
 //
 //		} else {
 //			return "could not open position", fmt.Errorf("no pre-defined volume for %s", p.Coin)
 //		}
 //	}
 //}
-
-// MultiStats allows the user to start and stop their own stats processors from the commands channel
-// TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(client api.Exchange, user api.User, configs ...MultiStatsConfig) api.Processor {
-
-	if len(configs) == 0 {
-		configs = defaultDurations
-	}
-
-	stats := newStats(configs)
-
-	//cmdSample := "?notify [Time in minutes] [start/stop]"
-
-	go trackStatsActions(user, stats)
-
-	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
-
-		defer func() {
-			log.Info().Str("processor", ProcessorName).Msg("closing processor")
-			close(out)
-		}()
-
-		for trade := range in {
-
-			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
-
-			for key, cfg := range stats.configs {
-				// we got the config, check if we need something to do in the windows
-				stats.start(key, trade.Coin)
-
-				// push the trade data to the stats collector window
-				if buckets, ok := stats.push(key, trade); ok {
-					values, indicators, last := extractFromBuckets(buckets,
-						order(func(b windowView) float64 {
-							return b.price.Ratio
-						}))
-					// count the occurrences
-					predictions, status := stats.add(key, trade.Coin, values[0][len(values[0])-1])
-					if trade.Live {
-						aggregateStats := coinmath.NewAggregateStats(indicators)
-						trade.Signal = model.Signal{
-							Type: "TradeSignal",
-							Value: TradeSignal{
-								Coin:           trade.Coin,
-								Price:          trade.Price,
-								Time:           trade.Time,
-								Duration:       key,
-								Predictions:    predictions,
-								AggregateStats: aggregateStats,
-							},
-						}
-						if user != nil {
-							// TODO : add tests for this
-							user.Send(api.Public,
-								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
-									ReferenceTime(trade.Time), nil)
-						}
-						// TODO : expose in metrics
-						//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
-					}
-				}
-			}
-			out <- trade
-		}
-	}
-}
-
-type TradeSignal struct {
-	Coin           model.Coin
-	Price          float64
-	Time           time.Time
-	Duration       time.Duration
-	Predictions    map[string]buffer.Prediction
-	AggregateStats coinmath.AggregateStats
-}
-
-type windowView struct {
-	price  buffer.TimeWindowView
-	volume buffer.TimeWindowView
-}
-
-// extractFromBuckets extracts from the given buckets the needed values
-func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([][]string, *coinmath.Indicators, windowView) {
-	s := reflect.ValueOf(ifc)
-	pp := make([][]string, s.Len())
-	var last windowView
-	stream := coinmath.NewIndicators()
-	l := s.Len()
-	for j, f := range format {
-		pp[j] = make([]string, l)
-		for i := 0; i < l; i++ {
-			b := s.Index(i).Interface().(windowView)
-			last = b
-			pp[j][i] = f(b)
-			stream.Add(b.price.Diff)
-		}
-	}
-	return pp, stream, last
-}
-
-func order(extract func(b windowView) float64) func(b windowView) string {
-	return func(b windowView) string {
-		f := extract(b)
-		v := coinmath.O10(f)
-		fs := "%d"
-		if f > 0 {
-			fs = fmt.Sprintf("+%s", fs)
-		} else if f < 0 {
-			fs = fmt.Sprintf("-%s", fs)
-		}
-		s := fmt.Sprintf(fs, v)
-		return s
-	}
-}
 
 func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, status buffer.Status, p *model.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
@@ -419,42 +288,3 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		strings.Join(pp, "\n "))
 
 }
-
-var (
-	defaultTargets = []Target{
-		{
-			LookBack:  3,
-			LookAhead: 1,
-		},
-		{
-			LookBack:  4,
-			LookAhead: 2,
-		},
-		{
-			LookBack:  5,
-			LookAhead: 3,
-		},
-	}
-	defaultDurations = []MultiStatsConfig{
-		{
-			Duration: 1 * time.Minute,
-			Targets:  defaultTargets,
-		},
-		{
-			Duration: 5 * time.Minute,
-			Targets:  defaultTargets,
-		},
-		{
-			Duration: 10 * time.Minute,
-			Targets:  defaultTargets,
-		},
-		{
-			Duration: 30 * time.Minute,
-			Targets:  defaultTargets,
-		},
-		{
-			Duration: 2 * time.Hour,
-			Targets:  defaultTargets,
-		},
-	}
-)

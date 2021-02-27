@@ -2,9 +2,8 @@ package coin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"reflect"
-	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
@@ -118,15 +117,16 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 
 		block := api.NewBlock()
 		multiStatsConfig := make([]stats.MultiStatsConfig, 0)
-		if statsConfig, ok := q.Data[stats.ProcessorName]; ok {
-			config, err := FromJsonMap(statsConfig)
+		if cfg, ok := q.Data[stats.ProcessorName]; ok {
+			var config stats.MultiStatsConfig
+			err := FromJsonMap(stats.ProcessorName, cfg, &config)
 			if err != nil {
 				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", stats.ProcessorName, err))
 			}
 			multiStatsConfig = append(multiStatsConfig, config)
 		}
 
-		statsProcessor := stats.MultiStats(exchange, user, multiStatsConfig...)
+		statsProcessor := stats.MultiStats(user, multiStatsConfig...)
 		positionProcessor := position.Position(exchange, user, block, true)
 		tradeProcessor := trade.Trade(exchange, user, block)
 
@@ -144,7 +144,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		allTrades[c] = exchange.Trades(c)
 		allPositions[c] = exchange.Positions(c)
 	}
-
+	log.Info().Int("count", len(user.Messages)).Msg("messages")
 	return allTrades, allPositions, user.Messages, nil
 }
 
@@ -152,47 +152,15 @@ func (s *Service) error(err error) (map[coinmodel.Coin][]coinmodel.Trade, map[co
 	return nil, nil, nil, err
 }
 
-func FromJsonMap(m interface{}) (stats.MultiStatsConfig, error) {
-	// try to parse as json
-	config := stats.MultiStatsConfig{
-		Targets: make([]stats.Target, 0),
+func FromJsonMap(name string, m interface{}, n interface{}) error {
+	// serialise and deserialize ...
+	b, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("could not serialise config for %s", name)
 	}
-	if configValues, ok := m.(map[string]interface{}); ok {
-		if duration, ok := configValues["duration"].(float64); ok {
-			config.Duration = time.Duration(duration) * time.Minute
-		} else {
-			return config, fmt.Errorf("could not parse duration: %v", reflect.TypeOf(configValues["duration"]))
-		}
-		intervals := configValues["targets"]
-		s := reflect.ValueOf(intervals)
-		if s.Kind() != reflect.Slice {
-			return config, fmt.Errorf("invalid value for config: %s", s.Type())
-		}
-		// Keep the distinction between nil and empty slice input
-		if s.IsNil() {
-			return config, fmt.Errorf("invalid config found: %s", "nill")
-		}
-		for i := 0; i < s.Len(); i++ {
-			cfg := s.Index(i).Interface()
-			target := stats.Target{}
-			if cc, ok := cfg.(map[string]interface{}); ok {
-				if lookBack, ok := cc["prev"].(float64); ok {
-					target.LookBack = int(lookBack)
-				} else {
-					return config, fmt.Errorf("could not parse target prev as int: %v", reflect.TypeOf(cc["prev"]))
-				}
-				if lookAhead, ok := cc["next"].(float64); ok {
-					target.LookAhead = int(lookAhead)
-				} else {
-					return config, fmt.Errorf("could not parse target next as int: %v", reflect.TypeOf(cc["next"]))
-				}
-			} else {
-				return config, fmt.Errorf("invalid targets found: %v", reflect.ValueOf(cfg).Type())
-			}
-			config.Targets = append(config.Targets, target)
-		}
-	} else {
-		return config, fmt.Errorf("invalid struct found: %v", configValues)
+	switch name {
+	case stats.ProcessorName:
+		return json.Unmarshal(b, n)
 	}
-	return config, nil
+	return fmt.Errorf("could not find json loader for config: %s", name)
 }

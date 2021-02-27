@@ -58,18 +58,22 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(stop <-chan struct{}, coin coinmodel.Coin) (coinmodel.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Action, coin coinmodel.Coin) (coinmodel.TradeSource, error) {
 
 	out := make(chan *coinmodel.Trade)
 
 	// receive and delegate tick events To the output
 	trades := make(chan *coinmodel.Trade)
 
+	// channel for stopping the execution
+	stop := make(chan struct{})
+
 	// controller decides To delegate trade for processing, or stop execution
 	go func(trades chan *coinmodel.Trade) {
 		defer func() {
 			log.Info().Msg("closing trade controller")
 			close(out)
+			stop <- struct{}{}
 		}()
 		for trade := range trades {
 			c.current++

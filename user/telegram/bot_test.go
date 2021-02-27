@@ -38,11 +38,10 @@ func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) 
 	return &Bot{
 		publicBot:       &mockBot{input: input, output: output},
 		privateBot:      &Void{},
-		process:         make(chan executableTrigger),
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
-		consumers:       make(map[consumerKey]chan api.Command),
+		consumers:       make(map[api.ConsumerKey]chan api.Command),
 	}
 }
 
@@ -118,10 +117,13 @@ func TestBot_SendTrigger(t *testing.T) {
 		msgs     []string
 	}
 
+	// TODO : fix the tests
 	tests := map[string]test{
 		"no-auto-trigger": {
-			trigger: api.NewTrigger(func(command api.Command) (string, error) {
-				return command.Content, nil
+			trigger: api.NewTrigger(api.ConsumerKey{
+				ID:     "",
+				Key:    "",
+				Prefix: "",
 			}),
 			msgCount: 1,
 			count:    1,
@@ -129,9 +131,10 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs:     []string{"text"},
 		},
 		"auto-trigger": {
-			trigger: api.NewTrigger(func(command api.Command) (string, error) {
-				// options[0] should be the 2nd argument of the defaults
-				return command.Content, nil
+			trigger: api.NewTrigger(api.ConsumerKey{
+				ID:     "",
+				Key:    "",
+				Prefix: "",
 			}).WithDefaults("cc").WithTimeout(1 * time.Second),
 			msgCount: 1,
 			// we get 2 messages here, because we get the trigger complete confirmation
@@ -141,8 +144,10 @@ func TestBot_SendTrigger(t *testing.T) {
 			msgs: []string{"text", "cc"},
 		},
 		"manual-trigger": {
-			trigger: api.NewTrigger(func(command api.Command) (string, error) {
-				return command.Content, nil
+			trigger: api.NewTrigger(api.ConsumerKey{
+				ID:     "",
+				Key:    "",
+				Prefix: "",
 			}).WithDefaults("cc").WithTimeout(3 * time.Second),
 			msgCount: 1,
 			// we get 3 because we also get the trigger expired message when we try to reply
