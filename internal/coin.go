@@ -60,7 +60,7 @@ func (engine *Engine) RunWith(block api.Block, client api.Client) (*Engine, erro
 		defer func() {
 			log.Info().Msg("engine closed")
 			engine.main.Gather()
-			block.Action <- struct{}{}
+			block.Action <- api.Action{}
 		}()
 		for trade := range trades {
 			// pull the trades from the source through the processors
