@@ -85,89 +85,119 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 		for trade := range in {
 			//metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 			// TODO : check also Active
-			if trade == nil || !trade.Live || trade.Signal.Value == nil {
+			if trade == nil || !trade.Live || trade.Signals == nil {
 				out <- trade
 				continue
 			}
 
-			if ts, ok := trade.Signal.Value.(stats.TradeSignal); ok {
-				k := processor.NewKey(ts.Coin, ts.Duration)
-				// init the configuration for this pair of a coin and duration.
-				trader.init(k)
-				// TODO : use an internal state like for the stats processor
-				// we got a trade signal
-				predictions := ts.Predictions
-				cfg, ok := trader.get(k)
-				if len(predictions) > 0 && ok {
-					// check if we should make a buy order
-					t := model.NoType
-					pairs := make([]predictionPair, 0)
-					for k, p := range predictions {
-						if p.Probability >= cfg.MinProbability && p.Sample >= cfg.MinSample {
-							// we know it s a good prediction. Lets check the value
-							v := p.Value
-							vv := strings.Split(v, ":")
-							// TODO : now it takes a random t if there are more matches
-							if t = cfg.contains(vv); t > 0 {
-								pairs = append(pairs, predictionPair{
-									t:           t,
-									key:         k,
-									value:       v,
-									probability: p.Probability,
-									base:        1 / float64(p.Options),
-									sample:      p.Sample,
-									label:       p.Label,
-								})
+			pairs := make(map[processor.Key][]predictionPair, 0)
+			for i, signal := range trade.Signals {
+				if ts, ok := signal.Value.(stats.TradeSignal); ok {
+					k := processor.NewKey(ts.Coin, ts.Duration)
+					// init the configuration for this pair of a coin and duration.
+					trader.init(k)
+					// TODO : use an internal state like for the stats processor
+					// we got a trade signal
+					predictions := ts.Predictions
+					cfg, ok := trader.get(k)
+					if len(predictions) > 0 && ok {
+						// check if we should make a buy order
+						for k, p := range predictions {
+							if p.Probability >= cfg.MinProbability && p.Sample >= cfg.MinSample {
+								// we know it s a good prediction. Lets check the value
+								v := p.Value
+								vv := strings.Split(v, ":")
+								// TODO : now it takes a random t if there are more matches
+								if t := cfg.contains(vv); t > 0 {
+									kk := processor.Key{
+										Coin:     ts.Coin,
+										Duration: ts.Duration,
+										Index:    i,
+									}
+
+									if _, ok := pairs[kk]; !ok {
+										pairs[kk] = make([]predictionPair, 0)
+									}
+									log.Info().
+										Str("prediction", fmt.Sprintf("%+v", p)).
+										Str("key", fmt.Sprintf("%+v", kk)).
+										Time("time", trade.Time).
+										Msg("adding open order pair")
+									pairs[kk] = append(pairs[kk], predictionPair{
+										price:       ts.Price,
+										openValue:   cfg.Value,
+										t:           t,
+										key:         k,
+										value:       v,
+										probability: p.Probability,
+										base:        1 / float64(p.Options),
+										sample:      p.Sample,
+										label:       p.Label,
+									})
+								}
 							}
-							log.Debug().
-								Float64("probability", p.Probability).
-								Int("sample", p.Sample).
-								Strs("value", vv).
-								Str("type", t.String()).
-								Str("label", p.Label).
-								Str("Coin", string(ts.Coin)).
-								Msg("matched config")
 						}
-					}
-					if t != model.NoType {
-						vol := getVolume(ts.Price, cfg.Value)
-						order := model.NewOrder(ts.Coin).
-							WithLeverage(model.L_5).
-							WithVolume(vol).
-							WithType(t).
-							Market().
-							Create()
-						log.Info().
-							Time("time", ts.Time).
-							Str("ID", order.ID).
-							Float64("price", ts.Price).
-							Str("Coin", string(ts.Coin)).
-							Msg("open position")
-						err := client.OpenOrder(order)
-						// notify other processes
-						block.Action <- api.Action{}
-						api.Reply(api.Private, user, api.NewMessage(createPredictionMessage(pairs)).AddLine(fmt.Sprintf("open %v %f %s at %f", t, vol, ts.Coin, ts.Price)), err)
-						<-block.ReAction
 					}
 				}
 			}
+			var cancel bool
+			var gotAction bool
+			var coin model.Coin
+			var vol float64
+			var pair predictionPair
+			for k, pp := range pairs {
+				for _, p := range pp {
+					gotAction = true
+					// decide to do only one action
+					coin = k.Coin
+					vol = getVolume(p.price, p.openValue)
+
+					// check if we have mixed signals
+					if pair.t != model.NoType && pair.t != p.t {
+						cancel = true
+					}
+					pair = p
+				}
+			}
+			if !cancel && gotAction {
+				// we will make only one order from all the pairs ...
+				order := model.NewOrder(coin).
+					WithLeverage(model.L_5).
+					WithVolume(vol).
+					WithType(pair.t).
+					Market().
+					Create()
+				log.Info().
+					Str("ID", order.ID).
+					Float64("price", pair.price).
+					Str("Coin", string(coin)).
+					Msg("open position")
+				err := client.OpenOrder(order)
+				block.Action <- api.Action{}
+				api.Reply(api.Private, user, api.
+					NewMessage(createPredictionMessage(pair)).
+					AddLine(fmt.Sprintf("open %v %f %s at %f", pair.t, vol, coin, pair.price)), err)
+				<-block.ReAction
+			} else {
+				log.Warn().Str("coin", string(coin)).Msg("got mixed signals")
+			}
+
 			out <- trade
 		}
 	}
 }
 
-func createPredictionMessage(pairs []predictionPair) string {
-	lines := make([]string, len(pairs))
-	for i, pair := range pairs {
-		kk := emoji.MapToSymbols(strings.Split(pair.key, ":"))
-		vv := emoji.MapToSymbols(strings.Split(pair.value, ":"))
-		pp := fmt.Sprintf("(%.2f | %.2f | %d)", pair.probability, pair.base, pair.sample)
-		lines[i] = fmt.Sprintf("%s | %s -> %s %s", pair.label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
-	}
-	return strings.Join(lines, "\n")
+func createPredictionMessage(pair predictionPair) string {
+	kk := emoji.MapToSymbols(strings.Split(pair.key, ":"))
+	vv := emoji.MapToSymbols(strings.Split(pair.value, ":"))
+	pp := fmt.Sprintf("(%.2f | %.2f | %d)", pair.probability, pair.base, pair.sample)
+	line := fmt.Sprintf("%s | %s -> %s %s", pair.label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
+	return line
 }
 
 type predictionPair struct {
+	price       float64
+	openValue   float64
 	label       string
 	key         string
 	value       string

@@ -24,7 +24,7 @@ func (r *RemoteClient) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
 }
 
 // Trades retrieves the next trades batch from kraken.
-func (r *RemoteClient) Trades(coin coinmodel.Coin, since int64) (*model.TradeBatch, error) {
+func (r *RemoteClient) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeBatch, error) {
 	pair := r.converter.Coin.Pair(coin)
 	log.Trace().
 		Str("method", "Count").
@@ -39,10 +39,10 @@ func (r *RemoteClient) Trades(coin coinmodel.Coin, since int64) (*model.TradeBat
 	return r.transform(pair, r.Interval, response)
 }
 
-func (r *RemoteClient) transform(pair string, interval time.Duration, response *krakenapi.TradesResponse) (*model.TradeBatch, error) {
+func (r *RemoteClient) transform(pair string, interval time.Duration, response *krakenapi.TradesResponse) (*coinmodel.TradeBatch, error) {
 	l := len(response.Trades)
 	if l == 0 {
-		return &model.TradeBatch{
+		return &coinmodel.TradeBatch{
 			Trades: []coinmodel.Trade{},
 			Index:  response.Last,
 		}, nil
@@ -56,7 +56,7 @@ func (r *RemoteClient) transform(pair string, interval time.Duration, response *
 	for i := 0; i < l; i++ {
 		trades[i] = r.newTrade(pair, i == l-1, live, response.Trades[i])
 	}
-	return &model.TradeBatch{
+	return &coinmodel.TradeBatch{
 		Trades: trades,
 		Index:  response.Last,
 	}, nil
@@ -66,6 +66,26 @@ func (r *RemoteClient) transform(pair string, interval time.Duration, response *
 type RemoteExchange struct {
 	converter model.Converter
 	private   *krakenapi.KrakenAPI
+}
+
+func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel.TradeMap, error) {
+	response, err := r.private.TradesHistory(from.Unix(), to.Unix(), map[string]string{
+		"trades": "true",
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get trade history from kraken: %w", err)
+	}
+
+	if response.Count == 0 {
+		return coinmodel.NewTradeMap(), nil
+	}
+
+	trades := make([]coinmodel.Trade, 0)
+	for k, trade := range response.Trades {
+		trades = append(trades, model.NewHistoryTrade(k, trade))
+	}
+	return coinmodel.NewTradeMap(trades...), nil
 }
 
 // Order opens an order in kraken.

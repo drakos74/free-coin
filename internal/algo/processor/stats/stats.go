@@ -61,8 +61,11 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 					// count the occurrences
 					predictions, status := stats.add(k, values[0][len(values[0])-1])
 					if trade.Live {
+						if trade.Signals == nil {
+							trade.Signals = make([]model.Signal, 0)
+						}
 						aggregateStats := coinmath.NewAggregateStats(indicators)
-						trade.Signal = model.Signal{
+						trade.Signals = append(trade.Signals, model.Signal{
 							Type: "TradeSignal",
 							Value: TradeSignal{
 								Coin:           trade.Coin,
@@ -72,7 +75,7 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 								Predictions:    predictions,
 								AggregateStats: aggregateStats,
 							},
-						}
+						})
 						if user != nil && duration >= 10*time.Minute {
 							// TODO : add tests for this
 							user.Send(api.Public,
@@ -80,7 +83,6 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 									ReferenceTime(trade.Time), nil)
 						}
 						// TODO : expose in metrics
-						//fmt.Println(fmt.Sprintf("buffer = %+v", buffer))
 					}
 				}
 			}

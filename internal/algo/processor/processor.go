@@ -28,6 +28,7 @@ func Void(name string) api.Processor {
 type Key struct {
 	Coin     model.Coin
 	Duration time.Duration
+	Index    int
 }
 
 func NewKey(c model.Coin, d time.Duration) Key {

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/drakos74/free-coin/client/kraken"
 
 	"github.com/drakos74/free-coin/internal/api"
 
@@ -245,10 +248,83 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Debug().
+	log.Warn().
 		Str("body", string(body)).
 		Str("endpoint", "annotations").
 		Msg("request body")
+
+	var query model.AnnotationQuery
+	err = json.Unmarshal(body, &query)
+	if err != nil {
+		s.error(w, err)
+		return
+	}
+
+	historyClient, err := kraken.NewHistory(context.Background())
+	if err != nil {
+		s.error(w, err)
+		return
+	}
+
+	trades, err := historyClient.Get(query.Range.From, query.Range.To)
+	fmt.Println(fmt.Sprintf("trades = %+v", len(trades.Trades)))
+	fmt.Println(fmt.Sprintf("order = %+v", len(trades.Order)))
+
+	if err != nil {
+		s.error(w, err)
+		return
+	}
+	annotations := make([]model.AnnotationInstance, 0)
+	for _, id := range trades.Order {
+		trade := trades.Trades[id]
+		if trade.Time.Before(query.Range.To) && trade.Time.After(query.Range.From) {
+			if !(trade.Coin == coinmodel.Coin(query.Annotation.Query)) {
+				continue
+			}
+			if trade.RefID != "" {
+				if otherTrade, ok := trades.Trades[trade.RefID]; ok {
+					var tag string
+					if trade.Net > 0 {
+						tag = "profit"
+					} else {
+						tag = "loss"
+					}
+					// pull in the related trade
+					annotations = append(annotations, model.AnnotationInstance{
+						Text:     fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
+						Title:    fmt.Sprintf("%s - %s ( %.2f € )", trade.Coin, trade.Type.String(), trade.Net),
+						TimeEnd:  otherTrade.Time.Unix() * 1000,
+						Time:     trade.Time.Unix() * 1000,
+						IsRegion: true,
+						Tags:     []string{tag},
+					})
+				} else {
+					// pull in the related trade
+					annotations = append(annotations, model.AnnotationInstance{
+						Text:  fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
+						Title: fmt.Sprintf("%s - %s", trade.Coin, trade.Type.String()),
+						Time:  trade.Time.Unix() * 1000,
+					})
+				}
+
+			} else {
+				// skipping position. it should be matched with a closed one
+			}
+
+		}
+	}
+
+	log.Info().
+		Int("trades", len(trades.Order)).
+		Int("annotations", len(annotations)).
+		Msg("loaded annotations for history trades")
+
+	b, err := json.Marshal(annotations)
+	if err != nil {
+		s.error(w, err)
+		return
+	}
+	w.Write(b)
 	w.WriteHeader(http.StatusOK)
 }
 func (s *Server) keys(w http.ResponseWriter, r *http.Request) {

@@ -45,3 +45,23 @@ type Tag struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
 }
+
+type AnnotationQuery struct {
+	Range      Range `json:"range"`
+	Annotation Annotation
+}
+
+type Annotation struct {
+	Name   string `json:"name"`
+	Enable bool   `json:"enable"`
+	Query  string `json:"query"`
+}
+
+type AnnotationInstance struct {
+	Text     string   `json:"text"`
+	Title    string   `json:"title"`
+	IsRegion bool     `json:"isRegion"`
+	Time     int64    `json:"time"`
+	TimeEnd  int64    `json:"timeEnd"`
+	Tags     []string `json:"tags"`
+}
