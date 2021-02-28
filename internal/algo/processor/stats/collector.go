@@ -77,11 +77,6 @@ func newStats(initialConfigs []Config) (*statsCollector, error) {
 		if _, ok := stats.configs[c]; !ok {
 			stats.configs[c] = make(map[time.Duration]windowConfig)
 		}
-		log.Info().
-			Str("coin", cfg.Coin).
-			Str("intervals", fmt.Sprintf("%+v", cfg.Targets)).
-			Int("d", cfg.Duration).
-			Msg("adding stats initialConfig")
 		config, err := newWindowConfig(d, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("could not init stats collector for %v: %w", k, err)
@@ -91,6 +86,11 @@ func newStats(initialConfigs []Config) (*statsCollector, error) {
 			return nil, fmt.Errorf("duplicate stats cfg key for %v", k)
 		}
 		stats.configs[c][d] = config
+		log.Warn().
+			Str("coin", cfg.Coin).
+			Int("d", cfg.Duration).
+			Str("config", fmt.Sprintf("%+v", config)).
+			Msg("adding stats initialConfig")
 		if _, ok := stats.windows[k]; !ok {
 			stats.windows[k] = window{
 				w: buffer.NewHistoryWindow(config.duration, int(config.historySizes)),
@@ -112,12 +112,17 @@ func (s *statsCollector) init(coin model.Coin) {
 				s.configs[coin][d] = cfg
 				k := processor.NewKey(coin, d)
 				if _, ok := s.windows[k]; !ok {
+					log.Warn().
+						Str("coin", string(coin)).
+						Int("d", int(d.Minutes())).
+						Str("config", fmt.Sprintf("%+v", cfg)).
+						Msg("adding stats initialConfig")
 					s.windows[k] = window{
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
 						c: buffer.NewMultiHMM(cfg.counterSizes...),
 					}
 				}
-				log.Info().Str("coin", string(coin)).Msg("mutated default config")
+				log.Warn().Str("coin", string(coin)).Msg("mutated default config")
 			}
 		}
 	}
