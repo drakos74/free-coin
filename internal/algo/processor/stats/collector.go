@@ -86,10 +86,10 @@ func newStats(initialConfigs []Config) (*statsCollector, error) {
 			return nil, fmt.Errorf("duplicate stats cfg key for %v", k)
 		}
 		stats.configs[c][d] = config
-		log.Warn().
+		log.Info().
 			Str("coin", cfg.Coin).
 			Int("d", cfg.Duration).
-			Str("config", fmt.Sprintf("%+v", config)).
+			//Str("config", fmt.Sprintf("%+v", config)).
 			Msg("adding stats initialConfig")
 		if _, ok := stats.windows[k]; !ok {
 			stats.windows[k] = window{
@@ -112,10 +112,10 @@ func (s *statsCollector) init(coin model.Coin) {
 				s.configs[coin][d] = cfg
 				k := processor.NewKey(coin, d)
 				if _, ok := s.windows[k]; !ok {
-					log.Warn().
+					log.Info().
 						Str("coin", string(coin)).
 						Int("d", int(d.Minutes())).
-						Str("config", fmt.Sprintf("%+v", cfg)).
+						//Str("config", fmt.Sprintf("%+v", cfg)).
 						Msg("adding stats initialConfig")
 					s.windows[k] = window{
 						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),

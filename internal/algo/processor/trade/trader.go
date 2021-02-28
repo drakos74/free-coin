@@ -60,8 +60,8 @@ func (tr *trader) init(k processor.Key) {
 						Strategy:       getStrategy(strategy.Name, strategy.Threshold),
 					}
 					tr.configs[k.Coin][k.Duration] = config
-					log.Warn().
-						Str("strategy", fmt.Sprintf("%+v", config)).
+					log.Info().
+						//Str("strategy", fmt.Sprintf("%+v", config)).
 						Str("key", fmt.Sprintf("%s", k.String())).
 						Msg("init coin strategy")
 				}
@@ -71,10 +71,10 @@ func (tr *trader) init(k processor.Key) {
 			if !found {
 				tr.configs[k.Coin][k.Duration] = myCfg
 			}
-			log.Warn().
+			log.Info().
 				Bool("exists", exists).
 				Bool("default", !found).
-				Str("strategy", fmt.Sprintf("%+v", myCfg)).
+				//Str("strategy", fmt.Sprintf("%+v", myCfg)).
 				Str("key", fmt.Sprintf("%s", k.String())).
 				Msg("init default strategy")
 		} else {
