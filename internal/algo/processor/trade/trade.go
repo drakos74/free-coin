@@ -179,7 +179,12 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					AddLine(fmt.Sprintf("open %v %f %s at %f", pair.t, vol, coin, pair.price)), err)
 				<-block.ReAction
 			} else {
-				log.Warn().Str("coin", string(coin)).Msg("got mixed signals")
+				if gotAction {
+					log.Warn().Bool("cancel", cancel).
+						Bool("action", gotAction).
+						Str("coin", string(coin)).
+						Msg("got mixed signals")
+				}
 			}
 
 			out <- trade
