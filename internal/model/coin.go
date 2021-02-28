@@ -1,5 +1,7 @@
 package model
 
+const EURO = "€"
+
 // Coin defines a custom coin type
 type Coin string
 

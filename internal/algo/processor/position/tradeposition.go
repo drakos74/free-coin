@@ -182,10 +182,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				if c == "" || coin == c {
 					for id, p := range pos {
 						net, profit := p.position.Value()
-						profitThreshold := p.config.Profit.Min
-						stopLossThreshold := p.config.Profit.Min
-						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", profitThreshold, p.config.Profit.High, stopLossThreshold, p.config.Loss.High)
-						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f§) <- %v at %v",
+						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", p.config.Profit.Min, p.config.Profit.High, p.config.Loss.Min, p.config.Loss.High)
+						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %v at %v",
 							emoji.MapToSign(net),
 							p.position.Coin,
 							profit,

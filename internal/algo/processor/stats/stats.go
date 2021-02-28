@@ -254,7 +254,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 
 	// last bucket Price details
 	move := emoji.MapToSentiment(last.price.Ratio)
-	mp := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
+	mp := fmt.Sprintf("%s %s€ ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
 		coinmath.Format(p.Price),
 		last.price.Ratio*100,
@@ -263,7 +263,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 
 	// ignore the values smaller than '0' just to be certain
 	vol := emoji.MapNumber(coinmath.O2(math.Round(last.volume.Diff)))
-	mv := fmt.Sprintf("%s %s§ ratio:%.2f stdv:%.2f ema:%.2f",
+	mv := fmt.Sprintf("%s %s€ ratio:%.2f stdv:%.2f ema:%.2f",
 		vol,
 		coinmath.Format(last.volume.Value),
 		last.volume.Ratio,
