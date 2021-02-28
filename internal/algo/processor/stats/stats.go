@@ -73,7 +73,7 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 								AggregateStats: aggregateStats,
 							},
 						}
-						if user != nil && duration >= 10*time.Minute {
+						if user != nil {
 							// TODO : add tests for this
 							user.Send(api.Public,
 								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
