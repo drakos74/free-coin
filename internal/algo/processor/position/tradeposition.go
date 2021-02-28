@@ -184,7 +184,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 						net, profit := p.position.Value()
 						profitThreshold := p.config.Profit.Min
 						stopLossThreshold := p.config.Profit.Min
-						configMsg := fmt.Sprintf("[ profit : %.2f , stop-loss : %.2f ]", profitThreshold, stopLossThreshold)
+						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", profitThreshold, p.config.Profit.High, stopLossThreshold, p.config.Loss.High)
 						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f§) <- %v at %v",
 							emoji.MapToSign(net),
 							p.position.Coin,
@@ -263,6 +263,7 @@ func (tp *tradePosition) DoClose() bool {
 			return false
 		}
 		diff := tp.config.Profit.High - p
+		// TODO :define this in the config as well
 		if diff < 0.15 {
 			// leave for now, hoping profit will go up again
 			// but dont update our highest value
