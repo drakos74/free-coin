@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,8 +36,6 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not init processor")
 		return processor.Void(ProcessorName)
 	}
-
-	//cmdSample := "?notify [Time in minutes] [start/stop]"
 
 	go trackUserActions(user, stats)
 
@@ -138,13 +137,8 @@ func group(extract func(b windowView) float64, group func(f float64) int) func(b
 	return func(b windowView) string {
 		f := extract(b)
 		v := group(f)
-		fs := "%d"
-		if f > 0 {
-			fs = fmt.Sprintf("+%s", fs)
-		} else if f < 0 {
-			fs = fmt.Sprintf("-%s", fs)
-		}
-		s := fmt.Sprintf(fs, v)
+		// TODO :maybe we start counting values only over a limit
+		s := strconv.FormatInt(int64(v), 10)
 		return s
 	}
 }

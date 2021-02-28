@@ -115,13 +115,13 @@ func TestO10_Sequence(t *testing.T) {
 	limit := 10000000
 
 	boundaries := map[float64]int64{
-		-5000.000000: 3,
-		-999.999000:  2,
-		-99.999000:   1,
-		-9.999000:    0,
-		-0.099000:    1,
-		-0.010000:    2,
-		-0.001000:    3,
+		-5000.000000: -3,
+		-999.999000:  -2,
+		-99.999000:   -1,
+		-9.999000:    -0,
+		-0.099000:    -1,
+		-0.010000:    -2,
+		-0.001000:    -3,
 		0.000000:     -1*math.MaxInt64 - 1,
 		0.001000:     3,
 		0.002000:     2,
@@ -214,20 +214,20 @@ func TestO2_Sequence(t *testing.T) {
 	limit := 10000000
 
 	boundaries := map[float64]int64{
-		-5000.000000: 8,
-		-2980.957000: 7,
-		-1096.633000: 6,
-		-403.428000:  5,
-		-148.413000:  4,
-		-54.598000:   3,
-		-20.085000:   2,
-		-7.389000:    1,
-		-0.367000:    1,
-		-0.135000:    2,
-		-0.049000:    3,
-		-0.018000:    4,
-		-0.006000:    5,
-		-0.002000:    6,
+		-5000.000000: -8,
+		-2980.957000: -7,
+		-1096.633000: -6,
+		-403.428000:  -5,
+		-148.413000:  -4,
+		-54.598000:   -3,
+		-20.085000:   -2,
+		-7.389000:    -1,
+		-0.367000:    -1,
+		-0.135000:    -2,
+		-0.049000:    -3,
+		-0.018000:    -4,
+		-0.006000:    -5,
+		-0.002000:    -6,
 		0.000000:     -1*math.MaxInt64 - 1,
 		0.00300:      5,
 		0.007000:     4,
@@ -245,14 +245,93 @@ func TestO2_Sequence(t *testing.T) {
 		2980.958000:  8,
 	}
 
-	var n int
-	for i := 0; i < limit; i++ {
-		f := float64(-1*limit/2+i) / 1000
-		o := O2(f)
-		if o != n {
-			assert.Equal(t, boundaries[f], int64(o), fmt.Sprintf("f:o = %f -> %+v", f, o))
-			n = o
-		}
+	testBoundaries(t, limit, boundaries, O2)
+
+}
+
+func TestIO10(t *testing.T) {
+
+	limit := 100000000
+
+	boundaries := map[float64]int64{
+		//-100.000000: 4,
+		//-10.000000:  5,
+		//-0.100000:   6,
+		//-0.010010:   5,
+		//-0.001010:   4,
+		//-0.000100:   3,
+		//-0.000020:   2,
+		//-0.000010:   1,
+		0.000020: 2,
+		0.000100: 4, // 0.001%
+		0.001010: 6, // 0.1%
+		// 7 -> min target threshold
+		0.010010:   8,  // 1% -> target threshold
+		0.100000:   10, // 10%
+		10.000000:  8,
+		100.000000: 6,
 	}
 
+	testBoundaries(t, limit, boundaries, IO10)
+
+}
+
+func TestIO2(t *testing.T) {
+
+	limit := 100000000
+
+	boundaries := map[float64]int64{
+		0.000000:   -1*math.MaxInt64 - 1,
+		0.000010:   -1,
+		0.000020:   0,
+		0.000050:   1,
+		0.000130:   2,
+		0.000340:   3,
+		0.000920:   4,  // 0.01%
+		0.002480:   5,  // 0.2%
+		0.006740:   6,  // 0.6% -> min target
+		0.018320:   7,  // 1% -> target threshold
+		0.049790:   8,  // 4%
+		0.135340:   9,  // 13%
+		0.367880:   10, // 36%
+		2.718290:   9,
+		7.389060:   8,
+		20.085540:  7,
+		54.598160:  6,
+		148.413160: 5,
+		403.428800: 4,
+	}
+
+	testBoundaries(t, limit, boundaries, IO2)
+
+}
+
+func testBoundaries(t *testing.T, limit int, boundaries map[float64]int64, m func(f float64) int) {
+	// negative boundaries
+	nboundaries := make(map[float64]int64)
+	for k, v := range boundaries {
+		nboundaries[-1*k] = -1 * v
+	}
+	// keep track of last value, so that we catch the shift
+	n := 0
+	// check the values > 0
+	for i := 0; i < limit; i++ {
+		f := float64(i) / 100000
+		o := m(f)
+		if o != n {
+			assertBoundaries(t, boundaries, f, o)
+			assertBoundaries(t, nboundaries, -1*f, m(-1*f))
+			n = o
+			delete(boundaries, f)
+		}
+	}
+	assert.Equal(t, 0, len(boundaries), fmt.Sprintf("%+v", boundaries))
+}
+
+func assertBoundaries(t *testing.T, b map[float64]int64, f float64, o int) {
+	//println(fmt.Sprintf("f = %+v -> o = %+v", f, o))
+	if _, ok := b[f]; !ok {
+		assert.Fail(t, fmt.Sprintf("no value defined for gap at %f:%d", f, o))
+	}
+	assert.Equal(t, b[f], int64(o), fmt.Sprintf("f:o = %f -> %+v", f, o))
 }

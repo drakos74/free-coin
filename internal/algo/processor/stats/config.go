@@ -31,9 +31,9 @@ func loadDefaults() []Config {
 func getOrderFunc(order string) (func(f float64) int, error) {
 	switch order {
 	case "O10":
-		return coinmath.O10, nil
+		return coinmath.IO10, nil
 	case "O2":
-		return coinmath.O2, nil
+		return coinmath.IO2, nil
 	}
 	return nil, fmt.Errorf("unknown order function: %s", order)
 }

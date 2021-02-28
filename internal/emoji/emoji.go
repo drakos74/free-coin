@@ -57,21 +57,29 @@ func MapToSymbols(ss []string) []string {
 func MapToSymbol(i string) string {
 	symbol := HalfEclipse
 	switch i {
-	case "+3":
+	case "5":
+		fallthrough
+	case "6":
 		symbol = FirstEclipse
-	case "+2":
+	case "7":
 		symbol = FullMoon
-	case "+1":
+	case "8":
 		symbol = SunFace
-	case "+0":
+	case "9":
+		fallthrough
+	case "10":
 		symbol = Star
-	case "-3":
+	case "-5":
+		fallthrough
+	case "-6":
 		symbol = ThirdEclipse
-	case "-2":
+	case "-7":
 		symbol = FullEclipse
-	case "-1":
+	case "-8":
 		symbol = EclipseFace
-	case "-0":
+	case "-9":
+		fallthrough
+	case "-10":
 		symbol = Comet
 	}
 	return symbol
