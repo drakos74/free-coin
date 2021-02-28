@@ -183,13 +183,13 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 					for id, p := range pos {
 						net, profit := p.position.Value()
 						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", p.config.Profit.Min, p.config.Profit.High, p.config.Loss.Min, p.config.Loss.High)
-						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %v at %v",
+						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s at %v",
 							emoji.MapToSign(net),
 							p.position.Coin,
 							profit,
 							"%",
 							net,
-							p.position.Type,
+							emoji.MapType(p.position.Type),
 							coinmath.Format(p.position.OpenPrice))
 						// TODO : send a trigger for each position to give access to adjust it
 						trigger := &api.Trigger{

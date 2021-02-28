@@ -176,7 +176,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 				block.Action <- api.Action{}
 				api.Reply(api.Private, user, api.
 					NewMessage(createPredictionMessage(pair)).
-					AddLine(fmt.Sprintf("open %v %f %s at %f", pair.t, vol, coin, pair.price)), err)
+					AddLine(fmt.Sprintf("open %v %f %s at %f", emoji.MapType(pair.t), vol, coin, pair.price)), err)
 				<-block.ReAction
 			} else {
 				if gotAction {

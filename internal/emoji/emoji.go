@@ -1,5 +1,7 @@
 package emoji
 
+import "github.com/drakos74/free-coin/internal/model"
+
 // https://unicode.org/emoji/charts/full-emoji-list.html
 const (
 	HalfEclipse = "🌓"
@@ -21,7 +23,23 @@ const (
 	DotSnow  = "❄"
 	DotFire  = "🔥"
 	DotWater = "💧"
+
+	Biohazard = "☣"
+	Recycling = "♻"
+
+	Error = "🚫"
 )
+
+// MapType maps the type of buy and sell to an emoji
+func MapType(t model.Type) string {
+	switch t {
+	case model.Buy:
+		return Recycling
+	case model.Sell:
+		return Biohazard
+	}
+	return Error
+}
 
 // MapToSign maps the given float value according to it's sign.
 func MapToSign(f float64) string {
