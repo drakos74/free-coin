@@ -127,6 +127,10 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			}
 			multiStatsConfig = append(multiStatsConfig, config)
 		}
+		log.Warn().
+			Str("processor", stats.ProcessorName).
+			Str("config", fmt.Sprintf("%+v", multiStatsConfig)).
+			Msg("loaded config from back-test")
 
 		positionsConfig := make([]position.Config, 0)
 		if posConfig, ok := q.Data[position.ProcessorName]; ok {
@@ -137,10 +141,28 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			}
 			positionsConfig = append(positionsConfig, config)
 		}
+		log.Warn().
+			Str("processor", position.ProcessorName).
+			Str("config", fmt.Sprintf("%+v", positionsConfig)).
+			Msg("loaded config from back-test")
+
+		tradeConfig := make([]trade.Config, 0)
+		if traderConfig, ok := q.Data[trade.ProcessorName]; ok {
+			var config trade.Config
+			err := FromJsonMap(trade.ProcessorName, traderConfig, &config)
+			if err != nil {
+				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", position.ProcessorName, err))
+			}
+			tradeConfig = append(tradeConfig, config)
+		}
+		log.Warn().
+			Str("processor", trade.ProcessorName).
+			Str("config", fmt.Sprintf("%+v", tradeConfig)).
+			Msg("loaded config from back-test")
 
 		statsProcessor := stats.MultiStats(user, multiStatsConfig...)
-		positionProcessor := position.Position(exchange, user, block, true)
-		tradeProcessor := trade.Trade(exchange, user, block)
+		positionProcessor := position.Position(exchange, user, block, true, positionsConfig...)
+		tradeProcessor := trade.Trade(exchange, user, block, tradeConfig...)
 
 		err := overWatch.Start(finished, c, exchange,
 			statsProcessor,
@@ -174,6 +196,8 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 	case stats.ProcessorName:
 		fallthrough
 	case position.ProcessorName:
+		fallthrough
+	case trade.ProcessorName:
 		return json.Unmarshal(b, n)
 	}
 	return fmt.Errorf("could not find json loader for config: %s", name)

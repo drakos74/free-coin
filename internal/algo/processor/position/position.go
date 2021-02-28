@@ -36,11 +36,16 @@ type tradeAction struct {
 // block is the internal synchronisation mechanism used to report on the process of requests
 // closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
 func Position(client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
+
+	if len(configs) == 0 {
+		configs = loadDefaults()
+	}
+
 	// define our internal global statsCollector
 	positions := tradePositions{
-		pos:     make(map[model.Coin]map[string]*tradePosition),
-		configs: configs,
-		lock:    new(sync.RWMutex),
+		pos:            make(map[model.Coin]map[string]*tradePosition),
+		initialConfigs: configs,
+		lock:           new(sync.RWMutex),
 	}
 
 	ticker := time.NewTicker(positionRefreshInterval)

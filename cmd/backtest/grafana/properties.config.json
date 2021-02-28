@@ -1,7 +1,22 @@
 {
+  "trade" : {
+    "coin": "BTC",
+    "open": {
+      "value": 300
+    },
+    "strategies": [
+      {
+        "name": "numeric",
+        "target": 15,
+        "probability": 0.6,
+        "sample": 5,
+        "threshold": 7
+      }
+    ]
+  },
   "position": {
     "profit": {
-      "min": 0.5,
+      "min": 1.5,
       "max": 1.5,
       "trail": true
     },
@@ -12,20 +27,12 @@
     }
   },
   "stats": {
-    "duration": 5,
+    "duration": 15,
     "order": "O10",
     "targets": [
       {
-        "prev": 3,
+        "prev": 2,
         "next": 1
-      },
-      {
-        "prev": 4,
-        "next": 3
-      },
-      {
-        "prev": 5,
-        "next": 2
       }
     ]
   }

@@ -7,12 +7,6 @@ import (
 	coinmath "github.com/drakos74/free-coin/internal/math"
 )
 
-// Target defines the prediction target intervals.
-type Target struct {
-	LookBack  int `json:"prev"`
-	LookAhead int `json:"next"`
-}
-
 // Config defines the configuration for the MultiStats processor.
 type Config struct {
 	Coin      string   `json:"coin"`
@@ -20,6 +14,12 @@ type Config struct {
 	Order     string   `json:"order"`
 	Intervals int      `json:"intervals"`
 	Targets   []Target `json:"targets"`
+}
+
+// Target defines the prediction target intervals.
+type Target struct {
+	LookBack  int `json:"prev"`
+	LookAhead int `json:"next"`
 }
 
 func loadDefaults() []Config {

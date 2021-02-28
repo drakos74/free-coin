@@ -51,16 +51,9 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
-			if _, ok := stats.configs[trade.Coin]; !ok {
-				stats.configs[trade.Coin] = stats.configs[""]
-			}
+			stats.init(trade.Coin)
 			for duration, cfg := range stats.configs[trade.Coin] {
-				k := sKey{
-					duration: duration,
-					coin:     trade.Coin,
-				}
-				// we got the config, check if we need something to do in the windows
-				stats.start(k)
+				k := processor.NewKey(trade.Coin, duration)
 				// push the trade data to the stats collector window
 				if buckets, ok := stats.push(k, trade); ok {
 					values, indicators, last := extractFromBuckets(buckets,
@@ -75,7 +68,7 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 								Coin:           trade.Coin,
 								Price:          trade.Price,
 								Time:           trade.Time,
-								Duration:       k.duration,
+								Duration:       k.Duration,
 								Predictions:    predictions,
 								AggregateStats: aggregateStats,
 							},

@@ -28,10 +28,10 @@ func TestTrader_Gather(t *testing.T) {
 			},
 			msgCount: 13,
 			config: trade.OpenConfig{
-				Coin:                 model.BTC,
-				SampleThreshold:      1,
-				ProbabilityThreshold: 0.9,
-				Volume:               0.1,
+				Coin:           model.BTC,
+				MinSample:      1,
+				MinProbability: 0.9,
+				Volume:         0.1,
 			},
 		},
 		"inc": {
@@ -66,7 +66,7 @@ func TestTrader_Gather(t *testing.T) {
 			cmds <- api.Command{
 				ID:      1,
 				User:    "",
-				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.ProbabilityThreshold, tt.config.SampleThreshold),
+				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.MinProbability, tt.config.MinSample),
 			}
 
 			wg := new(sync.WaitGroup)

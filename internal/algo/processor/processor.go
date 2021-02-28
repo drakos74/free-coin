@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -21,4 +22,21 @@ func Void(name string) api.Processor {
 			out <- trade
 		}
 	}
+}
+
+// Key characterises distinct processor attributes
+type Key struct {
+	Coin     model.Coin
+	Duration time.Duration
+}
+
+func NewKey(c model.Coin, d time.Duration) Key {
+	return Key{
+		Coin:     c,
+		Duration: d,
+	}
+}
+
+func (k Key) String() string {
+	return fmt.Sprintf("coin = %s , duration = %v", k.Coin, k.Duration)
 }

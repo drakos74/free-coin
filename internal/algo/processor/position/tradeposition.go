@@ -31,9 +31,9 @@ type tradePosition struct {
 }
 
 type tradePositions struct {
-	pos     map[model.Coin]map[string]*tradePosition
-	configs []Config
-	lock    *sync.RWMutex
+	pos            map[model.Coin]map[string]*tradePosition
+	initialConfigs []Config
+	lock           *sync.RWMutex
 }
 
 func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
@@ -88,9 +88,6 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	}
 	for _, p := range pp.Positions {
 		cfg := tp.getConfiguration(p.Coin)
-		if p, ok := tp.pos[p.Coin][p.ID]; ok {
-			cfg = p.config
-		}
 		if _, ok := tp.pos[p.Coin]; !ok {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
@@ -100,6 +97,19 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		}
 	}
 	return nil
+}
+
+func (tp *tradePositions) getConfiguration(coin model.Coin) Config {
+	var defaultConfig Config
+	for _, cfg := range tp.initialConfigs {
+		if cfg.Coin == "" {
+			defaultConfig = cfg
+		}
+		if coin == model.Coin(cfg.Coin) {
+			return cfg
+		}
+	}
+	return defaultConfig
 }
 
 func (tp *tradePositions) track(client api.Exchange, ticker *time.Ticker, quit chan struct{}, block api.Block) {

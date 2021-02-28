@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/rs/zerolog/log"
 )
 
 const path = "infra/config"
@@ -20,6 +22,8 @@ func MustLoad(key string, v interface{}) []byte {
 	if err != nil {
 		panic(fmt.Sprintf("could not unmarshal the config for %s: %s", key, err.Error()))
 	}
+
+	log.Info().Str("processor", key).Msg("loaded default config")
 
 	return b
 

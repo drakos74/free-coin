@@ -40,7 +40,7 @@ func TestTradeStrategy(t *testing.T) {
 				{"+2", "+2"},
 				{"+3", "+0"},
 			},
-			strategy: simpleStrategy,
+			strategy: numericStrategy,
 			ttyp:     1,
 		},
 		"sell": {
@@ -65,7 +65,7 @@ func TestTradeStrategy(t *testing.T) {
 				{"-2", "-2"},
 				{"-3", "-0"},
 			},
-			strategy: simpleStrategy,
+			strategy: numericStrategy,
 			ttyp:     2,
 		},
 		"no-action": {
@@ -82,7 +82,7 @@ func TestTradeStrategy(t *testing.T) {
 				{"-0", "-3", "-4"},
 				{"-1", "-1", "-5"},
 			},
-			strategy: simpleStrategy,
+			strategy: numericStrategy,
 		},
 	}
 
