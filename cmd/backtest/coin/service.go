@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
@@ -112,10 +113,15 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		overWatch := coin.New(tradesQuery, user)
 		//go overWatch.Run(ctx)
 
+		// find what the range is, in order to know how many trades to reduce
+		frame := query.Range.To.Sub(query.Range.From).Hours()
+		// lets say for every 24 hours we reduce by 2 the trades ... this would be
+		redux := int(math.Exp2(frame / 24))
+		log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
 		finished := api.NewBlock()
 		exchange := local.
 			NewExchange("", finished.ReAction).
-			OneOfEvery(100)
+			OneOfEvery(redux)
 
 		block := api.NewBlock()
 		multiStatsConfig := make([]stats.Config, 0)
