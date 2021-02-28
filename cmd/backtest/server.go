@@ -142,79 +142,83 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			// lets add the positions if multi stats intervals are defined
-			profitSeries := make([][]float64, 0)
-			coinPositions := positions[c]
-			log.Info().
-				Int("trades", len(trades[c])).
-				Int("positions", len(coinPositions)).
-				Str("target", target.Target).
-				Msg("adding response set")
-			var total float64
-			for _, pos := range coinPositions {
-				net, _ := pos.Position.Value()
-				// TODO : this is interesting for each position , but maybe a bit too much
-				//data = append(data, model.Series{
-				//	Target:     fmt.Sprintf("%s %s %.2f (%d)", target.Target, pos.Position.Type.String(), profit, id),
-				//	DataPoints: model.PositionData(pos),
-				//})
-				total += net
-				profitSeries = append(profitSeries, []float64{total, model.Time(pos.Close)})
+			if _, ok := target.Data[model.ManualConfig]; ok {
+				profitSeries := make([][]float64, 0)
+				coinPositions := positions[c]
+				log.Info().
+					Int("trades", len(trades[c])).
+					Int("positions", len(coinPositions)).Str("set", model.ManualConfig).
+					Str("target", target.Target).
+					Msg("adding response set")
+				var total float64
+				for _, pos := range coinPositions {
+					net, _ := pos.Position.Value()
+					// TODO : this is interesting for each position , but maybe a bit too much
+					//data = append(data, model.Series{
+					//	Target:     fmt.Sprintf("%s %s %.2f (%d)", target.Target, pos.Position.Type.String(), profit, id),
+					//	DataPoints: model.PositionData(pos),
+					//})
+					total += net
+					profitSeries = append(profitSeries, []float64{total, model.Time(pos.Close)})
+				}
+				data = append(data, model.Series{
+					// TODO : print the config details used ... or not (?)
+					Target:     fmt.Sprintf("%s P&L", target.Target),
+					DataPoints: profitSeries,
+				})
 			}
-			data = append(data, model.Series{
-				Target:     fmt.Sprintf("%s P&L [%+v]", target.Target, formatJsonData(target.Data[model.MultiStatsConfig])),
-				DataPoints: profitSeries,
-			})
 		case "table":
-			//if _, ok := target.Data[model.Messages]; ok {
-			log.Info().
-				Int("count", len(messages)).
-				Str("target", target.Target).
-				Msg("adding response set")
-			table := model.NewTable()
-			table.Columns = append(table.Columns,
-				model.Column{
-					Text: "Time",
-					Type: "date",
-				},
-				model.Column{
-					Text: "Message",
-					Type: "string",
-				},
-				model.Column{
-					Text: "Stats",
-					Type: "string",
-				},
-				model.Column{
-					Text: "Description",
-					Type: "string",
-				},
-				model.Column{
-					Text: "Details",
-					Type: "string",
-				},
-			)
-			log.Info().Int("count", len(messages)).Msg("adding messages")
-			for _, msg := range messages {
-				txt := strings.Split(msg.Text, "\n")
-				l := len(txt)
-				var stats string
-				description := make([]string, 0)
-				details := make([]string, 0)
-				d := ""
-				if l > 1 {
-					stats = txt[1]
+			if _, ok := target.Data[model.Messages]; ok {
+				log.Info().
+					Int("count", len(messages)).
+					Str("set", model.Messages).
+					Str("target", target.Target).
+					Msg("adding response set")
+				table := model.NewTable()
+				table.Columns = append(table.Columns,
+					model.Column{
+						Text: "Time",
+						Type: "date",
+					},
+					model.Column{
+						Text: "Message",
+						Type: "string",
+					},
+					model.Column{
+						Text: "Stats",
+						Type: "string",
+					},
+					model.Column{
+						Text: "Description",
+						Type: "string",
+					},
+					model.Column{
+						Text: "Details",
+						Type: "string",
+					},
+				)
+				log.Info().Int("count", len(messages)).Msg("adding messages")
+				for _, msg := range messages {
+					txt := strings.Split(msg.Text, "\n")
+					l := len(txt)
+					var stats string
+					description := make([]string, 0)
+					details := make([]string, 0)
+					d := ""
+					if l > 1 {
+						stats = txt[1]
+					}
+					if l > 5 {
+						details = txt[5:]
+						d = details[0]
+					}
+					if len(details) >= 3 {
+						description = details[2:]
+					}
+					table.Rows = append(table.Rows, []string{msg.Time.Format(time.Stamp), txt[0], stats, d, strings.Join(description, "\n")})
 				}
-				if l > 5 {
-					details = txt[5:]
-					d = details[0]
-				}
-				if len(details) >= 3 {
-					description = details[2:]
-				}
-				table.Rows = append(table.Rows, []string{msg.Time.Format(time.Stamp), txt[0], stats, d, strings.Join(description, "\n")})
+				tables = append(tables, table)
 			}
-			tables = append(tables, table)
-			//}
 		}
 	}
 

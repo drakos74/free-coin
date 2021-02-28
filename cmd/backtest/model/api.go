@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	MultiStatsConfig = "stats"
-	Messages         = "messages"
-	FieldKey         = "field"
+	ManualConfig = "config"
+	Messages     = "messages"
+	FieldKey     = "field"
 )
 
 type Query struct {
