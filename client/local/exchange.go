@@ -89,7 +89,7 @@ func (e *Exchange) OpenPosition(position model.Position) error {
 		Position: position,
 	}
 	if _, ok := e.positions[position.ID]; ok {
-		fmt.Println(fmt.Sprintf("duplicate position found for  = %+v", position.ID))
+		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
 	e.positions[position.ID] = trackedPosition
 	//fmt.Println(fmt.Sprintf("open position = %+v", trackedPosition))
@@ -114,7 +114,7 @@ func (e *Exchange) OpenOrder(order model.Order) error {
 		Position: position,
 	}
 	if _, ok := e.positions[position.ID]; ok {
-		fmt.Println(fmt.Sprintf("duplicate position found for  = %+v", position.ID))
+		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
 	e.positions[order.ID] = trackedPosition
 	//fmt.Println(fmt.Sprintf("open order = %+v", position))

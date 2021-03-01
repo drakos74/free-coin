@@ -134,7 +134,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 				k = c.key(hash, coin)
 				trades = make([]model.Trade, 0)
 				from = nil
-				to = nil
+				//to = nil
 			}
 			c.trades <- trade
 		}

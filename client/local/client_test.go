@@ -62,7 +62,7 @@ func TestClient_Trades(t *testing.T) {
 				WithPersistence(func(shard string) (storage.Persistence, error) {
 					return json.NewJsonBlob("table", tt.shard), nil
 				})
-			trades, err := client.Trades(make(chan struct{}), tt.coin, api.NonStop)
+			trades, err := client.Trades(make(chan api.Action), tt.coin)
 			assert.NoError(t, err)
 
 			// the mock source adds one trade per minute ...
@@ -97,7 +97,7 @@ func newMockSource(since int64) *mockSource {
 	return &mockSource{start: t}
 }
 
-func (m *mockSource) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {
+func (m *mockSource) Trades(process <-chan api.Action, coin model.Coin) (model.TradeSource, error) {
 
 	trades := make(chan *model.Trade)
 
@@ -105,7 +105,7 @@ func (m *mockSource) Trades(stop <-chan struct{}, coin model.Coin, stopExecution
 		i := 0
 		for {
 			select {
-			case <-stop:
+			case <-process:
 				close(trades)
 				return
 			default:
