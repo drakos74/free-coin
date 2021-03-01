@@ -2,7 +2,6 @@ package position
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -113,11 +112,7 @@ func Position(client api.Exchange, user api.User, block api.Block, closeInstant 
 	}
 
 	// define our internal global statsCollector
-	positions := tradePositions{
-		pos:            make(map[model.Coin]map[string]*tradePosition),
-		initialConfigs: configs,
-		lock:           new(sync.RWMutex),
-	}
+	positions := newPositionTracker(configs)
 
 	ticker := time.NewTicker(positionRefreshInterval)
 	quit := make(chan struct{})

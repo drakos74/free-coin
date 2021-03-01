@@ -13,7 +13,7 @@ type Config struct {
 type Setup struct {
 	Min   float64 `json:"min"`
 	Max   float64 `json:"max"`
-	Trail bool    `json:"trail"`
+	Trail float64 `json:"trail"`
 	High  float64 `json:"-"`
 }
 

@@ -133,7 +133,6 @@ func TestPosition_Update(t *testing.T) {
 			assert.Equal(t, tt.fp, len(finalPositions.Positions))
 			for _, p := range finalPositions.Positions {
 				println(fmt.Sprintf("p = %+v", p))
-
 			}
 		})
 	}

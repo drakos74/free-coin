@@ -24,7 +24,7 @@ func key(c model.Coin, id string) tpKey {
 }
 
 type tradePosition struct {
-	position model.Position
+	position *model.Position
 	config   Config
 }
 
@@ -34,39 +34,12 @@ type tradePositions struct {
 	lock           *sync.RWMutex
 }
 
-func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
-	tp.lock.Lock()
-	defer tp.lock.Unlock()
-	actions := make([]tradeAction, 0)
-	if positions, ok := tp.pos[trade.Coin]; ok {
-		log.Debug().
-			Time("server-time", time.Now()).
-			Time("trade-time", trade.Time).
-			Int("count", len(positions)).
-			Str("coin", string(trade.Coin)).
-			Msg("open positions")
-		for id, p := range positions {
-			p.position.CurrentPrice = trade.Price
-			if trade.Live {
-				net, profit := p.position.Value()
-				log.Trace().
-					Str("ID", id).
-					Str("coin", string(p.position.Coin)).
-					Float64("net", net).
-					Float64("profit", profit).
-					Msg("check position")
-				actions = append(actions, tradeAction{
-					key:      key(trade.Coin, id),
-					position: p,
-					doClose:  p.DoClose(),
-				})
-			}
-		}
+func newPositionTracker(configs []Config) *tradePositions {
+	return &tradePositions{
+		pos:            make(map[model.Coin]map[string]*tradePosition),
+		initialConfigs: configs,
+		lock:           new(sync.RWMutex),
 	}
-	for _, action := range actions {
-		tp.pos[action.key.coin][action.key.id] = action.position
-	}
-	return actions
 }
 
 // TODO : disable user adjustments for now
@@ -92,13 +65,13 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: p,
+				position: &p,
 				config:   oldPosition.config,
 			}
 		} else {
 			cfg := tp.getConfiguration(p.Coin)
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: p,
+				position: &p,
 				config:   cfg,
 			}
 		}
@@ -107,7 +80,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	// remove old positions
 	toDel := make([]tpKey, 0)
 	for c, ps := range tp.pos {
-		for id, _ := range ps {
+		for id := range ps {
 			if _, ok := posIDs[id]; !ok {
 				toDel = append(toDel, tpKey{
 					coin: c,
@@ -188,17 +161,39 @@ func (tp *tradePositions) delete(k tpKey) {
 	log.Debug().Str("coin", string(k.coin)).Str("id", k.id).Msg("deleted position")
 }
 
-func (tp *tradePositions) exists(key tpKey) bool {
+func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
-	// ok, here we might encounter the case that we closed the position from another trigger
-	if _, ok := tp.pos[key.coin]; !ok {
-		return false
+	actions := make([]tradeAction, 0)
+	if positions, ok := tp.pos[trade.Coin]; ok {
+		log.Info().
+			Time("server-time", time.Now()).
+			Time("trade-time", trade.Time).
+			Int("count", len(positions)).
+			Str("coin", string(trade.Coin)).
+			Msg("open positions")
+		for id, p := range positions {
+			p.position.CurrentPrice = trade.Price
+			if trade.Live {
+				net, profit := p.position.Value()
+				log.Info().
+					Str("ID", id).
+					Str("coin", string(p.position.Coin)).
+					Float64("net", net).
+					Float64("profit", profit).
+					Msg("check position")
+				actions = append(actions, tradeAction{
+					key:      key(trade.Coin, id),
+					position: p,
+					doClose:  p.DoClose(),
+				})
+			}
+		}
 	}
-	if _, ok := tp.pos[key.coin][key.id]; !ok {
-		return false
+	for _, action := range actions {
+		tp.pos[action.key.coin][action.key.id] = action.position
 	}
-	return true
+	return actions
 }
 
 // DoClose checks if the given position should be closed, based on the current configuration.
@@ -206,23 +201,24 @@ func (tp *tradePositions) exists(key tpKey) bool {
 func (tp *tradePosition) DoClose() bool {
 	net, p := tp.position.Value()
 	if net > 0 && p > tp.config.Profit.Min {
-		// check the previous profit in order to extend profit
-		if p > tp.config.Profit.High {
-			// if we are making more ... ignore
-			tp.config.Profit.High = p
-			return false
-		}
-		diff := tp.config.Profit.High - p
-		// TODO :define this in the config as well
-		if diff < 0.15 {
-			// leave for now, hoping profit will go up again
-			// but dont update our highest value
-			return false
+		if tp.config.Profit.Trail > 0 {
+			// check the previous profit in order to extend profit
+			if p > tp.config.Profit.High {
+				// if we are making more ... ignore
+				tp.config.Profit.High = p
+				return false
+			}
+			diff := tp.config.Profit.High - p
+			// TODO :define this in the config as well
+			if diff < tp.config.Profit.Trail {
+				// leave for now, hoping profit will go up again
+				// but dont update our highest value
+				return false
+			}
 		}
 		// only close if the market is going down
 		return true
-	}
-	if net < 0 && p < -1*tp.config.Loss.Min {
+	} else if net < 0 && p < -1*tp.config.Loss.Min {
 		if p > tp.config.Loss.High {
 			tp.config.Loss.High = p
 			// we are improving our position ... so give it a bit of time.
@@ -248,7 +244,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 	}
 	position := tp.pos[key.coin][key.id].position
 	net, profit := position.Value()
-	err := client.ClosePosition(position)
+	err := client.ClosePosition(*position)
 	if err != nil {
 		log.Error().
 			Float64("volume", position.Volume).
