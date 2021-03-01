@@ -257,6 +257,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 			Str("coin", string(position.Coin)).
 			Float64("net", net).
 			Float64("profit", profit).
+			Err(err).
 			Msg("could not close position")
 		user.Send(api.Private, api.NewMessage(fmt.Sprintf("could not close %s [%s]: %s",
 			key.coin,
