@@ -30,7 +30,7 @@ func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krake
 // newOrder creates a new order from a kraken order description.
 // TODO : find out why this fails ... e.g. orderdescription is empty
 func (r *RemoteExchange) newOrder(order krakenapi.OrderDescription) *coinmodel.Order {
-	fmt.Println(fmt.Sprintf("order-description-from-kraken = %+v", order))
+	fmt.Printf("order-description-from-kraken = %+v\n", order)
 	//_, err := strconv.ParseFloat(order.PrimaryPrice, 64)
 	//if err != nil {
 	//	log.Error().Err(err).Str("price", order.PrimaryPrice).Msg("could not read price")

@@ -26,10 +26,12 @@ const (
 func trackUserActions(user api.User, stats *statsCollector) {
 	for command := range user.Listen("stats", "?n") {
 		var duration int
+		var coin string
 		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?n", "?notify"),
+			api.Any(&coin),
 			api.Int(&duration),
 			api.OneOf(&action, "start", "stop", ""),
 		)
@@ -37,14 +39,21 @@ func trackUserActions(user api.User, stats *statsCollector) {
 			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
-		//timeDuration := Time.Duration(Duration) * Time.Minute
-
+		c := model.Coin(coin)
+		d := time.Duration(duration) * time.Minute
+		k := processor.NewKey(c, d)
 		switch action {
 		case "":
-			// TODO : return the currently running stats processes
+			if w, ok := stats.windows[k]; ok {
+				sendWindowConfig(user, k, w)
+			} else {
+				for k, w := range stats.windows {
+					sendWindowConfig(user, k, w)
+				}
+			}
+			// TODO : re-enable this functionality.
 			//case "start":
-			//	// TODO : re-enable this functionality.
-			//	if stats.hasOrAddDuration(timeDuration) {
+			//	if stats.windows(timeDuration) {
 			//		api.Reply(api.Private, user,
 			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
 			//				ReplyTo(command.ID), nil)
@@ -60,6 +69,20 @@ func trackUserActions(user api.User, stats *statsCollector) {
 			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
 			//			ReplyTo(command.ID), nil)
 		}
+	}
+}
+
+func sendWindowConfig(user api.User, k processor.Key, w *window) {
+	for _, cfg := range w.c.Config {
+		api.Reply(api.Private,
+			user,
+			api.NewMessage(fmt.Sprintf("%s|%v %v -> %v (%d)",
+				k.Coin,
+				k.Duration,
+				cfg.LookBack,
+				cfg.LookAhead,
+				w.c.Status.Count),
+			), nil)
 	}
 }
 

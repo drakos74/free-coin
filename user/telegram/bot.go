@@ -33,12 +33,6 @@ type botAPI interface {
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 }
 
-type executableTrigger struct {
-	message *tgbotapi.Message
-	replyID int
-	private api.Index
-}
-
 // Bot defines the telegram bot coinapi.User api implementation.
 type Bot struct {
 	publicBot       botAPI

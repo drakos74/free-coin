@@ -140,7 +140,7 @@ func (o *Order) Create() Order {
 
 func (o *Order) mustBeEmpty(t int) {
 	if t != 0 {
-		panic(fmt.Sprintf("value must be empty: %s", t))
+		panic(fmt.Sprintf("value must be empty: %v", t))
 	}
 }
 

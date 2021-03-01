@@ -19,6 +19,13 @@ type window struct {
 	c *buffer.HMM
 }
 
+func newWindow(cfg windowConfig) *window {
+	return &window{
+		w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
+		c: buffer.NewMultiHMM(cfg.counterSizes...),
+	}
+}
+
 type windowConfig struct {
 	coin         model.Coin
 	duration     time.Duration
@@ -59,7 +66,7 @@ type statsCollector struct {
 	lock           sync.RWMutex
 	initialConfigs []Config
 	configs        map[model.Coin]map[time.Duration]windowConfig
-	windows        map[processor.Key]window
+	windows        map[processor.Key]*window
 }
 
 func newStats(initialConfigs []Config) (*statsCollector, error) {
@@ -67,7 +74,7 @@ func newStats(initialConfigs []Config) (*statsCollector, error) {
 		lock:           sync.RWMutex{},
 		initialConfigs: initialConfigs,
 		configs:        make(map[model.Coin]map[time.Duration]windowConfig),
-		windows:        make(map[processor.Key]window),
+		windows:        make(map[processor.Key]*window),
 	}
 	// add default initialConfigs to start with ...
 	for _, cfg := range initialConfigs {
@@ -92,10 +99,7 @@ func newStats(initialConfigs []Config) (*statsCollector, error) {
 			//Str("config", fmt.Sprintf("%+v", config)).
 			Msg("adding stats initialConfig")
 		if _, ok := stats.windows[k]; !ok {
-			stats.windows[k] = window{
-				w: buffer.NewHistoryWindow(config.duration, int(config.historySizes)),
-				c: buffer.NewMultiHMM(config.counterSizes...),
-			}
+			stats.windows[k] = newWindow(config)
 		}
 	}
 	return stats, nil
@@ -117,10 +121,7 @@ func (s *statsCollector) init(coin model.Coin) {
 						Int("d", int(d.Minutes())).
 						//Str("config", fmt.Sprintf("%+v", cfg)).
 						Msg("adding stats initialConfig")
-					s.windows[k] = window{
-						w: buffer.NewHistoryWindow(cfg.duration, int(cfg.historySizes)),
-						c: buffer.NewMultiHMM(cfg.counterSizes...),
-					}
+					s.windows[k] = newWindow(cfg)
 				}
 				log.Warn().Str("coin", string(coin)).Msg("mutated default config")
 			}
@@ -128,12 +129,13 @@ func (s *statsCollector) init(coin model.Coin) {
 	}
 }
 
-func (s *statsCollector) stop(k processor.Key) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	delete(s.configs[k.Coin], k.Duration)
-	delete(s.windows, k)
-}
+// TODO : re-enable user interaction to start and stop stats collectors
+//func (s *statsCollector) stop(k processor.Key) {
+//	s.lock.Lock()
+//	defer s.lock.Unlock()
+//	delete(s.configs[k.Coin], k.Duration)
+//	delete(s.windows, k)
+//}
 
 func (s *statsCollector) push(k processor.Key, trade *model.Trade) ([]interface{}, bool) {
 	s.lock.Lock()

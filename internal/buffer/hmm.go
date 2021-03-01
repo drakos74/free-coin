@@ -24,21 +24,20 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 	return &HMM{
 		max:      max,
 		sequence: ring.New(max + 1),
-		config:   config,
+		Config:   config,
 		hmm:      make(map[string]map[string]int),
-		status:   newStatus(),
+		Status:   newStatus(),
 	}
 }
 
 // HMM counts occurrences in a sequence of strings.
-// It implements effectively several hidden markov model of the n-grams lengths provided in the config.
+// It implements effectively several hidden markov model of the n-grams lengths provided in the Config.
 type HMM struct {
-	count    int64
 	max      int
 	sequence *ring.Ring
-	config   []HMMConfig
+	Config   []HMMConfig
 	hmm      map[string]map[string]int
-	status   *Status
+	Status   *Status
 }
 
 // Prediction defines a prediction result with the computed Probability
@@ -64,7 +63,7 @@ type Sample struct {
 	Events int
 }
 
-// Status reflects the current status of the HMM
+// Status reflects the current Status of the HMM
 type Status struct {
 	Count   int64
 	Samples map[string]map[string]Sample
@@ -82,7 +81,7 @@ func newStatus() *Status {
 // Note : hmm is expensive in terms of memory storage )
 func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 
-	c.status.Count++
+	c.Status.Count++
 
 	values := make([]string, 0)
 
@@ -92,17 +91,17 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 
 	prediction := make(map[string]Prediction)
 
-	for _, cfg := range c.config {
+	for _, cfg := range c.Config {
 		if k, predict, cc := c.addKey(cfg, values, s); predict != nil {
 			predict.Label = label
-			predict.Count = int(c.status.Count)
+			predict.Count = int(c.Status.Count)
 			predict.Groups = cc
 			prediction[k] = *predict
 			s := fmt.Sprintf("%d -> %d", cfg.LookBack, cfg.LookAhead)
-			if _, ok := c.status.Samples[s]; !ok {
-				c.status.Samples[s] = make(map[string]Sample)
+			if _, ok := c.Status.Samples[s]; !ok {
+				c.Status.Samples[s] = make(map[string]Sample)
 			}
-			c.status.Samples[s][k] = Sample{
+			c.Status.Samples[s][k] = Sample{
 				Key:    k,
 				Events: cc,
 			}
@@ -113,7 +112,7 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 	c.sequence.Value = s
 	c.sequence = c.sequence.Next()
 
-	return prediction, *c.status
+	return prediction, *c.Status
 }
 
 func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Prediction, int) {
