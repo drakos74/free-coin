@@ -86,6 +86,6 @@ func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 				// nothing to do just consume, so that the stats processor can proceed
 			}
 		}()
-		return stats.MultiStats(client, user)
+		return stats.MultiStats(user)
 	}
 }

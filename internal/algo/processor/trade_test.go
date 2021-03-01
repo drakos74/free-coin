@@ -18,7 +18,7 @@ func TestTrader_Gather(t *testing.T) {
 	type test struct {
 		transform func(i int) float64
 		msgCount  int
-		config    trade.OpenConfig
+		config    trade.Config
 	}
 
 	tests := map[string]test{
@@ -27,11 +27,17 @@ func TestTrader_Gather(t *testing.T) {
 				return math.Sin(float64(i/10) * 40000)
 			},
 			msgCount: 13,
-			config: trade.OpenConfig{
-				Coin:           model.BTC,
-				MinSample:      1,
-				MinProbability: 0.9,
-				Volume:         0.1,
+			config: trade.Config{
+				Coin: "",
+				Open: trade.Open{
+					Value: 0.1,
+				},
+				Strategies: []trade.Strategy{
+					{
+						Sample:      1,
+						Probability: 0.9,
+					},
+				},
 			},
 		},
 		"inc": {
@@ -55,7 +61,7 @@ func TestTrader_Gather(t *testing.T) {
 			client := newMockClient()
 			block := api.NewBlock()
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return stats.MultiStats(client, user)
+				return stats.MultiStats(user)
 			})
 			out := make(chan *model.Trade)
 			cmds, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
@@ -66,7 +72,7 @@ func TestTrader_Gather(t *testing.T) {
 			cmds <- api.Command{
 				ID:      1,
 				User:    "",
-				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.MinProbability, tt.config.MinSample),
+				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.Strategies[0].Probability, tt.config.Strategies[0].Sample),
 			}
 
 			wg := new(sync.WaitGroup)
