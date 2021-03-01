@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
-	"github.com/drakos74/free-coin/internal/emoji"
-	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -138,77 +136,6 @@ func (tp *tradePositions) track(client api.Exchange, ticker *time.Ticker, quit c
 		case <-quit: // stop the tracking of positions
 			ticker.Stop()
 			return
-		}
-	}
-}
-
-func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
-	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
-		var action string
-		var coin string
-		var param string
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?p", "?pos", "?positions"),
-			api.Any(&coin),
-			// TODO : implement extend / reverse etc ...
-			api.OneOf(&action, "buy", "sell", "close", ""),
-			api.Any(&param),
-		)
-		c := model.Coin(coin)
-		log.Debug().
-			Str("command", command.Content).
-			Str("action", action).
-			Str("coin-argument", coin).
-			Str("coin", string(c)).
-			Str("param", param).
-			Err(err).
-			Msg("received user action")
-		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("[%s cmd error]", ProcessorName)).ReplyTo(command.ID), err)
-			continue
-		}
-
-		switch action {
-		case "close":
-			k := key(c, param)
-			// close the damn position ...
-			tp.close(client, user, k, time.Time{})
-			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
-		case "":
-			err = tp.update(client)
-			if err != nil {
-				log.Error().Err(err).Msg("could not get positions")
-				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
-			}
-			i := 0
-			if len(tp.pos) == 0 {
-				user.Send(api.Private, api.NewMessage(NoPositionMsg), nil)
-				continue
-			}
-			for coin, pos := range tp.getAll() {
-				if c == "" || coin == c {
-					for id, p := range pos {
-						net, profit := p.position.Value()
-						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", p.config.Profit.Min, p.config.Profit.High, p.config.Loss.Min, p.config.Loss.High)
-						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s at %v",
-							emoji.MapToSign(net),
-							p.position.Coin,
-							profit,
-							"%",
-							net,
-							emoji.MapType(p.position.Type),
-							coinmath.Format(p.position.OpenPrice))
-						// TODO : send a trigger for each position to give access to adjust it
-						trigger := &api.Trigger{
-							ID:  id,
-							Key: positionKey,
-						}
-						user.Send(api.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
-						i++
-					}
-				}
-			}
 		}
 	}
 }

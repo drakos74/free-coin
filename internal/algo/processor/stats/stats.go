@@ -23,6 +23,46 @@ const (
 	ProcessorName = "stats"
 )
 
+func trackUserActions(user api.User, stats *statsCollector) {
+	for command := range user.Listen("stats", "?n") {
+		var duration int
+		var action string
+		_, err := command.Validate(
+			api.AnyUser(),
+			api.Contains("?n", "?notify"),
+			api.Int(&duration),
+			api.OneOf(&action, "start", "stop", ""),
+		)
+		if err != nil {
+			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			continue
+		}
+		//timeDuration := Time.Duration(Duration) * Time.Minute
+
+		switch action {
+		case "":
+			// TODO : return the currently running stats processes
+			//case "start":
+			//	// TODO : re-enable this functionality.
+			//	if stats.hasOrAddDuration(timeDuration) {
+			//		api.Reply(api.Private, user,
+			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
+			//				ReplyTo(command.ID), nil)
+			//		continue
+			//	} else {
+			//		api.Reply(api.Private, user,
+			//			api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
+			//				ReplyTo(command.ID), nil)
+			//	}
+			//case "stop":
+			//	stats.stop(timeDuration)
+			//	api.Reply(api.Private, user,
+			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
+			//			ReplyTo(command.ID), nil)
+		}
+	}
+}
+
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
 func MultiStats(user api.User, configs ...Config) api.Processor {
@@ -135,46 +175,6 @@ func group(extract func(b windowView) float64, group func(f float64) int) func(b
 		// TODO :maybe we start counting values only over a limit
 		s := strconv.FormatInt(int64(v), 10)
 		return s
-	}
-}
-
-func trackUserActions(user api.User, stats *statsCollector) {
-	for command := range user.Listen("stats", "?n") {
-		var duration int
-		var action string
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?n", "?notify"),
-			api.Int(&duration),
-			api.OneOf(&action, "start", "stop", ""),
-		)
-		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
-			continue
-		}
-		//timeDuration := Time.Duration(Duration) * Time.Minute
-
-		switch action {
-		case "":
-			// TODO : return the currently running stats processes
-			//case "start":
-			//	// TODO : re-enable this functionality.
-			//	if stats.hasOrAddDuration(timeDuration) {
-			//		api.Reply(api.Private, user,
-			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
-			//				ReplyTo(command.ID), nil)
-			//		continue
-			//	} else {
-			//		api.Reply(api.Private, user,
-			//			api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
-			//				ReplyTo(command.ID), nil)
-			//	}
-			//case "stop":
-			//	stats.stop(timeDuration)
-			//	api.Reply(api.Private, user,
-			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
-			//			ReplyTo(command.ID), nil)
-		}
 	}
 }
 
