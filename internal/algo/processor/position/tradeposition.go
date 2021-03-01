@@ -84,6 +84,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	if err != nil {
 		return fmt.Errorf("could not get positions: %w", err)
 	}
+	posIDs := make(map[string]struct{})
 	for _, p := range pp.Positions {
 		if _, ok := tp.pos[p.Coin]; !ok {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
@@ -101,6 +102,22 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				config:   cfg,
 			}
 		}
+		posIDs[p.ID] = struct{}{}
+	}
+	// remove old positions
+	toDel := make([]tpKey, 0)
+	for c, ps := range tp.pos {
+		for id, _ := range ps {
+			if _, ok := posIDs[id]; !ok {
+				toDel = append(toDel, tpKey{
+					coin: c,
+					id:   id,
+				})
+			}
+		}
+	}
+	for _, del := range toDel {
+		delete(tp.pos[del.coin], del.id)
 	}
 	return nil
 }

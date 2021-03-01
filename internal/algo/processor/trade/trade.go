@@ -119,6 +119,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 										pairs[kk] = make([]predictionPair, 0)
 									}
 									log.Info().
+										Str("trade-ID", trade.ID).
 										Str("prediction", fmt.Sprintf("%+v", p)).
 										Str("key", fmt.Sprintf("%+v", kk)).
 										Time("time", trade.Time).
