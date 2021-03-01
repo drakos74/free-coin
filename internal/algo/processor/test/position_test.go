@@ -1,4 +1,4 @@
-package processor
+package test
 
 import (
 	"context"
@@ -106,6 +106,8 @@ func TestPosition_Update(t *testing.T) {
 					if tt.reply != nil && len(tt.reply) > i {
 						userCommand := tt.reply[i]
 						if userCommand != "" {
+							println(fmt.Sprintf("userCommand = %+v", userCommand))
+							println(fmt.Sprintf("tt.replyMsg = %+v", tt.replyMsg))
 							// emulate the user replying ...
 							//cmd := api.NewCommand(0, "iam", userCommand)
 							// TODO : fix this logic for the test
@@ -215,6 +217,7 @@ func TestPosition_Track(t *testing.T) {
 					println(fmt.Sprintf("msg.msg.Text = %+v", msg.msg.Text))
 					time.Sleep(100 * time.Millisecond)
 					if len(msg.trigger.Default) > 0 {
+						println(fmt.Sprintf("msg.trigger.Default = %+v", msg.trigger.Default))
 						// TODO : assert on the closing profit
 						// TODO : fix this logic for the processor
 						//reply, err := msg.trigger.Exec(api.NewCommand(1, "", strings.Join(msg.trigger.Default, " ")))
@@ -246,6 +249,9 @@ func TestPosition_Track(t *testing.T) {
 				trade.Active = true
 				in <- trade
 			}
+
+			// TODO : assert the profit
+			println(fmt.Sprintf("tt.profit = %+v", tt.profit))
 
 			wg.Wait()
 
