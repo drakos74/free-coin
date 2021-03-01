@@ -78,7 +78,7 @@ func (s *Server) Run() error {
 	http.HandleFunc(fmt.Sprintf("/%s/annotations", basePath), Handle(POST, s.annotations))
 	http.HandleFunc(fmt.Sprintf("/%s/query", basePath), Handle(POST, s.query))
 
-	fmt.Printf(fmt.Sprintf("Starting backtest server at port %d\n", port))
+	log.Warn().Str("server", "backtest").Int("port", port).Msg("starting server")
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		return fmt.Errorf("could not start storage server: %w", err)
 	}
@@ -238,7 +238,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	w.Write(b)
+	s.respond(w, b)
 }
 
 func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
@@ -267,8 +267,8 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trades, err := historyClient.Get(query.Range.From, query.Range.To)
-	fmt.Println(fmt.Sprintf("trades = %+v", len(trades.Trades)))
-	fmt.Println(fmt.Sprintf("order = %+v", len(trades.Order)))
+
+	log.Info().Int("order", len(trades.Order)).Int("trades", len(trades.Trades)).Msg("loaded trades")
 
 	if err != nil {
 		s.error(w, err)
@@ -309,6 +309,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 
 			} else {
 				// skipping position. it should be matched with a closed one
+				log.Debug().Str("trade", fmt.Sprintf("%+v", trade)).Msg("open position found")
 			}
 
 		}
@@ -324,8 +325,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	w.Write(b)
-	w.WriteHeader(http.StatusOK)
+	s.respond(w, b)
 }
 func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
 	tags := []model.Tag{
@@ -343,7 +343,7 @@ func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	w.Write(b)
+	s.respond(w, b)
 }
 
 func (s *Server) values(w http.ResponseWriter, r *http.Request) {
@@ -354,6 +354,9 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 	}
 	var tag model.Tag
 	err = json.Unmarshal(body, &tag)
+	if err != nil {
+		s.error(w, err)
+	}
 
 	switch tag.Key {
 	case "coin":
@@ -368,10 +371,9 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 			s.error(w, err)
 			return
 		}
-		w.Write(b)
+		s.respond(w, b)
 	default:
-		w.Write([]byte(fmt.Sprintf("unknown tag: %+v", tag)))
-		w.WriteHeader(http.StatusInternalServerError)
+		s.code(w, []byte(fmt.Sprintf("unknown tag: %+v", tag)), http.StatusInternalServerError)
 	}
 }
 
@@ -389,34 +391,22 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	w.Write(b)
+	s.respond(w, b)
+}
+
+func (s *Server) code(w http.ResponseWriter, b []byte, code int) {
+	s.respond(w, b)
+	w.WriteHeader(code)
+}
+
+func (s *Server) respond(w http.ResponseWriter, b []byte) {
+	_, err := w.Write(b)
+	if err != nil {
+		log.Error().Err(err).Msg("could not write response")
+	}
 }
 
 func (s *Server) error(w http.ResponseWriter, err error) {
 	log.Error().Err(err).Msg("error for http request")
-	w.Write([]byte(err.Error()))
-	w.WriteHeader(http.StatusInternalServerError)
-}
-
-func formatJsonData(v interface{}) interface{} {
-
-	b, err := json.Marshal(v)
-	if err != nil {
-		log.Warn().Err(err).Msg("could not format json data")
-		return v
-	}
-
-	s := string(b)
-
-	s = strings.ReplaceAll(s, "{", "")
-	s = strings.ReplaceAll(s, "}", "")
-	s = strings.ReplaceAll(s, ":", " ")
-	s = strings.ReplaceAll(s, ",", "|")
-	s = strings.ReplaceAll(s, "\"", "")
-	s = strings.ReplaceAll(s, "duration", "")
-	s = strings.ReplaceAll(s, "order", "")
-	s = strings.ReplaceAll(s, "targets", "")
-
-	return s
-
+	s.code(w, []byte(err.Error()), http.StatusInternalServerError)
 }
