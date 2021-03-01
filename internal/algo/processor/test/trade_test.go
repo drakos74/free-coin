@@ -68,6 +68,7 @@ func TestTrader_Gather(t *testing.T) {
 			// run the stats processor
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
 				return stats.MultiStats(user, stats.Config{
+					Coin:      "LINK",
 					Duration:  10,
 					Order:     "O10",
 					Intervals: 0,
@@ -83,7 +84,8 @@ func TestTrader_Gather(t *testing.T) {
 					},
 				},
 					stats.Config{
-						Duration:  20,
+						Coin:      "XRP",
+						Duration:  10,
 						Order:     "O2",
 						Intervals: 0,
 						Targets: []stats.Target{
@@ -141,7 +143,7 @@ func TestTrader_Gather(t *testing.T) {
 			go func() {
 				start := time.Now()
 				for i := 0; i < num; i++ {
-					trade := newTrade(model.BTC, tt.transform(i), 1, model.Buy, start.Add(time.Duration(i*15)*time.Second))
+					trade := newTrade(model.LINK, tt.transform(i), 1, model.Buy, start.Add(time.Duration(i*15)*time.Second))
 					// enable trade to publish messages
 					trade.Live = true
 					in <- trade

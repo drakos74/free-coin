@@ -26,7 +26,7 @@ func key(c model.Coin, id string) tpKey {
 }
 
 type tradePosition struct {
-	position *model.Position
+	position model.Position
 	config   Config
 }
 
@@ -67,13 +67,13 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: &p,
+				position: p,
 				config:   oldPosition.config,
 			}
 		} else {
 			cfg := tp.getConfiguration(p.Coin)
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: &p,
+				position: p,
 				config:   cfg,
 			}
 		}
@@ -249,7 +249,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 	}
 	position := tp.pos[key.coin][key.id].position
 	net, profit := position.Value()
-	err := client.ClosePosition(*position)
+	err := client.ClosePosition(position)
 	if err != nil {
 		log.Error().
 			Float64("volume", position.Volume).
