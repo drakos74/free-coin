@@ -52,7 +52,7 @@ func TestStats_Gather(t *testing.T) {
 			_, msgs := run(client, in, out, testMultiStats())
 			wg := new(sync.WaitGroup)
 			wg.Add(tt.msgCount)
-			go logMessages("stats", wg, msgs)
+			go consumeMessages("stats", wg, msgs)
 
 			num := 1000
 			wg.Add(num)

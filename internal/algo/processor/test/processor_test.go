@@ -50,7 +50,7 @@ func run(client api.Exchange, in, out chan *model.Trade, processor func(client a
 	return
 }
 
-func logMessages(name string, wg *sync.WaitGroup, msgs chan sendAction) {
+func consumeMessages(name string, wg *sync.WaitGroup, msgs chan sendAction) {
 	i := 0
 	for msg := range msgs {
 		println(fmt.Sprintf("%s: msg = %+v", name, msg.msg.Text))
@@ -58,7 +58,7 @@ func logMessages(name string, wg *sync.WaitGroup, msgs chan sendAction) {
 			wg.Done()
 		}
 		i++
-		println(fmt.Sprintf("i = %+v", i))
+		println(fmt.Sprintf("%s i = %+v", name, i))
 	}
 }
 
@@ -100,7 +100,9 @@ type mockClient struct {
 }
 
 func newMockClient() *mockClient {
-	return &mockClient{positions: make([]model.Position, 0)}
+	return &mockClient{
+		positions: make([]model.Position, 0),
+	}
 }
 
 func (c *mockClient) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {

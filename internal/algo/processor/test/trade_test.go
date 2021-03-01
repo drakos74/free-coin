@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
 	"github.com/drakos74/free-coin/internal/api"
@@ -28,7 +32,6 @@ func TestTrader_Gather(t *testing.T) {
 			},
 			msgCount: 13,
 			config: trade.Config{
-				Coin: "",
 				Open: trade.Open{
 					Value: 0.1,
 				},
@@ -44,13 +47,13 @@ func TestTrader_Gather(t *testing.T) {
 			transform: func(i int) float64 {
 				return 40000 + 100*float64(i)
 			},
-			msgCount: 35,
+			msgCount: 22,
 		},
 		"dec": {
 			transform: func(i int) float64 {
-				return 40000 - 100*float64(i)
+				return 40000 - 10*float64(i)
 			},
-			msgCount: 35,
+			msgCount: 18,
 		},
 	}
 
@@ -58,29 +61,82 @@ func TestTrader_Gather(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in := make(chan *model.Trade)
 			st := make(chan *model.Trade)
-			client := newMockClient()
+
 			block := api.NewBlock()
+			client := newMockClient()
+
+			// run the stats processor
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return stats.MultiStats(user)
+				return stats.MultiStats(user, stats.Config{
+					Duration:  10,
+					Order:     "O10",
+					Intervals: 0,
+					Targets: []stats.Target{
+						{
+							LookBack:  2,
+							LookAhead: 1,
+						},
+						{
+							LookBack:  3,
+							LookAhead: 1,
+						},
+					},
+				},
+					stats.Config{
+						Duration:  20,
+						Order:     "O2",
+						Intervals: 0,
+						Targets: []stats.Target{
+							{
+								LookBack:  2,
+								LookAhead: 1,
+							},
+							{
+								LookBack:  3,
+								LookAhead: 1,
+							},
+						},
+					})
 			})
+			// run the position processor to unblock the trade processor when making orders
+			run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
+				return position.Position(client, user, block, true, position.Config{
+					Profit: position.Setup{},
+					Loss:   position.Setup{},
+				})
+			})
+			// run the trade processor
 			out := make(chan *model.Trade)
-			cmds, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
-				return trade.Trade(client, user, block)
+			_, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
+				return trade.Trade(client, user, block, trade.Config{
+					Open: trade.Open{
+						Value: 1, // TODO : check with this missing
+					},
+					Strategies: []trade.Strategy{
+						{
+							Name:        trade.NumericStrategy,
+							Target:      10,
+							Probability: 0.5,
+							Sample:      1,
+						},
+					},
+				})
 			})
 
 			// send the config to the processor
-			cmds <- api.Command{
-				ID:      1,
-				User:    "",
-				Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.Strategies[0].Probability, tt.config.Strategies[0].Sample),
-			}
+			//cmds <- api.Command{
+			//	ID:      1,
+			//	User:    "",
+			//	Content: fmt.Sprintf("?t BTC 10 %f %d", tt.config.Strategies[0].Probability, tt.config.Strategies[0].Sample),
+			//}
 
 			wg := new(sync.WaitGroup)
 			wg.Add(tt.msgCount)
-			go logMessages("stats", nil, statsMessages)
-			go logMessages("trade", wg, tradeMessages)
+			go consumeMessages("stats", nil, statsMessages)
+			go consumeMessages("trade", wg, tradeMessages)
 
 			num := 1000
+			// 1000 / 10 min -> 25 stats events expected
 			wg.Add(num)
 			go func() {
 				start := time.Now()
@@ -93,12 +149,16 @@ func TestTrader_Gather(t *testing.T) {
 			}()
 
 			go func() {
-				for range out {
-
+				i := 0
+				for outTrade := range out {
+					log.Trace().Int("i", i).Str("trade", fmt.Sprintf("%+v", outTrade)).Msg("out")
+					wg.Done()
+					i++
 				}
 			}()
 
 			wg.Wait()
+			println(fmt.Sprintf("done = %+v", num))
 		})
 	}
 

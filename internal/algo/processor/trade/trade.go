@@ -91,6 +91,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 			}
 
 			pairs := make(map[processor.Key][]predictionPair)
+			println(fmt.Sprintf("trade.Signals = %+v", trade.Signals))
 			for i, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
 					k := processor.NewKey(ts.Coin, ts.Duration)
@@ -99,16 +100,17 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					// TODO : use an internal state like for the stats processor
 					// we got a trade signal
 					predictions := ts.Predictions
-					cfg, ok := trader.get(k)
-					if len(predictions) > 0 && ok {
+					if cfg, ok := trader.get(k); ok && len(predictions) > 0 {
 						// check if we should make a buy order
 						for k, p := range predictions {
+							println(fmt.Sprintf("p = %+v", p))
 							if p.Probability >= cfg.MinProbability && p.Sample >= cfg.MinSample {
 								// we know it s a good prediction. Lets check the value
 								v := p.Value
 								vv := strings.Split(v, ":")
 								// TODO : now it takes a random t if there are more matches
 								if t := cfg.contains(vv); t > 0 {
+									println(fmt.Sprintf("t = %+v", t))
 									kk := processor.Key{
 										Coin:     ts.Coin,
 										Duration: ts.Duration,
@@ -174,7 +176,8 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					Str("Coin", string(coin)).
 					Msg("open position")
 				err := client.OpenOrder(order)
-				block.Action <- api.Action{}
+				println(fmt.Sprintf("err = %+v", err))
+				block.Action <- api.NewAction("open position")
 				api.Reply(api.Private, user, api.
 					NewMessage(createPredictionMessage(pair)).
 					AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f )",
@@ -183,6 +186,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 						vol,
 						pair.price,
 					)), err)
+				println(fmt.Sprintf("err = %+v", err))
 				<-block.ReAction
 			} else {
 				if gotAction {
