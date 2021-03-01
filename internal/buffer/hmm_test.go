@@ -268,7 +268,8 @@ func TestCounter_Add(t *testing.T) {
 			for i := 0; i < 100; i++ {
 				// we keep track of the last prediction to assert on all possible outcomes
 				s := tt.transform(i)
-				pp := c.Add(s)
+				// TODO : assert the status
+				pp, _ := c.Add(s, "label")
 
 				// track the last j configs
 				vv := make(map[string]struct{})
