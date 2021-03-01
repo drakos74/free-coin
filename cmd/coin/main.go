@@ -61,7 +61,7 @@ func main() {
 	exchange := kraken.NewExchange(ctx)
 	// note we dont provide any config for the stats processor. It should get it from the config folder
 	statsProcessor := stats.MultiStats(user)
-	positionProcessor := position.Position(exchange, user, block, false)
+	positionProcessor := position.Position(exchange, user, block, true)
 	tradeProcessor := trade.Trade(exchange, user, block)
 	for _, c := range model.Coins {
 		err := overWatch.Start(block, c, coin.Log(),

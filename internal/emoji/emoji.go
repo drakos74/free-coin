@@ -24,8 +24,8 @@ const (
 	DotFire  = "🔥"
 	DotWater = "💧"
 
-	Biohazard = "☣"
-	Recycling = "♻"
+	Biohazard = "😝"
+	Recycling = "🤑"
 
 	Error = "🚫"
 )

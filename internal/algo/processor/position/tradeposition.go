@@ -40,7 +40,7 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
 	actions := make([]tradeAction, 0)
-	if positions, ok := tp.pos[trade.Coin]; ok {
+	if positions, ok := tp.getAll()[trade.Coin]; ok {
 		log.Debug().
 			Time("server-time", time.Now()).
 			Time("trade-time", trade.Time).
@@ -59,8 +59,8 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 					Msg("check position")
 				actions = append(actions, tradeAction{
 					key:      key(trade.Coin, id),
-					position: p,
-					doClose:  p.DoClose(),
+					position: &p,
+					doClose:  (&p).DoClose(),
 				})
 			}
 		}
