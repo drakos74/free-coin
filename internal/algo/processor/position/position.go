@@ -96,6 +96,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 					}
 				}
 			}
+		default:
+			user.Send(api.Private, api.NewMessage("unknown command:").AddLine("[ close ]"), nil)
 		}
 	}
 }

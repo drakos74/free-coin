@@ -15,19 +15,19 @@ import (
 
 func TestPosition_TradeProcessing(t *testing.T) {
 	testTradeProcessing(t, func(client api.Exchange, user api.User) api.Processor {
-		return position.Position(client, user, api.NewBlock(), true)
+		return position.Position(client, user, api.NewBlock(), true, position.Config{})
 	})
 }
 
 func TestPosition_Update(t *testing.T) {
 
 	type test struct {
-		msg       []string
-		cmd       string
-		positions []model.Position
-		reply     []string
-		replyMsg  []string
-		fp        int
+		msg         []string
+		cmd         string
+		positions   []model.Position
+		reply       []string
+		fp          int
+		expMessages int
 	}
 
 	tests := map[string]test{
@@ -38,44 +38,42 @@ func TestPosition_Update(t *testing.T) {
 		"one-positions": {
 			cmd:       "?p",
 			msg:       []string{string(model.BTC)},
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{mockPosition("ID", model.BTC, model.Buy)},
 			fp:        1,
 		},
 		"many-positions": {
 			cmd: "?p",
 			msg: []string{string(model.BTC), string(model.ETH), string(model.LINK)},
 			positions: []model.Position{
-				model.NewPosition(*mockTrade(model.BTC, model.Buy), 0.5),
-				model.NewPosition(*mockTrade(model.ETH, model.Sell), 1),
-				model.NewPosition(*mockTrade(model.LINK, model.Buy), 100),
+				mockPosition("1", model.BTC, model.Buy),
+				mockPosition("2", model.ETH, model.Sell),
+				mockPosition("3", model.LINK, model.Buy),
 			},
 			fp: 3,
 		},
 		"close-positions": {
-			cmd:       "?p",
-			msg:       []string{string(model.BTC)},
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
-			reply:     []string{"close"},
-			replyMsg:  []string{"close position for BTC"},
+			cmd:         "?p",
+			msg:         []string{string(model.BTC), "closed BTC"},
+			positions:   []model.Position{mockPosition("ID", model.BTC, model.Buy)},
+			reply:       []string{"?p BTC close ID"},
+			expMessages: 2,
 		},
-		"reverse-positions": {
-			cmd:       "?p",
-			msg:       []string{string(model.ETH)},
-			positions: []model.Position{model.NewPosition(*mockTrade(model.ETH, model.Buy), 1)},
-			reply:     []string{"reverse"},
-			replyMsg:  []string{"reverse position for ETH"},
-			// note we get 0 ,  because we have not implemented the reverse close for our test.
-			// this is exchange specific.
-			fp: 0,
-		},
-		"extend-positions": {
-			cmd:       "?p",
-			msg:       []string{string(model.LINK)},
-			positions: []model.Position{model.NewPosition(*mockTrade(model.LINK, model.Buy), 1)},
-			reply:     []string{"extend 2 2"},
-			replyMsg:  []string{"extend position for LINK"},
-			fp:        1,
-		},
+		//"reverse-positions": { // TODO : fix this
+		//	cmd:       "?p",
+		//	msg:       []string{string(model.ETH), "unknown command: reverse"},
+		//	positions: []model.Position{mockPosition("{ID}", model.ETH, model.Buy)},
+		//	reply:     []string{"?p reverse"},
+		//	// note we get 0 ,  because we have not implemented the reverse close for our test.
+		//	// this is exchange specific.
+		//	fp: 0,
+		//},
+		//"extend-positions": {
+		//	cmd:       "?p",
+		//	msg:       []string{string(model.LINK), "extend position for LINK"},
+		//	positions: []model.Position{mockPosition("ID", model.LINK, model.Buy)},
+		//	reply:     []string{"?p extend 2 2"},
+		//	fp:        1,
+		//},
 	}
 
 	for name, tt := range tests {
@@ -92,30 +90,26 @@ func TestPosition_Update(t *testing.T) {
 				}
 			}
 
-			cmds, msgs := run(client, in, out, newPositionProcessor)
+			incoming, outgoing := run(client, in, out, newPositionProcessor)
 
 			wg := new(sync.WaitGroup)
+			wg.Add(tt.expMessages)
 			if len(tt.positions) == 0 {
 				wg.Add(1)
 			}
 
 			go func() {
 				i := 0
-				for msg := range msgs {
+				for msg := range outgoing {
+					println(fmt.Sprintf("msg.Text = %+v", msg.msg.Text))
 					assert.Contains(t, msg.msg.Text, tt.msg[i])
 					if tt.reply != nil && len(tt.reply) > i {
 						userCommand := tt.reply[i]
 						if userCommand != "" {
 							println(fmt.Sprintf("userCommand = %+v", userCommand))
-							println(fmt.Sprintf("tt.replyMsg = %+v", tt.replyMsg))
 							// emulate the user replying ...
-							//cmd := api.NewCommand(0, "iam", userCommand)
-							// TODO : fix this logic for the test
-							//reply, err := msg.trigger.Exec(cmd)
-							//assert.NoError(t, err)
-							// we know that our default mock positions are on btc
-							//assert.Contains(t, reply, tt.replyMsg[i])
-							//println(fmt.Sprintf("user.Reply = %+v", reply))
+							cmd := api.NewCommand(0, "iam", userCommand)
+							incoming <- cmd
 						}
 					}
 					wg.Done()
@@ -124,7 +118,7 @@ func TestPosition_Update(t *testing.T) {
 			}()
 
 			command := api.NewCommand(0, "iam", tt.cmd)
-			cmds <- command
+			incoming <- command
 
 			wg.Wait()
 
@@ -259,6 +253,20 @@ func TestPosition_Track(t *testing.T) {
 	}
 }
 
+func mockPosition(id string, coin model.Coin, t model.Type) model.Position {
+	pos := model.NewPosition(*mockTrade(coin, t), 1)
+	pos.ID = id
+	return pos
+}
+
 func newPositionProcessor(client api.Exchange, user api.User) api.Processor {
-	return position.Position(client, user, api.NewBlock(), true)
+	return position.Position(client, user, api.NewBlock(), true, position.Config{
+		Profit: position.Setup{
+			Min:   1.5,
+			Trail: 0.15,
+		},
+		Loss: position.Setup{
+			Min: 1,
+		},
+	})
 }

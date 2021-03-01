@@ -39,11 +39,11 @@ func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user 
 	wg.Wait()
 }
 
-func run(client api.Exchange, in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (commands chan api.Command, confirms chan sendAction) {
+func run(client api.Exchange, in, out chan *model.Trade, processor func(client api.Exchange, user api.User) api.Processor) (incoming chan api.Command, outgoing chan sendAction) {
 
-	commands = make(chan api.Command)
-	confirms = make(chan sendAction, 10)
-	user := newMockUser(commands, confirms)
+	incoming = make(chan api.Command)
+	outgoing = make(chan sendAction, 10)
+	user := newMockUser(incoming, outgoing)
 
 	go processor(client, user)(in, out)
 
@@ -68,14 +68,14 @@ type sendAction struct {
 }
 
 type mockUser struct {
-	sent   chan sendAction
-	action chan api.Command
+	outgoing chan sendAction
+	incoming chan api.Command
 }
 
-func newMockUser(commands chan api.Command, confirm chan sendAction) *mockUser {
+func newMockUser(incoming chan api.Command, outgoing chan sendAction) *mockUser {
 	return &mockUser{
-		sent:   confirm,
-		action: commands,
+		outgoing: outgoing,
+		incoming: incoming,
 	}
 }
 
@@ -84,11 +84,11 @@ func (u *mockUser) Run(ctx context.Context) error {
 }
 
 func (u *mockUser) Listen(key, prefix string) <-chan api.Command {
-	return u.action
+	return u.incoming
 }
 
 func (u *mockUser) Send(private api.Index, message *api.Message, trigger *api.Trigger) int {
-	u.sent <- sendAction{
+	u.outgoing <- sendAction{
 		msg:     message,
 		trigger: trigger,
 	}
@@ -108,7 +108,6 @@ func (c *mockClient) Trades(stop <-chan struct{}, coin model.Coin, stopExecution
 }
 
 func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
-	println(fmt.Sprintf("ctx = %+v", ctx))
 	return &model.PositionBatch{
 		Positions: c.positions,
 		Index:     0,

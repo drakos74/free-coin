@@ -31,7 +31,7 @@ func init() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		log.Printf(fmt.Sprintf("Starting metrics server at port %d\n", p))
+		log.Printf("Starting metrics server at port %d", p)
 		err := http.ListenAndServe(fmt.Sprintf(":%d", p), nil)
 		if err != nil {
 			log.Error().Err(err).Msg("could not start metrics server")
