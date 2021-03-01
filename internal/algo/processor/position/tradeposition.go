@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/emoji"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
@@ -256,7 +258,11 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 			Float64("net", net).
 			Float64("profit", profit).
 			Msg("could not close position")
-		user.Send(api.Private, api.NewMessage(fmt.Sprintf("could not close %s [%s]: %s", key.coin, key.id, err.Error())).ReferenceTime(time), nil)
+		user.Send(api.Private, api.NewMessage(fmt.Sprintf("could not close %s [%s]: %s",
+			key.coin,
+			key.id,
+			err.Error(),
+		)).ReferenceTime(time), nil)
 		return false
 	} else {
 		log.Info().
@@ -267,7 +273,13 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 			Float64("profit", profit).
 			Msg("closed position")
 		tp.delete(key)
-		user.Send(api.Private, api.NewMessage(fmt.Sprintf("closed %s at %.2f [%s]", key.coin, profit, key.id)).ReferenceTime(time), nil)
+		user.Send(api.Private, api.NewMessage(fmt.Sprintf("%s closed %s ( %.2f | %.2f%s )",
+			emoji.MapToSign(profit),
+			key.coin,
+			position.Volume,
+			profit,
+			"%"),
+		).ReferenceTime(time), nil)
 		return true
 	}
 }
