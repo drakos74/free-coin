@@ -228,7 +228,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		valueSlice := strings.Split(v.Value, ":")
 		emojiKeySlice := emoji.MapToSymbols(keySlice)
 		emojiValueSlice := emoji.MapToSymbols(valueSlice)
-		pp[i] = fmt.Sprintf("%s -> %s ( %.2f | %.2f | %v | %d | %d) ",
+		pp[i] = fmt.Sprintf("%s -> %s ( prob : %.2f | base : %.2f | sample : %v | distinct : %d | total : %d) ",
 			strings.Join(emojiKeySlice, " "),
 			strings.Join(emojiValueSlice, " "),
 			v.Probability,
