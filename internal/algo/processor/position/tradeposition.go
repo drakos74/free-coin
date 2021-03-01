@@ -87,13 +87,21 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		return fmt.Errorf("could not get positions: %w", err)
 	}
 	for _, p := range pp.Positions {
-		cfg := tp.getConfiguration(p.Coin)
 		if _, ok := tp.pos[p.Coin]; !ok {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
-		tp.pos[p.Coin][p.ID] = &tradePosition{
-			position: p,
-			config:   cfg,
+		// check if position exists
+		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
+			tp.pos[p.Coin][p.ID] = &tradePosition{
+				position: p,
+				config:   oldPosition.config,
+			}
+		} else {
+			cfg := tp.getConfiguration(p.Coin)
+			tp.pos[p.Coin][p.ID] = &tradePosition{
+				position: p,
+				config:   cfg,
+			}
 		}
 	}
 	return nil
