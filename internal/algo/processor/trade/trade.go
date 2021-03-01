@@ -90,7 +90,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 				continue
 			}
 
-			pairs := make(map[processor.Key][]predictionPair, 0)
+			pairs := make(map[processor.Key][]predictionPair)
 			for i, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
 					k := processor.NewKey(ts.Coin, ts.Duration)

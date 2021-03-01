@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 )

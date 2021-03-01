@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/model"
-
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/model"
 )
 
 func testTradeProcessing(t *testing.T, processor func(client api.Exchange, user api.User) api.Processor) {

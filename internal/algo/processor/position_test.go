@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/stretchr/testify/assert"

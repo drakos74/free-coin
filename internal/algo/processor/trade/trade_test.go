@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTradeStrategy(t *testing.T) {
@@ -40,7 +39,7 @@ func TestTradeStrategy(t *testing.T) {
 				{"+2", "+2"},
 				{"+3", "+0"},
 			},
-			strategy: numericStrategy,
+			strategy: getStrategy(NumericStrategy, 10),
 			ttyp:     1,
 		},
 		"sell": {
@@ -65,7 +64,7 @@ func TestTradeStrategy(t *testing.T) {
 				{"-2", "-2"},
 				{"-3", "-0"},
 			},
-			strategy: numericStrategy,
+			strategy: getStrategy(NumericStrategy, 10),
 			ttyp:     2,
 		},
 		"no-action": {
@@ -82,13 +81,16 @@ func TestTradeStrategy(t *testing.T) {
 				{"-0", "-3", "-4"},
 				{"-1", "-1", "-5"},
 			},
-			strategy: numericStrategy,
+			strategy: getStrategy(NumericStrategy, 10),
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			cfg := newOpenConfig(model.BTC, 0.1)
+			cfg := OpenConfig{
+				Value:    0.1,
+				Strategy: tt.strategy,
+			}
 
 			for _, v := range tt.vv {
 				ttyp := cfg.contains(v)
