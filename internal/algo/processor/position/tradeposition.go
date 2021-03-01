@@ -166,7 +166,7 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	defer tp.lock.Unlock()
 	actions := make([]tradeAction, 0)
 	if positions, ok := tp.pos[trade.Coin]; ok {
-		log.Info().
+		log.Debug().
 			Time("server-time", time.Now()).
 			Time("trade-time", trade.Time).
 			Int("count", len(positions)).
@@ -179,6 +179,9 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 				log.Info().
 					Str("ID", id).
 					Str("coin", string(p.position.Coin)).
+					Float64("open", p.position.OpenPrice).
+					Float64("current", p.position.CurrentPrice).
+					Str("type", p.position.Type.String()).
 					Float64("net", net).
 					Float64("profit", profit).
 					Msg("check position")
