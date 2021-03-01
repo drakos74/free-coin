@@ -291,7 +291,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 					}
 					// pull in the related trade
 					annotations = append(annotations, model.AnnotationInstance{
-						Text:     fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
+						Text:     fmt.Sprintf("%.2f (%.2f) - %.2f", trade.Price, otherTrade.Price, trade.Volume),
 						Title:    fmt.Sprintf("%s - %s ( %.2f € )", trade.Coin, trade.Type.String(), trade.Net),
 						TimeEnd:  otherTrade.Time.Unix() * 1000,
 						Time:     trade.Time.Unix() * 1000,

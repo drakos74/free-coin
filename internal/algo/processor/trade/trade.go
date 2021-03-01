@@ -169,6 +169,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					Create()
 				log.Info().
 					Str("ID", order.ID).
+					Str("pair", fmt.Sprintf("%+v", pair)).
 					Float64("price", pair.price).
 					Str("Coin", string(coin)).
 					Msg("open position")
