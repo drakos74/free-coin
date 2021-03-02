@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/drakos74/free-coin/user/telegram"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -15,7 +17,6 @@ import (
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
-	botlocal "github.com/drakos74/free-coin/user/local"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -34,17 +35,17 @@ func main() {
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
 	}
-	client := local.NewClient(cointime.LastXHours(24), uuid.New().String()).
+	client := local.NewClient(cointime.Range{
+		From: time.Now().Add(-24 * time.Hour),
+	}, uuid.New().String()).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
 	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
 
-	//user, err := telegram.NewBot()
-	user, err := botlocal.NewUser("", "")
+	user, err := telegram.NewBot()
+	//user, err := botlocal.NewUser("", "")
 	if err != nil {
-		if err != nil {
-			panic(err.Error())
-		}
+		panic(err.Error())
 	}
 
 	err = user.Run(context.TODO())
