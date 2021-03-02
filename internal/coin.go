@@ -186,7 +186,7 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 	// TODO : keep track of other properties of the trades
 	c := v.count[trade.Coin]
 	atomic.AddInt64(&c, 1)
-	if v.count[trade.Coin]%10000 == 0 {
+	if c%10000 == 0 {
 		log.Info().
 			Time("trade-time", trade.Time).
 			Str("coin", string(trade.Coin)).
