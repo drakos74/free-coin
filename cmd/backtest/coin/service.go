@@ -41,7 +41,7 @@ func (q *Query) withStore(store storage.Shard) *Query {
 	return q
 }
 
-func (q *Query) Trades(reAction <-chan api.Action, coin coinmodel.Coin) (coinmodel.TradeSource, error) {
+func (q *Query) Trades(reAction <-chan api.Action, _ api.Query) (coinmodel.TradeSource, error) {
 	go func() {
 		for _, k := range q.keys {
 			store, err := q.store(k.Pair)
@@ -171,7 +171,10 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		positionProcessor := position.Position(exchange, user, block, true, positionsConfig...)
 		tradeProcessor := trade.Trade(exchange, user, block, tradeConfig...)
 
-		err := overWatch.Start(finished, c, exchange,
+		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
+			return exchange
+		}
+		err := overWatch.Start(finished, c, engineWrapper,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,

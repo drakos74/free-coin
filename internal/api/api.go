@@ -15,10 +15,16 @@ const (
 	Private Index = true
 )
 
+// Query is the trades query object.
+type Query struct {
+	Coin  model.Coin
+	Index string
+}
+
 // Client exposes the low level interface for interacting with a trade source.
 // TODO : split the trade retrieval and ordering logic.
 type Client interface {
-	Trades(process <-chan Action, coin model.Coin) (model.TradeSource, error)
+	Trades(process <-chan Action, query Query) (model.TradeSource, error)
 }
 
 // Exchange allows interaction with the exchange for submitting and closing positions and trades.

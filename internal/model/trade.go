@@ -19,17 +19,18 @@ type TradeSource chan *Trade
 
 // Trade represents a trade object with all necessary details.
 type Trade struct {
-	ID      string    `json:"id"`
-	RefID   string    `json:"refId"`
-	Net     float64   `json:"net"`
-	Coin    Coin      `json:"coin"`
-	Price   float64   `json:"Value"`
-	Volume  float64   `json:"Volume"`
-	Time    time.Time `json:"time"`
-	Type    Type      `json:"Type"`
-	Active  bool      `json:"active"`
-	Live    bool      `json:"live"`
-	Signals []Signal  `json:"-"`
+	SourceID string    `json:"-"`
+	ID       string    `json:"id"`
+	RefID    string    `json:"refId"`
+	Net      float64   `json:"net"`
+	Coin     Coin      `json:"coin"`
+	Price    float64   `json:"Value"`
+	Volume   float64   `json:"Volume"`
+	Time     time.Time `json:"time"`
+	Type     Type      `json:"Type"`
+	Active   bool      `json:"active"`
+	Live     bool      `json:"live"`
+	Signals  []Signal  `json:"-"`
 }
 
 // TradeBatch is an indexed group of trades

@@ -16,7 +16,8 @@ import (
 // Engine defines a trade source engine with the required processors to execute a trade source pipeline.
 type Engine struct {
 	coin       model.Coin
-	main       Processor
+	uuid       string
+	main       func(engineUUID string, coin model.Coin, reaction chan<- api.Action) Processor
 	processors []api.Processor
 	stop       chan struct{}
 }
@@ -25,9 +26,10 @@ type Engine struct {
 // c is the coin for this engine
 // main can be used to extract trade information from an engine, which is inherently bound to one exchange
 // autoStop is an automatically stop trigger
-func NewEngine(c model.Coin, main Processor) *Engine {
+func NewEngine(c model.Coin, main func(engineUUID string, coin model.Coin, reaction chan<- api.Action) Processor) *Engine {
 	return &Engine{
 		coin:       c,
+		uuid:       uuid.New().String(),
 		main:       main,
 		processors: make([]api.Processor, 0),
 		stop:       make(chan struct{}),
@@ -41,34 +43,47 @@ func (engine *Engine) AddProcessor(processor api.Processor) *Engine {
 }
 
 // RunWith starts the engine with the given client.
-func (engine *Engine) RunWith(block api.Block, client api.Client) (*Engine, error) {
+func (engine Engine) RunWith(block api.Block, client api.Client) (Engine, error) {
 
-	trades, err := client.Trades(block.ReAction, engine.coin)
+	index := uuid.New().String()
+
+	log.Info().
+		Str("coin", string(engine.coin)).
+		Str("index", index).
+		Str("engine-uuid", engine.uuid).
+		Msg("running engine")
+
+	tradeInput, err := client.Trades(block.ReAction, api.Query{
+		Coin:  engine.coin,
+		Index: index,
+	})
 
 	if err != nil {
-		return nil, fmt.Errorf("could not init trade source: %w", err)
+		return engine, fmt.Errorf("could not init trade source: %w", err)
 	}
 
+	// stitch the pipeline together
 	for _, process := range engine.processors {
+		input := tradeInput
+		output := make(chan *model.Trade)
 
-		tradeSource := make(chan *model.Trade)
+		go process(input, output)
 
-		go process(trades, tradeSource)
-
-		trades = tradeSource
+		tradeInput = output
 	}
 
-	go func() {
+	go func(reaction chan<- api.Action, engine Engine) {
+		main := engine.main(engine.uuid, engine.coin, reaction)
 		defer func() {
 			log.Info().Msg("engine closed")
-			engine.main.Gather()
+			main.Gather()
 			block.Action <- api.Action{}
 		}()
-		for trade := range trades {
+		for trade := range tradeInput {
 			// pull the trades from the source through the processors
-			engine.main.Process(trade)
+			main.Process(trade)
 		}
-	}()
+	}(block.ReAction, engine)
 
 	return engine, nil
 
@@ -82,7 +97,7 @@ func (engine *Engine) Close() error {
 
 // OverWatch is the main applications wrapper that orchestrates and controls engines.
 type OverWatch struct {
-	engines map[string]*Engine
+	engines map[string]Engine
 	client  api.Client
 	user    api.User
 }
@@ -90,7 +105,7 @@ type OverWatch struct {
 // New creates a new OverWatch instance.
 func New(client api.Client, user api.User) *OverWatch {
 	return &OverWatch{
-		engines: make(map[string]*Engine),
+		engines: make(map[string]Engine),
 		client:  client,
 		user:    user,
 	}
@@ -129,7 +144,7 @@ func (o *OverWatch) Run(ctx context.Context) {
 }
 
 // Start starts an engine for the given coin and arguments.
-func (o *OverWatch) Start(block api.Block, c model.Coin, processor Processor, processors ...api.Processor) error {
+func (o *OverWatch) Start(block api.Block, c model.Coin, processor func(engineUUID string, coin model.Coin, reaction chan<- api.Action) Processor, processors ...api.Processor) error {
 	engine := NewEngine(c, processor)
 	for _, proc := range processors {
 		engine.AddProcessor(proc)
@@ -140,7 +155,7 @@ func (o *OverWatch) Start(block api.Block, c model.Coin, processor Processor, pr
 		return fmt.Errorf("could not start engine for %s: %w", c, err)
 	}
 	o.engines[string(c)] = e
-	log.Info().Str("coin", string(c)).Msg("started engine")
+	log.Info().Str("engine-uuid", e.uuid).Str("coin", string(c)).Msg("started engine")
 	return nil
 }
 
@@ -167,21 +182,23 @@ type Processor interface {
 }
 
 // Log is a void processor.
-func Log(action chan<- api.Action) Processor {
+func Log(uuid string, coin model.Coin, action chan<- api.Action) Processor {
 	return &VoidProcessor{
 		action: action,
+		coin:   coin,
 		count:  make(map[model.Coin]int64),
 		lock:   new(sync.Mutex),
-		hash:   uuid.New().String(),
+		uuid:   uuid,
 	}
 }
 
 // VoidProcessor is the void processor struct.
 type VoidProcessor struct {
 	action chan<- api.Action
+	coin   model.Coin
 	count  map[model.Coin]int64
 	lock   *sync.Mutex
-	hash   string
+	uuid   string
 }
 
 // Process for the void processor does nothing.
@@ -193,8 +210,10 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 	atomic.AddInt64(&c, 1)
 	if c%10000 == 0 {
 		log.Info().
-			Str("hash", v.hash).
+			Str("engine-uuid", v.uuid).
+			Str("trade-hash", trade.SourceID).
 			Time("trade-time", trade.Time).
+			Str("processor-coin", string(v.coin)).
 			Str("coin", string(trade.Coin)).
 			Int64("count", c).
 			Msg("processed trades")

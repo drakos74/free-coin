@@ -22,19 +22,21 @@ const timeFormat = "2006_01_02_15"
 // It can be used as a simulation environment for testing processors and business logic.
 type Client struct {
 	since       int64
+	uuid        string
 	upstream    func(since int64) (api.Client, error)
 	persistence func(shard string) (storage.Persistence, error)
-	trades      model.TradeSource
+	trades      map[model.Coin]model.TradeSource
 	hash        cointime.Hash
 	mock        bool
 }
 
 // NewClient creates a new client for trade processing.
-func NewClient(since int64) *Client {
+func NewClient(since int64, uuid string) *Client {
 	return &Client{
 		since:  since,
+		uuid:   uuid,
 		hash:   cointime.NewHash(8 * time.Hour),
-		trades: make(chan *model.Trade),
+		trades: make(map[model.Coin]model.TradeSource),
 		upstream: func(since int64) (api.Client, error) {
 			return Void(), nil
 		},
@@ -66,13 +68,16 @@ func (c *Client) Mock() *Client {
 // it will try to get trades from the persistence layer if available by day
 // otherwise it will call the upstream client if available.
 // In that sense it works always in batches of one day interval.
-func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
 	// check if we have trades in the store ...
 
+	if _, ok := c.trades[query.Coin]; !ok {
+		c.trades[query.Coin] = make(chan *model.Trade)
+	}
 	// NOTE : we are making a major assumption here that timestamps will always increase.
-	go func(since int64) {
+	go func(since int64, query api.Query) {
 
-		store, err := c.persistence(string(coin))
+		store, err := c.persistence(string(query.Coin))
 		if err != nil {
 			log.Error().Err(err).Msg("could not initialise storage")
 			// TODO : we need to signal back to the caller (maybe use stop channel ?)
@@ -80,7 +85,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 		}
 
 		for {
-			endTime, err := c.localTrades(since, coin, store, process)
+			endTime, err := c.localTrades(query.Index, since, query.Coin, store, process)
 			if err != nil {
 				log.Warn().Err(err).Msg("could not load more local trades")
 				// get from upstream trades not found or local storage is not working
@@ -96,7 +101,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 			log.Error().Err(err).Msg("could not create upstream")
 			return
 		}
-		source, err := cl.Trades(make(chan api.Action), coin)
+		source, err := cl.Trades(make(chan api.Action), query)
 		if err != nil {
 			log.Error().Err(err).Msg("could not get trades from upstream")
 			return
@@ -104,7 +109,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 
 		startTime := cointime.FromNano(since)
 		hash := c.hash.Do(startTime)
-		k := c.key(hash, coin)
+		k := c.key(hash, query.Coin)
 
 		trades := make([]model.Trade, 0)
 		var from *time.Time
@@ -129,29 +134,37 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 					// dont exit here ... lets at least continue (?)
 					// return
 				}
-				log.Info().Time("from", *from).Time("to", *to).Err(err).Int64("hash", h).Msg("storing trade batch")
+				log.Info().
+					Str("engine-uuid", query.Index).
+					Time("from", *from).
+					Time("to", *to).
+					Err(err).
+					Int64("hash", h).
+					Msg("storing trade batch")
 				hash = h
-				k = c.key(hash, coin)
+				k = c.key(hash, query.Coin)
 				trades = make([]model.Trade, 0)
 				from = nil
 				//to = nil
 			}
-			c.trades <- trade
+			trade.SourceID = query.Index
+			c.trades[query.Coin] <- trade
 			<-process
 		}
-	}(c.since)
+	}(c.since, query)
 
-	return c.trades, nil
+	return c.trades[query.Coin], nil
 
 }
 
-func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persistence, process <-chan api.Action) (time.Time, error) {
+func (c *Client) localTrades(uuid string, since int64, coin model.Coin, store storage.Persistence, process <-chan api.Action) (time.Time, error) {
 	startTime := cointime.FromNano(since)
 	hash := c.hash.Do(startTime)
 	k := c.key(hash, coin)
 	trades := make([]model.Trade, 0)
 	err := store.Load(k, &trades)
 	log.Info().Err(err).
+		Str("engine-uuid", uuid).
 		Int("trades", len(trades)).
 		Int64("hash", k.Hash).
 		Time("from", startTime).
@@ -170,7 +183,8 @@ func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persist
 			localTrade.Live = false
 			localTrade.Active = false
 		}
-		c.trades <- &localTrade
+		localTrade.SourceID = uuid
+		c.trades[coin] <- &localTrade
 		<-process
 		startTime = localTrade.Time
 	}

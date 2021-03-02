@@ -58,7 +58,7 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 // TODO : move the 'streaming' logic into the specific implementations
 // TODO : add panic mode to close positions if api call fails ...
-func (c *Client) Trades(process <-chan api.Action, coin coinmodel.Coin) (coinmodel.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Action, query api.Query) (coinmodel.TradeSource, error) {
 
 	out := make(chan *coinmodel.Trade)
 
@@ -105,7 +105,7 @@ func (c *Client) Trades(process <-chan api.Action, coin coinmodel.Coin) (coinmod
 		start := cointime.FromNano(c.since)
 
 		return func() error {
-			tradeResponse, err := c.Api.Trades(coin, s.last)
+			tradeResponse, err := c.Api.Trades(query.Coin, s.last)
 			if err != nil || tradeResponse == nil {
 				return fmt.Errorf("could not get trades info: %w", err)
 			}
@@ -126,14 +126,14 @@ func (c *Client) Trades(process <-chan api.Action, coin coinmodel.Coin) (coinmod
 			percent := 100 * (1 - (total-progress)/total)
 			if math.Abs(percent) < 97 {
 				// TODO : send a message instead and improve the tracker spamming
-				log.Info().Time("start", start).Str("coin", string(coin)).Str("percent", coinmath.Format(percent)).Msg("progress")
+				log.Info().Time("start", start).Str("coin", string(query.Coin)).Str("percent", coinmath.Format(percent)).Msg("progress")
 			}
 			s.last = tradeResponse.Index
 			return nil
 		}
 	}(trades),
 		func() {
-			log.Info().Str("pair", string(coin)).Msg("closing trade source")
+			log.Info().Str("pair", string(query.Coin)).Msg("closing trade source")
 			close(trades)
 		})
 	return out, nil
