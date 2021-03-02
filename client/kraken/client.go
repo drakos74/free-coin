@@ -86,7 +86,8 @@ func (c *Client) Trades(process <-chan api.Action, coin coinmodel.Coin) (coinmod
 				return
 			}
 			out <- trade
-			<-process
+			// TODO : fix this also for the wrapper
+			//<-process
 		}
 	}(trades)
 

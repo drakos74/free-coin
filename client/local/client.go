@@ -80,7 +80,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 		}
 
 		for {
-			endTime, err := c.localTrades(since, coin, store)
+			endTime, err := c.localTrades(since, coin, store, process)
 			if err != nil {
 				log.Warn().Err(err).Msg("could not load more local trades")
 				// get from upstream trades not found or local storage is not working
@@ -96,7 +96,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 			log.Error().Err(err).Msg("could not create upstream")
 			return
 		}
-		source, err := cl.Trades(process, coin)
+		source, err := cl.Trades(make(chan api.Action), coin)
 		if err != nil {
 			log.Error().Err(err).Msg("could not get trades from upstream")
 			return
@@ -145,7 +145,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 
 }
 
-func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persistence) (time.Time, error) {
+func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persistence, process <-chan api.Action) (time.Time, error) {
 	startTime := cointime.FromNano(since)
 	hash := c.hash.Do(startTime)
 	k := c.key(hash, coin)
@@ -171,6 +171,7 @@ func (c *Client) localTrades(since int64, coin model.Coin, store storage.Persist
 			localTrade.Active = false
 		}
 		c.trades <- &localTrade
+		<-process
 		startTime = localTrade.Time
 	}
 	return startTime, nil
