@@ -118,12 +118,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		// lets say for every 24 hours we reduce by 2 the trades ... this would be
 		redux := int(math.Exp2(frame / 24))
 		log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
-		finished := api.NewBlock()
-		exchange := local.
-			NewExchange("", finished.ReAction).
-			OneOfEvery(redux)
 
-		block := api.NewBlock()
 		multiStatsConfig := make([]stats.Config, 0)
 		if statsConfig, ok := q.Data[stats.ProcessorName]; ok {
 			var config stats.Config
@@ -166,6 +161,12 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			Str("config", fmt.Sprintf("%+v", tradeConfig)).
 			Msg("loaded config from back-test")
 
+		finished := api.NewBlock()
+		exchange := local.
+			NewExchange("", finished.ReAction).
+			OneOfEvery(redux)
+
+		block := api.NewBlock()
 		statsProcessor := stats.MultiStats(user, multiStatsConfig...)
 		positionProcessor := position.Position(exchange, user, block, true, positionsConfig...)
 		tradeProcessor := trade.Trade(exchange, user, block, tradeConfig...)

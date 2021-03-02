@@ -192,7 +192,6 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 						Msg("got mixed signals")
 				}
 			}
-
 			out <- trade
 		}
 	}

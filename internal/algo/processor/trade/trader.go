@@ -70,13 +70,13 @@ func (tr *trader) init(k processor.Key) {
 		if exists {
 			if !found {
 				tr.configs[k.Coin][k.Duration] = myCfg
+				log.Info().
+					Bool("exists", exists).
+					Bool("default", !found).
+					//Str("strategy", fmt.Sprintf("%+v", myCfg)).
+					Str("key", k.String()).
+					Msg("init default strategy")
 			}
-			log.Info().
-				Bool("exists", exists).
-				Bool("default", !found).
-				//Str("strategy", fmt.Sprintf("%+v", myCfg)).
-				Str("key", k.String()).
-				Msg("init default strategy")
 		} else {
 			tr.logOnce(fmt.Sprintf("no trade strategy defined for %v", k))
 		}

@@ -3,7 +3,6 @@ package coin
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -114,14 +113,14 @@ func (o *OverWatch) Run(ctx context.Context) {
 				continue
 			}
 			// ...execute
-			switch action {
-			case "start":
-				err = o.Start(api.NewBlock(), model.Coins[strings.ToUpper(c)], Log())
-				api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
-			case "stop":
-				err = o.Stop(model.Coins[strings.ToUpper(c)])
-			}
-			api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			//switch action {
+			//case "start":
+			//	err = o.Start(api.NewBlock(), model.Coins[strings.ToUpper(c)], Log())
+			//	api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+			//case "stop":
+			//	err = o.Stop(model.Coins[strings.ToUpper(c)])
+			//}
+			//api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
 		case <-ctx.Done():
 			// kill the engines one by one
 		}
@@ -167,20 +166,22 @@ type Processor interface {
 	Gather()
 }
 
-// Log is a void processsor.
-func Log() Processor {
+// Log is a void processor.
+func Log(action chan<- api.Action) Processor {
 	return &VoidProcessor{
-		count: make(map[model.Coin]int64),
-		lock:  new(sync.Mutex),
-		hash:  uuid.New().String(),
+		action: action,
+		count:  make(map[model.Coin]int64),
+		lock:   new(sync.Mutex),
+		hash:   uuid.New().String(),
 	}
 }
 
 // VoidProcessor is the void processor struct.
 type VoidProcessor struct {
-	count map[model.Coin]int64
-	lock  *sync.Mutex
-	hash  string
+	action chan<- api.Action
+	count  map[model.Coin]int64
+	lock   *sync.Mutex
+	hash   string
 }
 
 // Process for the void processor does nothing.
@@ -199,6 +200,8 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 			Msg("processed trades")
 	}
 	v.count[trade.Coin] = c
+	// signal to the source we are done processing this one
+	v.action <- api.Action{}
 }
 
 // Gather for the void processor does nothing.
