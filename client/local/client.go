@@ -137,6 +137,7 @@ func (c *Client) Trades(process <-chan api.Action, coin model.Coin) (model.Trade
 				//to = nil
 			}
 			c.trades <- trade
+			<-process
 		}
 	}(c.since)
 
