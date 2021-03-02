@@ -35,7 +35,7 @@ func main() {
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
 	}
-	client := local.NewClient(cointime.LastXHours(120)).
+	client := local.NewClient(cointime.LastXHours(24)).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
 	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
