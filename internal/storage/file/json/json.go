@@ -108,7 +108,6 @@ func Load(filePath string, fileName string, value interface{}) error {
 					return nil
 				}
 			}
-			log.Info().Str("path", filePath).Str("file", fileName).Msg("not found")
 			return nil
 		})
 		if err != nil {
@@ -116,6 +115,10 @@ func Load(filePath string, fileName string, value interface{}) error {
 		}
 	} else {
 		num = 1
+	}
+
+	if data == nil || len(data) == 0 {
+		log.Info().Str("path", filePath).Str("file", fileName).Msg("not found")
 	}
 
 	if num > 1 {
