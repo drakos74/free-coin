@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
@@ -170,6 +172,7 @@ func Log() Processor {
 	return &VoidProcessor{
 		count: make(map[model.Coin]int64),
 		lock:  new(sync.Mutex),
+		hash:  uuid.New().String(),
 	}
 }
 
@@ -177,6 +180,7 @@ func Log() Processor {
 type VoidProcessor struct {
 	count map[model.Coin]int64
 	lock  *sync.Mutex
+	hash  string
 }
 
 // Process for the void processor does nothing.
@@ -188,6 +192,7 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 	atomic.AddInt64(&c, 1)
 	if c%10000 == 0 {
 		log.Info().
+			Str("hash", v.hash).
 			Time("trade-time", trade.Time).
 			Str("coin", string(trade.Coin)).
 			Int64("count", c).
