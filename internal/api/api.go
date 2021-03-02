@@ -31,7 +31,7 @@ type Client interface {
 type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
 	OpenPosition(position model.Position) error
-	OpenOrder(order model.Order) error
+	OpenOrder(order model.Order) ([]string, error)
 	ClosePosition(position model.Position) error
 }
 

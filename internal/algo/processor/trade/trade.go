@@ -167,13 +167,15 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					WithType(pair.t).
 					Market().
 					Create()
+				txIDs, err := client.OpenOrder(order)
 				log.Info().
 					Str("ID", order.ID).
+					Err(err).
 					Str("pair", fmt.Sprintf("%+v", pair)).
 					Float64("price", pair.price).
 					Str("Coin", string(coin)).
+					Strs("tx-ids", txIDs).
 					Msg("open position")
-				err := client.OpenOrder(order)
 				// signal to the position processor that there should be a new one
 				block.Action <- api.NewAction("open").ForCoin(coin).Create()
 				api.Reply(api.Private, user, api.
