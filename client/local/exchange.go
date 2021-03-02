@@ -24,11 +24,11 @@ type Exchange struct {
 	count           map[model.Coin]int
 	mutex           *sync.Mutex
 	logger          *log.Logger
-	action          chan<- api.Action
+	processed       chan<- api.Action
 }
 
 // NewExchange creates a new local exchange
-func NewExchange(logFile string, action chan<- api.Action) *Exchange {
+func NewExchange(logFile string) *Exchange {
 	var logger *log.Logger
 	if logFile != "" {
 		file, err := os.OpenFile("cmd/test/logs/tracker_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
@@ -45,12 +45,18 @@ func NewExchange(logFile string, action chan<- api.Action) *Exchange {
 		count:           make(map[model.Coin]int),
 		mutex:           new(sync.Mutex),
 		logger:          logger,
-		action:          action,
 	}
 }
 
+// OneOfEvery defines how many trades to skip for the stats to return at the end of processing.
 func (e *Exchange) OneOfEvery(n int) *Exchange {
 	e.oneOfEvery = n
+	return e
+}
+
+// SignalProcessed defines the channel to signal a trade having reached the end of the pipeline.
+func (e *Exchange) SignalProcessed(processed chan<- api.Action) *Exchange {
+	e.processed = processed
 	return e
 }
 
@@ -166,7 +172,7 @@ func (e *Exchange) Process(trade *model.Trade) {
 		e.allTrades[trade.Coin] = append(e.allTrades[trade.Coin], tr)
 	}
 	// signal to the source we are done processing this one
-	e.action <- api.Action{}
+	e.processed <- api.Action{}
 }
 
 func (e *Exchange) Gather() {

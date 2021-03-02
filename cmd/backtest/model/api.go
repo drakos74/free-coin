@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	cointime "github.com/drakos74/free-coin/internal/time"
 )
 
@@ -14,17 +12,12 @@ const (
 
 type Query struct {
 	PanelID       int               `json:"panelId"`
-	Range         Range             `json:"range"`
+	Range         cointime.Range    `json:"range"`
 	Interval      cointime.Duration `json:"interval"`
 	IntervalMS    int64             `json:"intervalMs"`
 	Targets       []Target          `json:"targets"`
 	MaxDataPoints int               `json:"maxDataPoints"`
 	AdhocFilters  []Filter
-}
-
-type Range struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
 }
 
 type Target struct {
@@ -47,7 +40,7 @@ type Tag struct {
 }
 
 type AnnotationQuery struct {
-	Range      Range `json:"range"`
+	Range      cointime.Range `json:"range"`
 	Annotation Annotation
 }
 

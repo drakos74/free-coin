@@ -21,7 +21,7 @@ const timeFormat = "2006_01_02_15"
 // furthermore it will mock the client behaviour in terms of the positions and orders locally.
 // It can be used as a simulation environment for testing processors and business logic.
 type Client struct {
-	since       int64
+	timeRange   cointime.Range
 	uuid        string
 	upstream    func(since int64) (api.Client, error)
 	persistence func(shard string) (storage.Persistence, error)
@@ -31,12 +31,12 @@ type Client struct {
 }
 
 // NewClient creates a new client for trade processing.
-func NewClient(since int64, uuid string) *Client {
+func NewClient(timeRange cointime.Range, uuid string) *Client {
 	return &Client{
-		since:  since,
-		uuid:   uuid,
-		hash:   cointime.NewHash(8 * time.Hour),
-		trades: make(map[model.Coin]model.TradeSource),
+		timeRange: timeRange,
+		uuid:      uuid,
+		hash:      cointime.NewHash(8 * time.Hour),
+		trades:    make(map[model.Coin]model.TradeSource),
 		upstream: func(since int64) (api.Client, error) {
 			return Void(), nil
 		},
@@ -75,7 +75,7 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.Trade
 		c.trades[query.Coin] = make(chan *model.Trade)
 	}
 	// NOTE : we are making a major assumption here that timestamps will always increase.
-	go func(since int64, query api.Query) {
+	go func(since int64, until time.Time, query api.Query) {
 
 		store, err := c.persistence(string(query.Coin))
 		if err != nil {
@@ -149,9 +149,11 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.Trade
 			}
 			trade.SourceID = query.Index
 			c.trades[query.Coin] <- trade
+			// wait for trade to be processed through the pipeline
 			<-process
 		}
-	}(c.since, query)
+		close(c.trades[query.Coin])
+	}(cointime.ToNano(c.timeRange.From), c.timeRange.To, query)
 
 	return c.trades[query.Coin], nil
 
@@ -185,8 +187,9 @@ func (c *Client) localTrades(uuid string, since int64, coin model.Coin, store st
 		}
 		localTrade.SourceID = uuid
 		c.trades[coin] <- &localTrade
-		<-process
 		startTime = localTrade.Time
+		// wait for trade to be processed all the way through the pipeline
+		<-process
 	}
 	return startTime, nil
 }

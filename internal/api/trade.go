@@ -3,6 +3,8 @@ package api
 import (
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -30,15 +32,35 @@ func NewBlock() Block {
 // it can hold several metadata information , but for now we leave it empty.
 type Action struct {
 	Name string
+	ID   string
+	Coin model.Coin
 	Time time.Time
 }
 
 // NewAction creates a new action with the given name.
-func NewAction(name string) Action {
-	return Action{
+func NewAction(name string) *Action {
+	return &Action{
 		Name: name,
 		Time: time.Now(),
+		ID:   uuid.New().String(),
 	}
+}
+
+// Create returns an immutable instance of the action
+func (a *Action) Create() Action {
+	return *a
+}
+
+// ForCoin assigns a coin to the action
+func (a *Action) ForCoin(coin model.Coin) *Action {
+	a.Coin = coin
+	return a
+}
+
+// WithID assigns an id to the action
+func (a *Action) WithID(id string) *Action {
+	a.ID = id
+	return a
 }
 
 // Condition defines a boundary condition to stop execution based on the consumed trades.

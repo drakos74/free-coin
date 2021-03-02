@@ -20,7 +20,7 @@ func main() {
 		http.ServeFile(writer, request, filepath.Join(dir, request.URL.Path[1:]))
 	})
 
-	log.Println(fmt.Sprintf("Listening static on :%d...", port))
+	log.Printf("Listening static on :%d...\n", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		log.Fatal(err)

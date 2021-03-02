@@ -54,7 +54,7 @@ func TestClient_Trades(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var since int64 = 0
-			client := NewClient(since).
+			client := NewClient(since, "").
 				WithUpstream(func(since int64) (api.Client, error) {
 					tt.client.start = cointime.FromNano(since)
 					return tt.client, nil
@@ -62,7 +62,9 @@ func TestClient_Trades(t *testing.T) {
 				WithPersistence(func(shard string) (storage.Persistence, error) {
 					return json.NewJsonBlob("table", tt.shard), nil
 				})
-			trades, err := client.Trades(make(chan api.Action), tt.coin)
+			trades, err := client.Trades(make(chan api.Action), api.Query{
+				Coin: tt.coin,
+			})
 			assert.NoError(t, err)
 
 			// the mock source adds one trade per minute ...
@@ -97,7 +99,7 @@ func newMockSource(since int64) *mockSource {
 	return &mockSource{start: t}
 }
 
-func (m *mockSource) Trades(process <-chan api.Action, coin model.Coin) (model.TradeSource, error) {
+func (m *mockSource) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
 
 	trades := make(chan *model.Trade)
 
@@ -111,7 +113,7 @@ func (m *mockSource) Trades(process <-chan api.Action, coin model.Coin) (model.T
 			default:
 				// generate some trades ... but be careful of the time
 				trade := model.Trade{
-					Coin: coin,
+					Coin: query.Coin,
 					Time: m.start.Add(time.Duration(i) * time.Minute),
 				}
 				i++

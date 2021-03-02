@@ -174,7 +174,8 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					Str("Coin", string(coin)).
 					Msg("open position")
 				err := client.OpenOrder(order)
-				block.Action <- api.NewAction("open position")
+				// signal to the position processor that there should be a new one
+				block.Action <- api.NewAction("open").ForCoin(coin).Create()
 				api.Reply(api.Private, user, api.
 					NewMessage(createPredictionMessage(pair)).
 					AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f )",
@@ -183,6 +184,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 						vol,
 						pair.price,
 					)), err)
+				// wait for the position processor to acknowledge the update
 				<-block.ReAction
 			} else {
 				if gotAction {

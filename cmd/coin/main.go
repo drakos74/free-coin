@@ -34,7 +34,7 @@ func main() {
 	persistence := func(shard string) (storage.Persistence, error) {
 		return json.NewJsonBlob("trades", shard), nil
 	}
-	client := local.NewClient(cointime.LastXHours(194), uuid.New().String()).
+	client := local.NewClient(cointime.LastXHours(24), uuid.New().String()).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
 	//client := kraken.NewClient(ctx, cointime.LastXHours(99), 10*time.Second)
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	overWatch := coin.New(client, user)
-	go overWatch.Run(ctx)
+	finished := overWatch.Run(ctx)
 
 	exchange := kraken.NewExchange(ctx)
 	// note we dont provide any config for the stats processor. It should get it from the config folder
@@ -61,9 +61,9 @@ func main() {
 	block := api.NewBlock()
 	positionProcessor := position.Position(exchange, user, block, true)
 	tradeProcessor := trade.Trade(exchange, user, block)
-	finished := api.NewBlock()
+
 	for _, c := range model.Coins {
-		err := overWatch.Start(finished, c, coin.Log,
+		err := overWatch.Start(c, coin.Log,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,
@@ -74,6 +74,7 @@ func main() {
 	}
 
 	// this is a long running task ... lets keep the main thread occupied
-	<-finished.Action
+	// until we get a signal from the overwatch
+	finished.Wait()
 	cnl()
 }

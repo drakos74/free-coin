@@ -13,7 +13,7 @@ import (
 	cointime "github.com/drakos74/free-coin/internal/time"
 )
 
-func ToKey(coin coinmodel.Coin, timeRange Range) []storage.Key {
+func ToKey(coin coinmodel.Coin, timeRange cointime.Range) []storage.Key {
 
 	keys := make([]storage.Key, 0)
 

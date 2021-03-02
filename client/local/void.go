@@ -1,6 +1,8 @@
 package local
 
 import (
+	"time"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 )
@@ -15,6 +17,9 @@ func Void() api.Client {
 func (v VoidClient) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
 	// dont send anything ... actually even better , close the channel
 	trades := make(chan *model.Trade)
-	defer close(trades)
+	go func() {
+		<-time.Tick(1 * time.Millisecond)
+		close(trades)
+	}()
 	return trades, nil
 }

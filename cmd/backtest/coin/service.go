@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
@@ -21,56 +23,6 @@ import (
 	jsonstore "github.com/drakos74/free-coin/internal/storage/file/json"
 	userlocal "github.com/drakos74/free-coin/user/local"
 )
-
-type Query struct {
-	output chan *coinmodel.Trade
-	store  storage.Shard
-	keys   []storage.Key
-}
-
-func NewQuery(coin coinmodel.Coin, queryRange model.Range) *Query {
-	return &Query{
-		output: make(chan *coinmodel.Trade),
-		store:  nil,
-		keys:   model.ToKey(coin, queryRange),
-	}
-}
-
-func (q *Query) withStore(store storage.Shard) *Query {
-	q.store = store
-	return q
-}
-
-func (q *Query) Trades(reAction <-chan api.Action, _ api.Query) (coinmodel.TradeSource, error) {
-	go func() {
-		for _, k := range q.keys {
-			store, err := q.store(k.Pair)
-			if err != nil {
-				log.Warn().
-					Err(err).
-					Str("key", fmt.Sprintf("%+v", k)).
-					Msg("could not create store")
-			}
-			var batch []coinmodel.Trade
-			err = store.Load(k, &batch)
-			if err != nil {
-				log.Warn().
-					Err(err).
-					Str("key", fmt.Sprintf("%+v", k)).
-					Msg("could not load trades")
-			} else {
-				for _, trade := range batch {
-					trade.Live = true
-					trade.Active = true
-					q.output <- &trade
-					<-reAction
-				}
-			}
-		}
-		close(q.output)
-	}()
-	return q.output, nil
-}
 
 type Service struct {
 }
@@ -108,11 +60,10 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		}
 		log.Info().Str("target", q.Target).Msg("run query")
 
-		tradesQuery := NewQuery(c, query.Range).
-			withStore(jsonstore.BlobShard("trades"))
-		overWatch := coin.New(tradesQuery, user)
-		//go overWatch.Run(ctx)
-
+		tradesQuery := local.NewClient(query.Range, uuid.New().String()).
+			WithPersistence(func(shard string) (storage.Persistence, error) {
+				return jsonstore.NewJsonBlob("trades", shard), nil
+			}).Mock()
 		// find what the range is, in order to know how many trades to reduce
 		frame := query.Range.To.Sub(query.Range.From).Hours()
 		// lets say for every 24 hours we reduce by 2 the trades ... this would be
@@ -124,7 +75,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			var config stats.Config
 			err := FromJsonMap(stats.ProcessorName, statsConfig, &config)
 			if err != nil {
-				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", stats.ProcessorName, err))
+				return s.error(fmt.Errorf("could not parse payload for %s: %w", stats.ProcessorName, err))
 			}
 			multiStatsConfig = append(multiStatsConfig, config)
 		}
@@ -138,7 +89,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			var config position.Config
 			err := FromJsonMap(position.ProcessorName, posConfig, &config)
 			if err != nil {
-				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", position.ProcessorName, err))
+				return s.error(fmt.Errorf("could not parse payload for %s: %w", position.ProcessorName, err))
 			}
 			positionsConfig = append(positionsConfig, config)
 		}
@@ -152,7 +103,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			var config trade.Config
 			err := FromJsonMap(trade.ProcessorName, traderConfig, &config)
 			if err != nil {
-				return s.error(fmt.Errorf("could not parse paylaod for %s: %w", position.ProcessorName, err))
+				return s.error(fmt.Errorf("could not parse payload for %s: %w", position.ProcessorName, err))
 			}
 			tradeConfig = append(tradeConfig, config)
 		}
@@ -161,9 +112,11 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			Str("config", fmt.Sprintf("%+v", tradeConfig)).
 			Msg("loaded config from back-test")
 
-		finished := api.NewBlock()
+		overWatch := coin.New(tradesQuery, user)
+		finished := overWatch.Run(context.Background())
+
 		exchange := local.
-			NewExchange("", finished.ReAction).
+			NewExchange("").
 			OneOfEvery(redux)
 
 		block := api.NewBlock()
@@ -172,9 +125,9 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		tradeProcessor := trade.Trade(exchange, user, block, tradeConfig...)
 
 		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
-			return exchange
+			return exchange.SignalProcessed(reaction)
 		}
-		err := overWatch.Start(finished, c, engineWrapper,
+		err := overWatch.Start(c, engineWrapper,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,
@@ -184,7 +137,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			return s.error(fmt.Errorf("could not start engine for '%s': %w", c, err))
 		}
 		// this is a long running task ... lets keep the main thread occupied
-		<-finished.Action
+		finished.Wait()
 		allTrades[c] = exchange.Trades(c)
 		allPositions[c] = exchange.Positions(c)
 	}

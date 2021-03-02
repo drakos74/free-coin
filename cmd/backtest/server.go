@@ -89,9 +89,9 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
-	s.block.Action <- api.NewAction("query")
+	s.block.Action <- api.NewAction("query").Create()
 	defer func() {
-		s.block.ReAction <- api.NewAction("query")
+		s.block.ReAction <- api.NewAction("query").Create()
 	}()
 
 	body, err := ioutil.ReadAll(r.Body)
