@@ -36,7 +36,7 @@ func main() {
 		return json.NewJsonBlob("trades", shard), nil
 	}
 	client := local.NewClient(cointime.Range{
-		From:    time.Now().Add(-24 * time.Hour),
+		From:    time.Now().Add(-7 * 24 * time.Hour),
 		ToInt64: cointime.ToNano,
 	}, uuid.New().String()).
 		WithUpstream(upstream).
