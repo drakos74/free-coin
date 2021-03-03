@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/drakos74/free-coin/internal/emoji"
+
+	cointime "github.com/drakos74/free-coin/internal/time"
 )
 
 // HMMConfig defines the configuration for the hidden markov model analysis.
@@ -42,21 +47,68 @@ type HMM struct {
 
 // Prediction defines a prediction result with the computed Probability
 type Prediction struct {
+	// ID is a unique numeric id related to the prediction
+	ID int64
 	// Value for the prediction . Essentially the concatenated string of the predicted sequence
 	Value string
+	// Occur is the number of occurrences for the current combination.
+	Occur int
 	// Probability for the current prediction
 	Probability float64
-	// Options is the pool of possible value combinations from which the current one was the winner
-	Options int
+}
+
+// formats prediction details for a readable message
+func (p Prediction) String() string {
+	return fmt.Sprintf("%s (%.2f)", ToStringSymbols(p.Value), p.Probability)
+}
+
+func ToStringSymbols(s string) string {
+	ss := strings.Split(s, ":")
+	symbols := emoji.MapToSymbols(ss)
+	return strings.Join(symbols, " ")
+}
+
+type Predictions struct {
+	Key string
+	// Values are the prediction details for each prediction
+	Values PredictionList
 	// Sample is the number of previous incidents of the source sequence that generated the current probability matrix
 	Sample int
-	// Count is the number of events processed by the model
-	Count int
-	// Groups is the number of groups / combinations of source sequences encountered.
+	// Groups is the number of groups / combinations of source sequences encountered of the given length.
 	Groups int
+	// Count is the count of invocations for this model
+	Count int
 	// Label is a string acting as metadata for the prediction
 	Label string
 }
+
+// TODO : maybe better to choose a uuid, for now the unix second should be enough
+func NewPrediction(s string, occur int) *Prediction {
+	return &Prediction{
+		ID:    cointime.ToNano(time.Now()),
+		Value: s,
+		Occur: occur,
+	}
+}
+
+// PredictionList is a sortable list of predictions
+type PredictionList []*Prediction
+
+func (p PredictionList) String() string {
+	// print only the 2-3 first predictions
+	pp := make([]string, 2)
+	for i, pr := range p {
+		if i < 2 {
+			pp[i] = pr.String()
+		}
+	}
+	return fmt.Sprintf("%s", strings.Join(pp, " | "))
+}
+
+// for sorting predictions
+func (p PredictionList) Len() int           { return len(p) }
+func (p PredictionList) Less(i, j int) bool { return p[i].Occur < p[j].Occur }
+func (p PredictionList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type Sample struct {
 	Key    string
@@ -79,7 +131,7 @@ func newStatus() *Status {
 // TODO : reverse the logic by accepting the result instead of the input.
 // (This should allow us to filter out irrelevant data adn save space,
 // Note : hmm is expensive in terms of memory storage )
-func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
+func (c *HMM) Add(s string, label string) (map[string]Predictions, Status) {
 
 	c.Status.Count++
 
@@ -89,14 +141,17 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 		values = append(values, fmt.Sprintf("%v", i))
 	})
 
-	prediction := make(map[string]Prediction)
+	prediction := make(map[string]Predictions)
 
 	for _, cfg := range c.Config {
-		if k, predict, cc := c.addKey(cfg, values, s); predict != nil {
+		if k, predict, ss, cc := c.addKey(cfg, values, s); len(predict.Values) > 0 {
 			predict.Label = label
-			predict.Count = int(c.Status.Count)
 			predict.Groups = cc
-			prediction[k] = *predict
+			predict.Sample = ss
+			predict.Key = k
+			predict.Count = int(c.Status.Count)
+			prediction[k] = predict
+			// TODO : Do we really need the Samples ?
 			s := fmt.Sprintf("%d -> %d", cfg.LookBack, cfg.LookAhead)
 			if _, ok := c.Status.Samples[s]; !ok {
 				c.Status.Samples[s] = make(map[string]Sample)
@@ -108,14 +163,14 @@ func (c *HMM) Add(s string, label string) (map[string]Prediction, Status) {
 		}
 	}
 
-	// add the new Value at the end
+	// add the new OpenValue at the end
 	c.sequence.Value = s
 	c.sequence = c.sequence.Next()
 
 	return prediction, *c.Status
 }
 
-func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Prediction, int) {
+func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, Predictions, int, int) {
 	// gather all available values
 	vv := append(values, s)
 	// we want to extract the value from the given values + the new one
@@ -126,7 +181,7 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	value := strings.Join(v, ":")
 	// if we have not encountered that meany values yet ... just skip
 	if strings.Contains(key, "<nil>") {
-		return "", nil, 0
+		return "", Predictions{Values: []*Prediction{}}, 0, 0
 	}
 
 	// init the counter map for this key, if it s not there
@@ -140,9 +195,10 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	// work to make the prediction by shifting the key for the desired target size
 	kk := vv[len(vv)-cfg.LookBack:]
 	pKey := strings.Join(kk, ":")
-	var prediction *Prediction
+	var predictions Predictions
+	var sample int
 	if !strings.Contains(pKey, "<nil>") {
-		prediction = c.predict(pKey)
+		predictions, sample = c.predict(pKey)
 	}
 
 	// add the value to the counter map, note we do this after we make the prediction
@@ -150,38 +206,27 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (string, *Predict
 	c.hmm[key][value]++
 
 	// we also return how many samples we have for the given key
-	return pKey, prediction, len(c.hmm[key])
+	// return also the number of other options for this sequence
+	return pKey, predictions, sample, len(c.hmm[key])
 }
 
-func (c *HMM) predict(key string) *Prediction {
+func (c *HMM) predict(key string) (Predictions, int) {
+	predictions := Predictions{
+		Values: make([]*Prediction, 0),
+	}
+	var s int
 	if count, ok := c.hmm[key]; ok {
-		var m int
-		var r string
-		var s int
+		// s is the number of events
 
 		// TODO : make sure we find a better way to preserve the order in executions
-		keys := make([]string, len(count))
-		for k := range count {
-			keys = append(keys, k)
+		for v, cc := range count {
+			predictions.Values = append(predictions.Values, NewPrediction(v, cc))
+			s += cc
 		}
-		sort.Strings(keys)
-		for _, kk := range keys {
-			v := count[kk]
-			s += v
-			if v > m {
-				r = kk
-				m = v
-			}
-		}
-
-		if s > 0 {
-			return &Prediction{
-				Value:       r,
-				Probability: float64(m) / float64(s),
-				Options:     len(count),
-				Sample:      s,
-			}
+		sort.Sort(sort.Reverse(predictions.Values))
+		for _, pred := range predictions.Values {
+			pred.Probability = float64(pred.Occur) / float64(s)
 		}
 	}
-	return nil
+	return predictions, s
 }

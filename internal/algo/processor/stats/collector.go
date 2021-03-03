@@ -32,6 +32,7 @@ type windowConfig struct {
 	order        orderFunc
 	historySizes int64
 	counterSizes []buffer.HMMConfig
+	notify       bool
 }
 
 func newWindowConfig(duration time.Duration, config Config) (windowConfig, error) {
@@ -58,6 +59,7 @@ func newWindowConfig(duration time.Duration, config Config) (windowConfig, error
 		historySizes: int64(size),
 		counterSizes: hmmConfigs,
 		order:        orderFunction,
+		notify:       config.Notify,
 	}, nil
 }
 
@@ -161,7 +163,7 @@ func (s *statsCollector) push(k processor.Key, trade *model.Trade) ([]interface{
 	return nil, false
 }
 
-func (s *statsCollector) add(k processor.Key, v string) (map[string]buffer.Prediction, buffer.Status) {
+func (s *statsCollector) add(k processor.Key, v string) (map[string]buffer.Predictions, buffer.Status) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.windows[k].c.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))

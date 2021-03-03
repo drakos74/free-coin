@@ -110,7 +110,6 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 		}()
 
 		for trade := range in {
-
 			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
@@ -122,12 +121,15 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 					values, indicators, last := extractFromBuckets(buckets,
 						group(getPriceRatio, cfg.order))
 					// count the occurrences
+					// TODO : give more weight to the more recent values that come in
+					// TODO : old values might destroy our statistics and be irrelevant
 					predictions, status := stats.add(k, values[0][len(values[0])-1])
 					if trade.Live {
 						if trade.Signals == nil {
 							trade.Signals = make([]model.Signal, 0)
 						}
 						aggregateStats := coinmath.NewAggregateStats(indicators)
+						// Note there is one trade signal per key (coin,duration) pair
 						trade.Signals = append(trade.Signals, model.Signal{
 							Type: "TradeSignal",
 							Value: TradeSignal{
@@ -139,7 +141,7 @@ func MultiStats(user api.User, configs ...Config) api.Processor {
 								AggregateStats: aggregateStats,
 							},
 						})
-						if user != nil && duration >= 10*time.Minute {
+						if user != nil && cfg.notify {
 							// TODO : add tests for this
 							user.Send(api.Public,
 								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
@@ -159,7 +161,7 @@ type TradeSignal struct {
 	Price          float64
 	Time           time.Time
 	Duration       time.Duration
-	Predictions    map[string]buffer.Prediction
+	Predictions    map[string]buffer.Predictions
 	AggregateStats coinmath.AggregateStats
 }
 
@@ -229,10 +231,10 @@ func group(extract func(b windowView) float64, group func(f float64) int) func(b
 //	}
 //}
 
-func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Prediction, status buffer.Status, p *model.Trade, cfg windowConfig) string {
+func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Predictions, status buffer.Status, p *model.Trade, cfg windowConfig) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
-	// format the Predictions.
+	// format the PredictionList.
 	pp := make([]string, len(predictions)+1)
 	samples := make([]string, len(status.Samples))
 	k := 0
@@ -246,18 +248,12 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	}
 	pp[0] = fmt.Sprintf("%+v -> %s", status.Count, strings.Join(samples, " | "))
 	i := 1
-	for k, v := range predictions {
-		keySlice := strings.Split(k, ":")
-		valueSlice := strings.Split(v.Value, ":")
-		emojiKeySlice := emoji.MapToSymbols(keySlice)
-		emojiValueSlice := emoji.MapToSymbols(valueSlice)
-		pp[i] = fmt.Sprintf("%s -> %s ( prob : %.2f | base : %.2f | sample : %v | distinct : %d | total : %d) ",
-			strings.Join(emojiKeySlice, " "),
-			strings.Join(emojiValueSlice, " "),
-			v.Probability,
-			1/float64(v.Options),
-			v.Sample,
+	for _, v := range predictions {
+		pp[i] = fmt.Sprintf("%s -> %v [ %d : %d : %d ] ",
+			buffer.ToStringSymbols(v.Key),
+			v.Values,
 			v.Groups,
+			v.Sample,
 			v.Count,
 		)
 		i++
@@ -307,7 +303,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		mp,
 		mv,
 		st,
-		// Predictions details
+		// PredictionList details
 		strings.Join(pp, "\n "))
 
 }

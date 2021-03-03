@@ -102,6 +102,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	}
 }
 
+// TODO : create position processor triggered only from trad actions and no position tracking except for stop-loss
+// TODO : need to take care of closing positions
 // PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
 // client is the exchange client used for closing positions
 // user is the under interface for interacting with the user

@@ -14,6 +14,7 @@ type Config struct {
 	Order     string   `json:"order"`
 	Intervals int      `json:"intervals"`
 	Targets   []Target `json:"targets"`
+	Notify    bool     `json:"notify"`
 }
 
 // Target defines the prediction target intervals.

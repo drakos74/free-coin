@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/buffer"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
@@ -91,7 +93,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 			}
 
 			pairs := make(map[processor.Key][]predictionPair)
-			for i, signal := range trade.Signals {
+			for _, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
 					k := processor.NewKey(ts.Coin, ts.Duration)
 					// init the configuration for this pair of a coin and duration.
@@ -101,99 +103,77 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 					predictions := ts.Predictions
 					if cfg, ok := trader.get(k); ok && len(predictions) > 0 {
 						// check if we should make a buy order
-						for k, p := range predictions {
-							if p.Probability >= cfg.MinProbability && p.Sample >= cfg.MinSample {
-								// we know it s a good prediction. Lets check the value
-								v := p.Value
-								vv := strings.Split(v, ":")
-								// TODO : now it takes a random t if there are more matches
-								if t := cfg.contains(vv); t > 0 {
-									kk := processor.Key{
-										Coin:     ts.Coin,
-										Duration: ts.Duration,
-										Index:    i,
-									}
-
-									if _, ok := pairs[kk]; !ok {
-										pairs[kk] = make([]predictionPair, 0)
-									}
-									log.Info().
-										Str("trade-ID", trade.ID).
-										Str("prediction", fmt.Sprintf("%+v", p)).
-										Str("key", fmt.Sprintf("%+v", kk)).
-										Time("time", trade.Time).
-										Msg("adding open order pair")
-									pairs[kk] = append(pairs[kk], predictionPair{
-										price:       ts.Price,
-										openValue:   cfg.Value,
-										t:           t,
-										key:         k,
-										value:       v,
-										probability: p.Probability,
-										base:        1 / float64(p.Options),
-										sample:      p.Sample,
-										label:       p.Label,
-									})
-								}
-							}
-						}
+						pairs[processor.Key{
+							Coin:     ts.Coin,
+							Duration: ts.Duration,
+						}] = cfg.evaluate(ts)
 					}
 				}
 			}
-			var cancel bool
-			var gotAction bool
-			var coin model.Coin
-			var vol float64
-			var pair predictionPair
-			for k, pp := range pairs {
-				for _, p := range pp {
-					gotAction = true
-					// decide to do only one action
-					coin = k.Coin
-					vol = getVolume(p.price, p.openValue)
-
-					// check if we have mixed signals
-					if pair.t != model.NoType && pair.t != p.t {
-						cancel = true
-					}
-					pair = p
-				}
-			}
-			if !cancel && gotAction {
-				// we will make only one order from all the pairs ...
-				order := model.NewOrder(coin).
-					WithLeverage(model.L_5).
-					WithVolume(vol).
-					WithType(pair.t).
-					Market().
-					Create()
-				txIDs, err := client.OpenOrder(order)
+			//fmt.Println(fmt.Sprintf("pairs = %+v", pairs))
+			if len(pairs) > 0 {
 				log.Info().
-					Str("ID", order.ID).
-					Err(err).
-					Str("pair", fmt.Sprintf("%+v", pair)).
-					Float64("price", pair.price).
-					Str("Coin", string(coin)).
-					Strs("tx-ids", txIDs).
-					Msg("open position")
-				// signal to the position processor that there should be a new one
-				block.Action <- api.NewAction("open").ForCoin(coin).Create()
-				api.Reply(api.Private, user, api.
-					NewMessage(createPredictionMessage(pair)).
-					AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f )",
-						emoji.MapType(pair.t),
-						coin,
-						vol,
-						pair.price,
-					)), err)
-				// wait for the position processor to acknowledge the update
-				<-block.ReAction
-			} else {
-				if gotAction {
-					log.Warn().Bool("cancel", cancel).
-						Bool("action", gotAction).
-						Str("coin", string(coin)).
-						Msg("got mixed signals")
+					Int("pairs", len(pairs)).
+					Msg("trade action")
+				var cancel bool
+				var gotAction bool
+				var coin model.Coin
+				var vol float64
+				var pair predictionPair
+				for k, pp := range pairs {
+					if len(pp) > 0 {
+						// take the first one ...
+						p := pp[0]
+						gotAction = true
+						// decide to do only one action
+						coin = k.Coin
+						vol = getVolume(p.price, p.openValue)
+						// check if we have mixed signals
+						if pair.t != model.NoType && pair.t != p.t {
+							cancel = true
+						}
+						pair = p
+					}
+				}
+				if !cancel && gotAction && pair.t != model.NoType {
+					// we will make only one order from all the pairs ...
+					order := model.NewOrder(coin).
+						WithLeverage(model.L_5).
+						WithVolume(vol).
+						WithType(pair.t).
+						Market().
+						Create()
+					// TODO : send the open request to position processor,
+					// TODO : so that position is responsible for end2end order management
+					txIDs, err := client.OpenOrder(order)
+					log.Info().
+						Str("ID", order.ID).
+						Err(err).
+						Str("pair", fmt.Sprintf("%+v", pair)).
+						Float64("price", pair.price).
+						Str("Coin", string(coin)).
+						Strs("tx-ids", txIDs).
+						Msg("open position")
+					// signal to the position processor that there should be a new one
+					block.Action <- api.NewAction("open").ForCoin(coin).Create()
+					api.Reply(api.Private, user, api.
+						NewMessage(createPredictionMessage(pair)).
+						AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f )",
+							emoji.MapType(pair.t),
+							coin,
+							vol,
+							pair.price,
+						)), err)
+					// wait for the position processor to acknowledge the update
+					<-block.ReAction
+				} else {
+					if gotAction {
+						log.Warn().Bool("cancel", cancel).
+							Str("pairs", fmt.Sprintf("%+v", pairs)).
+							Bool("action", gotAction).
+							Str("coin", string(coin)).
+							Msg("got mixed signals")
+					}
 				}
 			}
 			out <- trade
@@ -203,8 +183,11 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 
 func createPredictionMessage(pair predictionPair) string {
 	kk := emoji.MapToSymbols(strings.Split(pair.key, ":"))
-	vv := emoji.MapToSymbols(strings.Split(pair.value, ":"))
-	pp := fmt.Sprintf("(%.2f | %.2f | %d)", pair.probability, pair.base, pair.sample)
+	vv := make([]string, 0)
+	for _, pv := range pair.values {
+		vv = append(vv, buffer.ToStringSymbols(pv))
+	}
+	pp := fmt.Sprintf("(%.2f | %d)", pair.probability, pair.sample)
 	line := fmt.Sprintf("%s | %s -> %s %s", pair.label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
 	return line
 }
@@ -212,11 +195,18 @@ func createPredictionMessage(pair predictionPair) string {
 type predictionPair struct {
 	price       float64
 	openValue   float64
+	name        string
 	label       string
 	key         string
-	value       string
+	values      []string
 	probability float64
-	base        float64
 	sample      int
 	t           model.Type
 }
+
+type predictionsPairs []predictionPair
+
+// for sorting predictions
+func (p predictionsPairs) Len() int           { return len(p) }
+func (p predictionsPairs) Less(i, j int) bool { return p[i].probability < p[j].probability }
+func (p predictionsPairs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

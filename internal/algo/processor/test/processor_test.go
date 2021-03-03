@@ -105,7 +105,7 @@ func newMockClient() *mockClient {
 	}
 }
 
-func (c *mockClient) Trades(stop <-chan struct{}, coin model.Coin, stopExecution api.Condition) (model.TradeSource, error) {
+func (c *mockClient) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
 	panic("implement me")
 }
 
@@ -116,8 +116,9 @@ func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, e
 	}, nil
 }
 
-func (c *mockClient) OpenOrder(position model.Order) error {
-	return nil
+func (c *mockClient) OpenOrder(position model.Order) ([]string, error) {
+	// TODO return maybe something to be able to test tracking
+	return []string{}, nil
 }
 
 func (c *mockClient) OpenPosition(position model.Position) error {

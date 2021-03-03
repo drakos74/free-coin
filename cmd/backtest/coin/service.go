@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 
+	cointime "github.com/drakos74/free-coin/internal/time"
+
 	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
@@ -60,6 +62,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		}
 		log.Info().Str("target", q.Target).Msg("run query")
 
+		query.Range.ToInt64 = cointime.ToMilli
 		tradesQuery := local.NewClient(query.Range, uuid.New().String()).
 			WithPersistence(func(shard string) (storage.Persistence, error) {
 				return jsonstore.NewJsonBlob("trades", shard), nil

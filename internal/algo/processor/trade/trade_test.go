@@ -88,12 +88,12 @@ func TestTradeStrategy(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			cfg := OpenConfig{
-				Value:    0.1,
-				Strategy: tt.strategy,
+				OpenValue:  0.1,
+				Strategies: tt.strategy,
 			}
 
 			for _, v := range tt.vv {
-				ttyp := cfg.contains(v)
+				ttyp := cfg.evaluate(v)
 				assert.Equal(t, tt.ttyp, ttyp, fmt.Sprintf("failed %v for %v", tt.ttyp, v))
 			}
 

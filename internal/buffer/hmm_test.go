@@ -299,7 +299,7 @@ func TestCounter_Add(t *testing.T) {
 				assert.Equal(t, prediction.Sample, pp.Sample, fmt.Sprintf("wrong Sample for key [%s]", k))
 				assert.Equal(t, fmt.Sprintf("%.2f", prediction.Probability), fmt.Sprintf("%.2f", pp.Probability), fmt.Sprintf("wrong Probability for key [%s]", k))
 				assert.Equal(t, prediction.Options, pp.Options, fmt.Sprintf("wrong Options for key [%s]", k))
-				assert.Equal(t, prediction.Value, pp.Value, fmt.Sprintf("wrong Value for key [%s]", k))
+				assert.Equal(t, prediction.Value, pp.Value, fmt.Sprintf("wrong OpenValue for key [%s]", k))
 			}
 		})
 	}

@@ -46,8 +46,8 @@ func (tr *trader) init(k processor.Key) {
 					myCfg = OpenConfig{
 						MinSample:      strategy.Sample,
 						MinProbability: strategy.Probability,
-						Value:          cfg.Open.Value,
-						Strategy:       getStrategy(strategy.Name, strategy.Threshold),
+						OpenValue:      cfg.Open.Value,
+						Strategies:     []TradingStrategy{getStrategy(strategy.Name, strategy.Threshold)},
 					}
 				}
 				if model.Coin(cfg.Coin) == k.Coin && strategy.Target == int(k.Duration.Minutes()) {
@@ -56,8 +56,8 @@ func (tr *trader) init(k processor.Key) {
 					config := OpenConfig{
 						MinSample:      strategy.Sample,
 						MinProbability: strategy.Probability,
-						Value:          cfg.Open.Value,
-						Strategy:       getStrategy(strategy.Name, strategy.Threshold),
+						OpenValue:      cfg.Open.Value,
+						Strategies:     []TradingStrategy{getStrategy(strategy.Name, strategy.Threshold)},
 					}
 					tr.configs[k.Coin][k.Duration] = config
 					log.Info().

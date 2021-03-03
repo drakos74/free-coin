@@ -11,8 +11,9 @@ import (
 const timeUnixNano = 1000000000
 
 type Range struct {
-	From time.Time `json:"from"`
-	To   time.Time `json:"to"`
+	From    time.Time               `json:"from"`
+	To      time.Time               `json:"to"`
+	ToInt64 func(t time.Time) int64 `json:"-"`
 }
 
 func FromNano(nano int64) time.Time {
@@ -21,6 +22,14 @@ func FromNano(nano int64) time.Time {
 
 func ToNano(t time.Time) int64 {
 	return t.Unix() * timeUnixNano
+}
+
+func FromMilli(milli int64) time.Time {
+	return time.Unix(milli/1000, 0)
+}
+
+func ToMilli(t time.Time) int64 {
+	return t.Unix() * 1000
 }
 
 // ThisWeek returns the unix time in seconds for the last 7 days.

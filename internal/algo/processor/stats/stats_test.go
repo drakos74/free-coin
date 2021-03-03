@@ -16,7 +16,6 @@ func TestFormatIntToString(t *testing.T) {
 		if i < 0 {
 			sign = "-"
 		}
-		println(fmt.Sprintf("s = %+v", s))
 		assert.Equal(t, fmt.Sprintf("%s%d", sign, int(math.Abs(float64(i)))), s)
 	}
 }

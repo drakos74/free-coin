@@ -192,11 +192,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 						Type: "string",
 					},
 					model.Column{
-						Text: "Description",
-						Type: "string",
-					},
-					model.Column{
-						Text: "Details",
+						Text: "Predictions",
 						Type: "string",
 					},
 				)
@@ -205,20 +201,15 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 					txt := strings.Split(msg.Text, "\n")
 					l := len(txt)
 					var stats string
-					description := make([]string, 0)
-					details := make([]string, 0)
-					d := ""
+					var predictions string
 					if l > 1 {
-						stats = txt[1]
+						stats = strings.Join(txt[1:], " ")
 					}
 					if l > 5 {
-						details = txt[5:]
-						d = details[0]
+						predictions = txt[5]
 					}
-					if len(details) >= 3 {
-						description = details[2:]
-					}
-					table.Rows = append(table.Rows, []string{msg.Time.Format(time.Stamp), txt[0], stats, d, strings.Join(description, "\n")})
+
+					table.Rows = append(table.Rows, []string{msg.Time.Format(time.Stamp), txt[0], stats, predictions})
 				}
 				tables = append(tables, table)
 			}

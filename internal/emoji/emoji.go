@@ -1,6 +1,8 @@
 package emoji
 
-import "github.com/drakos74/free-coin/internal/model"
+import (
+	"github.com/drakos74/free-coin/internal/model"
+)
 
 // https://unicode.org/emoji/charts/full-emoji-list.html
 const (

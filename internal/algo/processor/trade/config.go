@@ -3,6 +3,7 @@ package trade
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/drakos74/free-coin/infra/config"
 
@@ -41,35 +42,41 @@ func getStrategy(name string, threshold float64) TradingStrategy {
 	switch name {
 	case NumericStrategy:
 		return TradingStrategy{
-			name: name,
-			exec: func(vv []string) model.Type {
+			name:   name,
+			factor: 1.0,
+			exec: func(vv []string, factor float64) (float64, model.Type) {
+				// note : each element of the map could contain multiple prediction values
+				// gather them all together though ... with some weighting on the index
 				t := model.NoType
 				value := 0.0
 				s := 0.0
 				// make it simple if we have one prediction
-				l := len(vv)
-				for w, v := range vv {
-					i, err := strconv.ParseFloat(v, 64)
-					if err != nil {
-						return t
+				for _, y := range vv {
+					ww := strings.Split(y, ":")
+					l := len(ww)
+					for w, v := range ww {
+						i, err := strconv.ParseFloat(v, 64)
+						if err != nil {
+							return factor, t
+						}
+						g := float64(l-w) * i
+						value += g
+						s++
 					}
-					g := float64(l-w) * i
-					value += g
-					s++
 				}
 				x := value / s
 				t = model.SignedType(x)
 				if math.Abs(x) >= threshold {
-					return t
+					return factor, t
 				}
-				return model.NoType
+				return 0, model.NoType
 			},
 		}
 	}
 	return TradingStrategy{
 		name: "void",
-		exec: func(vv []string) model.Type {
-			return model.NoType
+		exec: func(vv []string, factor float64) (float64, model.Type) {
+			return 0.0, model.NoType
 		},
 	}
 }
