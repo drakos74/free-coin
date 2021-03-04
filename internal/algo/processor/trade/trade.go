@@ -113,9 +113,6 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 				}
 			}
 			if len(pairs) > 0 {
-				log.Info().
-					Int("pairs", len(pairs)).
-					Msg("trade action")
 				var cancel bool
 				var gotAction bool
 				var coin model.Coin
