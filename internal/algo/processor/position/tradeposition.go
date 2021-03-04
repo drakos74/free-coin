@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -35,17 +33,15 @@ type tradePosition struct {
 }
 
 type tradePositions struct {
-	execID         int64
-	logger         storage.Persistence
+	logger         storage.Registry
 	pos            map[model.Coin]map[string]*tradePosition
 	initialConfigs []Config
 	lock           *sync.RWMutex
 }
 
-func newPositionTracker(execID int64, configs []Config) *tradePositions {
+func newPositionTracker(registry storage.Registry, configs []Config) *tradePositions {
 	return &tradePositions{
-		execID:         execID,
-		logger:         json.NewLogger(ProcessorName),
+		logger:         registry,
 		pos:            make(map[model.Coin]map[string]*tradePosition),
 		initialConfigs: configs,
 		lock:           new(sync.RWMutex),
@@ -124,17 +120,14 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 		select {
 		case action := <-block.Action: // trigger update on the positions on external events/actions
 			// check if we need to act on the action
-
-			fmt.Println(fmt.Sprintf("action = %+v", action))
 			switch action.Name {
 			case model.OrderKey:
 				if order, ok := action.Content.(model.Order); ok {
 					txIDs, err := client.OpenOrder(order)
 					// Store for correlation and auditing
-					tp.logger.Store(storage.Key{
-						Hash:  tp.execID,
+					tp.logger.Put(storage.K{
 						Pair:  string(order.Coin),
-						Label: "open",
+						Label: ProcessorName,
 					}, model.TrackingOrder{
 						Order: order,
 						TxIDs: txIDs,

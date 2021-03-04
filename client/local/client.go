@@ -41,7 +41,7 @@ func NewClient(timeRange cointime.Range, uuid string) *Client {
 			return Void(), nil
 		},
 		persistence: func(shard string) (storage.Persistence, error) {
-			return storage.Void(), nil
+			return storage.NewVoidStorage(), nil
 		},
 	}
 }

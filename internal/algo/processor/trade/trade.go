@@ -70,13 +70,13 @@ func trackUserActions(user api.User, trader *trader) {
 // client is the exchange client used to open orders
 // user is the user interface for interacting with the user
 // block is the internal synchronisation mechanism used to make sure requests to the client are processed before proceeding
-func Trade(execID int64, user api.User, block api.Block, configs ...Config) api.Processor {
+func Trade(registry storage.Registry, user api.User, block api.Block, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
 	}
 
-	trader := newTrader(execID, configs...)
+	trader := newTrader(registry, configs...)
 
 	go trackUserActions(user, trader)
 
@@ -112,7 +112,6 @@ func Trade(execID int64, user api.User, block api.Block, configs ...Config) api.
 					}
 				}
 			}
-			//fmt.Println(fmt.Sprintf("pairs = %+v", pairs))
 			if len(pairs) > 0 {
 				log.Info().
 					Int("pairs", len(pairs)).
@@ -145,12 +144,10 @@ func Trade(execID int64, user api.User, block api.Block, configs ...Config) api.
 						WithType(pair.Type).
 						Market().
 						Create()
-					fmt.Println(fmt.Sprintf("order = %+v", order))
 					// TODO : save this log into our processor
-					err := trader.logger.Store(storage.Key{
-						Hash:  trader.execID,
+					err := trader.logger.Put(storage.K{
 						Pair:  string(coin),
-						Label: "trigger",
+						Label: ProcessorName,
 					}, pair)
 					log.Warn().
 						Str("ID", order.ID).

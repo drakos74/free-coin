@@ -6,24 +6,20 @@ import (
 	"fmt"
 	"math"
 
-	cointime "github.com/drakos74/free-coin/internal/time"
-
-	"github.com/google/uuid"
-
-	"github.com/drakos74/free-coin/internal/algo/processor/position"
-	"github.com/drakos74/free-coin/internal/algo/processor/stats"
-	"github.com/drakos74/free-coin/internal/algo/processor/trade"
-
-	"github.com/rs/zerolog/log"
-
 	"github.com/drakos74/free-coin/client/local"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
 	coin "github.com/drakos74/free-coin/internal"
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
 	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	jsonstore "github.com/drakos74/free-coin/internal/storage/file/json"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	userlocal "github.com/drakos74/free-coin/user/local"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 type Service struct {
@@ -122,10 +118,12 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			NewExchange("").
 			OneOfEvery(redux)
 
+		registry := jsonstore.NewEventRegistry("events")
+
 		block := api.NewBlock()
-		statsProcessor := stats.MultiStats(overWatch.ExecID, user, multiStatsConfig...)
-		positionProcessor := position.Position(overWatch.ExecID, exchange, user, block, true, positionsConfig...)
-		tradeProcessor := trade.Trade(overWatch.ExecID, user, block, tradeConfig...)
+		statsProcessor := stats.MultiStats(registry, user, multiStatsConfig...)
+		positionProcessor := position.Position(registry, exchange, user, block, true, positionsConfig...)
+		tradeProcessor := trade.Trade(registry, user, block, tradeConfig...)
 
 		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
 			return exchange.SignalProcessed(reaction)

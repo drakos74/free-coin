@@ -38,7 +38,7 @@ func (k Key) Path() string {
 }
 
 // Hashed is a pre-hashed storage for storing items one by one.
-type Item interface {
+type Registry interface {
 	Put(key K, value interface{}) error
 	Get(key K, value interface{}) error
 }
@@ -59,6 +59,22 @@ func (d VoidStorage) Load(k Key, value interface{}) error {
 	return fmt.Errorf("not found '%v': %w", k, NotFoundErr)
 }
 
-func Void() *VoidStorage {
+func NewVoidStorage() *VoidStorage {
 	return &VoidStorage{}
+}
+
+// NewVoidStorage is a dummy event logger which ignores all calls
+type VoidRegistry struct {
+}
+
+func NewVoidRegistry() *VoidRegistry {
+	return &VoidRegistry{}
+}
+
+func (v VoidRegistry) Put(key K, value interface{}) error {
+	return nil
+}
+
+func (v VoidRegistry) Get(key K, value interface{}) error {
+	return nil
 }

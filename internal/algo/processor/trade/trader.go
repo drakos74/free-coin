@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/storage"
-	"github.com/drakos74/free-coin/internal/storage/file/json"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/model"
@@ -15,18 +14,16 @@ import (
 
 type trader struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	execID         int64
-	logger         storage.Persistence
+	logger         storage.Registry
 	lock           sync.RWMutex
 	initialConfigs []Config
 	configs        map[model.Coin]map[time.Duration]OpenConfig
 	logs           map[string]struct{}
 }
 
-func newTrader(execID int64, configs ...Config) *trader {
+func newTrader(registry storage.Registry, configs ...Config) *trader {
 	return &trader{
-		execID:         execID,
-		logger:         json.NewLogger(ProcessorName),
+		logger:         registry,
 		lock:           sync.RWMutex{},
 		initialConfigs: configs,
 		configs:        make(map[model.Coin]map[time.Duration]OpenConfig),

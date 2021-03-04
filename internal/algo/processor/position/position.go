@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -109,14 +111,14 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 // user is the under interface for interacting with the user
 // block is the internal synchronisation mechanism used to report on the process of requests
 // closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
-func Position(execID int64, client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
+func Position(registry storage.Registry, client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
 	}
 
 	// define our internal global statsCollector
-	positions := newPositionTracker(execID, configs)
+	positions := newPositionTracker(registry, configs)
 
 	ticker := time.NewTicker(positionRefreshInterval)
 	quit := make(chan struct{})

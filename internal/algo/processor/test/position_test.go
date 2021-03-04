@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -15,7 +17,7 @@ import (
 
 func TestPosition_TradeProcessing(t *testing.T) {
 	testTradeProcessing(t, func(client api.Exchange, user api.User) api.Processor {
-		return position.Position(client, user, api.NewBlock(), true, position.Config{})
+		return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), true, position.Config{})
 	})
 }
 
@@ -260,7 +262,7 @@ func mockPosition(id string, coin model.Coin, t model.Type) model.Position {
 }
 
 func newPositionProcessor(client api.Exchange, user api.User) api.Processor {
-	return position.Position(client, user, api.NewBlock(), true, position.Config{
+	return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), true, position.Config{
 		Profit: position.Setup{
 			Min:   1.5,
 			Trail: 0.15,
