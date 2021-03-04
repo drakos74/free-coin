@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	cointime "github.com/drakos74/free-coin/internal/time"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 )
@@ -46,7 +44,7 @@ func (r *RemoteExchange) newPosition(id string, response krakenapi.Position) coi
 	fees := response.Fee * 2
 	return coinmodel.Position{
 		ID:           id,
-		OpenTime:     cointime.FromMilli(int64(response.TradeTime)),
+		OpenTime:     time.Unix(int64(response.TradeTime), 0),
 		Coin:         r.converter.Coin.Coin(response.Pair),
 		Type:         r.converter.Type.To(response.PositionType),
 		OpenPrice:    response.Cost / response.Volume,
