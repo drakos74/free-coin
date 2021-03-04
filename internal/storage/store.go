@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	BookDir    = "book"
-	HistoryDir = "history"
-	DefaultDir = "file-storage"
+	BookDir     = "book"
+	HistoryDir  = "history"
+	DefaultDir  = "file-storage"
+	RegistryDir = "registry"
 )
 
 // Shard creates a new storage implementation for the given shard.

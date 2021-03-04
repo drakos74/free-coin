@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
+	"path"
 
 	"github.com/drakos74/free-coin/client/local"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
@@ -22,6 +24,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const BacktestRegistryDir = "backtest-events"
+
 type Service struct {
 }
 
@@ -29,7 +33,7 @@ func New() *Service {
 	return &Service{}
 }
 
-func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]local.TrackedPosition, []api.Message, error) {
+func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
 
 	//ctx := context.Background()
 
@@ -46,7 +50,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 	}
 
 	allTrades := make(map[coinmodel.Coin][]coinmodel.Trade)
-	allPositions := make(map[coinmodel.Coin][]local.TrackedPosition)
+	allPositions := make(map[coinmodel.Coin][]coinmodel.TrackedPosition)
 	for _, q := range query.Targets {
 		c := coinmodel.Coin(q.Target)
 		// the only difference is in the coin,
@@ -118,7 +122,12 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			NewExchange("").
 			OneOfEvery(redux)
 
-		registry := jsonstore.NewEventRegistry("events")
+		// for now just remove the old dir on every run ...
+		err := os.RemoveAll(path.Join(storage.DefaultDir, storage.RegistryDir, BacktestRegistryDir))
+		if err != nil {
+			log.Warn().Msg("could not remove back-testing registry directory")
+		}
+		registry := jsonstore.NewEventRegistry(BacktestRegistryDir)
 
 		block := api.NewBlock()
 		statsProcessor := stats.MultiStats(registry, user, multiStatsConfig...)
@@ -128,7 +137,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
 			return exchange.SignalProcessed(reaction)
 		}
-		err := overWatch.Start(c, engineWrapper,
+		err = overWatch.Start(c, engineWrapper,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,
@@ -146,7 +155,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 	return allTrades, allPositions, user.Messages, nil
 }
 
-func (s *Service) error(err error) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]local.TrackedPosition, []api.Message, error) {
+func (s *Service) error(err error) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
 	return nil, nil, nil, err
 }
 

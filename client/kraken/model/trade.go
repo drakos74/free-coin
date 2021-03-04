@@ -4,8 +4,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/client/local"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 )
@@ -29,8 +27,8 @@ func NewHistoryTrade(id string, trade krakenapi.TradeHistoryInfo) coinmodel.Trad
 	}
 }
 
-func NewTrackedPosition(id string, trade krakenapi.TradeHistoryInfo) local.TrackedPosition {
-	return local.TrackedPosition{
+func NewTrackedPosition(id string, trade krakenapi.TradeHistoryInfo) coinmodel.TrackedPosition {
+	return coinmodel.TrackedPosition{
 		Open:     time.Time{},
 		Close:    time.Time{},
 		Position: coinmodel.Position{},

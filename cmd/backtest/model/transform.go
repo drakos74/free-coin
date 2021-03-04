@@ -6,8 +6,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/drakos74/free-coin/client/local"
-
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	cointime "github.com/drakos74/free-coin/internal/time"
@@ -55,7 +53,7 @@ func TradesData(target string, trades []coinmodel.Trade) [][]float64 {
 
 }
 
-func PositionData(position local.TrackedPosition) [][]float64 {
+func PositionData(position coinmodel.TrackedPosition) [][]float64 {
 	points := make([][]float64, 0)
 
 	ot := Time(position.Open)

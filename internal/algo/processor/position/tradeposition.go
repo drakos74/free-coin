@@ -15,6 +15,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var (
+	OpenPositionRegistryKey  = fmt.Sprintf("%s-%s", ProcessorName, "open")
+	ClosePositionRegistryKey = fmt.Sprintf("%s-%s", ProcessorName, "close")
+)
+
 type tpKey struct {
 	coin model.Coin
 	id   string
@@ -28,7 +33,7 @@ func key(c model.Coin, id string) tpKey {
 }
 
 type tradePosition struct {
-	position model.Position
+	position model.TrackedPosition
 	config   Config
 }
 
@@ -71,14 +76,20 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: p,
-				config:   oldPosition.config,
+				position: model.TrackedPosition{
+					Open:     oldPosition.position.Open,
+					Position: p,
+				},
+				config: oldPosition.config,
 			}
 		} else {
 			cfg := tp.getConfiguration(p.Coin)
 			tp.pos[p.Coin][p.ID] = &tradePosition{
-				position: p,
-				config:   cfg,
+				position: model.TrackedPosition{
+					Open:     p.OpenTime,
+					Position: p,
+				},
+				config: cfg,
 			}
 		}
 		posIDs[p.ID] = struct{}{}
@@ -124,14 +135,16 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			case model.OrderKey:
 				if order, ok := action.Content.(model.Order); ok {
 					txIDs, err := client.OpenOrder(order)
-					// Store for correlation and auditing
-					tp.logger.Put(storage.K{
-						Pair:  string(order.Coin),
-						Label: ProcessorName,
-					}, model.TrackingOrder{
-						Order: order,
-						TxIDs: txIDs,
-					})
+					if err == nil {
+						// Store for correlation and auditing
+						tp.logger.Put(storage.K{
+							Pair:  string(order.Coin),
+							Label: OpenPositionRegistryKey,
+						}, model.TrackingOrder{
+							Order: order,
+							TxIDs: txIDs,
+						})
+					}
 					log.Info().
 						Err(err).
 						Str("ID", order.ID).
@@ -286,7 +299,8 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 	}
 	position := tp.pos[key.coin][key.id].position
 	net, profit := position.Value()
-	err := client.ClosePosition(position)
+	err := client.ClosePosition(position.Position)
+	position.Close = time
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -303,6 +317,10 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 		)).ReferenceTime(time), nil)
 		return false
 	} else {
+		tp.logger.Put(storage.K{
+			Pair:  string(position.Coin),
+			Label: ClosePositionRegistryKey,
+		}, position)
 		log.Info().
 			Float64("volume", position.Volume).
 			Str("id", key.id).

@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	parent   = "events"
 	filename = "%d.events.log"
 )
 
@@ -29,7 +28,7 @@ func NewLogger(folder string) *Logger {
 }
 
 func (l *Logger) filePath(k storage.K) string {
-	return path.Join(storage.DefaultDir, parent, l.path, k.Pair, k.Label)
+	return path.Join(storage.DefaultDir, storage.RegistryDir, l.path, k.Pair, k.Label)
 }
 
 func (l *Logger) Store(k storage.Key, value interface{}) error {
@@ -38,6 +37,17 @@ func (l *Logger) Store(k storage.Key, value interface{}) error {
 		Pair:  k.Pair,
 		Label: k.Label,
 	})
+
+	// check if filepath exists
+	info, err := os.Stat(filePath)
+	if err != nil {
+		err := os.MkdirAll(filePath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("could not make dir: %s: %w", filePath, err)
+		}
+	} else if !info.IsDir() {
+		return fmt.Errorf("timePath given is not a timePath: %s", filePath)
+	}
 
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -120,11 +130,12 @@ func (e *Registry) Get(key storage.K, values interface{}) error {
 	t := reflect.Indirect(reflect.ValueOf(values)).Index(0).Type()
 	instance = reflect.New(t).Interface()
 
+	filePath := e.logger.filePath(key)
 	//pInstance := reflect.ValueOf(instance).Pointer()
 	// find our file ... which hash to choose (?)
 	elemSlice := reflect.MakeSlice(reflect.SliceOf(t), 0, 10)
-	err := filepath.Walk(e.logger.filePath(key), func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
+	err := filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
 			// just load it anyway
 			n := info.Name()
 			h, err := strconv.ParseInt(strings.Split(n, ".")[0], 10, 64)
@@ -140,6 +151,7 @@ func (e *Registry) Get(key storage.K, values interface{}) error {
 			if err != nil {
 				return fmt.Errorf("could not load key '%+v': %w", key, err)
 			}
+			c := 0
 			for _, s := range strings.Split(ss, "\n") {
 				if s == "" {
 					continue
@@ -150,6 +162,7 @@ func (e *Registry) Get(key storage.K, values interface{}) error {
 				}
 				ev := reflect.Indirect(reflect.ValueOf(instance))
 				elemSlice = reflect.Append(elemSlice, ev)
+				c++
 			}
 		}
 		return nil

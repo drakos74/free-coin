@@ -22,6 +22,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const RegistryPath = "events"
+
 func init() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
@@ -57,12 +59,14 @@ func main() {
 	overWatch := coin.New(client, user)
 	finished := overWatch.Run(ctx)
 
+	registry := json.NewEventRegistry(RegistryPath)
+
 	exchange := kraken.NewExchange(ctx)
 	// note we dont provide any config for the stats processor. It should get it from the config folder
-	statsProcessor := stats.MultiStats(overWatch.ExecID, user)
+	statsProcessor := stats.MultiStats(registry, user)
 	block := api.NewBlock()
-	positionProcessor := position.Position(overWatch.ExecID, exchange, user, block, true)
-	tradeProcessor := trade.Trade(overWatch.ExecID, user, block)
+	positionProcessor := position.Position(registry, exchange, user, block, true)
+	tradeProcessor := trade.Trade(registry, user, block)
 
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log,

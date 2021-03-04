@@ -80,7 +80,6 @@ func (v *User) Send(channel api.Index, message *api.Message, trigger *api.Trigge
 			v.public.Println(fmt.Sprintf("%s | message = \n%+v", message.Time.Format(dateFormat), message.Text))
 		}
 	}
-	//fmt.Println(fmt.Sprintf("%s | message = \n%+v", message.Time.Format(dateFormat), message.Text))
 	v.Messages = append(v.Messages, *message)
 	// if it s an executable action ... act on it
 	if trigger != nil && len(trigger.Default) > 0 {

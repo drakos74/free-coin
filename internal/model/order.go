@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -58,6 +59,7 @@ type TrackingOrder struct {
 // Order defines an order
 type Order struct {
 	ID       string    `json:"id"`
+	Time     time.Time `json:"time"`
 	Coin     Coin      `json:"coin"`
 	Type     Type      `json:"type"`
 	OType    OrderType `json:"order_type"`
@@ -72,6 +74,11 @@ func NewOrder(coin Coin) *Order {
 		ID:   uuid.New().String(),
 		Coin: coin,
 	}
+}
+
+func (o *Order) SubmitTime(t time.Time) *Order {
+	o.Time = t
+	return o
 }
 
 // WithType defines the type of the order.

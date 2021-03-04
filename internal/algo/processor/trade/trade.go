@@ -139,17 +139,19 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 				if !cancel && gotAction && pair.Type != model.NoType {
 					// we will make only one order from all the pairs ...
 					order := model.NewOrder(coin).
+						SubmitTime(pair.Time).
 						WithLeverage(model.L_5).
 						WithVolume(vol).
 						WithType(pair.Type).
 						Market().
 						Create()
 					// TODO : save this log into our processor
+					pair.ID = order.ID
 					err := trader.logger.Put(storage.K{
 						Pair:  string(coin),
 						Label: ProcessorName,
 					}, pair)
-					log.Warn().
+					log.Info().
 						Str("ID", order.ID).
 						Err(err).
 						Str("pair", fmt.Sprintf("%+v", pair)).
@@ -171,7 +173,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 						)), nil)
 				} else {
 					if gotAction {
-						log.Warn().Bool("cancel", cancel).
+						log.Debug().Bool("cancel", cancel).
 							Str("pairs", fmt.Sprintf("%+v", pairs)).
 							Bool("action", gotAction).
 							Str("coin", string(coin)).
@@ -196,7 +198,9 @@ func createPredictionMessage(pair PredictionPair) string {
 }
 
 type PredictionPair struct {
+	ID          string     `json:"id"`
 	Price       float64    `json:"price"`
+	Time        time.Time  `json:"time"`
 	OpenValue   float64    `json:"open_value"`
 	Strategy    string     `json:"strategy"`
 	Label       string     `json:"label"`

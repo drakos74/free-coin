@@ -1,8 +1,24 @@
 package model
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
+
+// TrackedPosition is a wrapper for the position adding a timestamp of the position related event.
+type TrackedPosition struct {
+	Open  time.Time `json:"open"`
+	Close time.Time `json:"close"`
+	Position
+}
+
+type TrackedPositions []TrackedPosition
+
+// for sorting predictions
+func (p TrackedPositions) Len() int           { return len(p) }
+func (p TrackedPositions) Less(i, j int) bool { return p[i].Open.Before(p[j].Open) }
+func (p TrackedPositions) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // PositionBatch is a batch of open positions.
 type PositionBatch struct {
@@ -12,15 +28,16 @@ type PositionBatch struct {
 
 // Position defines an open position details.
 type Position struct {
-	ID           string
-	Coin         Coin
-	Type         Type
-	OpenPrice    float64
-	CurrentPrice float64
-	Volume       float64
-	Cost         float64
-	Net          float64
-	Fees         float64
+	ID           string    `json:"id"`
+	OpenTime     time.Time `json:"open_time"`
+	Coin         Coin      `json:"coin"`
+	Type         Type      `json:"type"`
+	OpenPrice    float64   `json:"open_price"`
+	CurrentPrice float64   `json:"current_price"`
+	Volume       float64   `json:"volume"`
+	Cost         float64   `json:"cost"`
+	Net          float64   `json:"net"`
+	Fees         float64   `json:"fees"`
 }
 
 // NewPosition creates a new position.

@@ -58,6 +58,7 @@ func (c OpenConfig) evaluate(pp stats.TradeSignal) predictionsPairs {
 				// we create one pair for each strategy and each prediction sequence
 				pairs = append(pairs, PredictionPair{
 					Price:       pp.Price,
+					Time:        pp.Time,
 					OpenValue:   c.OpenValue,
 					Strategy:    strategy.name,
 					Label:       p.Label,

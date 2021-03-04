@@ -6,8 +6,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/emoji"
+
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+
+	cointime "github.com/drakos74/free-coin/internal/time"
+
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
+	"github.com/drakos74/free-coin/internal/storage"
+	jsonstore "github.com/drakos74/free-coin/internal/storage/file/json"
 
 	"github.com/drakos74/free-coin/client/kraken"
 
@@ -155,7 +166,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 					Msg("adding response set")
 				var total float64
 				for _, pos := range coinPositions {
-					net, _ := pos.Position.Value()
+					net, _ := pos.Value()
 					// TODO : this is interesting for each position , but maybe a bit too much
 					//data = append(data, model.Series{
 					//	Target:     fmt.Sprintf("%s %s %.2f (%d)", target.Target, pos.Position.Type.String(), profit, id),
@@ -251,65 +262,147 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	historyClient, err := kraken.NewHistory(context.Background())
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-
-	trades, err := historyClient.Get(query.Range.From, query.Range.To)
-
-	log.Info().Int("order", len(trades.Order)).Int("trades", len(trades.Trades)).Msg("loaded trades")
-
-	if err != nil {
-		s.error(w, err)
-		return
-	}
 	annotations := make([]model.AnnotationInstance, 0)
-	for _, id := range trades.Order {
-		trade := trades.Trades[id]
-		if trade.Time.Before(query.Range.To) && trade.Time.After(query.Range.From) {
-			if !(trade.Coin == coinmodel.Coin(query.Annotation.Query)) {
-				continue
-			}
-			if trade.RefID != "" {
-				if otherTrade, ok := trades.Trades[trade.RefID]; ok {
-					var tag string
-					if trade.Net > 0 {
-						tag = "profit"
+	switch query.Annotation.Name {
+	case "history":
+		historyClient, err := kraken.NewHistory(context.Background())
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+
+		trades, err := historyClient.Get(query.Range.From, query.Range.To)
+
+		log.Info().Int("order", len(trades.Order)).Int("trades", len(trades.Trades)).Msg("loaded trades")
+
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+		for _, id := range trades.Order {
+			trade := trades.Trades[id]
+			if trade.Time.Before(query.Range.To) && trade.Time.After(query.Range.From) {
+				if !(trade.Coin == coinmodel.Coin(query.Annotation.Query)) {
+					continue
+				}
+				if trade.RefID != "" {
+					if otherTrade, ok := trades.Trades[trade.RefID]; ok {
+						var tag string
+						if trade.Net > 0 {
+							tag = "profit"
+						} else {
+							tag = "loss"
+						}
+						// pull in the related trade
+						annotations = append(annotations, model.AnnotationInstance{
+							Text:     fmt.Sprintf("%.2f (%.2f) - %.2f", trade.Price, otherTrade.Price, trade.Volume),
+							Title:    fmt.Sprintf("%s - %s ( %.2f € )", trade.Coin, trade.Type.String(), trade.Net),
+							TimeEnd:  otherTrade.Time.Unix() * 1000,
+							Time:     trade.Time.Unix() * 1000,
+							IsRegion: true,
+							Tags:     []string{tag},
+						})
 					} else {
-						tag = "loss"
+						// pull in the related trade
+						annotations = append(annotations, model.AnnotationInstance{
+							Text:  fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
+							Title: fmt.Sprintf("%s - %s", trade.Coin, trade.Type.String()),
+							Time:  trade.Time.Unix() * 1000,
+						})
 					}
-					// pull in the related trade
-					annotations = append(annotations, model.AnnotationInstance{
-						Text:     fmt.Sprintf("%.2f (%.2f) - %.2f", trade.Price, otherTrade.Price, trade.Volume),
-						Title:    fmt.Sprintf("%s - %s ( %.2f € )", trade.Coin, trade.Type.String(), trade.Net),
-						TimeEnd:  otherTrade.Time.Unix() * 1000,
-						Time:     trade.Time.Unix() * 1000,
-						IsRegion: true,
-						Tags:     []string{tag},
-					})
+
 				} else {
-					// pull in the related trade
-					annotations = append(annotations, model.AnnotationInstance{
-						Text:  fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
-						Title: fmt.Sprintf("%s - %s", trade.Coin, trade.Type.String()),
-						Time:  trade.Time.Unix() * 1000,
-					})
+					// skipping position. it should be matched with a closed one
+					log.Debug().Str("trade", fmt.Sprintf("%+v", trade)).Msg("open position found")
 				}
 
-			} else {
-				// skipping position. it should be matched with a closed one
-				log.Debug().Str("trade", fmt.Sprintf("%+v", trade)).Msg("open position found")
 			}
-
 		}
-	}
 
-	log.Info().
-		Int("trades", len(trades.Order)).
-		Int("annotations", len(annotations)).
-		Msg("loaded annotations for history trades")
+		log.Info().
+			Int("trades", len(trades.Order)).
+			Int("annotations", len(annotations)).
+			Msg("loaded annotations for history trades")
+
+	case "trade":
+		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+
+		// get the events from the trade processor
+		predictionPairs := []trade.PredictionPair{{}}
+		err := registry.Get(storage.K{
+			Pair:  query.Annotation.Query,
+			Label: trade.ProcessorName,
+		}, &predictionPairs)
+
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+
+		for _, pair := range predictionPairs {
+			annotations = append(annotations, model.AnnotationInstance{
+				Title: fmt.Sprintf("%s %v", pair.Key, pair.Values),
+				Text:  fmt.Sprintf("%.2f %d", pair.Probability, pair.Sample),
+				Time:  cointime.ToMilli(pair.Time),
+				Tags:  []string{pair.Type.String(), pair.Strategy},
+			})
+		}
+
+	case "position_open":
+		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+
+		// get the events from the trade processor
+		orders := []coinmodel.TrackingOrder{{}}
+		err := registry.Get(storage.K{
+			Pair:  query.Annotation.Query,
+			Label: position.OpenPositionRegistryKey,
+		}, &orders)
+
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+
+		for _, order := range orders {
+			annotations = append(annotations, model.AnnotationInstance{
+				Title: fmt.Sprintf("%2.f %.2f", order.Price, order.Volume),
+				Text:  fmt.Sprintf("%s %v", order.ID, order.TxIDs),
+				Time:  cointime.ToMilli(order.Time),
+				Tags:  []string{order.Type.String()},
+			})
+		}
+	case "position_close":
+		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+
+		// get the events from the trade processor
+		positions := []coinmodel.TrackedPosition{{}}
+		err := registry.Get(storage.K{
+			Pair:  query.Annotation.Query,
+			Label: position.ClosePositionRegistryKey,
+		}, &positions)
+
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+
+		sort.SliceStable(positions, func(i, j int) bool {
+			return positions[i].Open.Before(positions[j].Open)
+		})
+
+		for _, pos := range positions {
+			net, profit := pos.Position.Value()
+			annotations = append(annotations, model.AnnotationInstance{
+				Title:    fmt.Sprintf("%2.f (%.2f)", net, profit),
+				Text:     fmt.Sprintf("%s %v", emoji.MapToSign(profit), pos.Position.ID),
+				Time:     cointime.ToMilli(pos.Open),
+				TimeEnd:  cointime.ToMilli(pos.Close),
+				IsRegion: true,
+				Tags:     []string{pos.Position.Type.String(), emoji.MapToSign(profit)},
+			})
+		}
+
+	}
 
 	b, err := json.Marshal(annotations)
 	if err != nil {

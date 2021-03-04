@@ -18,9 +18,9 @@ import (
 type Exchange struct {
 	oneOfEvery      int
 	trades          map[model.Coin]model.Trade
-	positions       map[string]TrackedPosition
+	positions       map[string]model.TrackedPosition
 	allTrades       map[model.Coin][]model.Trade
-	closedPositions map[model.Coin][]TrackedPosition
+	closedPositions map[model.Coin][]model.TrackedPosition
 	count           map[model.Coin]int
 	mutex           *sync.Mutex
 	logger          *log.Logger
@@ -39,9 +39,9 @@ func NewExchange(logFile string) *Exchange {
 	}
 	return &Exchange{
 		trades:          make(map[model.Coin]model.Trade),
-		positions:       make(map[string]TrackedPosition),
+		positions:       make(map[string]model.TrackedPosition),
 		allTrades:       make(map[model.Coin][]model.Trade),
-		closedPositions: make(map[model.Coin][]TrackedPosition),
+		closedPositions: make(map[model.Coin][]model.TrackedPosition),
 		count:           make(map[model.Coin]int),
 		mutex:           new(sync.Mutex),
 		logger:          logger,
@@ -90,7 +90,8 @@ func (e *Exchange) OpenPosition(position model.Position) error {
 		time = trade.Time
 	}
 	position.OpenPrice = price
-	trackedPosition := TrackedPosition{
+	position.OpenTime = time
+	trackedPosition := model.TrackedPosition{
 		Open:     time,
 		Position: position,
 	}
@@ -98,7 +99,6 @@ func (e *Exchange) OpenPosition(position model.Position) error {
 		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
 	e.positions[position.ID] = trackedPosition
-	//fmt.Println(fmt.Sprintf("open position = %+v", trackedPosition))
 	e.log(fmt.Sprintf("open position = %+v", trackedPosition))
 	return nil
 }
@@ -115,7 +115,8 @@ func (e *Exchange) OpenOrder(order model.Order) ([]string, error) {
 	}
 	order.Price = price
 	position := model.OpenPosition(order)
-	trackedPosition := TrackedPosition{
+	position.OpenTime = order.Time
+	trackedPosition := model.TrackedPosition{
 		Open:     time,
 		Position: position,
 	}
@@ -123,7 +124,6 @@ func (e *Exchange) OpenOrder(order model.Order) ([]string, error) {
 		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
 	e.positions[order.ID] = trackedPosition
-	//fmt.Println(fmt.Sprintf("open order = %+v", position))
 	e.log(fmt.Sprintf("open order = %+v", position))
 	return []string{position.ID}, nil
 }
@@ -146,11 +146,10 @@ func (e *Exchange) ClosePosition(position model.Position) error {
 		return fmt.Errorf("position not found: %s", position.ID)
 	}
 	if _, ok := e.closedPositions[position.Coin]; !ok {
-		e.closedPositions[position.Coin] = make([]TrackedPosition, 0)
+		e.closedPositions[position.Coin] = make([]model.TrackedPosition, 0)
 	}
 	e.closedPositions[position.Coin] = append(e.closedPositions[position.Coin], e.positions[position.ID])
 	delete(e.positions, position.ID)
-	//fmt.Println(fmt.Sprintf("close position = %+v", e.positions[position.ID]))
 	e.log(fmt.Sprintf("close position %+v", e.positions[position.ID]))
 	return nil
 }
@@ -189,6 +188,6 @@ func (e *Exchange) Trades(coin model.Coin) []model.Trade {
 	return e.allTrades[coin]
 }
 
-func (e *Exchange) Positions(coin model.Coin) (positions []TrackedPosition) {
+func (e *Exchange) Positions(coin model.Coin) (positions []model.TrackedPosition) {
 	return e.closedPositions[coin]
 }
