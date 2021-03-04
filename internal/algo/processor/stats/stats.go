@@ -88,13 +88,13 @@ func sendWindowConfig(user api.User, k processor.Key, w *window) {
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(user api.User, configs ...Config) api.Processor {
+func MultiStats(execID int64, user api.User, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
 	}
 
-	stats, err := newStats(configs)
+	stats, err := newStats(execID, configs)
 	if err != nil {
 		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not init processor")
 		return processor.Void(ProcessorName)

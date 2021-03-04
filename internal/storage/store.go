@@ -8,6 +8,7 @@ import (
 const (
 	BookDir    = "book"
 	HistoryDir = "history"
+	DefaultDir = "file-storage"
 )
 
 // Shard creates a new storage implementation for the given shard.
@@ -19,14 +20,27 @@ var (
 	UnrecoverableErr = errors.New("unrecoverable error")
 )
 
+// Key is the storage key for a general implementation
 type Key struct {
 	Hash  int64  `json:"hash"`
 	Pair  string `json:"pair"`
 	Label string `json:"label"`
 }
 
+// K is a simplified key for storage
+type K struct {
+	Pair  string `json:"pair"`
+	Label string `json:"label"`
+}
+
 func (k Key) Path() string {
 	return fmt.Sprintf("%s_%v_%s", k.Pair, k.Hash, k.Label)
+}
+
+// Hashed is a pre-hashed storage for storing items one by one.
+type Item interface {
+	Put(key K, value interface{}) error
+	Get(key K, value interface{}) error
 }
 
 type Persistence interface {

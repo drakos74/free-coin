@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/buffer"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -20,14 +22,14 @@ import (
 const ProcessorName = "trade"
 
 func trackUserActions(user api.User, trader *trader) {
-	for command := range user.Listen("trader", "?t") {
+	for command := range user.Listen("trader", "?Type") {
 		var duration int
 		var coin string
 		var probability float64
 		var sample int
 		_, err := command.Validate(
 			api.AnyUser(),
-			api.Contains("?t", "?trade"),
+			api.Contains("?Type", "?trade"),
 			api.Any(&coin),
 			api.Int(&duration),
 			api.Float(&probability),
@@ -43,7 +45,7 @@ func trackUserActions(user api.User, trader *trader) {
 
 		if probability > 0 {
 			d, newConfig := trader.set(processor.NewKey(c, timeDuration), probability, sample)
-			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("%s %dm probability:%f sample:%d",
+			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("%s %dm Probability:%f Sample:%d",
 				c,
 				int(d.Minutes()),
 				newConfig.MinProbability,
@@ -52,7 +54,7 @@ func trackUserActions(user api.User, trader *trader) {
 			// return the current configs
 			for d, cfg := range trader.getAll(c) {
 				user.Send(api.Private,
-					api.NewMessage(fmt.Sprintf("%s %dm probability:%f sample:%d",
+					api.NewMessage(fmt.Sprintf("%s %dm Probability:%f Sample:%d",
 						c,
 						int(d.Minutes()),
 						cfg.MinProbability,
@@ -68,13 +70,13 @@ func trackUserActions(user api.User, trader *trader) {
 // client is the exchange client used to open orders
 // user is the user interface for interacting with the user
 // block is the internal synchronisation mechanism used to make sure requests to the client are processed before proceeding
-func Trade(client api.Exchange, user api.User, block api.Block, configs ...Config) api.Processor {
+func Trade(execID int64, user api.User, block api.Block, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
 	}
 
-	trader := newTrader(configs...)
+	trader := newTrader(execID, configs...)
 
 	go trackUserActions(user, trader)
 
@@ -92,7 +94,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 				continue
 			}
 
-			pairs := make(map[processor.Key][]predictionPair)
+			pairs := make(map[processor.Key][]PredictionPair)
 			for _, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
 					k := processor.NewKey(ts.Coin, ts.Duration)
@@ -119,7 +121,7 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 				var gotAction bool
 				var coin model.Coin
 				var vol float64
-				var pair predictionPair
+				var pair PredictionPair
 				for k, pp := range pairs {
 					if len(pp) > 0 {
 						// take the first one ...
@@ -127,45 +129,49 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 						gotAction = true
 						// decide to do only one action
 						coin = k.Coin
-						vol = getVolume(p.price, p.openValue)
+						vol = getVolume(p.Price, p.OpenValue)
 						// check if we have mixed signals
-						if pair.t != model.NoType && pair.t != p.t {
+						if pair.Type != model.NoType && pair.Type != p.Type {
 							cancel = true
 						}
 						pair = p
 					}
 				}
-				if !cancel && gotAction && pair.t != model.NoType {
+				if !cancel && gotAction && pair.Type != model.NoType {
 					// we will make only one order from all the pairs ...
 					order := model.NewOrder(coin).
 						WithLeverage(model.L_5).
 						WithVolume(vol).
-						WithType(pair.t).
+						WithType(pair.Type).
 						Market().
 						Create()
-					// TODO : send the open request to position processor,
-					// TODO : so that position is responsible for end2end order management
-					txIDs, err := client.OpenOrder(order)
-					log.Info().
+					fmt.Println(fmt.Sprintf("order = %+v", order))
+					// TODO : save this log into our processor
+					err := trader.logger.Store(storage.Key{
+						Hash:  trader.execID,
+						Pair:  string(coin),
+						Label: "trigger",
+					}, pair)
+					log.Warn().
 						Str("ID", order.ID).
 						Err(err).
 						Str("pair", fmt.Sprintf("%+v", pair)).
-						Float64("price", pair.price).
+						Float64("Price", pair.Price).
 						Str("Coin", string(coin)).
-						Strs("tx-ids", txIDs).
 						Msg("open position")
 					// signal to the position processor that there should be a new one
-					block.Action <- api.NewAction("open").ForCoin(coin).Create()
-					api.Reply(api.Private, user, api.
-						NewMessage(createPredictionMessage(pair)).
-						AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f )",
-							emoji.MapType(pair.t),
-							coin,
-							vol,
-							pair.price,
-						)), err)
+					block.Action <- api.NewAction(model.OrderKey).ForCoin(coin).WithContent(order).Create()
 					// wait for the position processor to acknowledge the update
 					<-block.ReAction
+					api.Reply(api.Private, user, api.
+						NewMessage(createPredictionMessage(pair)).
+						AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f ) [%s]",
+							emoji.MapType(pair.Type),
+							coin,
+							vol,
+							pair.Price,
+							order.ID,
+						)), nil)
 				} else {
 					if gotAction {
 						log.Warn().Bool("cancel", cancel).
@@ -181,32 +187,32 @@ func Trade(client api.Exchange, user api.User, block api.Block, configs ...Confi
 	}
 }
 
-func createPredictionMessage(pair predictionPair) string {
-	kk := emoji.MapToSymbols(strings.Split(pair.key, ":"))
+func createPredictionMessage(pair PredictionPair) string {
+	kk := emoji.MapToSymbols(strings.Split(pair.Key, ":"))
 	vv := make([]string, 0)
-	for _, pv := range pair.values {
+	for _, pv := range pair.Values {
 		vv = append(vv, buffer.ToStringSymbols(pv))
 	}
-	pp := fmt.Sprintf("(%.2f | %d)", pair.probability, pair.sample)
-	line := fmt.Sprintf("%s | %s -> %s %s", pair.label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
+	pp := fmt.Sprintf("(%.2f | %d)", pair.Probability, pair.Sample)
+	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
 	return line
 }
 
-type predictionPair struct {
-	price       float64
-	openValue   float64
-	name        string
-	label       string
-	key         string
-	values      []string
-	probability float64
-	sample      int
-	t           model.Type
+type PredictionPair struct {
+	Price       float64    `json:"price"`
+	OpenValue   float64    `json:"open_value"`
+	Strategy    string     `json:"strategy"`
+	Label       string     `json:"label"`
+	Key         string     `json:"key"`
+	Values      []string   `json:"values"`
+	Probability float64    `json:"probability"`
+	Sample      int        `json:"sample"`
+	Type        model.Type `json:"type"`
 }
 
-type predictionsPairs []predictionPair
+type predictionsPairs []PredictionPair
 
 // for sorting predictions
 func (p predictionsPairs) Len() int           { return len(p) }
-func (p predictionsPairs) Less(i, j int) bool { return p[i].probability < p[j].probability }
+func (p predictionsPairs) Less(i, j int) bool { return p[i].Probability < p[j].Probability }
 func (p predictionsPairs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

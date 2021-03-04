@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const OrderKey = "order"
+
 // OrderType defines the Price conditions for an order/condition i.e. market Price, limit Price etc ...
 type OrderType byte
 
@@ -36,15 +38,32 @@ const (
 	L_5
 )
 
+// String returns a humanly readable representation of the leverage type.
+func (l Leverage) String() string {
+	switch l {
+	case L_3:
+		return "3:1"
+	case L_5:
+		return "5:1"
+	default:
+		return ""
+	}
+}
+
+type TrackingOrder struct {
+	Order
+	TxIDs []string `json:"txIds"`
+}
+
 // Order defines an order
 type Order struct {
-	ID       string
-	Coin     Coin
-	Type     Type
-	OType    OrderType
-	Volume   float64
-	Leverage Leverage
-	Price    float64
+	ID       string    `json:"id"`
+	Coin     Coin      `json:"coin"`
+	Type     Type      `json:"type"`
+	OType    OrderType `json:"order_type"`
+	Volume   float64   `json:"volume"`
+	Leverage Leverage  `json:"leverage"`
+	Price    float64   `json:"price"`
 }
 
 // NewOrder creates a new order for the given coin.

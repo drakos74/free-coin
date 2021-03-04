@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -108,6 +109,7 @@ type engine struct {
 
 // OverWatch is the main applications wrapper that orchestrates and controls engines.
 type OverWatch struct {
+	ExecID  int64
 	engines map[string]engine
 	counter *sync.WaitGroup
 	client  api.Client
@@ -117,6 +119,7 @@ type OverWatch struct {
 // New creates a new OverWatch instance.
 func New(client api.Client, user api.User) *OverWatch {
 	return &OverWatch{
+		ExecID:  time.Now().Unix(),
 		engines: make(map[string]engine),
 		counter: new(sync.WaitGroup),
 		client:  client,

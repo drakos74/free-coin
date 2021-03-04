@@ -17,12 +17,12 @@ type OpenConfig struct {
 }
 
 func (c OpenConfig) evaluate(pp stats.TradeSignal) predictionsPairs {
-	var pairs predictionsPairs = make([]predictionPair, 0)
+	var pairs predictionsPairs = make([]PredictionPair, 0)
 	// NOTE : we can have multiple predictions because of the number of sequences we are tracking
 	// lookback and lookahead for the stats processor configs
 	for _, p := range pp.Predictions {
 		if p.Sample > c.MinSample {
-			// add up the first predictions until we reach a reasonable probability
+			// add up the first predictions until we reach a reasonable Probability
 			var prb float64
 			values := make([]string, 0)
 			for _, pv := range p.Values {
@@ -40,14 +40,14 @@ func (c OpenConfig) evaluate(pp stats.TradeSignal) predictionsPairs {
 			for _, strategy := range c.Strategies {
 				var ttype model.Type
 				open := make([]float64, 0)
-				// we do have multiple predictions values,
+				// we do have multiple predictions Values,
 				// because we want to look at other predictions as well,
 				// and not only the highest one potentially
 				if confidence, t := strategy.exec(values, strategy.factor); t != model.NoType {
 					if ttype != model.NoType && ttype != t {
 						log.Warn().
-							Float64("probability", prb).
-							Str("values", fmt.Sprintf("%+v", values)).
+							Float64("Probability", prb).
+							Str("Values", fmt.Sprintf("%+v", values)).
 							Msg("inconsistent prediction")
 						return pairs
 					} else {
@@ -56,16 +56,16 @@ func (c OpenConfig) evaluate(pp stats.TradeSignal) predictionsPairs {
 					}
 				}
 				// we create one pair for each strategy and each prediction sequence
-				pairs = append(pairs, predictionPair{
-					price:       pp.Price,
-					openValue:   c.OpenValue,
-					name:        strategy.name,
-					label:       p.Label,
-					key:         p.Key,
-					values:      values,
-					probability: prb,
-					sample:      p.Sample,
-					t:           ttype,
+				pairs = append(pairs, PredictionPair{
+					Price:       pp.Price,
+					OpenValue:   c.OpenValue,
+					Strategy:    strategy.name,
+					Label:       p.Label,
+					Key:         p.Key,
+					Values:      values,
+					Probability: prb,
+					Sample:      p.Sample,
+					Type:        ttype,
 				})
 			}
 		}

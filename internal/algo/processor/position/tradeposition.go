@@ -6,6 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/emoji"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -31,13 +35,17 @@ type tradePosition struct {
 }
 
 type tradePositions struct {
+	execID         int64
+	logger         storage.Persistence
 	pos            map[model.Coin]map[string]*tradePosition
 	initialConfigs []Config
 	lock           *sync.RWMutex
 }
 
-func newPositionTracker(configs []Config) *tradePositions {
+func newPositionTracker(execID int64, configs []Config) *tradePositions {
 	return &tradePositions{
+		execID:         execID,
+		logger:         json.NewLogger(ProcessorName),
 		pos:            make(map[model.Coin]map[string]*tradePosition),
 		initialConfigs: configs,
 		lock:           new(sync.RWMutex),
@@ -110,11 +118,47 @@ func (tp *tradePositions) getConfiguration(coin model.Coin) Config {
 	return defaultConfig
 }
 
-func (tp *tradePositions) track(client api.Exchange, ticker *time.Ticker, quit chan struct{}, block api.Block) {
+func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time.Ticker, quit chan struct{}, block api.Block) {
 	// and update the positions at the predefined interval.
 	for {
 		select {
-		case <-block.Action: // trigger update on the positions on external events/actions
+		case action := <-block.Action: // trigger update on the positions on external events/actions
+			// check if we need to act on the action
+
+			fmt.Println(fmt.Sprintf("action = %+v", action))
+			switch action.Name {
+			case model.OrderKey:
+				if order, ok := action.Content.(model.Order); ok {
+					txIDs, err := client.OpenOrder(order)
+					// Store for correlation and auditing
+					tp.logger.Store(storage.Key{
+						Hash:  tp.execID,
+						Pair:  string(order.Coin),
+						Label: "open",
+					}, model.TrackingOrder{
+						Order: order,
+						TxIDs: txIDs,
+					})
+					log.Info().
+						Err(err).
+						Str("ID", order.ID).
+						Strs("TxIDs", txIDs).
+						Str("Coin", string(order.Coin)).
+						Str("type", order.Type.String()).
+						Float64("volume", order.Volume).
+						Str("leverage", order.Leverage.String()).
+						Msg("submit order")
+					api.Reply(api.Private, user, api.
+						NewMessage("action").
+						AddLine(fmt.Sprintf("open %s %s %.2f",
+							order.Type.String(),
+							order.Coin,
+							order.Volume,
+						)).
+						AddLine(fmt.Sprintf("%s <-> %v", order.ID, txIDs)), err)
+				}
+			}
+
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")

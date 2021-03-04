@@ -109,18 +109,18 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 // user is the under interface for interacting with the user
 // block is the internal synchronisation mechanism used to report on the process of requests
 // closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
-func Position(client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
+func Position(execID int64, client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
 
 	if len(configs) == 0 {
 		configs = loadDefaults()
 	}
 
 	// define our internal global statsCollector
-	positions := newPositionTracker(configs)
+	positions := newPositionTracker(execID, configs)
 
 	ticker := time.NewTicker(positionRefreshInterval)
 	quit := make(chan struct{})
-	go positions.track(client, ticker, quit, block)
+	go positions.track(client, user, ticker, quit, block)
 
 	go positions.trackUserActions(client, user)
 

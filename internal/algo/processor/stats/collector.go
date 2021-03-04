@@ -5,6 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -65,14 +68,18 @@ func newWindowConfig(duration time.Duration, config Config) (windowConfig, error
 
 type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
+	execID         int64
+	logger         storage.Persistence
 	lock           sync.RWMutex
 	initialConfigs []Config
 	configs        map[model.Coin]map[time.Duration]windowConfig
 	windows        map[processor.Key]*window
 }
 
-func newStats(initialConfigs []Config) (*statsCollector, error) {
+func newStats(execID int64, initialConfigs []Config) (*statsCollector, error) {
 	stats := &statsCollector{
+		execID:         execID,
+		logger:         json.NewLogger(ProcessorName),
 		lock:           sync.RWMutex{},
 		initialConfigs: initialConfigs,
 		configs:        make(map[model.Coin]map[time.Duration]windowConfig),

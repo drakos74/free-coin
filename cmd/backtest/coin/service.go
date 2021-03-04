@@ -123,9 +123,9 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			OneOfEvery(redux)
 
 		block := api.NewBlock()
-		statsProcessor := stats.MultiStats(user, multiStatsConfig...)
-		positionProcessor := position.Position(exchange, user, block, true, positionsConfig...)
-		tradeProcessor := trade.Trade(exchange, user, block, tradeConfig...)
+		statsProcessor := stats.MultiStats(overWatch.ExecID, user, multiStatsConfig...)
+		positionProcessor := position.Position(overWatch.ExecID, exchange, user, block, true, positionsConfig...)
+		tradeProcessor := trade.Trade(overWatch.ExecID, user, block, tradeConfig...)
 
 		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
 			return exchange.SignalProcessed(reaction)

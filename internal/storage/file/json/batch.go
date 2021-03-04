@@ -13,8 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var DefaultDir = "file-storage"
-
 type BlobStorage struct {
 	path  string
 	table string
@@ -38,7 +36,7 @@ func (s BlobStorage) Load(k storage.Key, value interface{}) error {
 // table has the same schema
 // shard is a logical split
 func NewJsonBlob(table, shard string) *BlobStorage {
-	return &BlobStorage{table: table, shard: shard, path: DefaultDir}
+	return &BlobStorage{table: table, shard: shard, path: storage.DefaultDir}
 }
 
 // Save saves the given json struct into the given path with the provided filename.

@@ -46,7 +46,7 @@ func getStrategy(name string, threshold float64) TradingStrategy {
 			factor: 1.0,
 			// TODO : test the strategy
 			exec: func(vv []string, factor float64) (float64, model.Type) {
-				// note : each element of the map could contain multiple prediction values
+				// note : each element of the map could contain multiple prediction Values
 				// gather them all together though ... with some weighting on the index
 				t := model.NoType
 				value := 0.0

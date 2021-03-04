@@ -31,10 +31,11 @@ func NewBlock() Block {
 // Action is a generic struct used to trigger actions on other processes.
 // it can hold several metadata information , but for now we leave it empty.
 type Action struct {
-	Name string
-	ID   string
-	Coin model.Coin
-	Time time.Time
+	Name    string
+	ID      string
+	Coin    model.Coin
+	Content interface{}
+	Time    time.Time
 }
 
 // NewAction creates a new action with the given name.
@@ -60,6 +61,14 @@ func (a *Action) ForCoin(coin model.Coin) *Action {
 // WithID assigns an id to the action
 func (a *Action) WithID(id string) *Action {
 	a.ID = id
+	return a
+}
+
+// WithContent adds content to the action.
+// This would indicate an actionable event.
+// The content should be de-coded by using the the name of the action.
+func (a *Action) WithContent(s interface{}) *Action {
+	a.Content = s
 	return a
 }
 
