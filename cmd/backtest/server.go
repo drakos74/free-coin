@@ -262,6 +262,9 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	registryKeyDir := storage.RegistryPath
+	//registryKeyDir := coin.BacktestRegistryDir
+
 	annotations := make([]model.AnnotationInstance, 0)
 	switch query.Annotation.Name {
 	case "history":
@@ -325,7 +328,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			Msg("loaded annotations for history trades")
 
 	case "trade":
-		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+		registry := jsonstore.NewEventRegistry(registryKeyDir)
 
 		// get the events from the trade processor
 		predictionPairs := []trade.PredictionPair{{}}
@@ -349,7 +352,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "position_open":
-		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+		registry := jsonstore.NewEventRegistry(registryKeyDir)
 
 		// get the events from the trade processor
 		orders := []coinmodel.TrackingOrder{{}}
@@ -372,7 +375,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	case "position_close":
-		registry := jsonstore.NewEventRegistry(coin.BacktestRegistryDir)
+		registry := jsonstore.NewEventRegistry(registryKeyDir)
 
 		// get the events from the trade processor
 		positions := []coinmodel.TrackedPosition{{}}

@@ -10,6 +10,8 @@ const (
 	HistoryDir  = "history"
 	DefaultDir  = "file-storage"
 	RegistryDir = "registry"
+
+	RegistryPath = "events"
 )
 
 // Shard creates a new storage implementation for the given shard.

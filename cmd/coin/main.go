@@ -22,8 +22,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const RegistryPath = "events"
-
 func init() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
@@ -59,7 +57,7 @@ func main() {
 	overWatch := coin.New(client, user)
 	finished := overWatch.Run(ctx)
 
-	registry := json.NewEventRegistry(RegistryPath)
+	registry := json.NewEventRegistry(storage.RegistryPath)
 
 	exchange := kraken.NewExchange(ctx)
 	// note we dont provide any config for the stats processor. It should get it from the config folder
