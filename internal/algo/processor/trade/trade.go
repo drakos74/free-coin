@@ -193,7 +193,7 @@ func createPredictionMessage(pair PredictionPair) string {
 		vv = append(vv, buffer.ToStringSymbols(pv))
 	}
 	pp := fmt.Sprintf("(%.2f | %d)", pair.Probability, pair.Sample)
-	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, strings.Join(kk, " "), strings.Join(vv, " "), pp)
+	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, strings.Join(kk, " "), strings.Join(vv, " | "), pp)
 	return line
 }
 
