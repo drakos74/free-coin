@@ -59,6 +59,7 @@ type TrackingOrder struct {
 // Order defines an order
 type Order struct {
 	ID       string    `json:"id"`
+	CID      string    `json:"cid"`
 	Time     time.Time `json:"time"`
 	Coin     Coin      `json:"coin"`
 	Type     Type      `json:"type"`
@@ -69,9 +70,10 @@ type Order struct {
 }
 
 // NewOrder creates a new order for the given coin.
-func NewOrder(coin Coin) *Order {
+func NewOrder(coin Coin, cID string) *Order {
 	return &Order{
 		ID:   uuid.New().String(),
+		CID:  cID,
 		Coin: coin,
 	}
 }

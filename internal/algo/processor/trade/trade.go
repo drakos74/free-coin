@@ -135,7 +135,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 				}
 				if !cancel && gotAction && pair.Type != model.NoType {
 					// we will make only one order from all the pairs ...
-					order := model.NewOrder(coin).
+					order := model.NewOrder(coin, pair.Strategy).
 						SubmitTime(pair.Time).
 						WithLeverage(model.L_5).
 						WithVolume(vol).

@@ -29,6 +29,9 @@ type PositionBatch struct {
 // Position defines an open position details.
 type Position struct {
 	ID           string    `json:"id"`
+	TxID         string    `json:"txId"`
+	OrderID      string    `json:"order_id"`
+	CID          string    `json:"cid"`
 	OpenTime     time.Time `json:"open_time"`
 	Coin         Coin      `json:"coin"`
 	Type         Type      `json:"type"`

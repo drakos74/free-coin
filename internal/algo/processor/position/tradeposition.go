@@ -61,6 +61,134 @@ func newPositionTracker(registry storage.Registry, configs []Config) *tradePosit
 //	tp.pos[key.coin][key.id].config.Loss.Min = stopLoss
 //}
 
+type cKey struct {
+	cid   string
+	coin  model.Coin
+	txids []string
+}
+
+func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time.Ticker, quit chan struct{}, block api.Block) {
+	// and update the positions at the predefined interval.
+	for {
+		select {
+		case action := <-block.Action: // trigger update on the positions on external events/actions
+			// check if we need to act on the action
+			// do we have a correlation key ?
+			ck := cKey{}
+			switch action.Name {
+			case model.OrderKey:
+				// before we ope lets check what we have ...
+				if order, ok := action.Content.(model.Order); ok {
+
+					ck.cid = order.CID
+					ck.coin = order.Coin
+
+					correlatedPositions := tp.get(ck)
+					// TODO : look closer into the correlated positions ...
+
+					txIDs, err := client.OpenOrder(order)
+					if err == nil {
+						// Store for correlation and auditing
+						tp.logger.Put(storage.K{
+							Pair:  string(order.Coin),
+							Label: OpenPositionRegistryKey,
+						}, model.TrackingOrder{
+							Order: order,
+							TxIDs: txIDs,
+						})
+					}
+					// add the txIDs to the key
+					ck.txids = txIDs
+					log.Info().
+						Err(err).
+						Str("ID", order.ID).
+						Strs("TxIDs", txIDs).
+						Int("correlated-positions", len(correlatedPositions)).
+						Str("Coin", string(order.Coin)).
+						Str("type", order.Type.String()).
+						Float64("volume", order.Volume).
+						Str("leverage", order.Leverage.String()).
+						Msg("submit order")
+					api.Reply(api.Private, user, api.
+						NewMessage("action").
+						AddLine(fmt.Sprintf("open %s %s %.2f",
+							order.Type.String(),
+							order.Coin,
+							order.Volume,
+						)).
+						AddLine(fmt.Sprintf("%s <-> %v", order.ID, txIDs)), err)
+				}
+			}
+			// update and inject the newly created order
+			err := tp.update(client)
+			if err != nil {
+				log.Error().Err(err).Msg("could not get positions")
+			}
+			if ck.cid != "" {
+				err = tp.inject(ck)
+				if err != nil {
+					log.Warn().
+						Str("cKey", fmt.Sprintf("%+v", ck)).
+						Msg("could not correlate new event to any positions")
+				}
+			}
+			block.ReAction <- api.Action{}
+		case <-ticker.C: // trigger an update on the positions at regular intervals
+			err := tp.update(client)
+			if err != nil {
+				log.Error().Err(err).Msg("could not get positions")
+			}
+		case <-quit: // stop the tracking of positions
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (tp *tradePositions) inject(ck cKey) error {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	// go over the positions and assign the ck.cid when we have a match for the txids
+	if pos, ok := tp.pos[ck.coin]; ok {
+		var found bool
+		for _, p := range pos {
+			// TODO : this is temporary, until we identify what kraken gives us
+			// check if its the order id that matched
+			for _, txid := range ck.txids {
+				if p.position.OrderID == txid || p.position.TxID == txid {
+					p.position.CID = ck.cid
+				}
+			}
+		}
+		if found {
+			return nil
+		}
+		return fmt.Errorf("no match found for txids: %v", ck.txids)
+	} else {
+		return fmt.Errorf("no positions found for coin: %s", ck.coin)
+	}
+}
+
+func (tp *tradePositions) get(ck cKey) []tradePosition {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	positions := make([]tradePosition, 0)
+	if pos, ok := tp.pos[ck.coin]; ok {
+		var found bool
+		for _, p := range pos {
+			if p.position.CID == ck.cid {
+				positions = append(positions, *p)
+			}
+		}
+		if found {
+			return nil
+		}
+		return positions
+	} else {
+		return positions
+	}
+}
+
 func (tp *tradePositions) update(client api.Exchange) error {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
@@ -123,63 +251,6 @@ func (tp *tradePositions) getConfiguration(coin model.Coin) Config {
 		}
 	}
 	return defaultConfig
-}
-
-func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time.Ticker, quit chan struct{}, block api.Block) {
-	// and update the positions at the predefined interval.
-	for {
-		select {
-		case action := <-block.Action: // trigger update on the positions on external events/actions
-			// check if we need to act on the action
-			switch action.Name {
-			case model.OrderKey:
-				if order, ok := action.Content.(model.Order); ok {
-					txIDs, err := client.OpenOrder(order)
-					if err == nil {
-						// Store for correlation and auditing
-						tp.logger.Put(storage.K{
-							Pair:  string(order.Coin),
-							Label: OpenPositionRegistryKey,
-						}, model.TrackingOrder{
-							Order: order,
-							TxIDs: txIDs,
-						})
-					}
-					log.Info().
-						Err(err).
-						Str("ID", order.ID).
-						Strs("TxIDs", txIDs).
-						Str("Coin", string(order.Coin)).
-						Str("type", order.Type.String()).
-						Float64("volume", order.Volume).
-						Str("leverage", order.Leverage.String()).
-						Msg("submit order")
-					api.Reply(api.Private, user, api.
-						NewMessage("action").
-						AddLine(fmt.Sprintf("open %s %s %.2f",
-							order.Type.String(),
-							order.Coin,
-							order.Volume,
-						)).
-						AddLine(fmt.Sprintf("%s <-> %v", order.ID, txIDs)), err)
-				}
-			}
-
-			err := tp.update(client)
-			if err != nil {
-				log.Error().Err(err).Msg("could not get positions")
-			}
-			block.ReAction <- api.Action{}
-		case <-ticker.C: // trigger an update on the positions at regular intervals
-			err := tp.update(client)
-			if err != nil {
-				log.Error().Err(err).Msg("could not get positions")
-			}
-		case <-quit: // stop the tracking of positions
-			ticker.Stop()
-			return
-		}
-	}
 }
 
 func (tp *tradePositions) getAll() map[model.Coin]map[string]tradePosition {
