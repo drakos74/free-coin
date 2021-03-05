@@ -157,7 +157,7 @@ func NewExchange(ctx context.Context) api.Exchange {
 }
 
 func (e *Exchange) ClosePosition(position coinmodel.Position) error {
-	order := coinmodel.NewOrder(position.Coin).
+	order := coinmodel.NewOrder(position.Coin, "").
 		Market().
 		WithVolume(position.Volume).
 		WithLeverage(coinmodel.L_5).
@@ -172,7 +172,7 @@ func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 }
 
 func (e *Exchange) OpenPosition(position coinmodel.Position) error {
-	order := coinmodel.NewOrder(position.Coin).
+	order := coinmodel.NewOrder(position.Coin, "").
 		Market().
 		WithVolume(position.Volume).
 		WithLeverage(coinmodel.L_5).
