@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -34,17 +36,17 @@ func key(c model.Coin, id string) tpKey {
 
 type tradePosition struct {
 	position model.TrackedPosition
-	config   Config
+	config   processor.Strategy
 }
 
 type tradePositions struct {
 	logger         storage.Registry
 	pos            map[model.Coin]map[string]*tradePosition
-	initialConfigs []Config
+	initialConfigs map[model.Coin]map[time.Duration]processor.Config
 	lock           *sync.RWMutex
 }
 
-func newPositionTracker(registry storage.Registry, configs []Config) *tradePositions {
+func newPositionTracker(registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) *tradePositions {
 	return &tradePositions{
 		logger:         registry,
 		pos:            make(map[model.Coin]map[string]*tradePosition),
@@ -211,13 +213,17 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				config: oldPosition.config,
 			}
 		} else {
+			log.Warn().
+				Str("pid", p.ID).
+				Str("coin", string(p.Coin)).
+				Msg("unknown position encountered")
 			cfg := tp.getConfiguration(p.Coin)
 			tp.pos[p.Coin][p.ID] = &tradePosition{
 				position: model.TrackedPosition{
 					Open:     p.OpenTime,
 					Position: p,
 				},
-				config: cfg,
+				config: processor.GetAny(cfg),
 			}
 		}
 		posIDs[p.ID] = struct{}{}
@@ -240,17 +246,11 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	return nil
 }
 
-func (tp *tradePositions) getConfiguration(coin model.Coin) Config {
-	var defaultConfig Config
-	for _, cfg := range tp.initialConfigs {
-		if cfg.Coin == "" {
-			defaultConfig = cfg
-		}
-		if coin == model.Coin(cfg.Coin) {
-			return cfg
-		}
+func (tp *tradePositions) getConfiguration(coin model.Coin) map[time.Duration]processor.Config {
+	if cfg, ok := tp.initialConfigs[coin]; ok {
+		return cfg
 	}
-	return defaultConfig
+	return map[time.Duration]processor.Config{}
 }
 
 func (tp *tradePositions) getAll() map[model.Coin]map[string]tradePosition {
@@ -267,19 +267,6 @@ func (tp *tradePositions) getAll() map[model.Coin]map[string]tradePosition {
 }
 
 func (tp *tradePositions) delete(k tpKey) {
-	//ttp := make(map[model.Coin]map[string]*tradePosition)
-	//for c, positions := range tp.pos {
-	//	if _, ok := ttp[c]; !ok {
-	//		ttp[c] = make(map[string]*tradePosition)
-	//	}
-	//	for id, pos := range positions {
-	//		key := key(c, id)
-	//		if key != k {
-	//			ttp[c][id] = pos
-	//		}
-	//	}
-	//}
-	//tp.pos = ttp
 	delete(tp.pos[k.coin], k.id)
 	log.Debug().Str("coin", string(k.coin)).Str("id", k.id).Msg("deleted position")
 }
@@ -326,17 +313,17 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 // TODO : test this logic
 func (tp *tradePosition) DoClose() bool {
 	net, p := tp.position.Value()
-	if net > 0 && p > tp.config.Profit.Min {
-		if tp.config.Profit.Trail > 0 {
+	if net > 0 && p > tp.config.Close.Profit.Min {
+		if tp.config.Close.Profit.Trail > 0 {
 			// check the previous profit in order to extend profit
-			if p > tp.config.Profit.High {
+			if p > tp.config.Close.Profit.High {
 				// if we are making more ... ignore
-				tp.config.Profit.High = p
+				tp.config.Close.Profit.High = p
 				return false
 			}
-			diff := tp.config.Profit.High - p
+			diff := tp.config.Close.Profit.High - p
 			// TODO :define this in the config as well
-			if diff < tp.config.Profit.Trail {
+			if diff < tp.config.Close.Profit.Trail {
 				// leave for now, hoping profit will go up again
 				// but dont update our highest value
 				return false
@@ -344,13 +331,13 @@ func (tp *tradePosition) DoClose() bool {
 		}
 		// only close if the market is going down
 		return true
-	} else if net < 0 && p < -1*tp.config.Loss.Min {
-		if p > tp.config.Loss.High {
-			tp.config.Loss.High = p
+	} else if net < 0 && p < -1*tp.config.Close.Loss.Min {
+		if p > tp.config.Close.Loss.High {
+			tp.config.Close.Loss.High = p
 			// we are improving our position ... so give it a bit of time.
 			return false
 		}
-		tp.config.Loss.High = p
+		tp.config.Close.Loss.High = p
 		// only close if the market is going up
 		return true
 	}

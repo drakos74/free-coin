@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -79,7 +81,12 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				if c == "" || coin == c {
 					for id, p := range pos {
 						net, profit := p.position.Value()
-						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]", p.config.Profit.Min, p.config.Profit.High, p.config.Loss.Min, p.config.Loss.High)
+						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]",
+							p.config.Close.Profit.Min,
+							p.config.Close.Profit.High,
+							p.config.Close.Loss.Min,
+							p.config.Close.Loss.High,
+						)
 						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
 							emoji.MapToSign(net),
 							p.position.Coin,
@@ -87,7 +94,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 							"%",
 							net,
 							emoji.MapType(p.position.Type),
-							coinmath.Format(p.position.Volume))
+							coinmath.Format(p.position.Volume),
+						)
 						// TODO : send a trigger for each position to give access to adjust it
 						trigger := &api.Trigger{
 							ID:  id,
@@ -111,12 +119,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 // user is the under interface for interacting with the user
 // block is the internal synchronisation mechanism used to report on the process of requests
 // closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
-func Position(registry storage.Registry, client api.Exchange, user api.User, block api.Block, closeInstant bool, configs ...Config) api.Processor {
-
-	if len(configs) == 0 {
-		configs = loadDefaults()
-	}
-
+func Position(registry storage.Registry, client api.Exchange, user api.User, block api.Block, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 	// define our internal global statsCollector
 	positions := newPositionTracker(registry, configs)
 
@@ -149,7 +152,7 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 			// TODO : integrate the above results to the 'Live' parameter
 			for _, positionAction := range positions.checkClose(trade) {
 				if positionAction.doClose {
-					if closeInstant {
+					if positionAction.position.config.Close.Instant {
 						positions.close(client, user, positionAction.key, trade.Time)
 					} else {
 						net, profit := positionAction.position.position.Value()

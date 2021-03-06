@@ -90,11 +90,7 @@ func sendWindowConfig(user api.User, k processor.Key, w *window) {
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(registry storage.Registry, user api.User, configs ...Config) api.Processor {
-
-	if len(configs) == 0 {
-		configs = loadDefaults()
-	}
+func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
 	stats, err := newStats(registry, configs)
 	if err != nil {
@@ -115,13 +111,12 @@ func MultiStats(registry storage.Registry, user api.User, configs ...Config) api
 			metrics.Observer.IncrementTrades(string(trade.Coin), ProcessorName)
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
-			stats.init(trade.Coin)
 			for duration, cfg := range stats.configs[trade.Coin] {
 				k := processor.NewKey(trade.Coin, duration)
 				// push the trade data to the stats collector window
 				if buckets, ok := stats.push(k, trade); ok {
 					values, indicators, last := extractFromBuckets(buckets,
-						group(getPriceRatio, cfg.order))
+						group(getPriceRatio, cfg.Order.Exec))
 					// count the occurrences
 					// TODO : give more weight to the more recent values that come in
 					// TODO : old values might destroy our statistics and be irrelevant
@@ -143,7 +138,7 @@ func MultiStats(registry storage.Registry, user api.User, configs ...Config) api
 								AggregateStats: aggregateStats,
 							},
 						})
-						if user != nil && cfg.notify {
+						if user != nil && cfg.Notify.Stats {
 							// TODO : add tests for this
 							user.Send(api.Public,
 								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
@@ -163,7 +158,7 @@ type TradeSignal struct {
 	Price          float64
 	Time           time.Time
 	Duration       time.Duration
-	Predictions    map[string]buffer.Predictions
+	Predictions    map[buffer.Sequence]buffer.Predictions
 	AggregateStats coinmath.AggregateStats
 }
 
@@ -233,7 +228,7 @@ func group(extract func(b windowView) float64, group func(f float64) int) func(b
 //	}
 //}
 
-func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[string]buffer.Predictions, status buffer.Status, p *model.Trade, cfg windowConfig) string {
+func createStatsMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[buffer.Sequence]buffer.Predictions, status buffer.Status, p *model.Trade, cfg processor.Config) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
 	// format the PredictionList.
@@ -252,7 +247,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	i := 1
 	for _, v := range predictions {
 		pp[i] = fmt.Sprintf("%s -> %v [ %d : %d : %d ] ",
-			buffer.ToStringSymbols(v.Key),
+			emoji.Sequence(v.Key),
 			v.Values,
 			v.Groups,
 			v.Sample,
@@ -268,9 +263,9 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	}
 
 	// stats processor details
-	ps := fmt.Sprintf("%s|%.0fm: %s ...",
+	ps := fmt.Sprintf("%s|%dm: %s ...",
 		p.Coin,
-		cfg.duration.Minutes(),
+		cfg.Duration,
 		strings.Join(emojiValues, " "))
 
 	// last bucket Price details

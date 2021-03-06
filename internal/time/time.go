@@ -10,6 +10,10 @@ import (
 
 const timeUnixNano = 1000000000
 
+func ToMinutes(d int) time.Duration {
+	return time.Duration(d) * time.Minute
+}
+
 type Range struct {
 	From    time.Time               `json:"from"`
 	To      time.Time               `json:"to"`

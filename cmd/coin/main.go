@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/user/telegram"
 
 	"github.com/drakos74/free-coin/client/kraken"
@@ -60,11 +62,14 @@ func main() {
 	registry := json.NewEventRegistry(storage.RegistryPath)
 
 	exchange := kraken.NewExchange(ctx)
-	// note we dont provide any config for the stats processor. It should get it from the config folder
-	statsProcessor := stats.MultiStats(registry, user)
 	block := api.NewBlock()
-	positionProcessor := position.Position(registry, exchange, user, block, true)
-	tradeProcessor := trade.Trade(registry, user, block)
+
+	// load the default configuration
+	configs := processor.LoadDefaults(model.Coins)
+
+	statsProcessor := stats.MultiStats(registry, user, configs)
+	positionProcessor := position.Position(registry, exchange, user, block, configs)
+	tradeProcessor := trade.Trade(registry, user, block, configs)
 
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log,

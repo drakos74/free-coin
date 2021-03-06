@@ -1,6 +1,10 @@
 package emoji
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -139,4 +143,28 @@ func MapNumber(i int) string {
 		return "🕧" // twelve-thirty
 	}
 	return "🕕" // six o'clock
+}
+
+// PredictionList prints with emojis a numeric prediction list
+func PredictionList(p buffer.PredictionList) string {
+	// print only the 2-3 first predictions
+	pp := make([]string, 2)
+	for i, pr := range p {
+		if i < 2 {
+			pp[i] = Prediction(pr)
+		}
+	}
+	return fmt.Sprintf("%s", strings.Join(pp, " | "))
+}
+
+// Prediction prints with emojis a numeric Prediction
+func Prediction(p *buffer.Prediction) string {
+	return fmt.Sprintf("%s (%.2f)", Sequence(p.Value), p.Probability)
+}
+
+// Sequence returns an emoji representation for the buffer sequence
+func Sequence(s buffer.Sequence) string {
+	ss := s.Values()
+	symbols := MapToSymbols(ss)
+	return strings.Join(symbols, " ")
 }

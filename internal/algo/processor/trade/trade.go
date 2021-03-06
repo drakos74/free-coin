@@ -23,44 +23,34 @@ const ProcessorName = "trade"
 
 func trackUserActions(user api.User, trader *trader) {
 	for command := range user.Listen("trader", "?Type") {
-		var duration int
 		var coin string
-		var probability float64
-		var sample int
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?Type", "?trade"),
 			api.Any(&coin),
-			api.Int(&duration),
-			api.Float(&probability),
-			api.Int(&sample),
 		)
 		if err != nil {
 			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
-		timeDuration := time.Duration(duration) * time.Minute
 
 		c := model.Coin(coin)
 
-		if probability > 0 {
-			d, newConfig := trader.set(processor.NewKey(c, timeDuration), probability, sample)
-			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("%s %dm Probability:%f Sample:%d",
-				c,
-				int(d.Minutes()),
-				newConfig.MinProbability,
-				newConfig.MinSample)), nil)
-		} else {
-			// return the current configs
-			for d, cfg := range trader.getAll(c) {
+		// return the current configs
+		for d, cfg := range trader.getAll(c) {
+			for _, strategy := range cfg.Strategies {
 				user.Send(api.Private,
-					api.NewMessage(fmt.Sprintf("%s %dm Probability:%f Sample:%d",
+					api.NewMessage(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
 						c,
-						int(d.Minutes()),
-						cfg.MinProbability,
-						cfg.MinSample)), nil)
+						cfg.Duration,
+						// TODO : we dont need both, but keeping them for debugging for now
+						d,
+						strategy.Probability,
+						strategy.Sample,
+						strategy.Threshold)), nil)
 			}
 		}
+		// TODO : allow to edit based on the reply message
 	}
 }
 
@@ -70,13 +60,9 @@ func trackUserActions(user api.User, trader *trader) {
 // client is the exchange client used to open orders
 // user is the user interface for interacting with the user
 // block is the internal synchronisation mechanism used to make sure requests to the client are processed before proceeding
-func Trade(registry storage.Registry, user api.User, block api.Block, configs ...Config) api.Processor {
+func Trade(registry storage.Registry, user api.User, block api.Block, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
-	if len(configs) == 0 {
-		configs = loadDefaults()
-	}
-
-	trader := newTrader(registry, configs...)
+	trader := newTrader(registry, configs)
 
 	go trackUserActions(user, trader)
 
@@ -94,87 +80,58 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 				continue
 			}
 
-			pairs := make(map[processor.Key][]PredictionPair)
 			for _, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
 					k := processor.NewKey(ts.Coin, ts.Duration)
 					// init the configuration for this pair of a coin and duration.
-					trader.init(k)
 					// TODO : use an internal state like for the stats processor
 					// we got a trade signal
 					predictions := ts.Predictions
 					if cfg, ok := trader.get(k); ok && len(predictions) > 0 {
 						// check if we should make a buy order
-						pairs[processor.Key{
-							Coin:     ts.Coin,
-							Duration: ts.Duration,
-						}] = cfg.evaluate(ts)
-					}
-				}
-			}
-			if len(pairs) > 0 {
-				var cancel bool
-				var gotAction bool
-				var coin model.Coin
-				var vol float64
-				var pair PredictionPair
-				for k, pp := range pairs {
-					if len(pp) > 0 {
-						// take the first one ...
-						p := pp[0]
-						gotAction = true
-						// decide to do only one action
-						coin = k.Coin
-						vol = getVolume(p.Price, p.OpenValue)
-						// check if we have mixed signals
-						if pair.Type != model.NoType && pair.Type != p.Type {
-							cancel = true
+						pairs := evaluate(ts, cfg.Strategies)
+						// act here ... once for every trade signal only once per coin
+						if len(pairs) > 0 {
+							// note the first pair should have the highest probability !!!
+							// so we should probably just take that ...
+							// TODO : confirm that in tests
+							pair := pairs[0]
+							vol := getVolume(ts.Price, pair.Open)
+							// we will make only one order from all the pairs ...
+							order := model.NewOrder(ts.Coin, pair.Strategy).
+								SubmitTime(pair.Time).
+								WithLeverage(model.L_5).
+								WithVolume(vol).
+								WithType(pair.Type).
+								Market().
+								Create()
+							// TODO : save this log into our processor
+							pair.ID = order.ID
+							err := trader.logger.Put(storage.K{
+								Pair:  string(ts.Coin),
+								Label: ProcessorName,
+							}, pair)
+							log.Info().
+								Str("ID", order.ID).
+								Err(err).
+								Str("pair", fmt.Sprintf("%+v", pair)).
+								Float64("Price", pair.Price).
+								Str("Coin", string(ts.Coin)).
+								Msg("open position")
+							// signal to the position processor that there should be a new one
+							block.Action <- api.NewAction(model.OrderKey).ForCoin(ts.Coin).WithContent(order).Create()
+							// wait for the position processor to acknowledge the update
+							<-block.ReAction
+							api.Reply(api.Private, user, api.
+								NewMessage(createPredictionMessage(pair)).
+								AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f ) [%s]",
+									emoji.MapType(pair.Type),
+									ts.Coin,
+									vol,
+									pair.Price,
+									order.ID,
+								)), nil)
 						}
-						pair = p
-					}
-				}
-				if !cancel && gotAction && pair.Type != model.NoType {
-					// we will make only one order from all the pairs ...
-					order := model.NewOrder(coin, pair.Strategy).
-						SubmitTime(pair.Time).
-						WithLeverage(model.L_5).
-						WithVolume(vol).
-						WithType(pair.Type).
-						Market().
-						Create()
-					// TODO : save this log into our processor
-					pair.ID = order.ID
-					err := trader.logger.Put(storage.K{
-						Pair:  string(coin),
-						Label: ProcessorName,
-					}, pair)
-					log.Info().
-						Str("ID", order.ID).
-						Err(err).
-						Str("pair", fmt.Sprintf("%+v", pair)).
-						Float64("Price", pair.Price).
-						Str("Coin", string(coin)).
-						Msg("open position")
-					// signal to the position processor that there should be a new one
-					block.Action <- api.NewAction(model.OrderKey).ForCoin(coin).WithContent(order).Create()
-					// wait for the position processor to acknowledge the update
-					<-block.ReAction
-					api.Reply(api.Private, user, api.
-						NewMessage(createPredictionMessage(pair)).
-						AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f ) [%s]",
-							emoji.MapType(pair.Type),
-							coin,
-							vol,
-							pair.Price,
-							order.ID,
-						)), nil)
-				} else {
-					if gotAction {
-						log.Debug().Bool("cancel", cancel).
-							Str("pairs", fmt.Sprintf("%+v", pairs)).
-							Bool("action", gotAction).
-							Str("coin", string(coin)).
-							Msg("got mixed signals")
 					}
 				}
 			}
@@ -184,28 +141,29 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ..
 }
 
 func createPredictionMessage(pair PredictionPair) string {
-	kk := emoji.MapToSymbols(strings.Split(pair.Key, ":"))
+	kk := emoji.Sequence(pair.Key)
 	vv := make([]string, 0)
 	for _, pv := range pair.Values {
-		vv = append(vv, buffer.ToStringSymbols(pv))
+		vv = append(vv, emoji.Sequence(pv))
 	}
 	pp := fmt.Sprintf("(%.2f | %d)", pair.Probability, pair.Sample)
-	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, strings.Join(kk, " "), strings.Join(vv, " | "), pp)
+	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, kk, strings.Join(vv, " | "), pp)
 	return line
 }
 
 type PredictionPair struct {
-	ID          string     `json:"id"`
-	Price       float64    `json:"price"`
-	Time        time.Time  `json:"time"`
-	OpenValue   float64    `json:"open_value"`
-	Strategy    string     `json:"strategy"`
-	Label       string     `json:"label"`
-	Key         string     `json:"key"`
-	Values      []string   `json:"values"`
-	Probability float64    `json:"probability"`
-	Sample      int        `json:"sample"`
-	Type        model.Type `json:"type"`
+	ID          string            `json:"id"`
+	Price       float64           `json:"price"`
+	Time        time.Time         `json:"time"`
+	Confidence  float64           `json:"confidence"`
+	Open        float64           `json:"open"`
+	Strategy    string            `json:"strategy"`
+	Label       string            `json:"label"`
+	Key         buffer.Sequence   `json:"key"`
+	Values      []buffer.Sequence `json:"values"`
+	Probability float64           `json:"probability"`
+	Sample      int               `json:"sample"`
+	Type        model.Type        `json:"type"`
 }
 
 type predictionsPairs []PredictionPair

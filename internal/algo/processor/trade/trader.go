@@ -2,8 +2,15 @@ package trade
 
 import (
 	"fmt"
+	"math"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/buffer"
+
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 
 	"github.com/drakos74/free-coin/internal/storage"
 
@@ -14,76 +21,18 @@ import (
 
 type trader struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	logger         storage.Registry
-	lock           sync.RWMutex
-	initialConfigs []Config
-	configs        map[model.Coin]map[time.Duration]OpenConfig
-	logs           map[string]struct{}
+	logger  storage.Registry
+	lock    sync.RWMutex
+	configs map[model.Coin]map[time.Duration]processor.Config
+	logs    map[string]struct{}
 }
 
-func newTrader(registry storage.Registry, configs ...Config) *trader {
+func newTrader(registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) *trader {
 	return &trader{
-		logger:         registry,
-		lock:           sync.RWMutex{},
-		initialConfigs: configs,
-		configs:        make(map[model.Coin]map[time.Duration]OpenConfig),
-		logs:           make(map[string]struct{}),
-	}
-}
-
-func (tr *trader) init(k processor.Key) {
-	tr.lock.Lock()
-	defer tr.lock.Unlock()
-	if _, ok := tr.configs[k.Coin]; !ok {
-		tr.configs[k.Coin] = make(map[time.Duration]OpenConfig)
-	}
-	// this is a trading strategy and we dont want to do too many things by default if not defined.
-	if _, ok := tr.configs[k.Coin][k.Duration]; !ok {
-		// try to find a config in the initial ones
-		var myCfg OpenConfig
-		var found bool
-		var exists bool
-		for _, cfg := range tr.initialConfigs {
-			for _, strategy := range cfg.Strategies {
-				if cfg.Coin == "" {
-					exists = true
-					myCfg = OpenConfig{
-						MinSample:      strategy.Sample,
-						MinProbability: strategy.Probability,
-						OpenValue:      cfg.Open.Value,
-						Strategies:     []TradingStrategy{getStrategy(strategy.Name, strategy.Threshold)},
-					}
-				}
-				if model.Coin(cfg.Coin) == k.Coin && strategy.Target == int(k.Duration.Minutes()) {
-					found = true
-					exists = true
-					config := OpenConfig{
-						MinSample:      strategy.Sample,
-						MinProbability: strategy.Probability,
-						OpenValue:      cfg.Open.Value,
-						Strategies:     []TradingStrategy{getStrategy(strategy.Name, strategy.Threshold)},
-					}
-					tr.configs[k.Coin][k.Duration] = config
-					log.Info().
-						//Str("strategy", fmt.Sprintf("%+v", config)).
-						Str("Key", k.String()).
-						Msg("init coin strategy")
-				}
-			}
-		}
-		if exists {
-			if !found {
-				tr.configs[k.Coin][k.Duration] = myCfg
-				log.Info().
-					Bool("exists", exists).
-					Bool("default", !found).
-					//Str("strategy", fmt.Sprintf("%+v", myCfg)).
-					Str("Key", k.String()).
-					Msg("init default strategy")
-			}
-		} else {
-			tr.logOnce(fmt.Sprintf("no trade strategy defined for %v", k))
-		}
+		logger:  registry,
+		lock:    sync.RWMutex{},
+		configs: configs,
+		logs:    make(map[string]struct{}),
 	}
 }
 
@@ -94,30 +43,136 @@ func (tr *trader) logOnce(msg string) {
 	}
 }
 
-func (tr *trader) get(k processor.Key) (OpenConfig, bool) {
+func (tr *trader) get(k processor.Key) (processor.Config, bool) {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
 	cfg, ok := tr.configs[k.Coin][k.Duration]
 	return cfg, ok
 }
 
-func (tr *trader) getAll(c model.Coin) map[time.Duration]OpenConfig {
+func (tr *trader) getAll(c model.Coin) map[time.Duration]processor.Config {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
-	configs := make(map[time.Duration]OpenConfig)
+	configs := make(map[time.Duration]processor.Config)
 	for d, cfg := range tr.configs[c] {
 		configs[d] = cfg
 	}
 	return configs
 }
 
-func (tr *trader) set(k processor.Key, probability float64, sample int) (time.Duration, OpenConfig) {
-	tr.init(k)
-	tr.lock.Lock()
-	defer tr.lock.Unlock()
-	cfg := tr.configs[k.Coin][k.Duration]
-	cfg.MinProbability = probability
-	cfg.MinSample = sample
-	tr.configs[k.Coin][k.Duration] = cfg
-	return k.Duration, tr.configs[k.Coin][k.Duration]
+// TODO : re-enable set loogic at some point
+//func (tr *trader) set(k processor.Key, probability float64, sample int) (time.Duration, OpenConfig) {
+//	tr.init(k)
+//	tr.lock.Lock()
+//	defer tr.lock.Unlock()
+//	cfg := tr.configs[k.Coin][k.Duration]
+//	cfg.MinProbability = probability
+//	cfg.MinSample = sample
+//	tr.configs[k.Coin][k.Duration] = cfg
+//	return k.Duration, tr.configs[k.Coin][k.Duration]
+//}
+
+func evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictionsPairs {
+	var pairs predictionsPairs = make([]PredictionPair, 0)
+	// NOTE : we can have multiple predictions because of the number of sequences we are tracking
+	// lookback and lookahead for the stats processor configs
+	for _, p := range pp.Predictions {
+		for _, strategy := range strategies {
+			// only continue if the prediction duration matches with the strategy
+			if p.Sample > strategy.Sample {
+				// add up the first predictions until we reach a reasonable Probability
+				var prb float64
+				values := make([]buffer.Sequence, 0)
+				for _, pv := range p.Values {
+					prb += pv.Probability
+					values = append(values, pv.Value)
+					if prb > strategy.Probability {
+						// go to next stage we what we got
+						break
+					}
+				}
+				if prb <= strategy.Probability || len(values) == 0 {
+					continue
+				}
+				// We can have by design several strategies that will assess the prediction
+
+				var ttype model.Type
+				var tconfidence float64
+				// we do have multiple predictions Values,
+				// because we want to look at other predictions as well,
+				// and not only the highest one potentially
+				if confidence, t := getStrategy(strategy.Name, strategy.Threshold)(values, strategy.Factor); t != model.NoType {
+					if ttype != model.NoType && ttype != t {
+						log.Warn().
+							Float64("Probability", prb).
+							Str("Values", fmt.Sprintf("%+v", values)).
+							Msg("inconsistent prediction")
+						// We cant be conclusive about the strategy based on the prediciton data
+						return pairs
+					} else {
+						ttype = t
+						tconfidence = confidence
+					}
+				}
+				// we create one pair for each strategy and each prediction sequence
+				pairs = append(pairs, PredictionPair{
+					Price:       pp.Price,
+					Time:        pp.Time,
+					Strategy:    strategy.Name,
+					Confidence:  tconfidence,
+					Open:        strategy.Open.Value,
+					Label:       p.Label,
+					Key:         p.Key,
+					Values:      values,
+					Probability: prb,
+					Sample:      p.Sample,
+					Type:        ttype,
+				})
+			}
+		}
+	}
+	sort.Sort(sort.Reverse(pairs))
+	return pairs
+}
+
+func getStrategy(name string, threshold float64) TradingStrategy {
+	switch name {
+	case processor.NumericStrategy:
+		return func(vv []buffer.Sequence, factor float64) (float64, model.Type) {
+			// note : each element of the map could contain multiple prediction Values
+			// gather them all together though ... with some weighting on the index
+			t := model.NoType
+			value := 0.0
+			s := 0.0
+			// make it simple if we have one prediction
+			for _, y := range vv {
+				ww := y.Values()
+				l := len(ww)
+				for w, v := range ww {
+					i, err := strconv.ParseFloat(v, 64)
+					if err != nil {
+						return factor, t
+					}
+					g := float64(l-w) * i
+					value += g
+					s++
+				}
+			}
+			x := value / s
+			t = model.SignedType(x)
+			if math.Abs(x) >= threshold {
+				return factor, t
+			}
+			return 0, model.NoType
+		}
+	}
+	return func(vv []buffer.Sequence, factor float64) (float64, model.Type) {
+		return 0.0, model.NoType
+	}
+}
+
+type TradingStrategy func(vv []buffer.Sequence, factor float64) (float64, model.Type)
+
+func getVolume(price float64, value float64) float64 {
+	return value / price
 }

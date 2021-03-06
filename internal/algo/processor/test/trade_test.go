@@ -68,10 +68,9 @@ func TestTrader_Gather(t *testing.T) {
 			// run the stats processor
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
 				return stats.MultiStats(user, stats.Config{
-					Coin:      "LINK",
-					Duration:  10,
-					Order:     "O10",
-					Intervals: 0,
+					Coin:     "LINK",
+					Duration: 10,
+					Order:    "O10",
 					Targets: []stats.Target{
 						{
 							LookBack:  2,
@@ -84,10 +83,9 @@ func TestTrader_Gather(t *testing.T) {
 					},
 				},
 					stats.Config{
-						Coin:      "XRP",
-						Duration:  10,
-						Order:     "O2",
-						Intervals: 0,
+						Coin:     "XRP",
+						Duration: 10,
+						Order:    "O2",
 						Targets: []stats.Target{
 							{
 								LookBack:  2,
