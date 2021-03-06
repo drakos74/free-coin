@@ -1,4 +1,4 @@
-name: free-coin-lint
+name: build
 on:
   push:
     tags:

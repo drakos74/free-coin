@@ -1,4 +1,4 @@
-name: free-coin-test
+name: test
 on:
   push:
     tags:
