@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
+
+	"github.com/drakos74/free-coin/internal/storage"
+
+	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -12,7 +17,7 @@ import (
 )
 
 type test struct {
-	config     Config
+	config     processor.Close
 	positions  []model.Position
 	transform  func(i int) float64
 	close      bool
@@ -26,12 +31,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 
 	tests := map[string]test{
 		"continuous-profit": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -44,11 +49,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 100,
 		},
 		"continuous-profit-no-trail": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -63,12 +68,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 4,
 		},
 		"profit-close": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -91,12 +96,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 52,
 		},
 		"profit-decimal-close": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -119,12 +124,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"profit-decimal-high-trail": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   2,
 					Trail: 1,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -147,12 +152,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"profit-decimal-high-trail-with-update": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   2,
 					Trail: 1,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -176,11 +181,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			update:     true,
 		},
 		"profit-decimal-no-trail": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -203,12 +208,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"profit-never-close": { // this will never close, because the margin is too high
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   5,
 					Trail: 0.15,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -229,11 +234,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 100,
 		},
 		"continuous-loss": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
@@ -249,11 +254,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"continuous-loss-no-trail": { // note : same result
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -268,11 +273,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 4,
 		},
 		"loss-close": { // does not test anything new
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
@@ -296,11 +301,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			tradeCount: 3,
 		},
 		"loss-decimal-close": {
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min:   2,
 					Trail: 0.15,
 				},
@@ -324,11 +329,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"loss-decimal-high-trail": { // note : has same effect
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min:   2,
 					Trail: 10,
 				},
@@ -352,11 +357,11 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"loss-decimal-no-trail": { // note : has the same effect
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min: 2,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -379,12 +384,12 @@ func TestTradePosition_DoClose(t *testing.T) {
 			close:      true,
 		},
 		"loss-never-close": { // this will close immediately, as we have no trail for loss currently
-			config: Config{
-				Profit: Setup{
+			config: processor.Close{
+				Profit: processor.Setup{
 					Min:   5,
 					Trail: 0.15,
 				},
-				Loss: Setup{
+				Loss: processor.Setup{
 					Min: 2,
 				},
 			},
@@ -416,8 +421,20 @@ func TestTradePosition_DoClose(t *testing.T) {
 			}
 		}
 		t.Run(name, func(t *testing.T) {
-			config := tt.config
-			tracker := newPositionTracker([]Config{config})
+
+			config := processor.Config{
+				Duration: 10,
+				Strategies: []processor.Strategy{
+					{
+						Close: tt.config,
+					},
+				},
+			}
+			tracker := newPositionTracker(storage.NewVoidRegistry(), map[model.Coin]map[time.Duration]processor.Config{
+				"": {
+					10: config,
+				},
+			})
 			client := mockExchange(tt.positions...)
 			err := tracker.update(client)
 			assert.NoError(t, err)
@@ -493,11 +510,7 @@ func (e *exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, err
 	return &e.positions, nil
 }
 
-func (e *exchange) OpenPosition(position model.Position) error {
-	panic("implement me")
-}
-
-func (e *exchange) OpenOrder(order model.Order) error {
+func (e *exchange) OpenOrder(order model.Order) ([]string, error) {
 	panic("implement me")
 }
 

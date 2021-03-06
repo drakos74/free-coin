@@ -80,29 +80,6 @@ func (e *Exchange) log(msg string) {
 	}
 }
 
-func (e *Exchange) OpenPosition(position model.Position) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	var price float64
-	var time time.Time
-	if trade, ok := e.trades[position.Coin]; ok {
-		price = trade.Price
-		time = trade.Time
-	}
-	position.OpenPrice = price
-	position.OpenTime = time
-	trackedPosition := model.TrackedPosition{
-		Open:     time,
-		Position: position,
-	}
-	if _, ok := e.positions[position.ID]; ok {
-		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
-	}
-	e.positions[position.ID] = trackedPosition
-	e.log(fmt.Sprintf("open position = %+v", trackedPosition))
-	return nil
-}
-
 func (e *Exchange) OpenOrder(order model.Order) ([]string, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()

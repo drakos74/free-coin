@@ -115,7 +115,7 @@ func Load(filePath string, fileName string, value interface{}) error {
 		num = 1
 	}
 
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		log.Info().Str("path", filePath).Str("file", fileName).Msg("not found")
 	}
 

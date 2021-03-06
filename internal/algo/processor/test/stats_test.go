@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -78,6 +82,15 @@ func TestStats_Gather(t *testing.T) {
 }
 
 func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
+	config := processor.Config{
+		Duration: 10,
+		Stats: []processor.Stats{
+			{
+				LookBack:  2,
+				LookAhead: 1,
+			},
+		},
+	}
 	return func(client api.Exchange, user api.User) api.Processor {
 		signal := make(chan model.Signal)
 		go func() {
@@ -85,6 +98,6 @@ func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 				// nothing to do just consume, so that the stats processor can proceed
 			}
 		}()
-		return stats.MultiStats(user)
+		return stats.MultiStats(storage.NewVoidRegistry(), user, testConfig("", config))
 	}
 }

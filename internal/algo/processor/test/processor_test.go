@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor"
+	cointime "github.com/drakos74/free-coin/internal/time"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 )
@@ -116,14 +119,9 @@ func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, e
 	}, nil
 }
 
-func (c *mockClient) OpenOrder(position model.Order) ([]string, error) {
-	// TODO return maybe something to be able to test tracking
+func (c *mockClient) OpenOrder(order model.Order) ([]string, error) {
+	c.positions = append(c.positions, model.OpenPosition(order))
 	return []string{}, nil
-}
-
-func (c *mockClient) OpenPosition(position model.Position) error {
-	c.positions = append(c.positions, position)
-	return nil
 }
 
 func (c *mockClient) ClosePosition(position model.Position) error {
@@ -170,4 +168,13 @@ func newTrade(c model.Coin, price, volume float64, t model.Type, time time.Time)
 		Type:   t,
 	}
 	return &trade
+}
+
+func testConfig(c model.Coin, config ...processor.Config) map[model.Coin]map[time.Duration]processor.Config {
+	configs := make(map[model.Coin]map[time.Duration]processor.Config)
+	for _, cfg := range config {
+		dd := cointime.ToMinutes(cfg.Duration)
+		configs[c][dd] = cfg
+	}
+	return configs
 }

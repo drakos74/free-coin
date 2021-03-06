@@ -7,6 +7,9 @@ import (
 	"math"
 	"os"
 	"path"
+	"time"
+
+	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/client/local"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
@@ -73,47 +76,18 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		redux := int(math.Exp2(frame / 24))
 		log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
 
-		multiStatsConfig := make([]stats.Config, 0)
-		if statsConfig, ok := q.Data[stats.ProcessorName]; ok {
-			var config stats.Config
-			err := FromJsonMap(stats.ProcessorName, statsConfig, &config)
+		backtestConfig := make(map[coinmodel.Coin]map[time.Duration]processor.Config)
+		if config, ok := q.Data["config"]; ok {
+			var cfg processor.Config
+			err = FromJsonMap("", config, &cfg)
 			if err != nil {
-				return s.error(fmt.Errorf("could not parse payload for %s: %w", stats.ProcessorName, err))
+				return nil, nil, nil, fmt.Errorf("could not init config: %w", err)
 			}
-			multiStatsConfig = append(multiStatsConfig, config)
+			backtestConfig[c][cointime.ToMinutes(cfg.Duration)] = cfg
+			log.Warn().
+				Str("config", fmt.Sprintf("%+v", config)).
+				Msg("loaded config from back-test")
 		}
-		log.Warn().
-			Str("processor", stats.ProcessorName).
-			Str("config", fmt.Sprintf("%+v", multiStatsConfig)).
-			Msg("loaded config from back-test")
-
-		positionsConfig := make([]position.Config, 0)
-		if posConfig, ok := q.Data[position.ProcessorName]; ok {
-			var config position.Config
-			err := FromJsonMap(position.ProcessorName, posConfig, &config)
-			if err != nil {
-				return s.error(fmt.Errorf("could not parse payload for %s: %w", position.ProcessorName, err))
-			}
-			positionsConfig = append(positionsConfig, config)
-		}
-		log.Warn().
-			Str("processor", position.ProcessorName).
-			Str("config", fmt.Sprintf("%+v", positionsConfig)).
-			Msg("loaded config from back-test")
-
-		tradeConfig := make([]trade.Config, 0)
-		if traderConfig, ok := q.Data[trade.ProcessorName]; ok {
-			var config trade.Config
-			err := FromJsonMap(trade.ProcessorName, traderConfig, &config)
-			if err != nil {
-				return s.error(fmt.Errorf("could not parse payload for %s: %w", position.ProcessorName, err))
-			}
-			tradeConfig = append(tradeConfig, config)
-		}
-		log.Warn().
-			Str("processor", trade.ProcessorName).
-			Str("config", fmt.Sprintf("%+v", tradeConfig)).
-			Msg("loaded config from back-test")
 
 		overWatch := coin.New(tradesQuery, user)
 		finished := overWatch.Run(context.Background())
@@ -130,9 +104,9 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		registry := jsonstore.NewEventRegistry(BacktestRegistryDir)
 
 		block := api.NewBlock()
-		statsProcessor := stats.MultiStats(registry, user, multiStatsConfig...)
-		positionProcessor := position.Position(registry, exchange, user, block, true, positionsConfig...)
-		tradeProcessor := trade.Trade(registry, user, block, tradeConfig...)
+		statsProcessor := stats.MultiStats(registry, user, backtestConfig)
+		positionProcessor := position.Position(registry, exchange, user, block, backtestConfig)
+		tradeProcessor := trade.Trade(registry, user, block, backtestConfig)
 
 		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
 			return exchange.SignalProcessed(reaction)
@@ -171,6 +145,8 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 	case position.ProcessorName:
 		fallthrough
 	case trade.ProcessorName:
+		fallthrough
+	case "":
 		return json.Unmarshal(b, n)
 	}
 	return fmt.Errorf("could not find json loader for config: %s", name)

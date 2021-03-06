@@ -1,0 +1,12 @@
+name: free-coin-report
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - main
+  pull_request:
+jobs:
+  goreport:
+    uses: creekorful/goreportcard-action@v1.0

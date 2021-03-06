@@ -69,6 +69,19 @@ type Order struct {
 	Price    float64   `json:"price"`
 }
 
+// FromPosition creates an order from the position details provided
+func FromPosition(position Position, close bool) Order {
+	order := NewOrder(position.Coin, position.CID).
+		WithLeverage(L_5).
+		WithVolume(position.Volume)
+	if close {
+		order.WithType(position.Type.Inv())
+	} else {
+		order.WithType(position.Type)
+	}
+	return order.Create()
+}
+
 // NewOrder creates a new order for the given coin.
 func NewOrder(coin Coin, cID string) *Order {
 	return &Order{

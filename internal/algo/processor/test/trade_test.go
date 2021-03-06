@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 
 	"github.com/rs/zerolog/log"
@@ -22,7 +26,7 @@ func TestTrader_Gather(t *testing.T) {
 	type test struct {
 		transform func(i int) float64
 		msgCount  int
-		config    trade.Config
+		config    processor.Strategy
 	}
 
 	tests := map[string]test{
@@ -31,16 +35,12 @@ func TestTrader_Gather(t *testing.T) {
 				return math.Sin(float64(i/10) * 40000)
 			},
 			msgCount: 13,
-			config: trade.Config{
-				Open: trade.Open{
+			config: processor.Strategy{
+				Open: processor.Open{
 					Value: 0.1,
 				},
-				Strategies: []trade.Strategy{
-					{
-						Sample:      1,
-						Probability: 0.9,
-					},
-				},
+				Sample:      1,
+				Probability: 0.9,
 			},
 		},
 		"inc": {
@@ -65,13 +65,13 @@ func TestTrader_Gather(t *testing.T) {
 			block := api.NewBlock()
 			client := newMockClient()
 
-			// run the stats processor
-			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return stats.MultiStats(user, stats.Config{
-					Coin:     "LINK",
+			config := testConfig(model.LINK,
+				processor.Config{
 					Duration: 10,
-					Order:    "O10",
-					Targets: []stats.Target{
+					Order: processor.Order{
+						Name: "O10",
+					},
+					Stats: []processor.Stats{
 						{
 							LookBack:  2,
 							LookAhead: 1,
@@ -81,46 +81,48 @@ func TestTrader_Gather(t *testing.T) {
 							LookAhead: 1,
 						},
 					},
-				},
-					stats.Config{
-						Coin:     "XRP",
-						Duration: 10,
-						Order:    "O2",
-						Targets: []stats.Target{
-							{
-								LookBack:  2,
-								LookAhead: 1,
-							},
-							{
-								LookBack:  3,
-								LookAhead: 1,
-							},
-						},
-					})
-			})
-			// run the position processor to unblock the trade processor when making orders
-			run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return position.Position(client, user, block, true, position.Config{
-					Profit: position.Setup{},
-					Loss:   position.Setup{},
-				})
-			})
-			// run the trade processor
-			out := make(chan *model.Trade)
-			_, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
-				return trade.Trade(client, user, block, trade.Config{
-					Open: trade.Open{
-						Value: 1, // TODO : check with this missing
-					},
-					Strategies: []trade.Strategy{
+					Strategies: []processor.Strategy{
 						{
-							Name:        trade.NumericStrategy,
-							Target:      10,
+							Name:        processor.NumericStrategy,
 							Probability: 0.5,
 							Sample:      1,
 						},
 					},
-				})
+				},
+				processor.Config{
+					Duration: 10,
+					Order: processor.Order{
+						Name: "O2",
+					},
+					Stats: []processor.Stats{
+						{
+							LookBack:  2,
+							LookAhead: 1,
+						},
+						{
+							LookBack:  3,
+							LookAhead: 1,
+						},
+					},
+					Strategies: []processor.Strategy{
+						tt.config,
+					},
+				},
+			)
+
+			registry := storage.NewVoidRegistry()
+			// run the stats processor
+			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
+				return stats.MultiStats(registry, user, config)
+			})
+			// run the position processor to unblock the trade processor when making orders
+			run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
+				return position.Position(registry, client, user, block, config)
+			})
+			// run the trade processor
+			out := make(chan *model.Trade)
+			_, tradeMessages := run(client, st, out, func(client api.Exchange, user api.User) api.Processor {
+				return trade.Trade(registry, user, block, config)
 			})
 
 			// send the config to the processor

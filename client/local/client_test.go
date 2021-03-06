@@ -1,7 +1,6 @@
 package local
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -18,7 +17,7 @@ import (
 func TestClient_Trades(t *testing.T) {
 
 	// change the default storage directory
-	json.DefaultDir = "testdata"
+	storage.DefaultDir = "testdata"
 	// delete all contents from the test directory
 	err := os.RemoveAll("testdata/table/tmp-shard")
 	assert.NoError(t, err)
@@ -53,8 +52,7 @@ func TestClient_Trades(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			var since int64 = 0
-			client := NewClient(since, "").
+			client := NewClient(cointime.Range{}, "").
 				WithUpstream(func(since int64) (api.Client, error) {
 					tt.client.start = cointime.FromNano(since)
 					return tt.client, nil
@@ -124,16 +122,4 @@ func (m *mockSource) Trades(process <-chan api.Action, query api.Query) (model.T
 	}()
 
 	return trades, nil
-}
-
-func (m *mockSource) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
-	panic("implement me")
-}
-
-func (m *mockSource) OpenPosition(position model.Position) error {
-	panic("implement me")
-}
-
-func (m *mockSource) ClosePosition(position model.Position) error {
-	panic("implement me")
 }

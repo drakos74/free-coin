@@ -18,7 +18,7 @@ func (v VoidClient) Trades(process <-chan api.Action, query api.Query) (model.Tr
 	// dont send anything ... actually even better , close the channel
 	trades := make(chan *model.Trade)
 	go func() {
-		<-time.Tick(1 * time.Millisecond)
+		<-time.NewTicker(1 * time.Millisecond).C
 		close(trades)
 	}()
 	return trades, nil

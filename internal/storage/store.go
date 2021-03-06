@@ -6,12 +6,15 @@ import (
 )
 
 const (
-	BookDir     = "book"
-	HistoryDir  = "history"
-	DefaultDir  = "file-storage"
-	RegistryDir = "registry"
-
+	BookDir      = "book"
+	HistoryDir   = "history"
+	RegistryDir  = "registry"
 	RegistryPath = "events"
+)
+
+var (
+	// TODO : leaving this for now to be able to adjust for the tests
+	DefaultDir = "file-storage"
 )
 
 // Shard creates a new storage implementation for the given shard.

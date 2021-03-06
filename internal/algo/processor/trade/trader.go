@@ -36,13 +36,6 @@ func newTrader(registry storage.Registry, configs map[model.Coin]map[time.Durati
 	}
 }
 
-func (tr *trader) logOnce(msg string) {
-	if _, ok := tr.logs[msg]; !ok {
-		log.Error().Msg(msg)
-		tr.logs[msg] = struct{}{}
-	}
-}
-
 func (tr *trader) get(k processor.Key) (processor.Config, bool) {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
@@ -76,63 +69,70 @@ func evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictions
 	var pairs predictionsPairs = make([]PredictionPair, 0)
 	// NOTE : we can have multiple predictions because of the number of sequences we are tracking
 	// lookback and lookahead for the stats processor configs
-	for _, p := range pp.Predictions {
+	for _, prediction := range pp.Predictions {
 		for _, strategy := range strategies {
-			// only continue if the prediction duration matches with the strategy
-			if p.Sample > strategy.Sample {
-				// add up the first predictions until we reach a reasonable Probability
-				var prb float64
-				values := make([]buffer.Sequence, 0)
-				for _, pv := range p.Values {
-					prb += pv.Probability
-					values = append(values, pv.Value)
-					if prb > strategy.Probability {
-						// go to next stage we what we got
-						break
-					}
-				}
-				if prb <= strategy.Probability || len(values) == 0 {
-					continue
-				}
-				// We can have by design several strategies that will assess the prediction
-
-				var ttype model.Type
-				var tconfidence float64
-				// we do have multiple predictions Values,
-				// because we want to look at other predictions as well,
-				// and not only the highest one potentially
-				if confidence, t := getStrategy(strategy.Name, strategy.Threshold)(values, strategy.Factor); t != model.NoType {
-					if ttype != model.NoType && ttype != t {
-						log.Warn().
-							Float64("Probability", prb).
-							Str("Values", fmt.Sprintf("%+v", values)).
-							Msg("inconsistent prediction")
-						// We cant be conclusive about the strategy based on the prediciton data
-						return pairs
-					} else {
-						ttype = t
-						tconfidence = confidence
-					}
-				}
-				// we create one pair for each strategy and each prediction sequence
-				pairs = append(pairs, PredictionPair{
-					Price:       pp.Price,
-					Time:        pp.Time,
-					Strategy:    strategy.Name,
-					Confidence:  tconfidence,
-					Open:        strategy.Open.Value,
-					Label:       p.Label,
-					Key:         p.Key,
-					Values:      values,
-					Probability: prb,
-					Sample:      p.Sample,
-					Type:        ttype,
-				})
+			if pair, ok := doEvaluate(prediction, strategy); ok {
+				pair.Price = pp.Price
+				pair.Time = pp.Time
+				pairs = append(pairs, pair)
 			}
 		}
 	}
 	sort.Sort(sort.Reverse(pairs))
 	return pairs
+}
+
+func doEvaluate(prediction buffer.Predictions, strategy processor.Strategy) (PredictionPair, bool) {
+	// only continue if the prediction duration matches with the strategy
+	if prediction.Sample > strategy.Sample {
+		// add up the first predictions until we reach a reasonable Probability
+		var prb float64
+		values := make([]buffer.Sequence, 0)
+		for _, pv := range prediction.Values {
+			prb += pv.Probability
+			values = append(values, pv.Value)
+			if prb > strategy.Probability {
+				// go to next stage we what we got
+				break
+			}
+		}
+		if prb <= strategy.Probability || len(values) == 0 {
+			return PredictionPair{}, false
+		}
+		// We can have by design several strategies that will assess the prediction
+
+		var ttype model.Type
+		var tconfidence float64
+		// we do have multiple predictions Values,
+		// because we want to look at other predictions as well,
+		// and not only the highest one potentially
+		if confidence, t := getStrategy(strategy.Name, strategy.Threshold)(values, strategy.Factor); t != model.NoType {
+			if ttype != model.NoType && ttype != t {
+				log.Warn().
+					Float64("Probability", prb).
+					Str("Values", fmt.Sprintf("%+v", values)).
+					Msg("inconsistent prediction")
+				// We cant be conclusive about the strategy based on the prediciton data
+				return PredictionPair{}, false
+			} else {
+				ttype = t
+				tconfidence = confidence
+			}
+		}
+		// we create one pair for each strategy and each prediction sequence
+		return PredictionPair{
+			Strategy:    strategy.Name,
+			Confidence:  tconfidence,
+			Open:        strategy.Open.Value,
+			Label:       prediction.Label,
+			Key:         prediction.Key,
+			Values:      values,
+			Probability: prb,
+			Sample:      prediction.Sample,
+			Type:        ttype,
+		}, true
+	}
+	return PredictionPair{}, false
 }
 
 func getStrategy(name string, threshold float64) TradingStrategy {

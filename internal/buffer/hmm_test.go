@@ -2,7 +2,6 @@ package buffer
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +11,7 @@ func TestCounter_Add(t *testing.T) {
 
 	type test struct {
 		transform   func(i int) string
-		predictions map[string]Prediction
+		predictions []Predictions
 		configs     []HMMConfig
 	}
 
@@ -21,12 +20,15 @@ func TestCounter_Add(t *testing.T) {
 			transform: func(i int) string {
 				return "1"
 			},
-			predictions: map[string]Prediction{
-				"1": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      98,
+			predictions: []Predictions{
+				{
+					Key:    "1",
+					Sample: 98,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{{
@@ -38,12 +40,15 @@ func TestCounter_Add(t *testing.T) {
 			transform: func(i int) string {
 				return "1"
 			},
-			predictions: map[string]Prediction{
-				"1:1": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      97,
+			predictions: []Predictions{
+				{
+					Key:    "1:1",
+					Sample: 97,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{{
@@ -58,19 +63,24 @@ func TestCounter_Add(t *testing.T) {
 				}
 				return "2"
 			},
-			predictions: map[string]Prediction{
-				"1:2": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      49,
+			predictions: []Predictions{
+				{
+					Key:    "1:2",
+					Sample: 49,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
-				"2:1": {
-					Value:       "2",
-					Probability: 1,
-					Options:     1,
-					// NOTE : it s one less, because the first instance is the other option.
+				{
+					Key:    "2:1",
 					Sample: 48,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "2",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{{
@@ -85,19 +95,24 @@ func TestCounter_Add(t *testing.T) {
 				}
 				return "2"
 			},
-			predictions: map[string]Prediction{
-				"1:2": {
-					Value:       "1:2",
-					Probability: 1,
-					Options:     1,
-					Sample:      48,
+			predictions: []Predictions{
+				{
+					Key:    "1:2",
+					Sample: 48,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1:2",
+						Probability: 1,
+					}},
 				},
-				"2:1": {
-					Value:       "2:1",
-					Probability: 1,
-					Options:     1,
-					// NOTE : it s one less, because the first instance is the other option.
+				{
+					Key:    "2:1",
 					Sample: 47,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "2:1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{{
@@ -114,38 +129,59 @@ func TestCounter_Add(t *testing.T) {
 				}
 				return "2"
 			},
-			predictions: map[string]Prediction{
-				"1:2:1": {
-					Value:       "1",
-					Probability: 0.5,
-					Options:     2,
-					Sample:      32,
-				},
+			predictions: []Predictions{
 				// NOTE : this never comes up
-				//"1:2:2": {},
-				"1:1:1": {
-					Value:       "2",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				// Key:    "1:2:2",
+				{
+					Key:    "1:2:1",
+					Sample: 32,
+					Groups: 1,
+					Values: PredictionList{
+						{
+							Value:       "1",
+							Probability: 0.5,
+						},
+						{
+							Value:       "2",
+							Probability: 0.5,
+						},
+					},
 				},
-				"1:1:2": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				{
+					Key:    "1:1:1",
+					Sample: 15,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "2",
+						Probability: 1,
+					}},
 				},
-				"2:1:1": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      16,
+				{
+					Key:    "1:1:2",
+					Sample: 15,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
-				"2:1:2": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				{
+					Key:    "2:1:1",
+					Sample: 16,
+					Groups: 2,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
+				},
+				{
+					Key:    "2:1:2",
+					Sample: 15,
+					Groups: 2,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{
@@ -164,38 +200,59 @@ func TestCounter_Add(t *testing.T) {
 				}
 				return "2"
 			},
-			predictions: map[string]Prediction{
-				"1:2:1": {
-					Value:       "1:1",
-					Probability: 0.52,
-					Options:     2,
-					Sample:      31,
-				},
+			predictions: []Predictions{
 				// NOTE : this never comes up
-				//"1:2:2": {},
-				"1:1:1": {
-					Value:       "2:1",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				// Key:    "1:2:2",
+				{
+					Key:    "1:2:1",
+					Sample: 31,
+					Groups: 2,
+					Values: PredictionList{
+						{
+							Value:       "1:1",
+							Probability: 0.52,
+						},
+						{
+							Value:       "2:1",
+							Probability: 0.48,
+						}},
 				},
-				"1:1:2": {
-					Value:       "1:2",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				{
+					Key:    "1:1:1",
+					Sample: 15,
+					Groups: 2,
+					Values: PredictionList{{
+						Value:       "2:1",
+						Probability: 1,
+					}},
 				},
-				"2:1:1": {
-					Value:       "1:2",
-					Probability: 1,
-					Options:     1,
-					Sample:      16,
+				{
+					Key:    "1:1:2",
+					Sample: 15,
+					Groups: 1,
+					Values: PredictionList{
+						{
+							Value:       "1:2",
+							Probability: 1,
+						}},
 				},
-				"2:1:2": {
-					Value:       "1:1",
-					Probability: 1,
-					Options:     1,
-					Sample:      15,
+				{
+					Key:    "2:1:1",
+					Sample: 16,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1:2",
+						Probability: 1,
+					}},
+				},
+				{
+					Key:    "2:1:2",
+					Sample: 15,
+					Groups: 1,
+					Values: PredictionList{{
+						Value:       "1:1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{
@@ -214,38 +271,71 @@ func TestCounter_Add(t *testing.T) {
 				}
 				return "2"
 			},
-			predictions: map[string]Prediction{
-				"1": {
-					Value:       "2",
-					Probability: 0.51,
-					Options:     2,
-					Sample:      65,
+			predictions: []Predictions{
+				{
+					Key:    "1",
+					Sample: 65,
+					Groups: 2,
+					Values: PredictionList{
+						{
+							Value:       "2",
+							Probability: 0.51,
+						},
+						{
+							Value:       "1",
+							Probability: 0.49,
+						},
+					},
 				},
-				"2": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      32,
+				{
+					Key:    "2",
+					Sample: 32,
+					Groups: 2,
+					Values: PredictionList{
+						{
+							Value:       "1",
+							Probability: 1,
+						},
+					},
 				},
-				// NOTE : this never comes up
-				//"1:2:2": {},
-				"1:1": {
-					Value:       "1",
-					Probability: 0.5,
-					Options:     2,
-					Sample:      32,
+				{
+					Key:    "1:1",
+					Sample: 32,
+					Groups: 2,
+					Values: PredictionList{
+						{
+							Value:       "2",
+							Probability: 0.5,
+						},
+						{
+							Value:       "1",
+							Probability: 0.5,
+						},
+					},
 				},
-				"2:1": {
-					Value:       "1",
-					Probability: 0.5,
-					Options:     2,
-					Sample:      32,
+				{
+					Key:    "2:1",
+					Sample: 32,
+					Groups: 1,
+					Values: PredictionList{
+						{
+							Value:       "1",
+							Probability: 0.5,
+						},
+						{
+							Value:       "2",
+							Probability: 0.5,
+						},
+					},
 				},
-				"1:2": {
-					Value:       "1",
-					Probability: 1,
-					Options:     1,
-					Sample:      32,
+				{
+					Key:    "1:2",
+					Sample: 32,
+					Groups: 2,
+					Values: PredictionList{{
+						Value:       "1",
+						Probability: 1,
+					}},
 				},
 			},
 			configs: []HMMConfig{
@@ -264,7 +354,7 @@ func TestCounter_Add(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			c := NewMultiHMM(tt.configs...)
-			p := make(map[string]Prediction)
+			p := make(map[Sequence]Predictions)
 			for i := 0; i < 100; i++ {
 				// we keep track of the last prediction to assert on all possible outcomes
 				s := tt.transform(i)
@@ -272,7 +362,7 @@ func TestCounter_Add(t *testing.T) {
 				pp, _ := c.Add(s, "label")
 
 				// track the last j configs
-				vv := make(map[string]struct{})
+				vv := make(map[Sequence]struct{})
 				for _, j := range tt.configs {
 					index := make([]string, j.LookBack)
 					l := 0
@@ -280,7 +370,7 @@ func TestCounter_Add(t *testing.T) {
 						index[k] = tt.transform(i - l)
 						l++
 					}
-					vv[strings.Join(index, ":")] = struct{}{}
+					vv[NewSequence(index)] = struct{}{}
 				}
 
 				for kp, vp := range pp {
@@ -291,16 +381,27 @@ func TestCounter_Add(t *testing.T) {
 				}
 			}
 
-			assert.Equal(t, len(tt.predictions), len(p))
-
-			for k, prediction := range tt.predictions {
-				pp, ok := p[k]
-				assert.True(t, ok, fmt.Sprintf("missing key [%s]", k))
-				assert.Equal(t, prediction.Sample, pp.Sample, fmt.Sprintf("wrong Sample for key [%s]", k))
-				assert.Equal(t, fmt.Sprintf("%.2f", prediction.Probability), fmt.Sprintf("%.2f", pp.Probability), fmt.Sprintf("wrong Probability for key [%s]", k))
-				assert.Equal(t, prediction.Options, pp.Options, fmt.Sprintf("wrong Options for key [%s]", k))
-				assert.Equal(t, prediction.Value, pp.Value, fmt.Sprintf("wrong OpenValue for key [%s]", k))
+			for _, prediction := range tt.predictions {
+				pp, ok := p[prediction.Key]
+				assert.True(t, ok, fmt.Sprintf("missing key [%s]", prediction.Key))
+				assert.Equal(t, prediction.Sample, pp.Sample, fmt.Sprintf("wrong Sample for key [%s]", prediction.Key))
+				assert.Equal(t, prediction.Groups, pp.Groups, fmt.Sprintf("wrong Groups for key [%s]", prediction.Key))
+				assert.Equal(t, len(prediction.Values), len(pp.Values), fmt.Sprintf("wrong number of values for key [%s]", prediction.Key))
+				for i, ppValue := range prediction.Values {
+					var found = true
+					for _, v := range pp.Values {
+						if v.Value == ppValue.Value {
+							assert.Equal(t, fmt.Sprintf("%.2f", v.Probability), fmt.Sprintf("%.2f", ppValue.Probability), fmt.Sprintf("wrong Probability for key [%s] at index %d", prediction.Key, i))
+						}
+					}
+					assert.True(t, found, fmt.Sprintf("wrong Value for key [%s] at index %d", prediction.Key, i))
+				}
+				delete(p, prediction.Key)
 			}
+
+			// we should have matched ALL predictions by now
+			assert.Equal(t, 0, len(p), fmt.Sprintf("%+v", p))
+
 		})
 	}
 

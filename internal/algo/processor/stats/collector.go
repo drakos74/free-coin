@@ -15,8 +15,6 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-type orderFunc func(f float64) int
-
 type window struct {
 	w *buffer.HistoryWindow
 	c *buffer.HMM
@@ -51,11 +49,23 @@ type statsCollector struct {
 }
 
 func newStats(registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) (*statsCollector, error) {
+
+	windows := make(map[processor.Key]*window)
+
+	for c, dConfig := range configs {
+		for d, cfg := range dConfig {
+			k := processor.Key{
+				Coin:     c,
+				Duration: d,
+			}
+			windows[k] = newWindow(cfg)
+		}
+	}
+
 	stats := &statsCollector{
 		logger:  registry,
 		lock:    sync.RWMutex{},
-		configs: configs,
-		windows: make(map[processor.Key]*window),
+		windows: windows,
 	}
 	return stats, nil
 }

@@ -78,6 +78,7 @@ type Predictions struct {
 	// Sample is the number of previous incidents of the source sequence that generated the current probability matrix
 	Sample int
 	// Groups is the number of groups / combinations of source sequences encountered of the given length.
+	// TODO :assess the statistical significance of this
 	Groups int
 	// Count is the count of invocations for this model
 	Count int

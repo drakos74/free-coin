@@ -91,13 +91,20 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					txIDs, err := client.OpenOrder(order)
 					if err == nil {
 						// Store for correlation and auditing
-						tp.logger.Put(storage.K{
-							Pair:  string(order.Coin),
-							Label: OpenPositionRegistryKey,
-						}, model.TrackingOrder{
+						trackingOrder := model.TrackingOrder{
 							Order: order,
 							TxIDs: txIDs,
-						})
+						}
+						err := tp.logger.Put(storage.K{
+							Pair:  string(order.Coin),
+							Label: OpenPositionRegistryKey,
+						}, trackingOrder)
+						if err != nil {
+							log.Warn().Err(err).
+								Str("processor", ProcessorName).
+								Str("event", fmt.Sprintf("%+v", trackingOrder)).
+								Msg("could not save event to registry")
+						}
 					}
 					// add the txIDs to the key
 					ck.txids = txIDs
@@ -375,11 +382,12 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 		)).ReferenceTime(time), nil)
 		return false
 	} else {
-		tp.logger.Put(storage.K{
+		err := tp.logger.Put(storage.K{
 			Pair:  string(position.Coin),
 			Label: ClosePositionRegistryKey,
 		}, position)
 		log.Info().
+			Err(err).
 			Float64("volume", position.Volume).
 			Str("id", key.id).
 			Str("coin", string(position.Coin)).

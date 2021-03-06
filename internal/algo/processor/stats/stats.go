@@ -249,7 +249,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 		pp[i] = fmt.Sprintf("%s -> %v [ %d : %d : %d ] ",
 			emoji.Sequence(v.Key),
 			v.Values,
-			v.Groups,
+			len(v.Values),
 			v.Sample,
 			v.Count,
 		)

@@ -171,21 +171,6 @@ func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 	return nil
 }
 
-func (e *Exchange) OpenPosition(position coinmodel.Position) error {
-	order := coinmodel.NewOrder(position.Coin, "").
-		Market().
-		WithVolume(position.Volume).
-		WithLeverage(coinmodel.L_5).
-		WithType(position.Type).
-		Create()
-
-	_, _, err := e.Api.Order(order)
-	if err != nil {
-		return fmt.Errorf("could not open position: %w", err)
-	}
-	return nil
-}
-
 func (e *Exchange) OpenOrder(order coinmodel.Order) ([]string, error) {
 	_, txids, err := e.Api.Order(order)
 	if err != nil {

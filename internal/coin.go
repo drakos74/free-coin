@@ -161,6 +161,8 @@ func (o *OverWatch) Run(ctx context.Context) *sync.WaitGroup {
 					case <-eng.finished:
 						log.Info().Str("coin", c).Msg("engine done")
 						o.counter.Done()
+					default:
+						// nothing to do
 					}
 				}
 			}

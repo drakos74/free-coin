@@ -1,0 +1,45 @@
+{
+  "BTC": [
+    {
+      "duration": 5,
+      "order": {
+        "name": "O2"
+      },
+      "notify": {
+        "stats": true
+      },
+      "stats": [
+        {
+          "prev": 1,
+          "next": 1
+        }
+      ],
+      "strategies": [
+        {
+          "open": {
+            "value": 100,
+            "limit": 1000
+          },
+          "close": {
+            "instant": true,
+            "profit": {
+              "min": 0.8,
+              "max": 0,
+              "trail": 0.15
+            },
+            "loss": {
+              "min": 1,
+              "max": 0,
+              "trail": 0
+            }
+          },
+          "name": "numeric",
+          "probability": 0.5,
+          "sample": 11,
+          "threshold": 6,
+          "factor": 1
+        }
+      ]
+    }
+  ]
+}

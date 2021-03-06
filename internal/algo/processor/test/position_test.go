@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
@@ -17,7 +19,7 @@ import (
 
 func TestPosition_TradeProcessing(t *testing.T) {
 	testTradeProcessing(t, func(client api.Exchange, user api.User) api.Processor {
-		return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), true, position.Config{})
+		return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), testConfig(model.BTC, processor.Config{}))
 	})
 }
 
@@ -87,7 +89,7 @@ func TestPosition_Update(t *testing.T) {
 			// add some positions
 			if tt.positions != nil {
 				for _, p := range tt.positions {
-					err := client.OpenPosition(p)
+					_, err := client.OpenOrder(model.FromPosition(p, false))
 					assert.NoError(t, err)
 				}
 			}
@@ -202,7 +204,7 @@ func TestPosition_Track(t *testing.T) {
 			// add some positions
 			if tt.positions != nil {
 				for _, p := range tt.positions {
-					err := client.OpenPosition(p)
+					_, err := client.OpenOrder(model.FromPosition(p, false))
 					assert.NoError(t, err)
 				}
 			}
@@ -262,13 +264,26 @@ func mockPosition(id string, coin model.Coin, t model.Type) model.Position {
 }
 
 func newPositionProcessor(client api.Exchange, user api.User) api.Processor {
-	return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), true, position.Config{
-		Profit: position.Setup{
-			Min:   1.5,
-			Trail: 0.15,
+	config := processor.Config{
+		Duration: 10,
+		Strategies: []processor.Strategy{
+			{
+				Open: processor.Open{
+					Value: 0,
+					Limit: 0,
+				},
+				Close: processor.Close{
+					Instant: true,
+					Profit: processor.Setup{
+						Min:   1.5,
+						Trail: 0.15,
+					},
+					Loss: processor.Setup{
+						Min: 1,
+					},
+				},
+			},
 		},
-		Loss: position.Setup{
-			Min: 1,
-		},
-	})
+	}
+	return position.Position(storage.NewVoidRegistry(), client, user, api.NewBlock(), testConfig("", config))
 }

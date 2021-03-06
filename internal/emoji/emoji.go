@@ -154,7 +154,7 @@ func PredictionList(p buffer.PredictionList) string {
 			pp[i] = Prediction(pr)
 		}
 	}
-	return fmt.Sprintf("%s", strings.Join(pp, " | "))
+	return strings.Join(pp, " | ")
 }
 
 // Prediction prints with emojis a numeric Prediction
