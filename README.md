@@ -3,4 +3,4 @@
 [![build](https://github.com/drakos74/free-coin/workflows/build/badge.svg)](https://github.com/drakos74/free-coin/actions)
 [![test](https://github.com/drakos74/free-coin/workflows/test/badge.svg)](https://github.com/drakos74/free-coin/actions)
 # free-coin
-generic engine for crypto coin analytics and trading
+a generic algo engine for crypto coin analytics and trading
