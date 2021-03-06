@@ -247,7 +247,7 @@ func createStatsMessage(last windowView, values [][]string, aggregateStats coinm
 	for _, v := range predictions {
 		pp[i] = fmt.Sprintf("%s -> %v [ %d : %d : %d ] ",
 			emoji.Sequence(v.Key),
-			v.Values,
+			emoji.PredictionList(v.Values),
 			len(v.Values),
 			v.Sample,
 			v.Count,

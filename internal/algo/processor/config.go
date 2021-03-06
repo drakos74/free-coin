@@ -151,7 +151,7 @@ func MustLoad(key string, v interface{}) []byte {
 		panic(fmt.Sprintf("could not unmarshal the config for %s: %s", key, err.Error()))
 	}
 
-	log.Info().Str("processor", key).Msg("loaded default config")
+	log.Info().Str("processor", key).Msg("loaded config")
 
 	return b
 
