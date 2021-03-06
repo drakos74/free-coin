@@ -96,9 +96,11 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							// so we should probably just take that ...
 							// TODO : confirm that in tests
 							pair := pairs[0]
+							fmt.Println(fmt.Sprintf("pair = %+v", pair))
 							vol := getVolume(ts.Price, pair.Open)
 							// we will make only one order from all the pairs ...
-							order := model.NewOrder(ts.Coin, pair.Strategy).
+							cid := processor.Correlate(ts.Coin, ts.Duration, pair.Strategy)
+							order := model.NewOrder(ts.Coin, cid).
 								SubmitTime(pair.Time).
 								WithLeverage(model.L_5).
 								WithVolume(vol).

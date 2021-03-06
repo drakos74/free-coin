@@ -39,9 +39,16 @@ type tradePosition struct {
 	config   processor.Strategy
 }
 
+func (t tradePosition) updateCID(cid string) {
+	pos := t.position
+	pos.CID = cid
+	t.position = pos
+}
+
 type tradePositions struct {
 	logger         storage.Registry
 	pos            map[model.Coin]map[string]*tradePosition
+	txIDs          map[model.Coin]map[string][]string
 	initialConfigs map[model.Coin]map[time.Duration]processor.Config
 	lock           *sync.RWMutex
 }
@@ -50,6 +57,7 @@ func newPositionTracker(registry storage.Registry, configs map[model.Coin]map[ti
 	return &tradePositions{
 		logger:         registry,
 		pos:            make(map[model.Coin]map[string]*tradePosition),
+		txIDs:          make(map[model.Coin]map[string][]string),
 		initialConfigs: configs,
 		lock:           new(sync.RWMutex),
 	}
@@ -78,6 +86,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			// do we have a correlation key ?
 			ck := cKey{}
 			switch action.Name {
+			// TODO : check on the strategy etc ...
 			case model.OrderKey:
 				// before we ope lets check what we have ...
 				if order, ok := action.Content.(model.Order); ok {
@@ -85,8 +94,25 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					ck.cid = order.CID
 					ck.coin = order.Coin
 
+					// TODO : do this in tp.checkOpen
 					correlatedPositions := tp.get(ck)
-					// TODO : look closer into the correlated positions ...
+					log.Info().Int("found", len(correlatedPositions)).Msg("correlated positions")
+					if len(correlatedPositions) > 0 {
+						// check how many are same direction and how many other direction
+						var same int
+						var opp int
+						for _, cpos := range correlatedPositions {
+							if cpos.position.Type == order.Type {
+								same++
+							} else if cpos.position.Type.Inv() == order.Type {
+								opp++
+							}
+						}
+						log.Info().
+							Int("same", same).
+							Int("opposite", opp).
+							Msg("correlation position")
+					}
 
 					txIDs, err := client.OpenOrder(order)
 					if err == nil {
@@ -139,6 +165,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					log.Warn().
 						Str("cKey", fmt.Sprintf("%+v", ck)).
 						Msg("could not correlate new event to any positions")
+					tp.deferInject(ck)
 				}
 			}
 			block.ReAction <- api.Action{}
@@ -154,30 +181,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 	}
 }
 
-func (tp *tradePositions) inject(ck cKey) error {
-	tp.lock.Lock()
-	defer tp.lock.Unlock()
-	// go over the positions and assign the ck.cid when we have a match for the txids
-	if pos, ok := tp.pos[ck.coin]; ok {
-		var found bool
-		for _, p := range pos {
-			// TODO : this is temporary, until we identify what kraken gives us
-			// check if its the order id that matched
-			for _, txid := range ck.txids {
-				if p.position.OrderID == txid || p.position.TxID == txid {
-					p.position.CID = ck.cid
-				}
-			}
-		}
-		if found {
-			return nil
-		}
-		return fmt.Errorf("no match found for txids: %v", ck.txids)
-	} else {
-		return fmt.Errorf("no positions found for coin: %s", ck.coin)
-	}
-}
-
+// get returns the position for the given correlation key
 func (tp *tradePositions) get(ck cKey) []tradePosition {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
@@ -198,6 +202,48 @@ func (tp *tradePositions) get(ck cKey) []tradePosition {
 	}
 }
 
+// deferInject defers the injection for later ...
+// it needs to be picked up during the update though.
+func (tp *tradePositions) deferInject(ck cKey) error {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	if _, ok := tp.txIDs[ck.coin]; ok {
+		return fmt.Errorf("current cKey '%+v' is already present '%+v'", ck, tp.txIDs[ck.coin])
+	}
+	tp.txIDs[ck.coin] = map[string][]string{
+		ck.cid: ck.txids,
+	}
+	return nil
+}
+
+// inject injects the given correlation key to the corresponding position.
+func (tp *tradePositions) inject(ck cKey) error {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	// go over the positions and assign the ck.cid when we have a match for the txids
+	if pos, ok := tp.pos[ck.coin]; ok {
+		var found bool
+		for _, p := range pos {
+			// TODO : this is temporary, until we identify what kraken gives us
+			// check if its the order id that matched
+			for _, txid := range ck.txids {
+				if p.position.OrderID == txid || p.position.TxID == txid {
+					p.updateCID(ck.cid)
+					found = true
+				}
+			}
+		}
+		if found {
+			return nil
+		}
+		return fmt.Errorf("no match found for txids: %v", ck.txids)
+	} else {
+		return fmt.Errorf("no positions found for coin: %s", ck.coin)
+	}
+}
+
+// update updates the current in-memory positions.
+// it needs to check the deferred correlation keys to be injected.
 func (tp *tradePositions) update(client api.Exchange) error {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
@@ -210,8 +256,30 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		if _, ok := tp.pos[p.Coin]; !ok {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
+		// check the correlation keys
+		if txIDs, ok := tp.txIDs[p.Coin]; ok {
+			var found bool
+			for cid, txID := range txIDs {
+				for _, txid := range txID {
+					if p.TxID == txid || p.OrderID == txid {
+						p.CID = cid
+						found = true
+					}
+				}
+			}
+			if found {
+				tp.txIDs[p.Coin] = make(map[string][]string)
+			}
+		}
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
+			if p.CID == "" {
+				// we did not find anything to inject
+				if oldPosition.position.CID != "" {
+					// and the old position has a correlation id
+					p.CID = oldPosition.position.CID
+				}
+			}
 			tp.pos[p.Coin][p.ID] = &tradePosition{
 				position: model.TrackedPosition{
 					Open:     oldPosition.position.Open,
@@ -220,6 +288,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				config: oldPosition.config,
 			}
 		} else {
+			// TODO pick the right strategy as config ... based on the cid
 			log.Warn().
 				Str("pid", p.ID).
 				Str("coin", string(p.Coin)).
@@ -230,7 +299,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 					Open:     p.OpenTime,
 					Position: p,
 				},
-				config: processor.GetAny(cfg),
+				config: processor.GetAny(cfg, p.CID),
 			}
 		}
 		posIDs[p.ID] = struct{}{}

@@ -66,6 +66,7 @@ func newStats(registry storage.Registry, configs map[model.Coin]map[time.Duratio
 		logger:  registry,
 		lock:    sync.RWMutex{},
 		windows: windows,
+		configs: configs,
 	}
 	return stats, nil
 }

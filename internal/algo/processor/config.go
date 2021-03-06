@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strconv"
+	"strings"
 	"time"
 
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -102,7 +104,7 @@ func LoadDefaults(coins map[string]model.Coin) map[model.Coin]map[time.Duration]
 			if hasDefault {
 				for _, def := range defaultConfig {
 					timeDuration := cointime.ToMinutes(def.Duration)
-					cfg[c][timeDuration] = parse(def)
+					cfg[c][timeDuration] = Parse(def)
 					log.Info().
 						Str("coin", coin).
 						Float64("min", timeDuration.Minutes()).
@@ -113,7 +115,7 @@ func LoadDefaults(coins map[string]model.Coin) map[model.Coin]map[time.Duration]
 			// check if we need to pass over anything from the default
 			for _, config := range configs[coin] {
 				timeDuration := cointime.ToMinutes(config.Duration)
-				cfg[c][timeDuration] = parse(config)
+				cfg[c][timeDuration] = Parse(config)
 				log.Info().
 					Str("coin", coin).
 					Float64("min", timeDuration.Minutes()).
@@ -123,7 +125,7 @@ func LoadDefaults(coins map[string]model.Coin) map[model.Coin]map[time.Duration]
 			for _, def := range defaultConfig {
 				timeDuration := cointime.ToMinutes(def.Duration)
 				if _, hasConfig := cfg[c][timeDuration]; !hasConfig {
-					cfg[c][timeDuration] = parse(def)
+					cfg[c][timeDuration] = Parse(def)
 					log.Info().
 						Str("coin", coin).
 						Float64("min", timeDuration.Minutes()).
@@ -155,7 +157,7 @@ func MustLoad(key string, v interface{}) []byte {
 
 }
 
-func parse(config Config) Config {
+func Parse(config Config) Config {
 	config.Order.Exec = getOrderFunc(config.Order.Name)
 	return config
 }
@@ -177,12 +179,56 @@ func getOrderFunc(order string) func(f float64) int {
 // GetAny returns the first strategy we can find
 // this is highly unsafe, but is as a backup,
 // in case we were not able to reason about a strategy and we dont want to stop processing actions.
-func GetAny(mm map[time.Duration]Config) Strategy {
-	log.Warn().Msg("using random strategy ... ")
+func GetAny(mm map[time.Duration]Config, cid string) Strategy {
+	if cid != "" {
+		// try to find the config from the given startegy
+		_, duration, strategy, err := DeCorrelate(cid)
+		if err == nil {
+			if dConfig, ok := mm[duration]; ok {
+				for _, str := range dConfig.Strategies {
+					if str.Name == strategy {
+						log.Info().
+							Str("cid", cid).
+							Str("strategy", fmt.Sprintf("%+v", str)).
+							Msg("tracked strategy")
+						return str
+					}
+				}
+			}
+		}
+	}
+	log.Warn().
+		Str("cid", cid).
+		Msg("using random strategy ... ")
 	for _, m := range mm {
 		if len(m.Strategies) > 0 {
 			return m.Strategies[0]
 		}
 	}
 	return Strategy{}
+}
+
+const delimiter = "-"
+
+// Correlate concatenates the given information into a string.
+func Correlate(coin model.Coin, duration time.Duration, strategy string) string {
+	return fmt.Sprintf("%s%s%d%s%s", coin, delimiter, int(duration.Minutes()), delimiter, strategy)
+}
+
+// DeCorrelate splits the given string into the correlated parts.
+func DeCorrelate(cid string) (coin model.Coin, duration time.Duration, strategy string, err error) {
+	parts := strings.Split(cid, delimiter)
+	if len(parts) != 3 {
+		err = fmt.Errorf("could not de-correlate '%s'", cid)
+		return
+	}
+	coin = model.Coin(parts[0])
+	strategy = parts[2]
+	d, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		err = fmt.Errorf("could not de-correlate '%s': %w", cid, err)
+		return
+	}
+	duration = time.Duration(d) * time.Minute
+	return
 }

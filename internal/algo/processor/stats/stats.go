@@ -115,8 +115,7 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 				k := processor.NewKey(trade.Coin, duration)
 				// push the trade data to the stats collector window
 				if buckets, ok := stats.push(k, trade); ok {
-					values, indicators, last := extractFromBuckets(buckets,
-						group(getPriceRatio, cfg.Order.Exec))
+					values, indicators, last := extractFromBuckets(buckets, group(getPriceRatio, cfg.Order.Exec))
 					// count the occurrences
 					// TODO : give more weight to the more recent values that come in
 					// TODO : old values might destroy our statistics and be irrelevant

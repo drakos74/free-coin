@@ -97,7 +97,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) query(w http.ResponseWriter, r *http.Request) {
-
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
 	s.block.Action <- api.NewAction("query").Create()
@@ -116,7 +115,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Warn().
+	log.Debug().
 		Str("query", fmt.Sprintf("%+v", query)).
 		Str("endpoint", "query").
 		Msg("query")
@@ -250,7 +249,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Warn().
+	log.Debug().
 		Str("body", string(body)).
 		Str("endpoint", "annotations").
 		Msg("request body")

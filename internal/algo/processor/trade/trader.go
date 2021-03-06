@@ -107,14 +107,14 @@ func doEvaluate(prediction buffer.Predictions, strategy processor.Strategy) (Pre
 		// because we want to look at other predictions as well,
 		// and not only the highest one potentially
 		if confidence, t := getStrategy(strategy.Name, strategy.Threshold)(values, strategy.Factor); t != model.NoType {
-			if ttype != model.NoType && ttype != t {
+			if ttype != model.NoType && t != ttype {
 				log.Warn().
 					Float64("Probability", prb).
 					Str("Values", fmt.Sprintf("%+v", values)).
 					Msg("inconsistent prediction")
 				// We cant be conclusive about the strategy based on the prediciton data
 				return PredictionPair{}, false
-			} else {
+			} else if t != model.NoType {
 				ttype = t
 				tconfidence = confidence
 			}
@@ -130,7 +130,7 @@ func doEvaluate(prediction buffer.Predictions, strategy processor.Strategy) (Pre
 			Probability: prb,
 			Sample:      prediction.Sample,
 			Type:        ttype,
-		}, true
+		}, ttype != model.NoType
 	}
 	return PredictionPair{}, false
 }

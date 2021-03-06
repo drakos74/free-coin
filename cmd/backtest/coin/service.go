@@ -77,13 +77,15 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
 
 		backtestConfig := make(map[coinmodel.Coin]map[time.Duration]processor.Config)
-		if config, ok := q.Data["config"]; ok {
+		if config, ok := q.Data[model.ManualConfig]; ok {
 			var cfg processor.Config
 			err = FromJsonMap("", config, &cfg)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("could not init config: %w", err)
 			}
-			backtestConfig[c][cointime.ToMinutes(cfg.Duration)] = cfg
+			backtestConfig[c] = map[time.Duration]processor.Config{
+				cointime.ToMinutes(cfg.Duration): processor.Parse(cfg),
+			}
 			log.Warn().
 				Str("config", fmt.Sprintf("%+v", config)).
 				Msg("loaded config from back-test")
