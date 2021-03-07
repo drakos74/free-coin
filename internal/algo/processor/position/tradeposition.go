@@ -162,10 +162,12 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			if ck.cid != "" {
 				err = tp.inject(ck)
 				if err != nil {
+					err = tp.deferInject(ck)
 					log.Warn().
+						Err(err).
 						Str("cKey", fmt.Sprintf("%+v", ck)).
 						Msg("could not correlate new event to any positions")
-					tp.deferInject(ck)
+
 				}
 			}
 			block.ReAction <- api.Action{}
