@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -129,6 +131,7 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 						trade.Signals = append(trade.Signals, model.Signal{
 							Type: "TradeSignal",
 							Value: TradeSignal{
+								ID:             uuid.New().String(),
 								Coin:           trade.Coin,
 								Price:          trade.Price,
 								Time:           trade.Time,
@@ -153,6 +156,7 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 }
 
 type TradeSignal struct {
+	ID             string
 	Coin           model.Coin
 	Price          float64
 	Time           time.Time

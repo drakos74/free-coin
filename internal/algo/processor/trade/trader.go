@@ -73,6 +73,7 @@ func evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictions
 			executor := getStrategy(strategy.Name)
 			if values, probability, confidence, ttype := executor(prediction, strategy); ttype != model.NoType {
 				pair := PredictionPair{
+					SignalID:    pp.ID,
 					Price:       pp.Price,
 					Time:        pp.Time,
 					Strategy:    strategy,

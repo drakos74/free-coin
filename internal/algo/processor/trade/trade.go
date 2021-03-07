@@ -131,7 +131,9 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 									ts.Coin,
 									vol,
 									pair.Price,
-								)), nil)
+								)).
+								// TODO :remove this, it s for temporary debugging
+								AddLine(pair.SignalID), nil)
 						}
 					}
 				}
@@ -148,12 +150,17 @@ func createPredictionMessage(pair PredictionPair) string {
 		vv = append(vv, emoji.Sequence(pv))
 	}
 	pp := fmt.Sprintf("( %.2f | %d )", pair.Probability, pair.Sample)
-	line := fmt.Sprintf("%s | %.2f | %s -> %s %s", pair.Label, pair.Confidence, kk, strings.Join(vv, " | "), pp)
+	line := fmt.Sprintf("%s | %.2f | %s -> %s %s",
+		pair.Label,
+		pair.Confidence,
+		kk,
+		strings.Join(vv, " | "), pp)
 	return line
 }
 
 type PredictionPair struct {
 	ID          string             `json:"id"`
+	SignalID    string             `json:"signal"`
 	Price       float64            `json:"price"`
 	Time        time.Time          `json:"time"`
 	Confidence  float64            `json:"confidence"`
