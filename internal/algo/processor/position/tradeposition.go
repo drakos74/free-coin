@@ -263,12 +263,20 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				for _, txid := range txID {
 					if p.TxID == txid || p.OrderID == txid {
 						p.CID = cid
+						log.Info().Str("cid", cid).Str("pid", p.ID).Msg("matched cid")
 						found = true
 					}
 				}
 			}
 			if found {
 				tp.txIDs[p.Coin] = make(map[string][]string)
+			} else {
+				log.Info().
+					Str("pid", p.ID).
+					Str("txids", fmt.Sprintf("%+v", txIDs)).
+					Str("pid", p.ID).
+					Msg("could not match")
+
 			}
 		}
 		// check if position exists
