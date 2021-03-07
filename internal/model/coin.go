@@ -32,7 +32,7 @@ var Coins = map[string]Coin{
 	"LINK": LINK,
 	//"WAVES": WAVES,
 	"DOT": DOT,
-	"XRP": XRP,
+	//"XRP": XRP,
 }
 
 func KnownCoins() []string {

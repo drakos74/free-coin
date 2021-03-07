@@ -84,16 +84,15 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 		case action := <-block.Action: // trigger update on the positions on external events/actions
 			// check if we need to act on the action
 			// do we have a correlation key ?
-			ck := cKey{}
-			var actionErr error
 			switch action.Name {
 			// TODO : check on the strategy etc ...
 			case model.OrderKey:
 				// before we ope lets check what we have ...
 				if order, ok := action.Content.(model.Order); ok {
-
-					ck.cid = order.CID
-					ck.coin = order.Coin
+					ck := cKey{
+						cid:  order.CID,
+						coin: order.Coin,
+					}
 
 					// TODO : do this in tp.checkOpen
 					correlatedPositions := tp.get(ck)
@@ -116,7 +115,6 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					}
 
 					txIDs, err := client.OpenOrder(order)
-					actionErr = err
 					if err == nil {
 						// Store for correlation and auditing
 						trackingOrder := model.TrackingOrder{
@@ -153,27 +151,17 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 							order.Coin,
 							order.Volume,
 						)), err)
+					added, err := tp.deferInject(ck)
+					log.Info().
+						Err(err).
+						Int("added", added).
+						Msg("injected cid")
 				}
 			}
 			// update and inject the newly created order
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
-			} else {
-				// if we managed to make the action, inject ...
-				if ck.cid != "" && actionErr == nil {
-					added, err := tp.inject(ck)
-					var deferInjectErr error
-					if err != nil {
-						added, deferInjectErr = tp.deferInject(ck)
-					}
-					log.Info().
-						Str("inject-err", fmt.Sprintf("%v", err)).
-						Int("defer-added", added).
-						Str("defer-err", fmt.Sprintf("%v", deferInjectErr)).
-						Str("cKey", fmt.Sprintf("%+v", ck)).
-						Msg("injected cid")
-				}
 			}
 			block.ReAction <- api.Action{}
 		case <-ticker.C: // trigger an update on the positions at regular intervals
