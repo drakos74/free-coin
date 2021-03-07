@@ -41,7 +41,7 @@ var Price = CoinFormatter{precision: map[Coin]int{
 
 // Volume is a formatter for the volume of the coin.
 var Volume = CoinFormatter{precision: map[Coin]int{
-	BTC:  2,
+	BTC:  3,
 	ETH:  2,
 	DOT:  0,
 	LINK: 0,
