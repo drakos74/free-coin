@@ -162,13 +162,12 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			} else {
 				// if we managed to make the action, inject ...
 				if ck.cid != "" && actionErr == nil {
-					err = tp.inject(ck)
+					added, err := tp.inject(ck)
 					var deferInjectErr error
-					var added int
 					if err != nil {
 						added, deferInjectErr = tp.deferInject(ck)
 					}
-					log.Warn().
+					log.Info().
 						Str("inject-err", fmt.Sprintf("%v", err)).
 						Int("defer-added", added).
 						Str("defer-err", fmt.Sprintf("%v", deferInjectErr)).
@@ -201,6 +200,9 @@ func (tp *tradePositions) get(ck cKey) []tradePosition {
 			log.Info().
 				Str("coin", string(p.position.Coin)).
 				Str("pid", p.position.ID).
+				Str("txid", p.position.TxID).
+				Str("order-id", p.position.OrderID).
+				Str("cid", p.position.CID).
 				Msg("current position")
 			if p.position.CID == ck.cid {
 				positions = append(positions, *p)
@@ -240,28 +242,33 @@ func (tp *tradePositions) deferInject(ck cKey) (int, error) {
 }
 
 // inject injects the given correlation key to the corresponding position.
-func (tp *tradePositions) inject(ck cKey) error {
+func (tp *tradePositions) inject(ck cKey) (int, error) {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
 	// go over the positions and assign the ck.cid when we have a match for the txids
 	if pos, ok := tp.pos[ck.coin]; ok {
-		var found bool
+		var added int
 		for _, p := range pos {
 			// TODO : this is temporary, until we identify what kraken gives us
 			// check if its the order id that matched
 			for _, txid := range ck.txids {
 				if p.position.OrderID == txid || p.position.TxID == txid {
 					p.updateCID(ck.cid)
-					found = true
+					added++
+					log.Info().
+						Str("txid", p.position.TxID).
+						Str("order-id", p.position.OrderID).
+						Str("pid", p.position.ID).
+						Str("cid", ck.cid).Msg("matched cid")
 				}
 			}
 		}
-		if found {
-			return nil
+		if added > 0 {
+			return added, nil
 		}
-		return fmt.Errorf("no match found for txids: %v", ck.txids)
+		return 0, fmt.Errorf("no match found for txids: %v", ck.txids)
 	} else {
-		return fmt.Errorf("no positions found for coin: %s", ck.coin)
+		return 0, fmt.Errorf("no positions found for coin: %s", ck.coin)
 	}
 }
 
@@ -318,8 +325,11 @@ func (tp *tradePositions) update(client api.Exchange) error {
 			}
 		} else {
 			// TODO pick the right strategy as config ... based on the cid
-			log.Warn().
+			log.Info().
 				Str("pid", p.ID).
+				Str("cid", p.CID).
+				Str("txid", p.TxID).
+				Str("order-id", p.OrderID).
 				Str("coin", string(p.Coin)).
 				Msg("unknown position encountered")
 			cfg := tp.getConfiguration(p.Coin)
