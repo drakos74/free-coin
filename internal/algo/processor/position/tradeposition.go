@@ -150,8 +150,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 							emoji.MapType(order.Type),
 							order.Coin,
 							order.Volume,
-						)).
-						AddLine(fmt.Sprintf("%s <-> %v", order.ID, txIDs)), err)
+						)), err)
 				}
 			}
 			// update and inject the newly created order

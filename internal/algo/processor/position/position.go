@@ -56,7 +56,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			Err(err).
 			Msg("received user action")
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage(fmt.Sprintf("[%s cmd error]", ProcessorName)).ReplyTo(command.ID), err)
+			api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -70,11 +70,11 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			err = tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
-				api.Reply(api.Private, user, api.NewMessage("[api error]").ReplyTo(command.ID), err)
+				api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "api error")).ReplyTo(command.ID), err)
 			}
 			i := 0
 			if len(tp.pos) == 0 {
-				user.Send(api.Private, api.NewMessage(NoPositionMsg), nil)
+				user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, NoPositionMsg)), nil)
 				continue
 			}
 			for coin, pos := range tp.getAll() {
@@ -107,7 +107,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				}
 			}
 		default:
-			user.Send(api.Private, api.NewMessage("unknown command:").AddLine("[ close ]"), nil)
+			user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "unknown command")).AddLine("[ close ]"), nil)
 		}
 	}
 }

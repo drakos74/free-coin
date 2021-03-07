@@ -30,7 +30,7 @@ func trackUserActions(user api.User, trader *trader) {
 			api.Any(&coin),
 		)
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "cmd error")).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -40,14 +40,15 @@ func trackUserActions(user api.User, trader *trader) {
 		for d, cfg := range trader.getAll(c) {
 			for _, strategy := range cfg.Strategies {
 				user.Send(api.Private,
-					api.NewMessage(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
-						c,
-						cfg.Duration,
-						// TODO : we dont need both, but keeping them for debugging for now
-						d,
-						strategy.Probability,
-						strategy.Sample,
-						strategy.Threshold)), nil)
+					api.NewMessage(processor.Audit(ProcessorName, "positions")).
+						AddLine(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
+							c,
+							cfg.Duration,
+							// TODO : we dont need both, but keeping them for debugging for now
+							d,
+							strategy.Probability,
+							strategy.Sample,
+							strategy.Threshold)), nil)
 			}
 		}
 		// TODO : allow to edit based on the reply message
@@ -124,13 +125,12 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							// wait for the position processor to acknowledge the update
 							<-block.ReAction
 							api.Reply(api.Private, user, api.
-								NewMessage(createPredictionMessage(pair)).
-								AddLine(fmt.Sprintf("open %s %s ( %.3f | %.2f ) [%s]",
+								NewMessage(processor.Audit(ProcessorName, createPredictionMessage(pair))).
+								AddLine(fmt.Sprintf("open %s %s ( %.3f | %.2f )",
 									emoji.MapType(pair.Type),
 									ts.Coin,
 									vol,
 									pair.Price,
-									order.ID,
 								)), nil)
 						}
 					}
