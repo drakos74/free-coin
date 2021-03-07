@@ -280,9 +280,9 @@ func (tp *tradePositions) update(client api.Exchange) error {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
 		// check the correlation keys
-		var matched int
-		var of int
 		if txIDs, ok := tp.txIDs[p.Coin]; ok {
+			var matched int
+			var of int
 			for cid, txID := range txIDs {
 				for txid := range txID {
 					of++
@@ -294,12 +294,12 @@ func (tp *tradePositions) update(client api.Exchange) error {
 					}
 				}
 			}
+			log.Info().
+				Int("matched", matched).
+				Int("of", of).
+				Str("pid", p.ID).
+				Msg("correlate position")
 		}
-		log.Info().
-			Int("matched", matched).
-			Int("of", of).
-			Str("pid", p.ID).
-			Msg("correlate position")
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
 			if p.CID == "" {
