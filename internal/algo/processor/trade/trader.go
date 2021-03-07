@@ -136,8 +136,8 @@ func getStrategy(name string) ExecStrategy {
 				ttype = model.SignedType(x)
 				if math.Abs(x) >= strategy.Threshold {
 					// compute the confidence factor, e.g. how much we are certain of the prediction
-					confidence = 1 + 2*(prb-strategy.Probability)
-					return values, prb, math.Pow(confidence, strategy.Factor), ttype
+					confidence = 1 + strategy.Factor*(prb-strategy.Probability)
+					return values, prb, confidence, ttype
 				}
 			}
 			return nil, 0, 0, model.NoType
@@ -150,6 +150,6 @@ func getStrategy(name string) ExecStrategy {
 
 type ExecStrategy func(predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type)
 
-func getVolume(price float64, value float64) float64 {
-	return value / price
+func getVolume(price float64, value float64, confidence float64) float64 {
+	return confidence * value / price
 }
