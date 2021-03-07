@@ -86,9 +86,8 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 					k := processor.NewKey(ts.Coin, ts.Duration)
 					// init the configuration for this pair of a coin and duration.
 					// TODO : use an internal state like for the stats processor
-					// we got a trade signal
-					predictions := ts.Predictions
-					if cfg, ok := trader.get(k); ok && len(predictions) > 0 {
+					// we got a trade signal, let's see if we can get an action out of it
+					if cfg, ok := trader.get(k); ok && len(ts.Predictions) > 0 {
 						// check if we should make a buy order
 						pairs := evaluate(ts, cfg.Strategies)
 						// act here ... once for every trade signal only once per coin
@@ -114,8 +113,10 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 								Label: ProcessorName,
 							}, pair)
 							log.Info().
-								Str("ID", order.ID).
 								Err(err).
+								Str("ID", order.ID).
+								Int("signals", len(trade.Signals)).
+								Int("pairs", len(pairs)).
 								Str("pair", fmt.Sprintf("%+v", pair)).
 								Float64("Price", pair.Price).
 								Str("Coin", string(ts.Coin)).
@@ -133,7 +134,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 									pair.Price,
 								)).
 								// TODO :remove this, it s for temporary debugging
-								AddLine(pair.SignalID), nil)
+								AddLine(fmt.Sprintf("signal-id : %s", pair.SignalID)), nil)
 						}
 					}
 				}
