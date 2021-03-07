@@ -186,9 +186,14 @@ func (tp *tradePositions) get(ck cKey) []tradePosition {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
 	positions := make([]tradePosition, 0)
+	log.Info().Int("size", len(tp.pos[ck.coin])).Msg("checking positions")
 	if pos, ok := tp.pos[ck.coin]; ok {
 		var found bool
 		for _, p := range pos {
+			log.Info().
+				Str("coin", string(p.position.Coin)).
+				Str("pid", p.position.ID).
+				Msg("current position")
 			if p.position.CID == ck.cid {
 				positions = append(positions, *p)
 			}
