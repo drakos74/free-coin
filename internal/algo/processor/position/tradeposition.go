@@ -48,7 +48,7 @@ func (t tradePosition) updateCID(cid string) {
 type tradePositions struct {
 	logger         storage.Registry
 	pos            map[model.Coin]map[string]*tradePosition
-	txIDs          map[model.Coin]map[string][]string
+	txIDs          map[model.Coin]map[string]map[string]struct{}
 	initialConfigs map[model.Coin]map[time.Duration]processor.Config
 	lock           *sync.RWMutex
 }
@@ -57,7 +57,7 @@ func newPositionTracker(registry storage.Registry, configs map[model.Coin]map[ti
 	return &tradePositions{
 		logger:         registry,
 		pos:            make(map[model.Coin]map[string]*tradePosition),
-		txIDs:          make(map[model.Coin]map[string][]string),
+		txIDs:          make(map[model.Coin]map[string]map[string]struct{}),
 		initialConfigs: configs,
 		lock:           new(sync.RWMutex),
 	}
@@ -85,6 +85,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			// check if we need to act on the action
 			// do we have a correlation key ?
 			ck := cKey{}
+			var actionErr error
 			switch action.Name {
 			// TODO : check on the strategy etc ...
 			case model.OrderKey:
@@ -115,6 +116,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					}
 
 					txIDs, err := client.OpenOrder(order)
+					actionErr = err
 					if err == nil {
 						// Store for correlation and auditing
 						trackingOrder := model.TrackingOrder{
@@ -143,7 +145,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						Str("type", order.Type.String()).
 						Float64("volume", order.Volume).
 						Str("leverage", order.Leverage.String()).
-						Msg("submit order")
+						Msg("submitted order")
 					api.Reply(api.Private, user, api.
 						NewMessage(processor.Audit(ProcessorName, order.CID)).
 						AddLine(fmt.Sprintf("open %s %s %.3f",
@@ -157,16 +159,21 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get positions")
-			}
-			if ck.cid != "" {
-				err = tp.inject(ck)
-				if err != nil {
-					err = tp.deferInject(ck)
+			} else {
+				// if we managed to make the action, inject ...
+				if ck.cid != "" && actionErr == nil {
+					err = tp.inject(ck)
+					var deferInjectErr error
+					var added int
+					if err != nil {
+						added, deferInjectErr = tp.deferInject(ck)
+					}
 					log.Warn().
-						Err(err).
+						Str("inject-err", fmt.Sprintf("%v", err)).
+						Int("defer-added", added).
+						Str("defer-err", fmt.Sprintf("%v", deferInjectErr)).
 						Str("cKey", fmt.Sprintf("%+v", ck)).
-						Msg("could not correlate new event to any positions")
-
+						Msg("injected cid")
 				}
 			}
 			block.ReAction <- api.Action{}
@@ -210,16 +217,26 @@ func (tp *tradePositions) get(ck cKey) []tradePosition {
 
 // deferInject defers the injection for later ...
 // it needs to be picked up during the update though.
-func (tp *tradePositions) deferInject(ck cKey) error {
+func (tp *tradePositions) deferInject(ck cKey) (int, error) {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
-	if _, ok := tp.txIDs[ck.coin]; ok {
-		return fmt.Errorf("current cKey '%+v' is already present '%+v'", ck, tp.txIDs[ck.coin])
+	if len(ck.txids) == 0 {
+		return 0, fmt.Errorf("no txids to inject %+v", ck)
 	}
-	tp.txIDs[ck.coin] = map[string][]string{
-		ck.cid: ck.txids,
+	if _, ok := tp.txIDs[ck.coin]; !ok {
+		tp.txIDs[ck.coin] = make(map[string]map[string]struct{})
 	}
-	return nil
+	if _, ok := tp.txIDs[ck.coin][ck.cid]; !ok {
+		tp.txIDs[ck.coin][ck.cid] = make(map[string]struct{})
+	}
+	var added int
+	for _, txid := range ck.txids {
+		if _, ok := tp.txIDs[ck.coin][ck.cid][txid]; !ok {
+			tp.txIDs[ck.coin][ck.cid][txid] = struct{}{}
+			added++
+		}
+	}
+	return added, nil
 }
 
 // inject injects the given correlation key to the corresponding position.
@@ -263,28 +280,26 @@ func (tp *tradePositions) update(client api.Exchange) error {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
 		// check the correlation keys
+		var matched int
+		var of int
 		if txIDs, ok := tp.txIDs[p.Coin]; ok {
-			var found bool
 			for cid, txID := range txIDs {
-				for _, txid := range txID {
+				for txid := range txID {
+					of++
 					if p.TxID == txid || p.OrderID == txid {
 						p.CID = cid
 						log.Info().Str("cid", cid).Str("pid", p.ID).Msg("matched cid")
-						found = true
+						matched++
+						delete(tp.txIDs[p.Coin][cid], txid)
 					}
 				}
 			}
-			if found {
-				tp.txIDs[p.Coin] = make(map[string][]string)
-			} else {
-				log.Info().
-					Str("pid", p.ID).
-					Str("txids", fmt.Sprintf("%+v", txIDs)).
-					Str("pid", p.ID).
-					Msg("could not match")
-
-			}
 		}
+		log.Info().
+			Int("matched", matched).
+			Int("of", of).
+			Str("pid", p.ID).
+			Msg("correlate position")
 		// check if position exists
 		if oldPosition, ok := tp.pos[p.Coin][p.ID]; ok {
 			if p.CID == "" {
