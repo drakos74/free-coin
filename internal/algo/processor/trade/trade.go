@@ -125,7 +125,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							<-block.ReAction
 							api.Reply(api.Private, user, api.
 								NewMessage(createPredictionMessage(pair)).
-								AddLine(fmt.Sprintf("open %s %s ( %.2f | %.2f ) [%s]",
+								AddLine(fmt.Sprintf("open %s %s ( %.3f | %.2f ) [%s]",
 									emoji.MapType(pair.Type),
 									ts.Coin,
 									vol,
@@ -147,8 +147,8 @@ func createPredictionMessage(pair PredictionPair) string {
 	for _, pv := range pair.Values {
 		vv = append(vv, emoji.Sequence(pv))
 	}
-	pp := fmt.Sprintf("(%.2f | %d)", pair.Probability, pair.Sample)
-	line := fmt.Sprintf("%s | %s -> %s %s", pair.Label, kk, strings.Join(vv, " | "), pp)
+	pp := fmt.Sprintf("( %.2f | %d )", pair.Probability, pair.Sample)
+	line := fmt.Sprintf("%s | %.2f | %s -> %s %s", pair.Label, pair.Confidence, kk, strings.Join(vv, " | "), pp)
 	return line
 }
 

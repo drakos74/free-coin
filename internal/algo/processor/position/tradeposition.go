@@ -145,9 +145,9 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						Str("leverage", order.Leverage.String()).
 						Msg("submit order")
 					api.Reply(api.Private, user, api.
-						NewMessage("action").
-						AddLine(fmt.Sprintf("open %s %s %.2f",
-							order.Type.String(),
+						NewMessage(processor.Audit(ProcessorName, order.CID)).
+						AddLine(fmt.Sprintf("open %s %s %.3f",
+							emoji.MapType(order.Type),
 							order.Coin,
 							order.Volume,
 						)).
@@ -459,11 +459,13 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 			Float64("net", net).
 			Float64("profit", profit).
 			Msg("could not close position")
-		user.Send(api.Private, api.NewMessage(fmt.Sprintf("could not close %s [%s]: %s",
-			key.coin,
-			key.id,
-			err.Error(),
-		)).ReferenceTime(time), nil)
+		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "error")).
+			AddLine(fmt.Sprintf("could not close %s [%s]: %s",
+				key.coin,
+				key.id,
+				err.Error(),
+			)).
+			ReferenceTime(time), nil)
 		return false
 	} else {
 		err := tp.logger.Put(storage.K{
@@ -479,13 +481,14 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 			Float64("profit", profit).
 			Msg("closed position")
 		tp.delete(key)
-		user.Send(api.Private, api.NewMessage(fmt.Sprintf("%s closed %s ( %.2f | %.2f%s )",
-			emoji.MapToSign(profit),
-			key.coin,
-			position.Volume,
-			profit,
-			"%"),
-		).ReferenceTime(time), nil)
+		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "")).
+			AddLine(fmt.Sprintf("%s closed %s ( %.3f | %.2f%s )",
+				emoji.MapToSign(profit),
+				key.coin,
+				position.Volume,
+				profit,
+				"%")).
+			ReferenceTime(time), nil)
 		return true
 	}
 }

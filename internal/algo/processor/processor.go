@@ -41,3 +41,7 @@ func Void(name string) api.Processor {
 		}
 	}
 }
+
+func Audit(name, msg string) string {
+	return fmt.Sprintf("[%s] %s", name, msg)
+}

@@ -161,7 +161,9 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 							string(trade.Coin),
 							coinmath.Format(profit),
 							coinmath.Format(net))
-						user.Send(api.Private, api.NewMessage(msg).ReferenceTime(trade.Time), &api.Trigger{
+						user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "alert")).
+							AddLine(msg).
+							ReferenceTime(trade.Time), &api.Trigger{
 							ID:      positionAction.position.position.ID,
 							Key:     positionKey,
 							Default: []string{"?p", string(positionAction.key.coin), "close", positionAction.key.id},

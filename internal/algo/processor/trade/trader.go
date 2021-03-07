@@ -151,5 +151,6 @@ func getStrategy(name string) ExecStrategy {
 type ExecStrategy func(predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type)
 
 func getVolume(price float64, value float64, confidence float64) float64 {
-	return confidence * value / price
+	f := confidence * value / price
+	return f
 }
