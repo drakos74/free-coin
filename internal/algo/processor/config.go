@@ -60,7 +60,9 @@ type Strategy struct {
 	Sample int `json:"sample"`
 	// Threshold defines the prediction result numeric threshold for the strategy to take effect.
 	Threshold float64 `json:"threshold"`
-	// Factor defines the factor applied to confidence of the prediction the amount of opening the order.
+	// DecayFactor is a value <= 1.0 that defines how much we will tend to downgrade historical data e.g. decay
+	DecayFactor float64 `json:"decay"`
+	// Factor defines the factor applied as confidence of the prediction in the amount of opening the order.
 	Factor float64 `json:"factor"`
 }
 

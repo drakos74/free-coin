@@ -96,9 +96,9 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							// so we should probably just take that ...
 							// TODO : confirm that in tests
 							pair := pairs[0]
-							vol := getVolume(ts.Price, pair.Open)
+							vol := getVolume(ts.Price, pair.Strategy.Open.Value)
 							// we will make only one order from all the pairs ...
-							cid := processor.Correlate(ts.Coin, ts.Duration, pair.Strategy)
+							cid := processor.Correlate(ts.Coin, ts.Duration, pair.Strategy.Name)
 							order := model.NewOrder(ts.Coin, cid).
 								SubmitTime(pair.Time).
 								WithLeverage(model.L_5).
@@ -153,18 +153,17 @@ func createPredictionMessage(pair PredictionPair) string {
 }
 
 type PredictionPair struct {
-	ID          string            `json:"id"`
-	Price       float64           `json:"price"`
-	Time        time.Time         `json:"time"`
-	Confidence  float64           `json:"confidence"`
-	Open        float64           `json:"open"`
-	Strategy    string            `json:"strategy"`
-	Label       string            `json:"label"`
-	Key         buffer.Sequence   `json:"key"`
-	Values      []buffer.Sequence `json:"values"`
-	Probability float64           `json:"probability"`
-	Sample      int               `json:"sample"`
-	Type        model.Type        `json:"type"`
+	ID          string             `json:"id"`
+	Price       float64            `json:"price"`
+	Time        time.Time          `json:"time"`
+	Confidence  float64            `json:"confidence"`
+	Strategy    processor.Strategy `json:"strategy"`
+	Label       string             `json:"label"`
+	Key         buffer.Sequence    `json:"key"`
+	Values      []buffer.Sequence  `json:"values"`
+	Probability float64            `json:"probability"`
+	Sample      int                `json:"sample"`
+	Type        model.Type         `json:"type"`
 }
 
 type predictionsPairs []PredictionPair

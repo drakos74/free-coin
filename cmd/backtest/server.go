@@ -346,7 +346,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 				Title: fmt.Sprintf("%s %v", pair.Key, pair.Values),
 				Text:  fmt.Sprintf("%.2f %d", pair.Probability, pair.Sample),
 				Time:  cointime.ToMilli(pair.Time),
-				Tags:  []string{pair.Type.String(), pair.Strategy},
+				Tags:  []string{pair.Type.String(), pair.Strategy.Name},
 			})
 		}
 

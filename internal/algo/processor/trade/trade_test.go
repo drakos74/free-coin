@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO : fix these tests
 func TestTradeStrategy(t *testing.T) {
 
 	type test struct {
@@ -117,9 +118,13 @@ func TestTradeStrategy(t *testing.T) {
 					Values: pList,
 					Sample: 1,
 				}
-				pair, ok := doEvaluate(prediction, tt.strategy)
-				assert.Equal(t, tt.action, ok)
-				assert.Equal(t, tt.ttyp, pair.Type, fmt.Sprintf("failed %v for %v", tt.ttyp, v))
+				executor := getStrategy(tt.strategy.Name)
+				values, probability, confidence, ttype := executor(prediction, tt.strategy)
+				println(fmt.Sprintf("values = %+v", values))
+				println(fmt.Sprintf("probability = %+v", probability))
+				println(fmt.Sprintf("confidence = %+v", confidence))
+				assert.Equal(t, tt.action, ttype != model.NoType)
+				assert.Equal(t, tt.ttyp, ttype, fmt.Sprintf("failed %v for %v", tt.ttyp, v))
 			}
 
 		})

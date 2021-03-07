@@ -159,7 +159,7 @@ func PredictionList(p buffer.PredictionList) string {
 
 // Prediction prints with emojis a numeric Prediction
 func Prediction(p *buffer.Prediction) string {
-	return fmt.Sprintf("%s (%.2f)", Sequence(p.Value), p.Probability)
+	return fmt.Sprintf("%s (%.2f | %.2f)", Sequence(p.Value), p.Probability, p.EMP)
 }
 
 // Sequence returns an emoji representation for the buffer sequence

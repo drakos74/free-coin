@@ -3,6 +3,7 @@ package buffer
 import (
 	"container/ring"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +19,11 @@ type HMMConfig struct {
 	LookAhead int
 }
 
+type state struct {
+	count int
+	emp   float64
+}
+
 // NewMultiHMM creates a new hmm.
 func NewMultiHMM(config ...HMMConfig) *HMM {
 	var max int
@@ -30,7 +36,7 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 		max:      max,
 		sequence: ring.New(max + 1),
 		Config:   config,
-		hmm:      make(map[Sequence]map[Sequence]int),
+		hmm:      make(map[Sequence]map[Sequence]state),
 		Status:   newStatus(),
 	}
 }
@@ -41,7 +47,7 @@ type HMM struct {
 	max      int
 	sequence *ring.Ring
 	Config   []HMMConfig
-	hmm      map[Sequence]map[Sequence]int
+	hmm      map[Sequence]map[Sequence]state
 	Status   *Status
 }
 
@@ -52,9 +58,11 @@ type Prediction struct {
 	// Value for the prediction . Essentially the concatenated string of the predicted sequence
 	Value Sequence
 	// Occur is the number of occurrences for the current combination.
-	Occur int
+	state state
 	// Probability for the current prediction
 	Probability float64
+	// EMP is the exponential moving probability e.g. on-the-fly calculated probability with integrated exponential decay
+	EMP float64
 }
 
 // Sequence defines a sequence of strings.
@@ -87,11 +95,11 @@ type Predictions struct {
 }
 
 // TODO : maybe better to choose a uuid, for now the unix second should be enough
-func NewPrediction(s Sequence, occur int) *Prediction {
+func NewPrediction(s Sequence, st state) *Prediction {
 	return &Prediction{
 		ID:    cointime.ToNano(time.Now()),
 		Value: s,
-		Occur: occur,
+		state: st,
 	}
 }
 
@@ -100,7 +108,7 @@ type PredictionList []*Prediction
 
 // for sorting predictions
 func (p PredictionList) Len() int           { return len(p) }
-func (p PredictionList) Less(i, j int) bool { return p[i].Occur < p[j].Occur }
+func (p PredictionList) Less(i, j int) bool { return p[i].state.count < p[j].state.count }
 func (p PredictionList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type Sample struct {
@@ -184,10 +192,10 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 
 	// init the counter map for this key, if it s not there
 	if _, ok := c.hmm[key]; !ok {
-		c.hmm[key] = make(map[Sequence]int)
+		c.hmm[key] = make(map[Sequence]state)
 	}
 	if _, ok := c.hmm[key][value]; !ok {
-		c.hmm[key][value] = 0
+		c.hmm[key][value] = state{}
 	}
 
 	// work to make the prediction by shifting the key for the desired target size
@@ -201,7 +209,18 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 
 	// add the value to the counter map, note we do this after we make the prediction
 	// to avoid affecting it by itself
-	c.hmm[key][value]++
+	// do exponential adjustment
+	count := 0
+	for _, st := range c.hmm[key] {
+		count += st.count
+	}
+	// increment the counter
+	st := c.hmm[key][value]
+	st.count++
+	// lets put some more weight on the recent results.
+	// TODO : quantify and parametrise
+	st.emp += 2 * float64(count)
+	c.hmm[key][value] = st
 
 	// we also return how many samples we have for the given key
 	// return also the number of other options for this sequence
@@ -219,11 +238,12 @@ func (c *HMM) predict(key Sequence) (Predictions, int) {
 		// TODO : make sure we find a better way to preserve the order in executions
 		for v, cc := range count {
 			predictions.Values = append(predictions.Values, NewPrediction(v, cc))
-			s += cc
+			s += cc.count
 		}
 		sort.Sort(sort.Reverse(predictions.Values))
 		for _, pred := range predictions.Values {
-			pred.Probability = float64(pred.Occur) / float64(s)
+			pred.Probability = float64(pred.state.count) / float64(s)
+			pred.EMP = pred.state.emp / math.Pow(float64(s), 2)
 		}
 	}
 	return predictions, s
