@@ -5,31 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/emoji"
-
-	"github.com/drakos74/free-coin/internal/algo/processor/position"
-
-	cointime "github.com/drakos74/free-coin/internal/time"
-
-	"github.com/drakos74/free-coin/internal/algo/processor/trade"
-	"github.com/drakos74/free-coin/internal/storage"
-	jsonstore "github.com/drakos74/free-coin/internal/storage/file/json"
-
 	"github.com/drakos74/free-coin/client/kraken"
-
-	"github.com/drakos74/free-coin/internal/api"
-
-	"github.com/rs/zerolog/log"
-
 	"github.com/drakos74/free-coin/cmd/backtest/coin"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
+	"github.com/drakos74/free-coin/internal/algo/processor/position"
+	"github.com/drakos74/free-coin/internal/algo/processor/trade"
+	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -38,6 +28,11 @@ const (
 
 	GET  = "GET"
 	POST = "POST"
+
+	AnnotationOpenPositions   = "position_open"
+	AnnotationClosedPositions = "position_close"
+	AnnotationTradePairs      = "trade"
+	AnnotationTradeStrategy   = "strategy"
 )
 
 func init() {
@@ -54,7 +49,13 @@ func New() *Server {
 	}
 }
 
-func Handle(method string, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handle(method string, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	// we should only handle one request per time,
+	// in order to ease memory footprint.
+	s.block.Action <- api.NewAction("request").Create()
+	defer func() {
+		s.block.ReAction <- api.NewAction("request").Create()
+	}()
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case method:
@@ -82,12 +83,12 @@ func (s *Server) Run() error {
 		}
 	}()
 
-	http.HandleFunc(fmt.Sprintf("/%s", basePath), Handle(GET, s.live))
-	http.HandleFunc(fmt.Sprintf("/%s/search", basePath), Handle(POST, s.search))
-	http.HandleFunc(fmt.Sprintf("/%s/tag-keys", basePath), Handle(POST, s.keys))
-	http.HandleFunc(fmt.Sprintf("/%s/tag-values", basePath), Handle(POST, s.values))
-	http.HandleFunc(fmt.Sprintf("/%s/annotations", basePath), Handle(POST, s.annotations))
-	http.HandleFunc(fmt.Sprintf("/%s/query", basePath), Handle(POST, s.query))
+	http.HandleFunc(fmt.Sprintf("/%s", basePath), s.handle(GET, s.live))
+	http.HandleFunc(fmt.Sprintf("/%s/search", basePath), s.handle(POST, s.search))
+	http.HandleFunc(fmt.Sprintf("/%s/tag-keys", basePath), s.handle(POST, s.keys))
+	http.HandleFunc(fmt.Sprintf("/%s/tag-values", basePath), s.handle(POST, s.values))
+	http.HandleFunc(fmt.Sprintf("/%s/annotations", basePath), s.handle(POST, s.annotations))
+	http.HandleFunc(fmt.Sprintf("/%s/query", basePath), s.handle(POST, s.query))
 
 	log.Warn().Str("server", "backtest").Int("port", port).Msg("starting server")
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
@@ -97,12 +98,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) query(w http.ResponseWriter, r *http.Request) {
-	// we should only handle one request per time,
-	// in order to ease memory footprint.
-	s.block.Action <- api.NewAction("query").Create()
-	defer func() {
-		s.block.ReAction <- api.NewAction("query").Create()
-	}()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -115,7 +110,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Debug().
+	log.Warn().
 		Str("query", fmt.Sprintf("%+v", query)).
 		Str("endpoint", "query").
 		Msg("query")
@@ -249,7 +244,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
-	log.Debug().
+	log.Warn().
 		Str("body", string(body)).
 		Str("endpoint", "annotations").
 		Msg("request body")
@@ -261,8 +256,13 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	registryKeyDir := storage.RegistryPath
-	//registryKeyDir := coin.BacktestRegistryDir
+	if query.Annotation.Enable == false {
+		s.respond(w, []byte("{}"))
+		return
+	}
+
+	//registryKeyDir := storage.RegistryPath
+	registryKeyDir := coin.BacktestRegistryDir
 
 	annotations := make([]model.AnnotationInstance, 0)
 	switch query.Annotation.Name {
@@ -326,84 +326,50 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			Int("annotations", len(annotations)).
 			Msg("loaded annotations for history trades")
 
-	case "trade":
-		registry := jsonstore.NewEventRegistry(registryKeyDir)
-
-		// get the events from the trade processor
-		predictionPairs := []trade.PredictionPair{{}}
-		err := registry.Get(storage.K{
-			Pair:  query.Annotation.Query,
-			Label: trade.ProcessorName,
-		}, &predictionPairs)
-
+	case AnnotationTradePairs:
+		predictionPairs, err := trade.GetPairs(registryKeyDir, query.Annotation.Query)
 		if err != nil {
 			s.error(w, err)
 			return
 		}
-
 		for _, pair := range predictionPairs {
-			annotations = append(annotations, model.AnnotationInstance{
-				Title: fmt.Sprintf("%s %v", pair.Key, pair.Values),
-				Text:  fmt.Sprintf("%.2f %d", pair.Probability, pair.Sample),
-				Time:  cointime.ToMilli(pair.Time),
-				Tags:  []string{pair.Type.String(), pair.Strategy.Name},
-			})
+			annotations = append(annotations, coin.PredictionPair(pair))
 		}
-
-	case "position_open":
-		registry := jsonstore.NewEventRegistry(registryKeyDir)
-
-		// get the events from the trade processor
-		orders := []coinmodel.TrackingOrder{{}}
-		err := registry.Get(storage.K{
-			Pair:  query.Annotation.Query,
-			Label: position.OpenPositionRegistryKey,
-		}, &orders)
-
+	case AnnotationOpenPositions:
+		orders, err := position.GetOpen(registryKeyDir, query.Annotation.Query)
 		if err != nil {
 			s.error(w, err)
 			return
 		}
-
 		for _, order := range orders {
-			annotations = append(annotations, model.AnnotationInstance{
-				Title: fmt.Sprintf("%2.f %.2f", order.Price, order.Volume),
-				Text:  fmt.Sprintf("%s %v", order.ID, order.TxIDs),
-				Time:  cointime.ToMilli(order.Time),
-				Tags:  []string{order.Type.String()},
-			})
+			annotations = append(annotations, coin.TrackingOrder(order))
 		}
-	case "position_close":
-		registry := jsonstore.NewEventRegistry(registryKeyDir)
-
-		// get the events from the trade processor
-		positions := []coinmodel.TrackedPosition{{}}
-		err := registry.Get(storage.K{
-			Pair:  query.Annotation.Query,
-			Label: position.ClosePositionRegistryKey,
-		}, &positions)
-
+	case AnnotationClosedPositions:
+		positions, err := position.GetClosed(registryKeyDir, query.Annotation.Query)
 		if err != nil {
 			s.error(w, err)
 			return
 		}
-
 		sort.SliceStable(positions, func(i, j int) bool {
 			return positions[i].Open.Before(positions[j].Open)
 		})
-
 		for _, pos := range positions {
-			net, profit := pos.Position.Value()
-			annotations = append(annotations, model.AnnotationInstance{
-				Title:    fmt.Sprintf("%2.f (%.2f)", net, profit),
-				Text:     fmt.Sprintf("%s %v", emoji.MapToSign(profit), pos.Position.ID),
-				Time:     cointime.ToMilli(pos.Open),
-				TimeEnd:  cointime.ToMilli(pos.Close),
-				IsRegion: true,
-				Tags:     []string{pos.Position.Type.String(), emoji.MapToSign(profit)},
-			})
+			annotations = append(annotations, coin.TrackedPosition(pos))
 		}
-
+	case AnnotationTradeStrategy:
+		strategyEvents, err := trade.StrategyEvents(registryKeyDir, query.Annotation.Query)
+		if err != nil {
+			s.error(w, err)
+			return
+		}
+		for _, event := range strategyEvents {
+			if event.Sample.Valid &&
+				event.Probability.Valid &&
+				len(event.Probability.Values) < 4 &&
+				math.Abs(event.Result.Rating) >= 4 {
+				annotations = append(annotations, coin.StrategyEvent(event))
+			}
+		}
 	}
 
 	b, err := json.Marshal(annotations)
@@ -416,12 +382,8 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
 	tags := []model.Tag{
 		{
-			Type: "string",
-			Text: "price",
-		},
-		{
-			Type: "string",
-			Text: "volume",
+			Type: "bool",
+			Text: model.RegistryFilterKey,
 		},
 	}
 	b, err := json.Marshal(tags)
@@ -445,11 +407,15 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch tag.Key {
-	case "coin":
+	case "registry":
 		tags := []model.Tag{
 			{
-				Type: "string",
-				Text: "coin",
+				Type: "boolean",
+				Text: model.RegistryFilterRefresh,
+			},
+			{
+				Type: "boolean",
+				Text: model.RegistryFilterKeep,
 			},
 		}
 		b, err := json.Marshal(tags)

@@ -41,12 +41,12 @@ func TestEvents_Put(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		ev := newEvent(i)
 		events = append(events, ev)
-		err := logger.Put(k, ev)
+		err := logger.Add(k, ev)
 		assert.NoError(t, err)
 	}
 
 	loadedEvents := []Event{Event{}}
-	err := logger.Get(k, &loadedEvents)
+	err := logger.GetAll(k, &loadedEvents)
 	assert.NoError(t, err)
 
 	assert.Equal(t, 10, len(loadedEvents))

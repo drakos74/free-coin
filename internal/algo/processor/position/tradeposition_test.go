@@ -408,7 +408,7 @@ func TestTradePosition_DoClose(t *testing.T) {
 	for name, tt := range tests {
 		// note ... we run two scenarios
 		// - one for none update and many trades
-		// - one for update on eahc trade : to check the update does not reset the config
+		// - one for update on eahc trade : to check the update does not reset the Config
 		if tt.update {
 			tt.cycle = func(tracker *tradePositions, client api.Exchange, i int) *model.Trade {
 				err := tracker.update(client)
@@ -456,10 +456,10 @@ func assertPositions(t *testing.T, tt test, tracker *tradePositions, client api.
 			if action.doClose {
 				assert.True(t, tt.close)
 				assert.Equal(t, testCoin, action.key.coin)
-				assert.Equal(t, testCoin, action.position.position.Coin)
+				assert.Equal(t, testCoin, action.position.Position.Coin)
 				assert.Equal(t, testID, action.key.id)
-				assert.Equal(t, testID, action.position.position.ID)
-				_, profit := action.position.position.Value()
+				assert.Equal(t, testID, action.position.Position.ID)
+				_, profit := action.position.Position.Value()
 				assert.Equal(t, fmt.Sprintf("%.2f", tt.expProfit), fmt.Sprintf("%.2f", profit))
 				assert.Equal(t, tt.tradeCount, i+1)
 				return

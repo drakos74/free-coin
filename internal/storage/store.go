@@ -3,6 +3,8 @@ package storage
 import (
 	"errors"
 	"fmt"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -10,6 +12,7 @@ const (
 	HistoryDir   = "history"
 	RegistryDir  = "registry"
 	RegistryPath = "events"
+	InternalPath = "internal"
 )
 
 var (
@@ -43,12 +46,14 @@ func (k Key) Path() string {
 	return fmt.Sprintf("%s_%v_%s", k.Pair, k.Hash, k.Label)
 }
 
-// Hashed is a pre-hashed storage for storing items one by one.
+// Registry is a storage pattern like a logger or event registry.
+// It receives events one by one, but loads all of them at once.
 type Registry interface {
-	Put(key K, value interface{}) error
-	Get(key K, value interface{}) error
+	Add(key K, value interface{}) error
+	GetAll(key K, value interface{}) error
 }
 
+// Persistence is a batch storage that offers the functionality to store and load large objects at once.
 type Persistence interface {
 	Store(k Key, value interface{}) error
 	Load(k Key, value interface{}) error
@@ -69,6 +74,12 @@ func NewVoidStorage() *VoidStorage {
 	return &VoidStorage{}
 }
 
+func VoidShard(table string) Shard {
+	return func(shard string) (Persistence, error) {
+		return NewVoidStorage(), nil
+	}
+}
+
 // NewVoidStorage is a dummy event logger which ignores all calls
 type VoidRegistry struct {
 }
@@ -77,10 +88,30 @@ func NewVoidRegistry() *VoidRegistry {
 	return &VoidRegistry{}
 }
 
-func (v VoidRegistry) Put(key K, value interface{}) error {
+func (v VoidRegistry) Add(key K, value interface{}) error {
 	return nil
 }
 
-func (v VoidRegistry) Get(key K, value interface{}) error {
+func (v VoidRegistry) GetAll(key K, value interface{}) error {
 	return nil
+}
+
+func Store(persistence Persistence, key Key, value interface{}) {
+	err := persistence.Store(key, value)
+	if err != nil {
+		log.Error().
+			Str("key", fmt.Sprintf("%+v", key)).
+			Err(err).
+			Msg("could not store")
+	}
+}
+
+func Add(registry Registry, key K, value interface{}) {
+	err := registry.Add(key, value)
+	if err != nil {
+		log.Error().
+			Str("key", fmt.Sprintf("%+v", key)).
+			Err(err).
+			Msg("could not add")
+	}
 }

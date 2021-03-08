@@ -8,6 +8,10 @@ const (
 	ManualConfig = "config"
 	Messages     = "messages"
 	FieldKey     = "field"
+
+	RegistryFilterKey     = "registry"
+	RegistryFilterRefresh = "refresh"
+	RegistryFilterKeep    = "keep"
 )
 
 type Query struct {
@@ -51,10 +55,10 @@ type Annotation struct {
 }
 
 type AnnotationInstance struct {
-	Text     string   `json:"text"`
 	Title    string   `json:"title"`
-	IsRegion bool     `json:"isRegion"`
+	Text     string   `json:"text"`
 	Time     int64    `json:"time"`
+	IsRegion bool     `json:"isRegion"`
 	TimeEnd  int64    `json:"timeEnd"`
 	Tags     []string `json:"tags"`
 }

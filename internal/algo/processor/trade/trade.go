@@ -7,8 +7,6 @@ import (
 
 	"github.com/drakos74/free-coin/internal/storage"
 
-	"github.com/drakos74/free-coin/internal/buffer"
-
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
@@ -89,7 +87,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 					// we got a trade signal, let's see if we can get an action out of it
 					if cfg, ok := trader.get(k); ok && len(ts.Predictions) > 0 {
 						// check if we should make a buy order
-						pairs := evaluate(ts, cfg.Strategies)
+						pairs := trader.evaluate(ts, cfg.Strategies)
 						// act here ... once for every trade signal only once per coin
 						if len(pairs) > 0 {
 							// note the first pair should have the highest probability !!!
@@ -108,10 +106,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 								Create()
 							// TODO : save this log into our processor
 							pair.ID = order.ID
-							err := trader.logger.Put(storage.K{
-								Pair:  string(ts.Coin),
-								Label: ProcessorName,
-							}, pair)
+							err := trader.registry.Add(triggerKey(string(ts.Coin)), pair)
 							log.Info().
 								Err(err).
 								Str("ID", order.ID).
@@ -158,25 +153,3 @@ func createPredictionMessage(pair PredictionPair) string {
 		strings.Join(vv, " | "), pp)
 	return line
 }
-
-type PredictionPair struct {
-	ID          string             `json:"id"`
-	SignalID    string             `json:"signal"`
-	Price       float64            `json:"price"`
-	Time        time.Time          `json:"time"`
-	Confidence  float64            `json:"confidence"`
-	Strategy    processor.Strategy `json:"strategy"`
-	Label       string             `json:"label"`
-	Key         buffer.Sequence    `json:"key"`
-	Values      []buffer.Sequence  `json:"values"`
-	Probability float64            `json:"probability"`
-	Sample      int                `json:"sample"`
-	Type        model.Type         `json:"type"`
-}
-
-type predictionsPairs []PredictionPair
-
-// for sorting predictions
-func (p predictionsPairs) Len() int           { return len(p) }
-func (p predictionsPairs) Less(i, j int) bool { return p[i].Probability < p[j].Probability }
-func (p predictionsPairs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

@@ -100,7 +100,7 @@ func (e *Exchange) OpenOrder(order model.Order) ([]string, error) {
 	if _, ok := e.positions[position.ID]; ok {
 		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
-	e.positions[order.ID] = trackedPosition
+	e.positions[position.ID] = trackedPosition
 	e.log(fmt.Sprintf("open order = %+v", position))
 	return []string{position.ID}, nil
 }

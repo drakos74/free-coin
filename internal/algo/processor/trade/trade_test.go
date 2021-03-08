@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/model"
@@ -118,8 +121,11 @@ func TestTradeStrategy(t *testing.T) {
 					Values: pList,
 					Sample: 1,
 				}
-				executor := getStrategy(tt.strategy.Name)
-				values, probability, confidence, ttype := executor(prediction, tt.strategy)
+				tr := &trader{
+					registry: storage.NewVoidRegistry(),
+				}
+				executor := tr.getStrategy(tt.strategy.Name)
+				values, probability, confidence, ttype := executor(stats.SignalEvent{}, prediction, tt.strategy)
 				println(fmt.Sprintf("values = %+v", values))
 				println(fmt.Sprintf("probability = %+v", probability))
 				println(fmt.Sprintf("confidence = %+v", confidence))

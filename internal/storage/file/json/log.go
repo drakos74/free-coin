@@ -109,7 +109,7 @@ func (e *Registry) WithHash(h int64) *Registry {
 	return e
 }
 
-func (e *Registry) Put(key storage.K, value interface{}) error {
+func (e *Registry) Add(key storage.K, value interface{}) error {
 	k := storage.Key{
 		Hash:  e.hash,
 		Pair:  key.Pair,
@@ -120,7 +120,7 @@ func (e *Registry) Put(key storage.K, value interface{}) error {
 
 // Get appends the values to the given slice
 // Not sure it s worth all the effort and abstraction ... but wtf
-func (e *Registry) Get(key storage.K, values interface{}) error {
+func (e *Registry) GetAll(key storage.K, values interface{}) error {
 
 	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
 		return fmt.Errorf("only accepting slices as placeholder for the results")

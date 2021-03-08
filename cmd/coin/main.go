@@ -66,9 +66,9 @@ func main() {
 
 	// load the default configuration
 	configs := processor.LoadDefaults(model.Coins)
-
+	storageShard := json.BlobShard(storage.InternalPath)
 	statsProcessor := stats.MultiStats(registry, user, configs)
-	positionProcessor := position.Position(registry, exchange, user, block, configs)
+	positionProcessor := position.Position(storageShard, registry, exchange, user, block, configs)
 	tradeProcessor := trade.Trade(registry, user, block, configs)
 
 	for _, c := range model.Coins {

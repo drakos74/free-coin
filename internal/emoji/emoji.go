@@ -168,3 +168,12 @@ func Sequence(s buffer.Sequence) string {
 	symbols := MapToSymbols(ss)
 	return strings.Join(symbols, " ")
 }
+
+// PredictionValues returns an emoji representation for a slice buffer sequence
+func PredictionValues(ss []buffer.Sequence) string {
+	symbols := make([]string, 0)
+	for _, s := range ss {
+		symbols = append(symbols, MapToSymbols(s.Values())...)
+	}
+	return strings.Join(symbols, " ")
+}

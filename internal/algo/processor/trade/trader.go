@@ -21,18 +21,18 @@ import (
 
 type trader struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	logger  storage.Registry
-	lock    sync.RWMutex
-	configs map[model.Coin]map[time.Duration]processor.Config
-	logs    map[string]struct{}
+	registry storage.Registry
+	lock     sync.RWMutex
+	configs  map[model.Coin]map[time.Duration]processor.Config
+	logs     map[string]struct{}
 }
 
 func newTrader(registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) *trader {
 	return &trader{
-		logger:  registry,
-		lock:    sync.RWMutex{},
-		configs: configs,
-		logs:    make(map[string]struct{}),
+		registry: registry,
+		lock:     sync.RWMutex{},
+		configs:  configs,
+		logs:     make(map[string]struct{}),
 	}
 }
 
@@ -65,14 +65,14 @@ func (tr *trader) getAll(c model.Coin) map[time.Duration]processor.Config {
 //	return k.Duration, tr.configs[k.Coin][k.Duration]
 //}
 
-func evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictionsPairs {
+func (tr *trader) evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictionsPairs {
 	var pairs predictionsPairs = make([]PredictionPair, 0)
 	// NOTE : we can have multiple predictions because of the number of sequences we are tracking
 	// lookback and lookahead for the stats processor configs
 	for _, prediction := range pp.Predictions {
 		for _, strategy := range strategies {
-			executor := getStrategy(strategy.Name)
-			if values, probability, confidence, ttype := executor(prediction, strategy); ttype != model.NoType {
+			executor := tr.getStrategy(strategy.Name)
+			if values, probability, confidence, ttype := executor(pp.SignalEvent, prediction, strategy); ttype != model.NoType {
 				pair := PredictionPair{
 					SignalID:    pp.ID,
 					Price:       pp.Price,
@@ -94,12 +94,34 @@ func evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictions
 	return pairs
 }
 
-func getStrategy(name string) ExecStrategy {
+func (tr *trader) register(k storage.K, event StrategyEvent) {
+	err := tr.registry.Add(k, event)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("event", fmt.Sprintf("%+v", event)).
+			Msg("could not save strategy event")
+	}
+}
+
+func (tr *trader) getStrategy(name string) ExecStrategy {
 	switch name {
 	case processor.NumericStrategy:
-		return func(predictions buffer.Predictions, strategy processor.Strategy) (values []buffer.Sequence, probability float64, confidence float64, ttype model.Type) {
+		return func(signal stats.SignalEvent, predictions buffer.Predictions, strategy processor.Strategy) (values []buffer.Sequence, probability float64, confidence float64, ttype model.Type) {
 			// only continue if the prediction duration matches with the strategy
+			cid := processor.Correlate(signal.Coin, signal.Duration, strategy.Name)
+			key := strategyKey(string(signal.Coin))
+			event := StrategyEvent{
+				Time:     signal.Time,
+				Coin:     signal.Coin,
+				Strategy: cid,
+				Sample: Sample{
+					Strategy:    strategy.Sample,
+					Predictions: predictions.Sample,
+				},
+			}
 			if predictions.Sample > strategy.Sample {
+				event.Sample.Valid = true
 				// add up the first predictions until we reach a reasonable Probability
 				var prb float64
 				values = make([]buffer.Sequence, 0)
@@ -112,11 +134,14 @@ func getStrategy(name string) ExecStrategy {
 						break
 					}
 				}
+				event.Probability.Strategy = strategy.Probability
+				event.Probability.Predictions = prb
 				if prb <= strategy.Probability || len(values) == 0 {
 					return nil, 0, 0, model.NoType
 				}
 				// We can have by design several strategies that will assess the prediction
-
+				event.Probability.Valid = true
+				event.Probability.Values = values
 				var value float64
 				var s float64
 				for _, y := range values {
@@ -137,9 +162,15 @@ func getStrategy(name string) ExecStrategy {
 				}
 				x := value / s
 				ttype = model.SignedType(x)
+				event.Result.Sum = value
+				event.Result.Count = s
+				event.Result.Threshold = strategy.Threshold
+				event.Result.Rating = x
+				event.Result.Type = ttype.String()
 				if math.Abs(x) >= strategy.Threshold {
 					// compute the confidence factor, e.g. how much we are certain of the prediction
 					confidence = 1 + strategy.Factor*(prb-strategy.Probability)
+					event.Result.Confidence = confidence
 					log.Warn().
 						Float64("confidence", confidence).
 						Float64("probability", prb).
@@ -148,18 +179,21 @@ func getStrategy(name string) ExecStrategy {
 						Float64("s", s).
 						Float64("v", value).
 						Msg("pick strategy")
+					tr.register(key, event)
 					return values, prb, confidence, ttype
+				} else {
+					tr.register(key, event)
 				}
 			}
 			return nil, 0, 0, model.NoType
 		}
 	}
-	return func(predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type) {
+	return func(signal stats.SignalEvent, predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type) {
 		return nil, 0, 0, model.NoType
 	}
 }
 
-type ExecStrategy func(predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type)
+type ExecStrategy func(signal stats.SignalEvent, predictions buffer.Predictions, strategy processor.Strategy) ([]buffer.Sequence, float64, float64, model.Type)
 
 func getVolume(price float64, value float64, confidence float64) float64 {
 	f := confidence * value / price

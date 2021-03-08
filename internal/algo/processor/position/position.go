@@ -16,20 +16,20 @@ import (
 )
 
 const (
-	NoPositionMsg = "no open positions"
+	NoPositionMsg = "no open book"
 
 	positionRefreshInterval = 5 * time.Minute
-	ProcessorName           = "position"
+	ProcessorName           = "Position"
 )
 
 var positionKey = api.ConsumerKey{
-	Key:    "position",
+	Key:    "Position",
 	Prefix: "?p",
 }
 
 type tradeAction struct {
 	key      tpKey
-	position *tradePosition
+	position TradePosition
 	doClose  bool
 }
 
@@ -40,7 +40,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 		var param string
 		_, err := command.Validate(
 			api.AnyUser(),
-			api.Contains("?p", "?pos", "?positions"),
+			api.Contains("?p", "?book", "?book"),
 			api.Any(&coin),
 			// TODO : implement extend / reverse etc ...
 			api.OneOf(&action, "buy", "sell", "close", ""),
@@ -63,40 +63,40 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 		switch action {
 		case "close":
 			k := key(c, param)
-			// close the damn position ...
+			// close the damn Position ...
 			tp.close(client, user, k, time.Time{})
 			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
 		case "":
 			err = tp.update(client)
 			if err != nil {
-				log.Error().Err(err).Msg("could not get positions")
+				log.Error().Err(err).Msg("could not get book")
 				api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "api error")).ReplyTo(command.ID), err)
 			}
 			i := 0
-			if len(tp.pos) == 0 {
+			if len(tp.book) == 0 {
 				user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, NoPositionMsg)), nil)
 				continue
 			}
 			for coin, pos := range tp.getAll() {
 				if c == "" || coin == c {
 					for id, p := range pos {
-						net, profit := p.position.Value()
+						net, profit := p.Position.Value()
 						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]",
-							p.config.Close.Profit.Min,
-							p.config.Close.Profit.High,
-							p.config.Close.Loss.Min,
-							p.config.Close.Loss.High,
+							p.Config.Close.Profit.Min,
+							p.Config.Close.Profit.High,
+							p.Config.Close.Loss.Min,
+							p.Config.Close.Loss.High,
 						)
 						msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
 							emoji.MapToSign(net),
-							p.position.Coin,
+							p.Position.Coin,
 							profit,
 							"%",
 							net,
-							emoji.MapType(p.position.Type),
-							coinmath.Format(p.position.Volume),
+							emoji.MapType(p.Position.Type),
+							coinmath.Format(p.Position.Volume),
 						)
-						// TODO : send a trigger for each position to give access to adjust it
+						// TODO : send a trigger for each Position to give access to adjust it
 						trigger := &api.Trigger{
 							ID:  id,
 							Key: positionKey,
@@ -112,16 +112,16 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 	}
 }
 
-// TODO : create position processor triggered only from trad actions and no position tracking except for stop-loss
-// TODO : need to take care of closing positions
-// PositionTracker is the processor responsible for tracking open positions and acting on previous triggers.
-// client is the exchange client used for closing positions
+// TODO : create Position processor triggered only from trad actions and no Position tracking except for stop-loss
+// TODO : need to take care of closing book
+// PositionTracker is the processor responsible for tracking open book and acting on previous triggers.
+// client is the exchange client used for closing book
 // user is the under interface for interacting with the user
 // block is the internal synchronisation mechanism used to report on the process of requests
-// closeInstant defines if the positions should be closed immediately of give the user the opportunity to act on them
-func Position(registry storage.Registry, client api.Exchange, user api.User, block api.Block, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+// closeInstant defines if the book should be closed immediately of give the user the opportunity to act on them
+func Position(shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, block api.Block, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 	// define our internal global statsCollector
-	positions := newPositionTracker(registry, configs)
+	positions := newPositionTracker(shard, registry, configs)
 
 	ticker := time.NewTicker(positionRefreshInterval)
 	quit := make(chan struct{})
@@ -131,7 +131,7 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 
 	err := positions.update(client)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get initial positions")
+		log.Error().Err(err).Msg("could not get initial book")
 	}
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
@@ -142,7 +142,7 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 		}()
 
 		for trade := range in {
-			// check on the existing positions
+			// check on the existing book
 			// ignore if it s not the closing trade of the batch
 			if !trade.Active {
 				out <- trade
@@ -152,10 +152,10 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 			// TODO : integrate the above results to the 'Live' parameter
 			for _, positionAction := range positions.checkClose(trade) {
 				if positionAction.doClose {
-					if positionAction.position.config.Close.Instant {
+					if positionAction.position.Config.Close.Instant {
 						positions.close(client, user, positionAction.key, trade.Time)
 					} else {
-						net, profit := positionAction.position.position.Value()
+						net, profit := positionAction.position.Position.Value()
 						msg := fmt.Sprintf("%s %s:%s (%s)",
 							emoji.MapToSign(net),
 							string(trade.Coin),
@@ -164,10 +164,10 @@ func Position(registry storage.Registry, client api.Exchange, user api.User, blo
 						user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "alert")).
 							AddLine(msg).
 							ReferenceTime(trade.Time), &api.Trigger{
-							ID:      positionAction.position.position.ID,
+							ID:      positionAction.position.Position.ID,
 							Key:     positionKey,
 							Default: []string{"?p", string(positionAction.key.coin), "close", positionAction.key.id},
-							// TODO : instead of a big timeout check again when we want to close how the position is doing ...
+							// TODO : instead of a big timeout check again when we want to close how the Position is doing ...
 						})
 					}
 				}

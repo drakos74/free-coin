@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
@@ -131,11 +130,13 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 						trade.Signals = append(trade.Signals, model.Signal{
 							Type: "TradeSignal",
 							Value: TradeSignal{
-								ID:             uuid.New().String(),
-								Coin:           trade.Coin,
-								Price:          trade.Price,
-								Time:           trade.Time,
-								Duration:       k.Duration,
+								SignalEvent: SignalEvent{
+									ID:       uuid.New().String(),
+									Coin:     trade.Coin,
+									Price:    trade.Price,
+									Time:     trade.Time,
+									Duration: k.Duration,
+								},
 								Predictions:    predictions,
 								AggregateStats: aggregateStats,
 							},
@@ -156,13 +157,17 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 }
 
 type TradeSignal struct {
-	ID             string
-	Coin           model.Coin
-	Price          float64
-	Time           time.Time
-	Duration       time.Duration
+	SignalEvent
 	Predictions    map[buffer.Sequence]buffer.Predictions
 	AggregateStats coinmath.AggregateStats
+}
+
+type SignalEvent struct {
+	ID       string        `json:"id"`
+	Coin     model.Coin    `json:"coin"`
+	Price    float64       `json:"price"`
+	Time     time.Time     `json:"time"`
+	Duration time.Duration `json:"duration"`
 }
 
 type windowView struct {
