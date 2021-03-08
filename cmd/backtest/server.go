@@ -262,7 +262,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//registryKeyDir := storage.RegistryPath
-	registryKeyDir := coin.BacktestRegistryDir
+	registryKeyDir := coin.BackTestRegistryPath
 
 	annotations := make([]model.AnnotationInstance, 0)
 	switch query.Annotation.Name {

@@ -27,7 +27,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const BacktestRegistryDir = "backtest-events"
+const BackTestRegistryPath = "backtest-events"
 
 type Service struct {
 }
@@ -37,7 +37,7 @@ func New() *Service {
 }
 
 func CleanBackTestingDir(coin string) {
-	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, BacktestRegistryDir, coin)
+	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, BackTestRegistryPath, coin)
 	err := os.RemoveAll(registryPath)
 	if err != nil {
 		log.Warn().Msg("could not remove back-testing registry directory")
@@ -175,9 +175,9 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 }
 
 func refreshRegistry(coin string, refresh bool, backtest bool) storage.Registry {
-	registrySubPath := storage.RegistryDir
+	registrySubPath := storage.RegistryPath
 	if backtest {
-		registrySubPath = BacktestRegistryDir
+		registrySubPath = BackTestRegistryPath
 	}
 	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, registrySubPath, coin)
 	if ok, err := IsEmpty(registryPath); refresh || ok || err != nil {
