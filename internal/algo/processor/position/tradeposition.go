@@ -155,7 +155,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					log.Info().
 						Err(err).
 						Int("added", added).
-						Msg("injected cid")
+						Msg("defer injected cid")
 				}
 			}
 			// update and inject the newly created order
@@ -275,7 +275,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 			tp.pos[p.Coin] = make(map[string]*tradePosition)
 		}
 		// check the correlation keys
-		if txIDs, ok := tp.txIDs[p.Coin]; ok {
+		if txIDs, ok := tp.txIDs[p.Coin]; ok && len(txIDs) > 0 {
 			var matched int
 			var of int
 			for cid, txID := range txIDs {
@@ -292,6 +292,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 			log.Info().
 				Int("matched", matched).
 				Int("of", of).
+				Str("txids", fmt.Sprintf("%+v", txIDs)).
 				Str("pid", p.ID).
 				Msg("correlate position")
 		}
@@ -312,14 +313,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				config: oldPosition.config,
 			}
 		} else {
-			// TODO pick the right strategy as config ... based on the cid
-			log.Info().
-				Str("pid", p.ID).
-				Str("cid", p.CID).
-				Str("txid", p.TxID).
-				Str("order-id", p.OrderID).
-				Str("coin", string(p.Coin)).
-				Msg("unknown position encountered")
+			// if p.CID == "" should have happened already in the previous step
 			cfg := tp.getConfiguration(p.Coin)
 			tp.pos[p.Coin][p.ID] = &tradePosition{
 				position: model.TrackedPosition{

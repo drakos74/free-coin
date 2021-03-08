@@ -24,6 +24,10 @@ type state struct {
 	emp   float64
 }
 
+func (s state) sum() float64 {
+	return float64(s.count) + s.emp
+}
+
 // NewMultiHMM creates a new hmm.
 func NewMultiHMM(config ...HMMConfig) *HMM {
 	var max int
@@ -63,6 +67,10 @@ type Prediction struct {
 	Probability float64
 	// EMP is the exponential moving probability e.g. on-the-fly calculated probability with integrated exponential decay
 	EMP float64
+}
+
+func (p *Prediction) String() string {
+	return fmt.Sprintf("prob = %v , values = %+v", p.Probability, p.Value)
 }
 
 // Sequence defines a sequence of strings.
@@ -108,7 +116,7 @@ type PredictionList []*Prediction
 
 // for sorting predictions
 func (p PredictionList) Len() int           { return len(p) }
-func (p PredictionList) Less(i, j int) bool { return p[i].state.count < p[j].state.count }
+func (p PredictionList) Less(i, j int) bool { return p[i].state.sum() < p[j].state.sum() }
 func (p PredictionList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type Sample struct {

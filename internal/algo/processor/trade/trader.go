@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -128,9 +129,10 @@ func getStrategy(name string) ExecStrategy {
 							return nil, 0, 0, model.NoType
 						}
 						// give some weight to the nearest prediction value
-						g := float64(l-w) * i
+						a := float64(l - w)
+						g := a * i
 						value += g
-						s++
+						s += a
 					}
 				}
 				x := value / s
@@ -138,6 +140,14 @@ func getStrategy(name string) ExecStrategy {
 				if math.Abs(x) >= strategy.Threshold {
 					// compute the confidence factor, e.g. how much we are certain of the prediction
 					confidence = 1 + strategy.Factor*(prb-strategy.Probability)
+					log.Warn().
+						Float64("confidence", confidence).
+						Float64("probability", prb).
+						Str("values", fmt.Sprintf("%+v", values)).
+						Float64("x", x).
+						Float64("s", s).
+						Float64("v", value).
+						Msg("pick strategy")
 					return values, prb, confidence, ttype
 				}
 			}
