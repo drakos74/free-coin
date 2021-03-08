@@ -166,7 +166,7 @@ func (tr *trader) getStrategy(name string) ExecStrategy {
 				event.Result.Count = s
 				event.Result.Threshold = strategy.Threshold
 				event.Result.Rating = x
-				event.Result.Type = ttype.String()
+				event.Result.Type = ttype
 				if math.Abs(x) >= strategy.Threshold {
 					// compute the confidence factor, e.g. how much we are certain of the prediction
 					confidence = 1 + strategy.Factor*(prb-strategy.Probability)
