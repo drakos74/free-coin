@@ -175,5 +175,5 @@ func PredictionValues(ss []buffer.Sequence) string {
 	for _, s := range ss {
 		symbols = append(symbols, MapToSymbols(s.Values())...)
 	}
-	return strings.Join(symbols, " ")
+	return strings.Join(symbols, "|")
 }

@@ -2,6 +2,9 @@ package coin
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/drakos74/free-coin/internal/buffer"
 
 	"github.com/drakos74/free-coin/cmd/backtest/model"
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
@@ -50,12 +53,21 @@ func StrategyEvent(event trade.StrategyEvent) model.AnnotationInstance {
 			event.Strategy,
 			event.Result.Sum,
 			event.Result.Count),
-		Text: fmt.Sprintf("sample:%v , probability:%v , rating:%v\n%s",
+		Text: fmt.Sprintf("sample:%v , probability:%v , rating:%v\n%s\n%s",
 			event.Sample.Predictions,
 			event.Probability.Predictions,
 			event.Result.Rating,
-			emoji.PredictionValues(event.Probability.Values)),
+			emoji.PredictionValues(event.Probability.Values),
+			joinSequences(event.Probability.Values)),
 		Time: cointime.ToMilli(event.Time),
 		Tags: []string{tag, emoji.MapType(event.Result.Type)},
 	}
+}
+
+func joinSequences(sequences []buffer.Sequence) string {
+	sqs := make([]string, len(sequences))
+	for i, seq := range sequences {
+		sqs[i] = string(seq)
+	}
+	return strings.Join(sqs, "|")
 }
