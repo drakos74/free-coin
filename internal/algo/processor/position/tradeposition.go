@@ -70,24 +70,12 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						coin: order.Coin,
 					}
 
-					// TODO : do this in tp.checkOpen
-					correlatedPositions := tp.get(ck)
-					log.Info().Int("found", len(correlatedPositions)).Msg("correlated book")
-					if len(correlatedPositions) > 0 {
-						// check how many are same direction and how many other direction
-						var same int
-						var opp int
-						for _, cpos := range correlatedPositions {
-							if cpos.Position.Type == order.Type {
-								same++
-							} else if cpos.Position.Type.Inv() == order.Type {
-								opp++
-							}
-						}
-						log.Info().
-							Int("same", same).
-							Int("opposite", opp).
-							Msg("correlation Position")
+					// check how many are same direction and how many other direction
+					order, ok = tp.checkOpen(ck, order)
+
+					if !ok {
+						// dont proceed ...
+						break
 					}
 
 					txIDs, err := client.OpenOrder(order)
@@ -105,7 +93,6 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						Err(err).
 						Str("ID", order.ID).
 						Strs("TxIDs", txIDs).
-						Int("correlated-book", len(correlatedPositions)).
 						Str("Coin", string(order.Coin)).
 						Str("type", order.Type.String()).
 						Float64("volume", order.Volume).
@@ -145,8 +132,6 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 
 // get returns the Position for the given correlation key
 func (tp *tradePositions) get(ck cKey) []TradePosition {
-	tp.lock.Lock()
-	defer tp.lock.Unlock()
 	positions := make([]TradePosition, 0)
 	log.Info().Int("size", len(tp.book[ck.coin].Positions)).Msg("checking book")
 	if pos, ok := tp.book[ck.coin]; ok {
@@ -316,6 +301,54 @@ func (tp *tradePositions) budget(coin model.Coin, net float64) {
 	} else {
 		log.Error().Str("coin", string(coin)).Msg("portfolio not found")
 	}
+}
+
+// TODO : fix this logic to handle more edge cases
+func (tp *tradePositions) checkOpen(ck cKey, order model.Order) (model.Order, bool) {
+	tp.lock.Lock()
+	defer tp.lock.Unlock()
+	correlatedPositions := tp.get(ck)
+	log.Info().Int("found", len(correlatedPositions)).Msg("correlated book")
+	if len(correlatedPositions) > 0 {
+		var same int
+		var opp int
+		var negVolume float64
+		for _, cpos := range correlatedPositions {
+			if cpos.Position.Type == order.Type {
+				// how many should we open for this one ?
+				same++
+			} else if cpos.Position.Type.Inv() == order.Type {
+				// apparently we ll close this one
+				opp++
+				negVolume += cpos.Position.Volume
+			}
+		}
+
+		if same > 0 && opp == 0 {
+			budget := tp.book[order.Coin].Budget
+			if budget < 0 {
+				log.Info().
+					Int("num", same).
+					Float64("budget", budget).
+					Msg("cancel open positions")
+				return order, false
+			}
+		} else if opp > 0 && same == 0 {
+			order.Volume = negVolume
+			log.Info().
+				Int("num", opp).
+				Float64("volume", negVolume).
+				Msg("closing positions")
+			return order, true
+		} else {
+			log.Info().
+				Int("same", same).
+				Int("opposite", opp).
+				Msg("inconsistent correlated Positions")
+			// TODO : we need to do some cleanup
+		}
+	}
+	return order, true
 }
 
 func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {

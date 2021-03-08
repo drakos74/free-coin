@@ -17,16 +17,22 @@ type BlobStorage struct {
 	path  string
 	table string
 	shard string
+	debug bool
 }
 
 func BlobShard(table string) storage.Shard {
 	return func(shard string) (storage.Persistence, error) {
-		return NewJsonBlob(table, shard), nil
+		return NewJsonBlob(table, shard, false), nil
 	}
 }
 
 func (s BlobStorage) Store(k storage.Key, value interface{}) error {
-	return Save(filepath.Join(s.path, s.table, s.shard), k.Path(), value)
+	p := filepath.Join(s.path, s.table, s.shard)
+	err := Save(p, k.Path(), value)
+	if err != nil && s.debug {
+		log.Info().Str("path", p).Str("file", k.Path()).Str("file", p).Msg("stored json file")
+	}
+	return err
 }
 
 func (s BlobStorage) Load(k storage.Key, value interface{}) error {
@@ -35,8 +41,13 @@ func (s BlobStorage) Load(k storage.Key, value interface{}) error {
 
 // table has the same schema
 // shard is a logical split
-func NewJsonBlob(table, shard string) *BlobStorage {
-	return &BlobStorage{table: table, shard: shard, path: storage.DefaultDir}
+func NewJsonBlob(table, shard string, debug bool) *BlobStorage {
+	return &BlobStorage{
+		table: table,
+		shard: shard,
+		path:  storage.DefaultDir,
+		debug: debug,
+	}
 }
 
 // Save saves the given json struct into the given path with the provided filename.
@@ -71,7 +82,6 @@ func Save(filePath string, fileName string, value interface{}) error {
 		return fmt.Errorf("could not write bytes '%+v' to file '%v' : %w", p, f, err)
 	}
 
-	log.Info().Str("file", p).Msg("stored json file")
 	return nil
 
 }

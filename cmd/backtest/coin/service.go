@@ -92,7 +92,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		query.Range.ToInt64 = cointime.ToMilli
 		tradesQuery := local.NewClient(query.Range, uuid.New().String()).
 			WithPersistence(func(shard string) (storage.Persistence, error) {
-				return jsonstore.NewJsonBlob("trades", shard), nil
+				return jsonstore.NewJsonBlob("trades", shard, true), nil
 			}).Mock()
 		// find what the range is, in order to know how many trades to reduce
 		frame := query.Range.To.Sub(query.Range.From).Hours()

@@ -35,7 +35,7 @@ func main() {
 		return kraken.NewClient(since, 15*time.Second, api.NonStop), nil
 	}
 	persistence := func(shard string) (storage.Persistence, error) {
-		return json.NewJsonBlob("trades", shard), nil
+		return json.NewJsonBlob("trades", shard, true), nil
 	}
 	client := local.NewClient(cointime.Range{
 		From:    time.Now().Add(-7 * 24 * time.Hour),

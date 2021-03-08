@@ -26,7 +26,7 @@ func NewHistory(ctx context.Context) (*History, error) {
 		return &History{
 			exchange: *client,
 			storage: func(shard string) (storage.Persistence, error) {
-				return json.NewJsonBlob("history", shard), nil
+				return json.NewJsonBlob("history", shard, false), nil
 			},
 			hash: cointime.NewHash(1 * time.Hour),
 		}, nil

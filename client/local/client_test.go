@@ -58,7 +58,7 @@ func TestClient_Trades(t *testing.T) {
 					return tt.client, nil
 				}).
 				WithPersistence(func(shard string) (storage.Persistence, error) {
-					return json.NewJsonBlob("table", tt.shard), nil
+					return json.NewJsonBlob("table", tt.shard, true), nil
 				})
 			trades, err := client.Trades(make(chan api.Action), api.Query{
 				Coin: tt.coin,
