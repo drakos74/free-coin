@@ -12,6 +12,10 @@ const (
 	RegistryFilterKey     = "registry"
 	RegistryFilterRefresh = "refresh"
 	RegistryFilterKeep    = "keep"
+
+	BackTestOptionKey   = "back-test"
+	BackTestOptionTrue  = "true"
+	BackTestOptionFalse = "false"
 )
 
 type Query struct {

@@ -46,17 +46,16 @@ func StrategyEvent(event trade.StrategyEvent) model.AnnotationInstance {
 		tag = "trigger"
 	}
 	return model.AnnotationInstance{
-		Title: fmt.Sprintf("%s - %.2f/%.2f -> %.2f",
+		Title: fmt.Sprintf("%s | %.2f/%.2f",
 			event.Strategy,
 			event.Result.Sum,
-			event.Result.Count,
-			event.Result.Confidence),
+			event.Result.Count),
 		Text: fmt.Sprintf("sample:%v , probability:%v , rating:%v\n%s",
 			event.Sample.Predictions,
 			event.Probability.Predictions,
 			event.Result.Rating,
 			emoji.PredictionValues(event.Probability.Values)),
 		Time: cointime.ToMilli(event.Time),
-		Tags: []string{tag},
+		Tags: []string{tag, emoji.MapType(event.Result.Type)},
 	}
 }

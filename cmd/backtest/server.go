@@ -385,6 +385,10 @@ func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
 			Type: "bool",
 			Text: model.RegistryFilterKey,
 		},
+		{
+			Type: "bool",
+			Text: model.BackTestOptionKey,
+		},
 	}
 	b, err := json.Marshal(tags)
 	if err != nil {
@@ -406,9 +410,10 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 	}
 
+	values := make([]model.Tag, 0)
 	switch tag.Key {
-	case "registry":
-		tags := []model.Tag{
+	case model.RegistryFilterKeep:
+		values = []model.Tag{
 			{
 				Type: "boolean",
 				Text: model.RegistryFilterRefresh,
@@ -418,15 +423,27 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 				Text: model.RegistryFilterKeep,
 			},
 		}
-		b, err := json.Marshal(tags)
-		if err != nil {
-			s.error(w, err)
-			return
+	case model.BackTestOptionKey:
+		values = []model.Tag{
+			{
+				Type: "boolean",
+				Text: model.BackTestOptionTrue,
+			},
+			{
+				Type: "boolean",
+				Text: model.BackTestOptionFalse,
+			},
 		}
-		s.respond(w, b)
 	default:
 		s.code(w, []byte(fmt.Sprintf("unknown tag: %+v", tag)), http.StatusInternalServerError)
+		return
 	}
+	b, err := json.Marshal(values)
+	if err != nil {
+		s.error(w, err)
+		return
+	}
+	s.respond(w, b)
 }
 
 func (s *Server) live(w http.ResponseWriter, r *http.Request) {

@@ -68,10 +68,10 @@ type Probability struct {
 }
 
 type Result struct {
-	Sum        float64 `json:"sum"`
-	Count      float64 `json:"count"`
-	Rating     float64 `json:"rating"`
-	Type       string  `json:"type"`
-	Threshold  float64 `json:"threshold"`
-	Confidence float64 `json:"confidence"`
+	Sum        float64    `json:"sum"`
+	Count      float64    `json:"count"`
+	Rating     float64    `json:"rating"`
+	Type       model.Type `json:"type"`
+	Threshold  float64    `json:"threshold"`
+	Confidence float64    `json:"confidence"`
 }

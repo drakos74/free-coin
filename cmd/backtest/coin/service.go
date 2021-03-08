@@ -61,12 +61,17 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 	}
 
 	registryFilter := true
+	backtestFilter := false
 	for _, filter := range query.AdhocFilters {
 		switch filter.Key {
 		case model.RegistryFilterKey:
 			if filter.Value == model.RegistryFilterKeep {
 				log.Warn().Msg("skip registry refresh")
 				registryFilter = false
+			}
+		case model.BackTestOptionKey:
+			if filter.Value == model.BackTestOptionTrue {
+				backtestFilter = true
 			}
 		}
 	}
@@ -117,7 +122,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 			NewExchange("").
 			OneOfEvery(redux)
 
-		registry := refreshRegistry(q.Target, registryFilter)
+		registry := refreshRegistry(q.Target, registryFilter, backtestFilter)
 		localStore := storage.VoidShard(storage.InternalPath)
 
 		block := api.NewBlock()
@@ -169,11 +174,15 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 	return fmt.Errorf("could not find json loader for config: %s", name)
 }
 
-func refreshRegistry(coin string, refresh bool) storage.Registry {
-	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, BacktestRegistryDir, coin)
+func refreshRegistry(coin string, refresh bool, backtest bool) storage.Registry {
+	registrySubPath := storage.RegistryDir
+	if backtest {
+		registrySubPath = BacktestRegistryDir
+	}
+	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, registrySubPath, coin)
 	if ok, err := IsEmpty(registryPath); refresh || ok || err != nil {
 		CleanBackTestingDir(coin)
-		return jsonstore.NewEventRegistry(BacktestRegistryDir).WithHash(0)
+		return jsonstore.NewEventRegistry(registrySubPath).WithHash(0)
 	}
 	return storage.NewVoidRegistry()
 }
