@@ -412,7 +412,7 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 
 	values := make([]model.Tag, 0)
 	switch tag.Key {
-	case model.RegistryFilterKeep:
+	case model.RegistryFilterKey:
 		values = []model.Tag{
 			{
 				Type: "boolean",
