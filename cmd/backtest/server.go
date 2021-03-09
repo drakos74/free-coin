@@ -268,7 +268,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	}
 	pair := keys[0]
 	registryKeyDir := coin.BackTestRegistryPath
-	if len(pair) > 1 {
+	if len(keys) > 1 {
 		registryKeyDir = keys[1]
 	}
 
