@@ -149,6 +149,9 @@ func (tr *trader) getStrategy(name string) ExecStrategy {
 					l := len(ww)
 					for w, v := range ww {
 						i, err := strconv.ParseFloat(v, 64)
+						if math.Abs(i) > 10 {
+							i = 0
+						}
 						if err != nil {
 							log.Error().Err(err).Strs("sequence", ww).Msg("could not parse prediction sequence")
 							return nil, 0, 0, model.NoType
