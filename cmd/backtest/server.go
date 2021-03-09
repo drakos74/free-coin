@@ -261,8 +261,16 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//registryKeyDir := storage.RegistryPath
+	keys := strings.Split(query.Annotation.Query, " ")
+	if len(keys) == 0 {
+		s.error(w, fmt.Errorf("query cannot be empty"))
+		return
+	}
+	pair := keys[0]
 	registryKeyDir := coin.BackTestRegistryPath
+	if len(pair) > 1 {
+		registryKeyDir = keys[1]
+	}
 
 	annotations := make([]model.AnnotationInstance, 0)
 	switch query.Annotation.Name {
@@ -284,7 +292,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		for _, id := range trades.Order {
 			trade := trades.Trades[id]
 			if trade.Time.Before(query.Range.To) && trade.Time.After(query.Range.From) {
-				if !(trade.Coin == coinmodel.Coin(query.Annotation.Query)) {
+				if !(trade.Coin == coinmodel.Coin(pair)) {
 					continue
 				}
 				if trade.RefID != "" {
@@ -327,7 +335,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			Msg("loaded annotations for history trades")
 
 	case AnnotationTradePairs:
-		predictionPairs, err := trade.GetPairs(registryKeyDir, query.Annotation.Query)
+		predictionPairs, err := trade.GetPairs(registryKeyDir, pair)
 		if err != nil {
 			s.error(w, err)
 			return
@@ -336,7 +344,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			annotations = append(annotations, coin.PredictionPair(pair))
 		}
 	case AnnotationOpenPositions:
-		orders, err := position.GetOpen(registryKeyDir, query.Annotation.Query)
+		orders, err := position.GetOpen(registryKeyDir, pair)
 		if err != nil {
 			s.error(w, err)
 			return
@@ -345,7 +353,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			annotations = append(annotations, coin.TrackingOrder(order))
 		}
 	case AnnotationClosedPositions:
-		positions, err := position.GetClosed(registryKeyDir, query.Annotation.Query)
+		positions, err := position.GetClosed(registryKeyDir, pair)
 		if err != nil {
 			s.error(w, err)
 			return
@@ -357,7 +365,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			annotations = append(annotations, coin.TrackedPosition(pos))
 		}
 	case AnnotationTradeStrategy:
-		strategyEvents, err := trade.StrategyEvents(registryKeyDir, query.Annotation.Query)
+		strategyEvents, err := trade.StrategyEvents(registryKeyDir, pair)
 		if err != nil {
 			s.error(w, err)
 			return
