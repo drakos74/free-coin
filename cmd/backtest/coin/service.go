@@ -44,7 +44,7 @@ func CleanBackTestingDir(coin string) {
 	}
 }
 
-func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
+func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
 
 	//ctx := context.Background()
 
@@ -62,7 +62,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 
 	registryFilter := true
 	//backtestFilter := false
-	for _, filter := range query.AdhocFilters {
+	for _, filter := range query.Filters {
 		switch filter.Key {
 		case model.RegistryFilterKey:
 			if filter.Value == model.RegistryFilterKeep {
@@ -78,75 +78,68 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 
 	allTrades := make(map[coinmodel.Coin][]coinmodel.Trade)
 	allPositions := make(map[coinmodel.Coin][]coinmodel.TrackedPosition)
-	for _, q := range query.Targets {
-		c := coinmodel.Coin(q.Target)
-		// the only difference is in the coin,
-		// if we already got the trades for it, dont do it again ...
-		// TODO : this is really not the best.. but we need to stay with it , until we have our own data source plugin
-		if len(allTrades[c]) > 0 {
-			log.Info().Str("target", q.Target).Msg("skipping duplicate run")
-			continue
-		}
-		log.Info().Str("target", q.Target).Msg("run query")
 
-		query.Range.ToInt64 = cointime.ToMilli
-		tradesQuery := local.NewClient(query.Range, uuid.New().String()).
-			WithPersistence(func(shard string) (storage.Persistence, error) {
-				return jsonstore.NewJsonBlob("trades", shard, true), nil
-			}).Mock()
-		// find what the range is, in order to know how many trades to reduce
-		frame := query.Range.To.Sub(query.Range.From).Hours()
-		// lets say for every 24 hours we reduce by 2 the trades ... this would be
-		redux := int(math.Exp2(frame / 24))
-		log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
+	c := coinmodel.Coin(query.Target)
+	log.Info().Str("target", query.Target).Msg("run query")
 
-		backtestConfig := make(map[coinmodel.Coin]map[time.Duration]processor.Config)
-		if config, ok := q.Data[model.ManualConfig]; ok {
-			var cfg processor.Config
-			err = FromJsonMap("", config, &cfg)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("could not init config: %w", err)
-			}
-			backtestConfig[c] = map[time.Duration]processor.Config{
-				cointime.ToMinutes(cfg.Duration): processor.Parse(cfg),
-			}
-			log.Warn().
-				Str("config", fmt.Sprintf("%+v", config)).
-				Msg("loaded config from back-test")
-		}
+	query.Range.ToInt64 = cointime.ToMilli
+	tradesQuery := local.NewClient(query.Range, uuid.New().String()).
+		WithPersistence(func(shard string) (storage.Persistence, error) {
+			return jsonstore.NewJsonBlob("trades", shard, true), nil
+		}).Mock()
+	// find what the range is, in order to know how many trades to reduce
+	frame := query.Range.To.Sub(query.Range.From).Hours()
+	// lets say for every 24 hours we reduce by 2 the trades ... this would be
+	redux := int(math.Exp2(frame / 24))
+	log.Info().Float64("range", frame).Int("every", redux).Msg("reducing visible trades")
 
-		overWatch := coin.New(tradesQuery, user)
-		finished := overWatch.Run(context.Background())
-
-		exchange := local.
-			NewExchange("").
-			OneOfEvery(redux)
-
-		registry := refreshRegistry(q.Target, registryFilter)
-		localStore := storage.VoidShard(storage.InternalPath)
-
-		block := api.NewBlock()
-		statsProcessor := stats.MultiStats(localStore, registry, user, backtestConfig)
-		positionProcessor := position.Position(localStore, registry, exchange, user, block, backtestConfig)
-		tradeProcessor := trade.Trade(registry, user, block, backtestConfig)
-
-		engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
-			return exchange.SignalProcessed(reaction)
-		}
-		err = overWatch.Start(c, engineWrapper,
-			statsProcessor,
-			positionProcessor,
-			tradeProcessor,
-		)
-
+	backtestConfig := make(map[coinmodel.Coin]map[time.Duration]processor.Config)
+	if config, ok := query.Data[model.ManualConfig]; ok {
+		var cfg processor.Config
+		err = FromJsonMap("", config, &cfg)
 		if err != nil {
-			return s.error(fmt.Errorf("could not start engine for '%s': %w", c, err))
+			return nil, nil, nil, fmt.Errorf("could not init config: %w", err)
 		}
-		// this is a long running task ... lets keep the main thread occupied
-		finished.Wait()
-		allTrades[c] = exchange.Trades(c)
-		allPositions[c] = exchange.Positions(c)
+		backtestConfig[c] = map[time.Duration]processor.Config{
+			cointime.ToMinutes(cfg.Duration): processor.Parse(cfg),
+		}
+		log.Warn().
+			Str("config", fmt.Sprintf("%+v", config)).
+			Msg("loaded config from back-test")
 	}
+
+	overWatch := coin.New(tradesQuery, user)
+	finished := overWatch.Run(context.Background())
+
+	exchange := local.
+		NewExchange("").
+		OneOfEvery(redux)
+
+	registry := refreshRegistry(string(c), registryFilter)
+	localStore := storage.VoidShard(storage.InternalPath)
+
+	block := api.NewBlock()
+	statsProcessor := stats.MultiStats(localStore, registry, user, backtestConfig)
+	positionProcessor := position.Position(localStore, registry, exchange, user, block, backtestConfig)
+	tradeProcessor := trade.Trade(registry, user, block, backtestConfig)
+
+	engineWrapper := func(engineUUID string, coin coinmodel.Coin, reaction chan<- api.Action) coin.Processor {
+		return exchange.SignalProcessed(reaction)
+	}
+	err = overWatch.Start(c, engineWrapper,
+		statsProcessor,
+		positionProcessor,
+		tradeProcessor,
+	)
+
+	if err != nil {
+		return s.error(fmt.Errorf("could not start engine for '%s': %w", c, err))
+	}
+	// this is a long running task ... lets keep the main thread occupied
+	finished.Wait()
+	allTrades[c] = exchange.Trades(c)
+	allPositions[c] = exchange.Positions(c)
+
 	log.Info().Int("count", len(user.Messages)).Msg("messages")
 	return allTrades, allPositions, user.Messages, nil
 }

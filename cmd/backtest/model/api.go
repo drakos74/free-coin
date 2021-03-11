@@ -18,6 +18,22 @@ const (
 	BackTestOptionFalse = "false"
 )
 
+type QQ struct {
+	QK
+	QV
+	Range   cointime.Range
+	Filters []Filter
+}
+
+type QK struct {
+	Target string
+	Type   string
+}
+
+type QV struct {
+	Data map[string]interface{}
+}
+
 type Query struct {
 	PanelID       int               `json:"panelId"`
 	Range         cointime.Range    `json:"range"`

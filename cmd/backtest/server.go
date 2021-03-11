@@ -110,12 +110,30 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		s.error(w, err)
 		return
 	}
+
+	qq := model.QQ{
+		Range:   query.Range,
+		Filters: query.AdhocFilters,
+	}
+	for _, q := range query.Targets {
+		if q.Type == "timeseries" {
+			qq.QK = model.QK{
+				Target: q.Target,
+				Type:   "timeseries",
+			}
+			qq.QV = model.QV{Data: make(map[string]interface{})}
+		}
+		for k, v := range q.Data {
+			qq.QV.Data[k] = v
+		}
+	}
+
 	log.Warn().
-		Str("query", fmt.Sprintf("%+v", query)).
+		Str("query", fmt.Sprintf("%+v", qq)).
 		Str("endpoint", "query").
 		Msg("query")
 	service := coin.New()
-	trades, positions, messages, err := service.Run(query)
+	trades, positions, messages, err := service.Run(qq)
 
 	log.Info().Msg("service")
 
