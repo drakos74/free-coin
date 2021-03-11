@@ -105,7 +105,7 @@ func Load(filePath string, fileName string, value interface{}) error {
 	if err != nil {
 		// TODO : temporary fix ... check with prefix
 		err = filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
-			if !info.IsDir() {
+			if info != nil && !info.IsDir() {
 				if strings.HasPrefix(info.Name(), fileName) {
 					atomic.AddInt64(&num, 1)
 					fileData, err := ioutil.ReadFile(path)
