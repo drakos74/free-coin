@@ -157,7 +157,7 @@ func NewExchange(ctx context.Context) api.Exchange {
 }
 
 func (e *Exchange) ClosePosition(position coinmodel.Position) error {
-	order := coinmodel.NewOrder(position.Coin, "").
+	order := coinmodel.NewOrder(position.Coin).
 		Market().
 		WithVolume(position.Volume).
 		WithLeverage(coinmodel.L_5).
@@ -171,8 +171,8 @@ func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 	return nil
 }
 
-func (e *Exchange) OpenOrder(order coinmodel.Order) ([]string, error) {
-	_, txids, err := e.Api.Order(order)
+func (e *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
+	_, txids, err := e.Api.Order(order.Order)
 	if err != nil {
 		return nil, fmt.Errorf("could not open order: %w", err)
 	}

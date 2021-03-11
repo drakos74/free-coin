@@ -151,9 +151,9 @@ func NewBucket(id int64, dim int) Bucket {
 	}
 }
 
-// Push adds an element to the bucket for the given index.
-// it returns true if the bucket has the right index, false otherwise.
-// This allows to build higher level abstractions i.e. window etc ...
+// Push adds an element to the bucket for the given Index.
+// it returns true if the bucket has the right Index, false otherwise.
+// This allows to build higher level abstractions i.e. Window etc ...
 func (b *Bucket) Push(index int64, v ...float64) bool {
 	if index != b.index {
 		return false
@@ -167,35 +167,35 @@ func (b Bucket) Size() int {
 	return b.stats.Size()
 }
 
-// Stats returns the current Stats for the bucket.
+// Stats returns the bucket Stats for the bucket.
 func (b Bucket) Values() StatsCollector {
 	return *b.stats
 }
 
-// Index returns the bucket index.
+// Index returns the bucket Index.
 func (b Bucket) Index() int64 {
 	return b.index
 }
 
-// Window is a helper struct allowing grouping together Buckets of StatsCollectors for the given index.
+// Window is a helper struct allowing grouping together Buckets of StatsCollectors for the given Index.
 type Window struct {
 	size      int64
 	lastIndex int64
-	current   Bucket
+	bucket    Bucket
 }
 
-// NewWindow creates a new window of the given window size e.g. the index range for each bucket.
+// NewWindow creates a new Window of the given Window size e.g. the Index range for each bucket.
 func NewWindow(size int64) *Window {
 	return &Window{
-		size:    size,
-		current: NewBucket(0, int(size)),
+		size:   size,
+		bucket: NewBucket(0, int(size)),
 	}
 }
 
-// Push adds an element to a window at the given index.
-// returns if the window closed, e.g. if last element initiated a new bucket.
-// (Note that based on this logic we ll only know when a window closed only on the initiation of a new one)
-// (Note that the index must be increasing for this logic to work)
+// Push adds an element to a Window at the given Index.
+// returns if the Window closed, e.g. if last element initiated a new bucket.
+// (Note that based on this logic we ll only know when a Window closed only on the initiation of a new one)
+// (Note that the Index must be increasing for this logic to work)
 // NOTE : This is not a hashmap implementation !
 func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 
@@ -208,31 +208,31 @@ func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 	if index == 0 {
 		// new start ...
 		w.lastIndex = index
-		w.current = NewBucket(index, len(value))
+		w.bucket = NewBucket(index, len(value))
 	} else if index >= w.lastIndex+w.size {
 		// start a new one
-		if w.current.Size() > 0 {
-			tmpBucket := w.current
+		if w.bucket.Size() > 0 {
+			tmpBucket := w.bucket
 			last = tmpBucket
 			ready = true
 		}
 
-		w.current = NewBucket(index, len(value))
+		w.bucket = NewBucket(index, len(value))
 		w.lastIndex = index
 	}
 
-	w.current.Push(w.lastIndex, value...)
+	w.bucket.Push(w.lastIndex, value...)
 
 	return lastIndex, last, ready
 
 }
 
-// Current returns the current index the window accumulates data on.
+// Current returns the bucket Index the Window accumulates data on.
 func (w *Window) Current() int64 {
 	return w.lastIndex
 }
 
-// Next is the next index at which a new bucket will be created
+// Next is the next Index at which a new bucket will be created
 func (w *Window) Next() int64 {
 	return w.lastIndex + w.size
 }

@@ -15,20 +15,20 @@ const Delimiter = ":"
 
 // HMMConfig defines the configuration for the hidden markov model analysis.
 type HMMConfig struct {
-	LookBack  int
-	LookAhead int
+	LookBack  int `json:"lookback"`
+	LookAhead int `json:"lookahead"`
 }
 
-type state struct {
-	count int
-	emp   float64
+type State struct {
+	Count int     `json:"count"`
+	EMP   float64 `json:"emp"`
 }
 
-func (s state) sum() float64 {
-	return float64(s.count) + s.emp
+func (s State) sum() float64 {
+	return float64(s.Count) + s.EMP
 }
 
-// NewMultiHMM creates a new hmm.
+// NewMultiHMM creates a new State.
 func NewMultiHMM(config ...HMMConfig) *HMM {
 	var max int
 	for _, s := range config {
@@ -40,7 +40,7 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 		max:      max,
 		sequence: ring.New(max + 1),
 		Config:   config,
-		hmm:      make(map[Sequence]map[Sequence]state),
+		State:    make(map[Sequence]map[Sequence]State),
 		Status:   newStatus(),
 	}
 }
@@ -48,11 +48,11 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 // HMM counts occurrences in a sequence of strings.
 // It implements effectively several hidden markov model of the n-grams lengths provided in the Config.
 type HMM struct {
-	max      int
-	sequence *ring.Ring
-	Config   []HMMConfig
-	hmm      map[Sequence]map[Sequence]state
-	Status   *Status
+	max      int                             `json:"-"`
+	sequence *ring.Ring                      `json:"-"`
+	Config   []HMMConfig                     `json:"config"`
+	State    map[Sequence]map[Sequence]State `json:"state"`
+	Status   *Status                         `json:"status"`
 }
 
 // Prediction defines a prediction result with the computed Probability
@@ -61,9 +61,9 @@ type Prediction struct {
 	ID int64
 	// Value for the prediction . Essentially the concatenated string of the predicted sequence
 	Value Sequence
-	// Occur is the number of occurrences for the current combination.
-	state state
-	// Probability for the current prediction
+	// Occur is the number of occurrences for the bucket combination.
+	state State
+	// Probability for the bucket prediction
 	Probability float64
 	// EMP is the exponential moving probability e.g. on-the-fly calculated probability with integrated exponential decay
 	EMP float64
@@ -91,19 +91,19 @@ type Predictions struct {
 	Key Sequence
 	// Values are the prediction details for each prediction
 	Values PredictionList
-	// Sample is the number of previous incidents of the source sequence that generated the current probability matrix
+	// Sample is the number of previous incidents of the source sequence that generated the bucket probability matrix
 	Sample int
 	// Groups is the number of groups / combinations of source sequences encountered of the given length.
 	// TODO :assess the statistical significance of this
 	Groups int
-	// Count is the count of invocations for this model
+	// Count is the Count of invocations for this model
 	Count int
 	// Label is a string acting as metadata for the prediction
 	Label string
 }
 
 // TODO : maybe better to choose a uuid, for now the unix second should be enough
-func NewPrediction(s Sequence, st state) *Prediction {
+func NewPrediction(s Sequence, st State) *Prediction {
 	return &Prediction{
 		ID:    cointime.ToNano(time.Now()),
 		Value: s,
@@ -124,10 +124,10 @@ type Sample struct {
 	Events int
 }
 
-// Status reflects the current Status of the HMM
+// Status reflects the bucket Status of the HMM
 type Status struct {
-	Count   int64
-	Samples map[string]map[Sequence]Sample
+	Count   int64                          `json:"count"`
+	Samples map[string]map[Sequence]Sample `json:"sample"`
 }
 
 func newStatus() *Status {
@@ -136,10 +136,10 @@ func newStatus() *Status {
 	}
 }
 
-// Add adds a string to the hmm sequence.
+// Add adds a string to the State sequence.
 // TODO : reverse the logic by accepting the result instead of the input.
 // (This should allow us to filter out irrelevant data adn save space,
-// Note : hmm is expensive in terms of memory storage )
+// Note : State is expensive in terms of memory storage )
 func (c *HMM) Add(s string, label string) (map[Sequence]Predictions, Status) {
 
 	// We cant allow our delimiter char to be used within the values.
@@ -199,11 +199,11 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 	}
 
 	// init the counter map for this key, if it s not there
-	if _, ok := c.hmm[key]; !ok {
-		c.hmm[key] = make(map[Sequence]state)
+	if _, ok := c.State[key]; !ok {
+		c.State[key] = make(map[Sequence]State)
 	}
-	if _, ok := c.hmm[key][value]; !ok {
-		c.hmm[key][value] = state{}
+	if _, ok := c.State[key][value]; !ok {
+		c.State[key][value] = State{}
 	}
 
 	// work to make the prediction by shifting the key for the desired target size
@@ -219,20 +219,20 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 	// to avoid affecting it by itself
 	// do exponential adjustment
 	count := 0
-	for _, st := range c.hmm[key] {
-		count += st.count
+	for _, st := range c.State[key] {
+		count += st.Count
 	}
 	// increment the counter
-	st := c.hmm[key][value]
-	st.count++
+	st := c.State[key][value]
+	st.Count++
 	// lets put some more weight on the recent results.
 	// TODO : quantify and parametrise
-	st.emp += 2 * float64(count)
-	c.hmm[key][value] = st
+	st.EMP += 2 * float64(count)
+	c.State[key][value] = st
 
 	// we also return how many samples we have for the given key
 	// return also the number of other options for this sequence
-	return pKey, predictions, sample, len(c.hmm[key])
+	return pKey, predictions, sample, len(c.State[key])
 }
 
 func (c *HMM) predict(key Sequence) (Predictions, int) {
@@ -240,18 +240,18 @@ func (c *HMM) predict(key Sequence) (Predictions, int) {
 		Values: make([]*Prediction, 0),
 	}
 	var s int
-	if count, ok := c.hmm[key]; ok {
+	if count, ok := c.State[key]; ok {
 		// s is the number of events
 
 		// TODO : make sure we find a better way to preserve the order in executions
 		for v, cc := range count {
 			predictions.Values = append(predictions.Values, NewPrediction(v, cc))
-			s += cc.count
+			s += cc.Count
 		}
 		sort.Sort(sort.Reverse(predictions.Values))
 		for _, pred := range predictions.Values {
-			pred.Probability = float64(pred.state.count) / float64(s)
-			pred.EMP = pred.state.emp / math.Pow(float64(s), 2)
+			pred.Probability = float64(pred.state.Count) / float64(s)
+			pred.EMP = pred.state.EMP / math.Pow(float64(s), 2)
 		}
 	}
 	return predictions, s

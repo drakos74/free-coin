@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/rs/zerolog/log"
 )
 
@@ -51,16 +50,17 @@ func (l Leverage) String() string {
 	}
 }
 
-type TrackingOrder struct {
+// TrackedOrder is an order decorated with metadata information.
+type TrackedOrder struct {
 	Order
-	TxIDs []string `json:"txIds"`
+	Key   Key
+	Time  time.Time `json:"time"`
+	TxIDs []string  `json:"txIds"`
 }
 
 // Order defines an order
 type Order struct {
 	ID       string    `json:"id"`
-	CID      string    `json:"cid"`
-	Time     time.Time `json:"time"`
 	Coin     Coin      `json:"coin"`
 	Type     Type      `json:"type"`
 	OType    OrderType `json:"order_type"`
@@ -71,7 +71,7 @@ type Order struct {
 
 // FromPosition creates an order from the position details provided
 func FromPosition(position Position, close bool) Order {
-	order := NewOrder(position.Coin, position.CID).
+	order := NewOrder(position.Coin).
 		WithLeverage(L_5).
 		WithVolume(position.Volume)
 	if close {
@@ -83,17 +83,11 @@ func FromPosition(position Position, close bool) Order {
 }
 
 // NewOrder creates a new order for the given coin.
-func NewOrder(coin Coin, cID string) *Order {
+func NewOrder(coin Coin) *Order {
 	return &Order{
 		ID:   uuid.New().String(),
-		CID:  cID,
 		Coin: coin,
 	}
-}
-
-func (o *Order) SubmitTime(t time.Time) *Order {
-	o.Time = t
-	return o
 }
 
 // WithType defines the type of the order.

@@ -383,8 +383,8 @@ func TestCounter_Add(t *testing.T) {
 				},
 			},
 		},
-		"trend-capture-emp": {
-			// increase the event count here, to make sure emp does not overflow over '1.0'
+		"trend-capture-EMP": {
+			// increase the event Count here, to make sure EMP does not overflow over '1.0'
 			eventCount: 10000,
 			transform: func(i int) string {
 				middle := 10000 / 2
@@ -435,12 +435,12 @@ func TestCounter_Add(t *testing.T) {
 					Sample: 2499,
 					Groups: 1,
 					Values: PredictionList{
-						{ // NOTE : emp is higher, as the last events are matching this pattern
+						{ // NOTE : EMP is higher, as the last events are matching this pattern
 							Value:       "2",
 							Probability: 0.5,
 							EMP:         0.75,
 						},
-						{ // NOTE : emp is lower, as the last events dont match this pattern
+						{ // NOTE : EMP is lower, as the last events dont match this pattern
 							Value:       "1",
 							Probability: 0.5,
 							EMP:         0.25,
@@ -521,7 +521,7 @@ func TestCounter_Add(t *testing.T) {
 							assert.Equal(t, fmt.Sprintf("%.2f", ppValue.EMP), fmt.Sprintf("%.2f", v.EMP), fmt.Sprintf("wrong EMP for key [%s] at value '%v'", prediction.Key, v.Value))
 						}
 					}
-					assert.True(t, found, fmt.Sprintf("not found value '%v' for key [%s] at index %d", v.Value, prediction.Key, i))
+					assert.True(t, found, fmt.Sprintf("not found value '%v' for key [%s] at Index %d", v.Value, prediction.Key, i))
 				}
 				delete(p, prediction.Key)
 			}

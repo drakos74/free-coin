@@ -430,7 +430,7 @@ func TestTradePosition_DoClose(t *testing.T) {
 					},
 				},
 			}
-			tracker := newPositionTracker(storage.NewVoidRegistry(), map[model.Coin]map[time.Duration]processor.Config{
+			tracker := newPositionTracker(storage.VoidShard(""), storage.NewVoidRegistry(), map[model.Coin]map[time.Duration]processor.Config{
 				"": {
 					10: config,
 				},

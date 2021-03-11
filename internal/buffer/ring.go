@@ -6,7 +6,7 @@ import (
 )
 
 // Transform is a operation acting on an object and returning another one.
-// Because users know what objects they work with, this abstraction makes sense for the current scope.
+// Because users know what objects they work with, this abstraction makes sense for the bucket scope.
 // Otherwise it's clear that this method is too generic to be used in another context.
 type Transform func(bucket interface{}) interface{}
 

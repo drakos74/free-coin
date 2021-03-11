@@ -34,7 +34,7 @@ func TestHistoryWindow_Push(t *testing.T) {
 					d := b.Time.Sub(current)
 
 					if doneFirst {
-						// the first bucket might not be the full duration, due to the way we index on time.
+						// the first bucket might not be the full Duration, due to the way we Index on time.
 						assert.Equal(t, 1*time.Minute, d)
 						stats := b.Values().Stats()[0]
 						assert.Equal(t, int(tt.duration.Seconds()), stats.Count())

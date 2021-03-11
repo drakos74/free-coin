@@ -7,7 +7,7 @@ import "time"
 // the bucket indexing is based on the time.
 type TimeWindowView struct {
 	Time    time.Time `json:"time"`
-	Count   int       `json:"count"`
+	Count   int       `json:"Count"`
 	Value   float64   `json:"value"`
 	EMADiff float64   `json:"ema_diff"`
 	Diff    float64   `json:"diff"`
@@ -33,42 +33,42 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 	}
 }
 
-// TimeBucket is a wrapper for a bucket of a TimeWindow, that carries also the time index.
+// TimeBucket is a wrapper for a bucket of a TimeWindow, that carries also the time Index.
 type TimeBucket struct {
 	Bucket
 	Time time.Time
 }
 
-// TimeWindow is a window indexed by the current time.
+// TimeWindow is a Window indexed by the bucket time.
 type TimeWindow struct {
-	index    int64
-	duration int64
-	window   *Window
+	Index    int64   `json:"Index"`
+	Duration int64   `json:"Duration"`
+	window   *Window `json:"-"`
 }
 
-// NewTimeWindow creates a new TimeWindow with the given duration.
+// NewTimeWindow creates a new TimeWindow with the given Duration.
 func NewTimeWindow(duration time.Duration) *TimeWindow {
 	d := int64(duration.Seconds())
 	return &TimeWindow{
-		duration: d,
+		Duration: d,
 		window:   NewWindow(1),
 	}
 }
 
-// Push adds an element to the time window.
+// Push adds an element to the time Window.
 // It will return true, if the last addition caused a bucket to close.
 func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 	// TODO : provide a inverse hash operation
-	index := t.Unix() / tw.duration
+	index := t.Unix() / tw.Duration
 
 	index, bucket, closed := tw.window.Push(index, v...)
 
 	if closed {
-		tw.index = index
+		tw.Index = index
 		return TimeBucket{
 			Bucket: bucket,
-			Time:   time.Unix(bucket.index*tw.duration, 0),
+			Time:   time.Unix(bucket.index*tw.Duration, 0),
 		}, true
 	}
 
@@ -76,19 +76,19 @@ func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 }
 
-// Next returns the next timestamp for the coming window.
+// Next returns the next timestamp for the coming Window.
 func (tw *TimeWindow) Next(iterations int64) time.Time {
-	nextIndex := tw.index + tw.duration*(iterations+1)
+	nextIndex := tw.Index + tw.Duration*(iterations+1)
 	return time.Unix(nextIndex*int64(time.Second.Seconds()), 0)
 }
 
-// HistoryWindow keeps the last x buckets based on the window interval given
+// HistoryWindow keeps the last x buckets based on the Window interval given
 type HistoryWindow struct {
-	window  *TimeWindow
-	buckets *Ring
+	window  *TimeWindow `json:"window"`
+	buckets *Ring       `json:"-"`
 }
 
-// NewHistoryWindow creates a new history window.
+// NewHistoryWindow creates a new history Window.
 func NewHistoryWindow(duration time.Duration, size int) *HistoryWindow {
 	return &HistoryWindow{
 		window:  NewTimeWindow(duration),
@@ -96,7 +96,7 @@ func NewHistoryWindow(duration time.Duration, size int) *HistoryWindow {
 	}
 }
 
-// Push adds an element to the given time index.
+// Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
 func (h *HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 	if bucket, ok := h.window.Push(t, v...); ok {
@@ -106,7 +106,7 @@ func (h *HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 	return TimeBucket{}, false
 }
 
-// Get returns the transformed bucket value at the corresponding index.
+// Get returns the transformed bucket value at the corresponding Index.
 func (h *HistoryWindow) Get(transform Transform) []interface{} {
 	return h.buckets.Get(transform)
 }

@@ -44,7 +44,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 		}
 		c := model.Coin(coin)
 		d := time.Duration(duration) * time.Minute
-		k := processor.NewKey(c, d)
+		k := model.NewKey(c, d)
 		switch action {
 		case "":
 			if w, ok := stats.windows[k]; ok {
@@ -75,7 +75,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 	}
 }
 
-func sendWindowConfig(user api.User, k processor.Key, w *window) {
+func sendWindowConfig(user api.User, k model.Key, w *Window) {
 	for _, cfg := range w.c.Config {
 		api.Reply(api.Private,
 			user,
@@ -91,9 +91,9 @@ func sendWindowConfig(user api.User, k processor.Key, w *window) {
 
 // MultiStats allows the user to start and stop their own stats processors from the commands channel
 // TODO : split responsibilities of this class to make things more clean and re-usable
-func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func MultiStats(shard storage.Shard, registry storage.Registry, user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
-	stats, err := newStats(registry, configs)
+	stats, err := newStats(shard, registry, configs)
 	if err != nil {
 		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not init processor")
 		return processor.Void(ProcessorName)
@@ -113,7 +113,7 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
 			for duration, cfg := range stats.configs[trade.Coin] {
-				k := processor.NewKey(trade.Coin, duration)
+				k := model.NewKey(trade.Coin, duration)
 				// push the trade data to the stats collector window
 				if buckets, ok := stats.push(k, trade); ok {
 					values, indicators, last := extractFromBuckets(buckets, group(getPriceRatio, cfg.Order.Exec))
@@ -131,11 +131,10 @@ func MultiStats(registry storage.Registry, user api.User, configs map[model.Coin
 							Type: "TradeSignal",
 							Value: TradeSignal{
 								SignalEvent: SignalEvent{
-									ID:       uuid.New().String(),
-									Coin:     trade.Coin,
-									Price:    trade.Price,
-									Time:     trade.Time,
-									Duration: k.Duration,
+									ID:    uuid.New().String(),
+									Key:   k,
+									Price: trade.Price,
+									Time:  trade.Time,
 								},
 								Predictions:    predictions,
 								AggregateStats: aggregateStats,
@@ -163,11 +162,10 @@ type TradeSignal struct {
 }
 
 type SignalEvent struct {
-	ID       string        `json:"id"`
-	Coin     model.Coin    `json:"coin"`
-	Price    float64       `json:"price"`
-	Time     time.Time     `json:"time"`
-	Duration time.Duration `json:"duration"`
+	ID    string    `json:"id"`
+	Key   model.Key `json:"key"`
+	Price float64   `json:"price"`
+	Time  time.Time `json:"time"`
 }
 
 type windowView struct {

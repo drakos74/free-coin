@@ -3,7 +3,6 @@ package position
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -17,42 +16,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func newPositionTracker(shard storage.Shard, registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) *tradePositions {
-
-	// load the book right at start-up
-	state, err := shard(ProcessorName)
-	if err != nil {
-		log.Error().Err(err).Msg("could not init storage")
-		state = storage.NewVoidStorage()
-	}
-	positions := make(map[model.Coin]Portfolio)
-	err = state.Load(stateKey, positions)
-	log.Info().Err(err).Int("book", len(positions)).Msg("loaded book")
-
-	return &tradePositions{
-		registry:       registry,
-		state:          state,
-		book:           positions,
-		txIDs:          make(map[model.Coin]map[string]map[string]struct{}),
-		initialConfigs: configs,
-		lock:           new(sync.RWMutex),
-	}
-}
-
-// TODO : disable user adjustments for now
-//func (tp *tradePositions) updateConfig(key tpKey, profit, stopLoss float64) {
-//	tp.lock.Lock()
-//	defer tp.lock.Unlock()
-//	tp.book[key.coin][key.id].Config.Profit.Min = profit
-//	tp.book[key.coin][key.id].Config.Loss.Min = stopLoss
-//}
-
-type cKey struct {
-	cid   string
-	coin  model.Coin
-	txids []string
-}
-
 func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time.Ticker, quit chan struct{}, block api.Block) {
 	// and update the book at the predefined interval.
 	for {
@@ -64,14 +27,9 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 			// TODO : check on the strategy etc ...
 			case model.OrderKey:
 				// before we ope lets check what we have ...
-				if order, ok := action.Content.(model.Order); ok {
-					ck := cKey{
-						cid:  order.CID,
-						coin: order.Coin,
-					}
-
+				if trackedOrder, ok := action.Content.(model.TrackedOrder); ok {
 					// check how many are same direction and how many other direction
-					order, ok = tp.checkOpen(ck, order)
+					order, ok := tp.checkOpen(trackedOrder.Key, trackedOrder)
 
 					if !ok {
 						// dont proceed ...
@@ -81,38 +39,34 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 					txIDs, err := client.OpenOrder(order)
 					if err == nil {
 						// Store for correlation and auditing
-						trackingOrder := model.TrackingOrder{
-							Order: order,
-							TxIDs: txIDs,
-						}
-						storage.Add(tp.registry, openKey(order.Coin), trackingOrder)
+						trackedOrder.TxIDs = txIDs
+						storage.Add(tp.registry, openKey(trackedOrder.Coin), trackedOrder)
 					}
 					// add the txIDs to the key
-					ck.txids = txIDs
 					log.Info().
 						Err(err).
-						Str("ID", order.ID).
+						Str("ID", trackedOrder.ID).
 						Strs("TxIDs", txIDs).
-						Str("Coin", string(order.Coin)).
-						Str("type", order.Type.String()).
-						Float64("volume", order.Volume).
-						Str("leverage", order.Leverage.String()).
-						Msg("submitted order")
+						Str("Coin", string(trackedOrder.Coin)).
+						Str("type", trackedOrder.Type.String()).
+						Float64("volume", trackedOrder.Volume).
+						Str("leverage", trackedOrder.Leverage.String()).
+						Msg("submitted trackedOrder")
 					api.Reply(api.Private, user, api.
-						NewMessage(processor.Audit(ProcessorName, order.CID)).
+						NewMessage(processor.Audit(ProcessorName, trackedOrder.Key.ToString())).
 						AddLine(fmt.Sprintf("open %s %s %.3f",
-							emoji.MapType(order.Type),
-							order.Coin,
-							order.Volume,
+							emoji.MapType(trackedOrder.Type),
+							trackedOrder.Coin,
+							trackedOrder.Volume,
 						)), err)
-					added, err := tp.deferInject(ck)
+					added, err := tp.deferInject(trackedOrder.Key, trackedOrder.TxIDs)
 					log.Info().
 						Err(err).
 						Int("added", added).
 						Msg("defer injected cid")
 				}
 			}
-			// update and inject the newly created order
+			// update and inject the newly created trackedOrder
 			err := tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get book")
@@ -131,20 +85,19 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 }
 
 // get returns the Position for the given correlation key
-func (tp *tradePositions) get(ck cKey) []TradePosition {
+func (tp *tradePositions) get(k model.Key) []TradePosition {
 	positions := make([]TradePosition, 0)
-	log.Info().Int("size", len(tp.book[ck.coin].Positions)).Msg("checking book")
-	if pos, ok := tp.book[ck.coin]; ok {
+	log.Info().Int("size", len(tp.book[k].Positions)).Msg("checking book")
+	if pos, ok := tp.book[k]; ok {
 		var found bool
 		for _, p := range pos.Positions {
 			log.Info().
 				Str("coin", string(p.Position.Coin)).
 				Str("pid", p.Position.ID).
-				Str("txid", p.Position.TxID).
 				Str("order-id", p.Position.OrderID).
 				Str("cid", p.Position.CID).
 				Msg("current Position")
-			if p.Position.CID == ck.cid {
+			if p.Position.CID == k.ToString() {
 				positions = append(positions, p)
 			}
 		}
@@ -159,24 +112,19 @@ func (tp *tradePositions) get(ck cKey) []TradePosition {
 
 // deferInject defers the injection for later ...
 // it needs to be picked up during the update though.
-func (tp *tradePositions) deferInject(ck cKey) (int, error) {
+func (tp *tradePositions) deferInject(k model.Key, txIDs []string) (int, error) {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
-	if len(ck.txids) == 0 {
-		return 0, fmt.Errorf("no txids to inject %+v", ck)
+	if len(txIDs) == 0 {
+		return 0, fmt.Errorf("no txids to inject for %+v", k)
 	}
-	if _, ok := tp.txIDs[ck.coin]; !ok {
-		tp.txIDs[ck.coin] = make(map[string]map[string]struct{})
-	}
-	if _, ok := tp.txIDs[ck.coin][ck.cid]; !ok {
-		tp.txIDs[ck.coin][ck.cid] = make(map[string]struct{})
+	if _, ok := tp.txIDs[k]; !ok {
+		tp.txIDs[k] = make(map[string]struct{})
 	}
 	var added int
-	for _, txid := range ck.txids {
-		if _, ok := tp.txIDs[ck.coin][ck.cid][txid]; !ok {
-			tp.txIDs[ck.coin][ck.cid][txid] = struct{}{}
-			added++
-		}
+	for _, txid := range txIDs {
+		tp.txIDs[k][txid] = struct{}{}
+		added++
 	}
 	return added, nil
 }
@@ -192,79 +140,80 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	}
 	posIDs := make(map[string]struct{})
 	for _, p := range pp.Positions {
-		if _, ok := tp.book[p.Coin]; !ok {
-			tp.book[p.Coin] = Portfolio{
-				Positions: make(map[string]TradePosition),
-			}
-		}
 		// check the correlation keys
-		if txIDs, ok := tp.txIDs[p.Coin]; ok && len(txIDs) > 0 {
-			var matched int
-			var of int
-			for cid, txID := range txIDs {
-				for txid := range txID {
-					of++
-					if p.TxID == txid || p.OrderID == txid {
-						p.CID = cid
-						log.Info().Str("cid", cid).Str("pid", p.ID).Msg("matched cid")
-						matched++
-						delete(tp.txIDs[p.Coin][cid], txid)
-					}
+		var matched int
+		var of int
+		for k, txIDs := range tp.txIDs {
+			for txid := range txIDs {
+				of++
+				if p.TxID == txid || p.OrderID == txid {
+					p.CID = k.ToString()
+					log.Info().Str("cid", p.CID).Str("pid", p.ID).Msg("matched cid")
+					matched++
+					delete(tp.txIDs[k], txid)
 				}
 			}
-			log.Info().
-				Int("matched", matched).
-				Int("of", of).
-				Str("txids", fmt.Sprintf("%+v", txIDs)).
-				Str("pid", p.ID).
-				Msg("correlate Position")
 		}
 		// check if Position exists
-		if oldPosition, ok := tp.book[p.Coin].Positions[p.ID]; ok {
-			if p.CID == "" {
-				// we did not find anything to inject
-				if oldPosition.Position.CID != "" {
-					// and the old Position has a correlation id
-					p.CID = oldPosition.Position.CID
+		var exists bool
+		for k, book := range tp.book {
+			if oldPosition, ok := book.Positions[p.ID]; ok {
+				if p.CID == "" {
+					// we did not find anything to inject
+					if oldPosition.Position.CID != "" {
+						// and the old Position has a correlation id
+						p.CID = oldPosition.Position.CID
+					}
+				}
+				// TODO :make sure book for this key exists ...
+				tp.book[k].Positions[p.ID] = TradePosition{
+					Position: model.TrackedPosition{
+						Open:     oldPosition.Position.Open,
+						Position: p,
+					},
+					Config: oldPosition.Config,
 				}
 			}
-			tp.book[p.Coin].Positions[p.ID] = TradePosition{
-				Position: model.TrackedPosition{
-					Open:     oldPosition.Position.Open,
-					Position: p,
-				},
-				Config: oldPosition.Config,
-			}
-		} else {
+		}
+		if !exists {
+			// we need to add a new uncorrelated position
 			// if p.CID == "" should have happened already in the previous step
 			cfg := tp.getConfiguration(p.Coin)
-			tp.book[p.Coin].Positions[p.ID] = TradePosition{
+			k, err := model.NewKeyFromString(p.CID)
+			if err != nil {
+				k = model.Key{}
+				log.Warn().Str("cid", p.CID).Err(err).Msg("could not correlate position")
+			}
+			if _, ok := tp.book[k]; !ok {
+				tp.book[k] = Portfolio{
+					Positions: make(map[string]TradePosition),
+				}
+			}
+			tp.book[k].Positions[p.ID] = TradePosition{
 				Position: model.TrackedPosition{
 					Open:     p.OpenTime,
 					Position: p,
 				},
-				Config: processor.GetAny(cfg, p.CID),
+				Config: processor.GetConfig(cfg, k),
 			}
 		}
+		// add the position id to make sure we remove any positions that were 'magically' closed
 		posIDs[p.ID] = struct{}{}
 	}
 	// remove old book
-	toDel := make([]tpKey, 0)
-	for c, portfolio := range tp.book {
-		for id := range portfolio.Positions {
-			if _, ok := posIDs[id]; !ok {
-				toDel = append(toDel, tpKey{
-					coin: c,
-					id:   id,
-				})
+	book := make(map[model.Key]Portfolio)
+	for k, portfolio := range tp.book {
+		positions := make(map[string]TradePosition, 0)
+		for id, position := range portfolio.Positions {
+			if _, ok := posIDs[id]; ok {
+				positions[id] = position
 			}
 		}
+		portfolio.Positions = positions
+		book[k] = portfolio
 	}
-	for _, del := range toDel {
-		delete(tp.book[del.coin].Positions, del.id)
-	}
+	tp.book = book
 	// save the state
-
 	storage.Store(tp.state, stateKey, tp.book)
 	return nil
 }
@@ -276,38 +225,38 @@ func (tp *tradePositions) getConfiguration(coin model.Coin) map[time.Duration]pr
 	return map[time.Duration]processor.Config{}
 }
 
-func (tp *tradePositions) getAll() map[model.Coin]map[string]TradePosition {
+func (tp *tradePositions) getAll() map[model.Key]map[string]TradePosition {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
-	positions := make(map[model.Coin]map[string]TradePosition)
-	for c, portfolio := range tp.book {
-		positions[c] = make(map[string]TradePosition)
+	positions := make(map[model.Key]map[string]TradePosition)
+	for k, portfolio := range tp.book {
+		positions[k] = make(map[string]TradePosition)
 		for id, p := range portfolio.Positions {
-			positions[c][id] = p
+			positions[k][id] = p
 		}
 	}
 	return positions
 }
 
-func (tp *tradePositions) delete(k tpKey) {
-	delete(tp.book[k.coin].Positions, k.id)
-	log.Debug().Str("coin", string(k.coin)).Str("id", k.id).Msg("deleted Position")
+func (tp *tradePositions) delete(k model.Key, id string) {
+	delete(tp.book[k].Positions, id)
+	log.Debug().Str("coin", fmt.Sprintf("%+v", k)).Str("id", id).Msg("deleted Position")
 }
 
-func (tp *tradePositions) budget(coin model.Coin, net float64) {
-	if portfolio, ok := tp.book[coin]; ok {
+func (tp *tradePositions) budget(k model.Key, net float64) {
+	if portfolio, ok := tp.book[k]; ok {
 		portfolio.Budget += net
-		tp.book[coin] = portfolio
+		tp.book[k] = portfolio
 	} else {
-		log.Error().Str("coin", string(coin)).Msg("portfolio not found")
+		log.Error().Str("coin", fmt.Sprintf("%+v", k)).Msg("portfolio not found")
 	}
 }
 
 // TODO : fix this logic to handle more edge cases
-func (tp *tradePositions) checkOpen(ck cKey, order model.Order) (model.Order, bool) {
+func (tp *tradePositions) checkOpen(k model.Key, order model.TrackedOrder) (model.TrackedOrder, bool) {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
-	correlatedPositions := tp.get(ck)
+	correlatedPositions := tp.get(k)
 	log.Info().Int("found", len(correlatedPositions)).Msg("correlated book")
 	if len(correlatedPositions) > 0 {
 		var same int
@@ -325,7 +274,7 @@ func (tp *tradePositions) checkOpen(ck cKey, order model.Order) (model.Order, bo
 		}
 
 		if same > 0 && opp == 0 {
-			budget := tp.book[order.Coin].Budget
+			budget := tp.book[k].Budget
 			if budget < 0 {
 				log.Info().
 					Int("num", same).
@@ -355,36 +304,35 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
 	actions := make([]tradeAction, 0)
-	if portfolio, ok := tp.book[trade.Coin]; ok {
-		log.Trace().
-			Time("server-time", time.Now()).
-			Time("trade-time", trade.Time).
-			Int("count", len(portfolio.Positions)).
-			Str("coin", string(trade.Coin)).
-			Msg("open portfolio")
+	if !trade.Live {
+		// only act on 'live' trades
+		return actions
+	}
+	for k, portfolio := range tp.book {
+		if k.Coin != trade.Coin {
+			continue
+		}
 		for id, p := range portfolio.Positions {
 			p.Position.CurrentPrice = trade.Price
-			if trade.Live {
-				net, profit := p.Position.Value()
-				log.Debug().
-					Str("ID", id).
-					Str("coin", string(p.Position.Coin)).
-					Float64("open", p.Position.OpenPrice).
-					Float64("current", p.Position.CurrentPrice).
-					Str("type", p.Position.Type.String()).
-					Float64("net", net).
-					Float64("profit", profit).
-					Msg("check Position")
-				actions = append(actions, tradeAction{
-					key:      key(trade.Coin, id),
-					position: p,
-					doClose:  p.DoClose(),
-				})
-			}
+			net, profit := p.Position.Value()
+			log.Debug().
+				Str("ID", id).
+				Str("coin", string(p.Position.Coin)).
+				Float64("open", p.Position.OpenPrice).
+				Float64("current", p.Position.CurrentPrice).
+				Str("type", p.Position.Type.String()).
+				Float64("net", net).
+				Float64("profit", profit).
+				Msg("check Position")
+			actions = append(actions, tradeAction{
+				key:      k,
+				position: p,
+				doClose:  p.DoClose(),
+			})
 		}
 	}
 	for _, action := range actions {
-		tp.book[action.key.coin].Positions[action.key.id] = action.position
+		tp.book[action.key].Positions[action.position.Position.ID] = action.position
 	}
 	storage.Store(tp.state, stateKey, tp.book)
 	return actions
@@ -426,17 +374,17 @@ func (tp *TradePosition) DoClose() bool {
 	return false
 }
 
-func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, time time.Time) bool {
+func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Key, id string, time time.Time) bool {
 	tp.lock.Lock()
 	defer tp.lock.Unlock()
 	// ok, here we might encounter the case that we closed the Position from another trigger
-	if _, ok := tp.book[key.coin]; !ok {
+	if _, ok := tp.book[key]; !ok {
 		return false
 	}
-	if _, ok := tp.book[key.coin].Positions[key.id]; !ok {
+	if _, ok := tp.book[key].Positions[id]; !ok {
 		return false
 	}
-	position := tp.book[key.coin].Positions[key.id].Position
+	position := tp.book[key].Positions[id].Position
 	net, profit := position.Value()
 	err := client.ClosePosition(position.Position)
 	position.Close = time
@@ -444,15 +392,15 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 		log.Error().
 			Err(err).
 			Float64("volume", position.Volume).
-			Str("id", key.id).
+			Str("id", id).
 			Str("coin", string(position.Coin)).
 			Float64("net", net).
 			Float64("profit", profit).
 			Msg("could not close Position")
 		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "error")).
 			AddLine(fmt.Sprintf("could not close %s [%s]: %s",
-				key.coin,
-				key.id,
+				key.ToString(),
+				id,
 				err.Error(),
 			)).
 			ReferenceTime(time), nil)
@@ -462,19 +410,19 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key tpKey, t
 		log.Info().
 			Float64("volume", position.Volume).
 			Str("type", position.Type.String()).
-			Str("id", key.id).
+			Str("id", id).
 			Str("coin", string(position.Coin)).
 			Float64("net", net).
 			Float64("profit", profit).
 			Msg("closed Position")
 		// TODO : would be good if we do all together atomically
-		tp.delete(key)
-		tp.budget(position.Coin, net)
+		tp.delete(key, id)
+		tp.budget(key, net)
 		storage.Store(tp.state, stateKey, tp.book)
 		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "")).
 			AddLine(fmt.Sprintf("%s closed %s %s ( %.3f | %.2f%s )",
 				emoji.MapToSign(profit),
-				key.coin,
+				key.ToString(),
 				emoji.MapType(position.Type),
 				position.Volume,
 				profit,

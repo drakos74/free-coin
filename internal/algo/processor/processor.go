@@ -2,33 +2,17 @@ package processor
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
-const Name = " void"
+const (
+	Name = " void"
+)
 
-// Key characterises distinct processor attributes
-type Key struct {
-	Coin     model.Coin
-	Duration time.Duration
-	Index    int
-}
-
-func NewKey(c model.Coin, d time.Duration) Key {
-	return Key{
-		Coin:     c,
-		Duration: d,
-	}
-}
-
-func (k Key) String() string {
-	return fmt.Sprintf("coin = %s , duration = %v", k.Coin, k.Duration)
-}
-
+// Void is a pass-through processor that only propagates trades to the next one.
 func Void(name string) api.Processor {
 	processorName := fmt.Sprintf("%s-%s", name, Name)
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
@@ -42,6 +26,7 @@ func Void(name string) api.Processor {
 	}
 }
 
+// Audit creates an audit message part for the user.
 func Audit(name, msg string) string {
 	return fmt.Sprintf("[%s] %s", name, msg)
 }

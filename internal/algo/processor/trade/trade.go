@@ -81,11 +81,10 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 
 			for _, signal := range trade.Signals {
 				if ts, ok := signal.Value.(stats.TradeSignal); ok {
-					k := processor.NewKey(ts.Coin, ts.Duration)
 					// init the configuration for this pair of a coin and duration.
 					// TODO : use an internal state like for the stats processor
 					// we got a trade signal, let's see if we can get an action out of it
-					if cfg, ok := trader.get(k); ok && len(ts.Predictions) > 0 {
+					if cfg, ok := trader.get(ts.Key); ok && len(ts.Predictions) > 0 {
 						// check if we should make a buy order
 						pairs := trader.evaluate(ts, cfg.Strategies)
 						// act here ... once for every trade signal only once per coin
@@ -94,19 +93,24 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							// so we should probably just take that ...
 							// TODO : confirm that in tests
 							pair := pairs[0]
+							k := ts.Key
+							k.Strategy = pair.Strategy.Name
 							vol := getVolume(ts.Price, pair.Strategy.Open.Value, pair.Confidence)
 							// we will make only one order from all the pairs ...
-							cid := processor.Correlate(ts.Coin, ts.Duration, pair.Strategy.Name)
-							order := model.NewOrder(ts.Coin, cid).
-								SubmitTime(pair.Time).
+							order := model.NewOrder(ts.Key.Coin).
 								WithLeverage(model.L_5).
 								WithVolume(vol).
 								WithType(pair.Type).
 								Market().
 								Create()
+							trackedOrder := model.TrackedOrder{
+								Order: order,
+								Key:   k,
+								Time:  pair.Time,
+							}
 							// TODO : save this log into our processor
 							pair.ID = order.ID
-							err := trader.registry.Add(triggerKey(string(ts.Coin)), pair)
+							err := trader.registry.Add(triggerKey(string(k.Coin)), pair)
 							log.Info().
 								Err(err).
 								Str("ID", order.ID).
@@ -114,17 +118,17 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 								Int("pairs", len(pairs)).
 								Str("pair", fmt.Sprintf("%+v", pair)).
 								Float64("Price", pair.Price).
-								Str("Coin", string(ts.Coin)).
+								Str("Coin", string(k.Coin)).
 								Msg("open position")
 							// signal to the position processor that there should be a new one
-							block.Action <- api.NewAction(model.OrderKey).ForCoin(ts.Coin).WithContent(order).Create()
+							block.Action <- api.NewAction(model.OrderKey).ForCoin(k.Coin).WithContent(trackedOrder).Create()
 							// wait for the position processor to acknowledge the update
 							<-block.ReAction
 							api.Reply(api.Private, user, api.
 								NewMessage(processor.Audit(ProcessorName, createPredictionMessage(pair))).
 								AddLine(fmt.Sprintf("open %s %s ( %.3f | %.2f )",
 									emoji.MapType(pair.Type),
-									ts.Coin,
+									k.Coin,
 									vol,
 									pair.Price,
 								)).

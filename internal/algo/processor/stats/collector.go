@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	cointime "github.com/drakos74/free-coin/internal/time"
 
 	"github.com/drakos74/free-coin/internal/storage"
@@ -15,12 +17,7 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-type window struct {
-	w *buffer.HistoryWindow
-	c *buffer.HMM
-}
-
-func newWindow(cfg processor.Config) *window {
+func newWindow(cfg processor.Config) *Window {
 	// find out the max window size
 	hmm := make([]buffer.HMMConfig, len(cfg.Stats))
 	var windowSize int
@@ -34,7 +31,7 @@ func newWindow(cfg processor.Config) *window {
 			LookAhead: stat.LookAhead,
 		}
 	}
-	return &window{
+	return &Window{
 		w: buffer.NewHistoryWindow(cointime.ToMinutes(cfg.Duration), windowSize),
 		c: buffer.NewMultiHMM(hmm...),
 	}
@@ -42,19 +39,20 @@ func newWindow(cfg processor.Config) *window {
 
 type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	logger  storage.Registry
-	lock    sync.RWMutex
-	configs map[model.Coin]map[time.Duration]processor.Config
-	windows map[processor.Key]*window
+	registry storage.Registry
+	state    storage.Persistence
+	lock     sync.RWMutex
+	configs  map[model.Coin]map[time.Duration]processor.Config
+	windows  map[model.Key]*Window
 }
 
-func newStats(registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) (*statsCollector, error) {
+func newStats(shard storage.Shard, registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) (*statsCollector, error) {
 
-	windows := make(map[processor.Key]*window)
+	windows := make(map[model.Key]*Window)
 
 	for c, dConfig := range configs {
 		for d, cfg := range dConfig {
-			k := processor.Key{
+			k := model.Key{
 				Coin:     c,
 				Duration: d,
 			}
@@ -62,24 +60,31 @@ func newStats(registry storage.Registry, configs map[model.Coin]map[time.Duratio
 		}
 	}
 
+	state, err := shard(ProcessorName)
+	if err != nil {
+		log.Error().Err(err).Msg("could not init storage")
+		state = storage.NewVoidStorage()
+	}
+
 	stats := &statsCollector{
-		logger:  registry,
-		lock:    sync.RWMutex{},
-		windows: windows,
-		configs: configs,
+		registry: registry,
+		state:    state,
+		lock:     sync.RWMutex{},
+		windows:  windows,
+		configs:  configs,
 	}
 	return stats, nil
 }
 
 // TODO : re-enable user interaction to start and stop stats collectors
-//func (s *statsCollector) stop(k processor.Key) {
+//func (s *statsCollector) stop(k model.Key) {
 //	s.lock.Lock()
 //	defer s.lock.Unlock()
 //	delete(s.configs[k.Coin], k.Duration)
 //	delete(s.windows, k)
 //}
 
-func (s *statsCollector) push(k processor.Key, trade *model.Trade) ([]interface{}, bool) {
+func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, ok := s.windows[k].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
@@ -105,8 +110,10 @@ func (s *statsCollector) push(k processor.Key, trade *model.Trade) ([]interface{
 
 // add adds the new value to the model and returns the predictions taking the current sample into account
 // It will return one prediction per lookback/lookahead configuration of the HMM
-func (s *statsCollector) add(k processor.Key, v string) (map[buffer.Sequence]buffer.Predictions, buffer.Status) {
+func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.Predictions, buffer.Status) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.windows[k].c.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
+	predictions, status := s.windows[k].c.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
+	storage.Store(s.state, NewStateKey(k.ToString()), s.windows)
+	return predictions, status
 }

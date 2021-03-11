@@ -126,7 +126,7 @@ func (s *Service) Run(query model.Query) (map[coinmodel.Coin][]coinmodel.Trade, 
 		localStore := storage.VoidShard(storage.InternalPath)
 
 		block := api.NewBlock()
-		statsProcessor := stats.MultiStats(registry, user, backtestConfig)
+		statsProcessor := stats.MultiStats(localStore, registry, user, backtestConfig)
 		positionProcessor := position.Position(localStore, registry, exchange, user, block, backtestConfig)
 		tradeProcessor := trade.Trade(registry, user, block, backtestConfig)
 

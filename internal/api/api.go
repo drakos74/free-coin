@@ -30,7 +30,7 @@ type Client interface {
 // Exchange allows interaction with the exchange for submitting and closing positions and trades.
 type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
-	OpenOrder(order model.Order) ([]string, error)
+	OpenOrder(order model.TrackedOrder) ([]string, error)
 	ClosePosition(position model.Position) error
 }
 

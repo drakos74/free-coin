@@ -36,7 +36,7 @@ func newTrader(registry storage.Registry, configs map[model.Coin]map[time.Durati
 	}
 }
 
-func (tr *trader) get(k processor.Key) (processor.Config, bool) {
+func (tr *trader) get(k model.Key) (processor.Config, bool) {
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
 	cfg, ok := tr.configs[k.Coin][k.Duration]
@@ -54,7 +54,7 @@ func (tr *trader) getAll(c model.Coin) map[time.Duration]processor.Config {
 }
 
 // TODO : re-enable set logic at some point
-//func (tr *trader) set(k processor.Key, probability float64, sample int) (time.Duration, OpenConfig) {
+//func (tr *trader) set(k model.Key, probability float64, sample int) (time.Duration, OpenConfig) {
 //	tr.init(k)
 //	tr.lock.Lock()
 //	defer tr.lock.Unlock()
@@ -109,11 +109,11 @@ func (tr *trader) getStrategy(name string) ExecStrategy {
 	case processor.NumericStrategy:
 		return func(signal stats.SignalEvent, predictions buffer.Predictions, strategy processor.Strategy) (values []buffer.Sequence, probability float64, confidence float64, ttype model.Type) {
 			// only continue if the prediction duration matches with the strategy
-			cid := processor.Correlate(signal.Coin, signal.Duration, strategy.Name)
-			key := strategyKey(string(signal.Coin))
+			cid := signal.Key.ToString()
+			key := strategyKey(string(signal.Key.Coin))
 			event := StrategyEvent{
 				Time:     signal.Time,
-				Coin:     signal.Coin,
+				Coin:     signal.Key.Coin,
 				Strategy: cid,
 				Sample: Sample{
 					Strategy:    strategy.Sample,
@@ -174,9 +174,10 @@ func (tr *trader) getStrategy(name string) ExecStrategy {
 					// compute the confidence factor, e.g. how much we are certain of the prediction
 					confidence = 1 + strategy.Factor*(prb-strategy.Probability)
 					event.Result.Confidence = confidence
-					log.Warn().
+					log.Info().
 						Float64("confidence", confidence).
 						Float64("probability", prb).
+						Time("time", signal.Time).
 						Str("values", fmt.Sprintf("%+v", values)).
 						Float64("x", x).
 						Float64("s", s).

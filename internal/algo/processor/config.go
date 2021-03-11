@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"strconv"
-	"strings"
 	"time"
 
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -178,59 +176,32 @@ func getOrderFunc(order string) func(f float64) int {
 	}
 }
 
-// GetAny returns the first strategy we can find
+// GetConfig returns the first strategy we can find
 // this is highly unsafe, but is as a backup,
 // in case we were not able to reason about a strategy and we dont want to stop processing actions.
-func GetAny(mm map[time.Duration]Config, cid string) Strategy {
-	if cid != "" {
-		// try to find the config from the given startegy
-		_, duration, strategy, err := DeCorrelate(cid)
-		if err == nil {
-			if dConfig, ok := mm[duration]; ok {
-				for _, str := range dConfig.Strategies {
-					if str.Name == strategy {
-						log.Info().
-							Str("cid", cid).
-							Str("strategy", fmt.Sprintf("%+v", str)).
-							Msg("tracked strategy")
-						return str
-					}
-				}
+func GetConfig(config map[time.Duration]Config, key model.Key) Strategy {
+	var matched bool
+	if dConfig, ok := config[key.Duration]; ok {
+		for _, str := range dConfig.Strategies {
+			if str.Name == key.Strategy {
+				log.Info().
+					Str("cid", key.ToString()).
+					Str("strategy", fmt.Sprintf("%+v", str)).
+					Msg("using strategy")
+				matched = true
+				return str
 			}
 		}
 	}
-	log.Warn().
-		Str("cid", cid).
-		Msg("using random strategy ... ")
-	for _, m := range mm {
-		if len(m.Strategies) > 0 {
-			return m.Strategies[0]
+	if !matched {
+		log.Warn().
+			Str("cid", key.ToString()).
+			Msg("using random strategy ... ")
+		for _, m := range config {
+			if len(m.Strategies) > 0 {
+				return m.Strategies[0]
+			}
 		}
 	}
 	return Strategy{}
-}
-
-const delimiter = "-"
-
-// Correlate concatenates the given information into a string.
-func Correlate(coin model.Coin, duration time.Duration, strategy string) string {
-	return fmt.Sprintf("%s%s%d%s%s", coin, delimiter, int(duration.Minutes()), delimiter, strategy)
-}
-
-// DeCorrelate splits the given string into the correlated parts.
-func DeCorrelate(cid string) (coin model.Coin, duration time.Duration, strategy string, err error) {
-	parts := strings.Split(cid, delimiter)
-	if len(parts) != 3 {
-		err = fmt.Errorf("could not de-correlate '%s'", cid)
-		return
-	}
-	coin = model.Coin(parts[0])
-	strategy = parts[2]
-	d, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		err = fmt.Errorf("could not de-correlate '%s': %w", cid, err)
-		return
-	}
-	duration = time.Duration(d) * time.Minute
-	return
 }

@@ -19,7 +19,7 @@ const (
 	NoPositionMsg = "no open book"
 
 	positionRefreshInterval = 5 * time.Minute
-	ProcessorName           = "Position"
+	ProcessorName           = "position"
 )
 
 var positionKey = api.ConsumerKey{
@@ -28,7 +28,7 @@ var positionKey = api.ConsumerKey{
 }
 
 type tradeAction struct {
-	key      tpKey
+	key      model.Key
 	position TradePosition
 	doClose  bool
 }
@@ -61,11 +61,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		switch action {
+		// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
 		case "close":
-			k := key(c, param)
-			// close the damn Position ...
-			tp.close(client, user, k, time.Time{})
-			// TODO : the below case wont work just right ... we need to send the loop-back trigger as in the initial close
 		case "":
 			err = tp.update(client)
 			if err != nil {
@@ -77,8 +74,8 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 				user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, NoPositionMsg)), nil)
 				continue
 			}
-			for coin, pos := range tp.getAll() {
-				if c == "" || coin == c {
+			for k, pos := range tp.getAll() {
+				if c == "" || k.Coin == c {
 					for id, p := range pos {
 						net, profit := p.Position.Value()
 						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]",
@@ -153,7 +150,7 @@ func Position(shard storage.Shard, registry storage.Registry, client api.Exchang
 			for _, positionAction := range positions.checkClose(trade) {
 				if positionAction.doClose {
 					if positionAction.position.Config.Close.Instant {
-						positions.close(client, user, positionAction.key, trade.Time)
+						positions.close(client, user, positionAction.key, positionAction.position.Position.ID, trade.Time)
 					} else {
 						net, profit := positionAction.position.Position.Value()
 						msg := fmt.Sprintf("%s %s:%s (%s)",
@@ -166,7 +163,7 @@ func Position(shard storage.Shard, registry storage.Registry, client api.Exchang
 							ReferenceTime(trade.Time), &api.Trigger{
 							ID:      positionAction.position.Position.ID,
 							Key:     positionKey,
-							Default: []string{"?p", string(positionAction.key.coin), "close", positionAction.key.id},
+							Default: []string{"?p", positionAction.key.ToString(), "close", positionAction.position.Position.ID},
 							// TODO : instead of a big timeout check again when we want to close how the Position is doing ...
 						})
 					}
