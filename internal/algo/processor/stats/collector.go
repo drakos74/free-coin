@@ -91,7 +91,7 @@ func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.
 	defer s.lock.Unlock()
 	predictions, status := s.windows[k].C.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
 	// dont store anything for now ...until we fix the structs and pointers
-	storage.Store(s.state, NewStateKey(k.ToString()), StaticWindow{
+	storage.Store(s.state, processor.NewStateKey(ProcessorName, k), StaticWindow{
 		W: s.windows[k].W,
 		C: *s.windows[k].C,
 	})

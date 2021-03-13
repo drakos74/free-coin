@@ -3,17 +3,8 @@ package stats
 import (
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/buffer"
-	"github.com/drakos74/free-coin/internal/storage"
 	cointime "github.com/drakos74/free-coin/internal/time"
 )
-
-// NewStateKey creates a stats internal state key for the registry storage
-func NewStateKey(label string) storage.Key {
-	return storage.Key{
-		Pair:  "stats",
-		Label: label,
-	}
-}
 
 // Window defines the window stats collector
 type Window struct {

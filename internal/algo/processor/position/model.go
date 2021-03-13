@@ -15,23 +15,7 @@ import (
 var (
 	OpenPositionRegistryKey  = fmt.Sprintf("%s-%s", ProcessorName, "open")
 	ClosePositionRegistryKey = fmt.Sprintf("%s-%s", ProcessorName, "close")
-	stateKey                 = storage.Key{
-		Pair:  "state",
-		Label: "open_positions",
-	}
 )
-
-type tpKey struct {
-	coin model.Coin
-	id   string
-}
-
-func key(c model.Coin, id string) tpKey {
-	return tpKey{
-		coin: c,
-		id:   id,
-	}
-}
 
 func openKey(coin model.Coin) storage.K {
 	return storage.K{
@@ -80,7 +64,8 @@ func newPositionTracker(shard storage.Shard, registry storage.Registry, configs 
 		state = storage.NewVoidStorage()
 	}
 	book := make(map[model.Key]Portfolio)
-	err = state.Load(stateKey, book)
+	// TODO : create a new portfolio for each config key ...
+	//err = state.Load(stateKey, book)
 	log.Info().Err(err).Int("book", len(book)).Msg("loaded book")
 
 	return &tradePositions{

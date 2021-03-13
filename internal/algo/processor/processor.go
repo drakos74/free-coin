@@ -3,6 +3,8 @@ package processor
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
@@ -11,6 +13,14 @@ import (
 const (
 	Name = " void"
 )
+
+// NewStateKey creates a stats internal state key for the registry storage
+func NewStateKey(processor string, key model.Key) storage.Key {
+	return storage.Key{
+		Pair:  processor,
+		Label: key.ToString(),
+	}
+}
 
 // Void is a pass-through processor that only propagates trades to the next one.
 func Void(name string) api.Processor {

@@ -6,13 +6,10 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
-
-	"github.com/drakos74/free-coin/internal/storage"
-
-	"github.com/drakos74/free-coin/internal/emoji"
-
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 )
 
@@ -211,10 +208,10 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		}
 		portfolio.Positions = positions
 		book[k] = portfolio
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, k), tp.book)
 	}
 	tp.book = book
 	// save the state
-	storage.Store(tp.state, stateKey, tp.book)
 	return nil
 }
 
@@ -333,8 +330,9 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	}
 	for _, action := range actions {
 		tp.book[action.key].Positions[action.position.Position.ID] = action.position
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, action.key), tp.book)
+
 	}
-	storage.Store(tp.state, stateKey, tp.book)
 	return actions
 }
 
@@ -418,7 +416,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Ke
 		// TODO : would be good if we do all together atomically
 		tp.delete(key, id)
 		tp.budget(key, net)
-		storage.Store(tp.state, stateKey, tp.book)
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, key), tp.book)
 		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "")).
 			AddLine(fmt.Sprintf("%s closed %s %s ( %.3f | %.2f%s )",
 				emoji.MapToSign(profit),
