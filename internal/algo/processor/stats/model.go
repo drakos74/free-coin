@@ -13,6 +13,6 @@ func NewStateKey(label string) storage.Key {
 }
 
 type Window struct {
-	w *buffer.HistoryWindow `json:"window"`
-	c *buffer.HMM           `json:"hmm"`
+	W *buffer.HistoryWindow `json:"window"`
+	C *buffer.HMM           `json:"hmm"`
 }

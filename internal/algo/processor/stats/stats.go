@@ -76,7 +76,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 }
 
 func sendWindowConfig(user api.User, k model.Key, w Window) {
-	for _, cfg := range w.c.Config {
+	for _, cfg := range w.C.Config {
 		api.Reply(api.Private,
 			user,
 			api.NewMessage(fmt.Sprintf("%s|%v %v -> %v (%d)",
@@ -84,7 +84,7 @@ func sendWindowConfig(user api.User, k model.Key, w Window) {
 				k.Duration,
 				cfg.LookBack,
 				cfg.LookAhead,
-				w.c.Status.Count),
+				w.C.Status.Count),
 			), nil)
 	}
 }

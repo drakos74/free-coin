@@ -5,16 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
-	cointime "github.com/drakos74/free-coin/internal/time"
-
-	"github.com/drakos74/free-coin/internal/storage"
-
 	"github.com/drakos74/free-coin/internal/algo/processor"
-
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
+	cointime "github.com/drakos74/free-coin/internal/time"
+	"github.com/rs/zerolog/log"
 )
 
 func newWindow(cfg processor.Config) Window {
@@ -32,8 +28,8 @@ func newWindow(cfg processor.Config) Window {
 		}
 	}
 	return Window{
-		w: buffer.NewHistoryWindow(cointime.ToMinutes(cfg.Duration), windowSize),
-		c: buffer.NewMultiHMM(hmm...),
+		W: buffer.NewHistoryWindow(cointime.ToMinutes(cfg.Duration), windowSize),
+		C: buffer.NewMultiHMM(hmm...),
 	}
 }
 
@@ -87,8 +83,8 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if _, ok := s.windows[k].w.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
-		buckets := s.windows[k].w.Get(func(bucket interface{}) interface{} {
+	if _, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
+		buckets := s.windows[k].W.Get(func(bucket interface{}) interface{} {
 			// it's a history window , so we expect to have history buckets inside
 			if b, ok := bucket.(buffer.TimeBucket); ok {
 				// get the 'zerowth' stats element, as we are only assing the Price a few lines above,
@@ -113,7 +109,8 @@ func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, b
 func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.Predictions, buffer.Status) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	predictions, status := s.windows[k].c.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
-	storage.Store(s.state, NewStateKey(k.ToString()), s.windows)
+	predictions, status := s.windows[k].C.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
+	// dont store anything for now ...until we fix the structs and pointers
+	//storage.Store(s.state, NewStateKey(k.ToString()), s.windows)
 	return predictions, status
 }
