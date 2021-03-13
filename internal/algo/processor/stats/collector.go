@@ -17,7 +17,7 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-func newWindow(cfg processor.Config) *Window {
+func newWindow(cfg processor.Config) Window {
 	// find out the max window size
 	hmm := make([]buffer.HMMConfig, len(cfg.Stats))
 	var windowSize int
@@ -31,7 +31,7 @@ func newWindow(cfg processor.Config) *Window {
 			LookAhead: stat.LookAhead,
 		}
 	}
-	return &Window{
+	return Window{
 		w: buffer.NewHistoryWindow(cointime.ToMinutes(cfg.Duration), windowSize),
 		c: buffer.NewMultiHMM(hmm...),
 	}
@@ -43,12 +43,12 @@ type statsCollector struct {
 	state    storage.Persistence
 	lock     sync.RWMutex
 	configs  map[model.Coin]map[time.Duration]processor.Config
-	windows  map[model.Key]*Window
+	windows  map[model.Key]Window
 }
 
 func newStats(shard storage.Shard, registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) (*statsCollector, error) {
 
-	windows := make(map[model.Key]*Window)
+	windows := make(map[model.Key]Window)
 
 	for c, dConfig := range configs {
 		for d, cfg := range dConfig {

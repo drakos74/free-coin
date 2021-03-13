@@ -75,7 +75,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 	}
 }
 
-func sendWindowConfig(user api.User, k model.Key, w *Window) {
+func sendWindowConfig(user api.User, k model.Key, w Window) {
 	for _, cfg := range w.c.Config {
 		api.Reply(api.Private,
 			user,
