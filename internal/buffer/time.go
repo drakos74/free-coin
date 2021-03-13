@@ -57,7 +57,7 @@ func NewTimeWindow(duration time.Duration) TimeWindow {
 
 // Push adds an element to the time Window.
 // It will return true, if the last addition caused a bucket to close.
-func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
+func (tw TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 	// TODO : provide a inverse hash operation
 	index := t.Unix() / tw.Duration

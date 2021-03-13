@@ -53,9 +53,10 @@ func NewKeyFromString(cid string) (Key, error) {
 }
 
 // NewKey creates a new processor key
-func NewKey(c Coin, d time.Duration) Key {
+func NewKey(c Coin, d time.Duration, strategy string) Key {
 	return Key{
 		Coin:     c,
 		Duration: d,
+		Strategy: strategy,
 	}
 }

@@ -25,12 +25,6 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 
 	windows := make(map[model.Key]Window)
 
-	state, err := shard(ProcessorName)
-	if err != nil {
-		log.Error().Err(err).Msg("could not init storage")
-		state = storage.NewVoidStorage()
-	}
-
 	for c, dConfig := range configs {
 		for d, cfg := range dConfig {
 			k := model.Key{
@@ -43,6 +37,11 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 		}
 	}
 
+	state, err := shard(ProcessorName)
+	if err != nil {
+		log.Error().Err(err).Msg("could not init storage")
+		state = storage.NewVoidStorage()
+	}
 	stats := &statsCollector{
 		registry: registry,
 		state:    state,

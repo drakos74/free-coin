@@ -31,11 +31,13 @@ func trackUserActions(user api.User, stats *statsCollector) {
 		var duration int
 		var coin string
 		var action string
+		var strategy string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?n", "?notify"),
 			api.Any(&coin),
 			api.Int(&duration),
+			api.Any(&strategy),
 			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
@@ -44,7 +46,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 		}
 		c := model.Coin(coin)
 		d := time.Duration(duration) * time.Minute
-		k := model.NewKey(c, d)
+		k := model.NewKey(c, d, strategy)
 		switch action {
 		case "":
 			if w, ok := stats.windows[k]; ok {
@@ -113,7 +115,7 @@ func MultiStats(shard storage.Shard, registry storage.Registry, user api.User, c
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
 			for duration, cfg := range stats.configs[trade.Coin] {
-				k := model.NewKey(trade.Coin, duration)
+				k := model.NewKey(trade.Coin, duration, cfg.Strategy.Name)
 				// push the trade data to the stats collector window
 				if buckets, ok := stats.push(k, trade); ok {
 					values, indicators, last := extractFromBuckets(buckets, group(getPriceRatio, cfg.Order.Exec))
