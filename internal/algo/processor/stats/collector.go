@@ -9,29 +9,8 @@ import (
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
-	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
 )
-
-func newWindow(cfg processor.Config) Window {
-	// find out the max window size
-	hmm := make([]buffer.HMMConfig, len(cfg.Stats))
-	var windowSize int
-	for i, stat := range cfg.Stats {
-		ws := stat.LookAhead + stat.LookBack + 1
-		if windowSize < ws {
-			windowSize = ws
-		}
-		hmm[i] = buffer.HMMConfig{
-			LookBack:  stat.LookBack,
-			LookAhead: stat.LookAhead,
-		}
-	}
-	return Window{
-		W: buffer.NewHistoryWindow(cointime.ToMinutes(cfg.Duration), windowSize),
-		C: buffer.NewMultiHMM(hmm...),
-	}
-}
 
 type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
@@ -46,20 +25,22 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 
 	windows := make(map[model.Key]Window)
 
+	state, err := shard(ProcessorName)
+	if err != nil {
+		log.Error().Err(err).Msg("could not init storage")
+		state = storage.NewVoidStorage()
+	}
+
 	for c, dConfig := range configs {
 		for d, cfg := range dConfig {
 			k := model.Key{
 				Coin:     c,
 				Duration: d,
+				Strategy: cfg.Strategy.Name,
 			}
+			// TODO : check if we can load the window (?)
 			windows[k] = newWindow(cfg)
 		}
-	}
-
-	state, err := shard(ProcessorName)
-	if err != nil {
-		log.Error().Err(err).Msg("could not init storage")
-		state = storage.NewVoidStorage()
 	}
 
 	stats := &statsCollector{
@@ -111,6 +92,9 @@ func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.
 	defer s.lock.Unlock()
 	predictions, status := s.windows[k].C.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
 	// dont store anything for now ...until we fix the structs and pointers
-	//storage.Store(s.state, NewStateKey(k.ToString()), s.windows)
+	storage.Store(s.state, NewStateKey(k.ToString()), StaticWindow{
+		W: s.windows[k].W,
+		C: *s.windows[k].C,
+	})
 	return predictions, status
 }

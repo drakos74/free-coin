@@ -52,7 +52,7 @@ type HMM struct {
 	sequence *ring.Ring                      `json:"-"`
 	Config   []HMMConfig                     `json:"config"`
 	State    map[Sequence]map[Sequence]State `json:"state"`
-	Status   *Status                         `json:"status"`
+	Status   Status                          `json:"status"`
 }
 
 // Prediction defines a prediction result with the computed Probability
@@ -130,8 +130,8 @@ type Status struct {
 	Samples map[string]map[Sequence]Sample `json:"sample"`
 }
 
-func newStatus() *Status {
-	return &Status{
+func newStatus() Status {
+	return Status{
 		Samples: make(map[string]map[Sequence]Sample),
 	}
 }
@@ -181,7 +181,7 @@ func (c *HMM) Add(s string, label string) (map[Sequence]Predictions, Status) {
 	c.sequence.Value = s
 	c.sequence = c.sequence.Next()
 
-	return prediction, *c.Status
+	return prediction, c.Status
 }
 
 func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predictions, int, int) {

@@ -20,11 +20,11 @@ const (
 
 // Config defines the configuration for the MultiStats processor.
 type Config struct {
-	Duration   int        `json:"duration"`
-	Order      Order      `json:"order"`
-	Notify     Notify     `json:"notify"`
-	Stats      []Stats    `json:"stats"`
-	Strategies []Strategy `json:"strategies"`
+	Duration int      `json:"duration"`
+	Order    Order    `json:"order"`
+	Notify   Notify   `json:"notify"`
+	Stats    []Stats  `json:"stats"`
+	Strategy Strategy `json:"strategy"`
 }
 
 // Order defines the order of the aggregation logic for the stats
@@ -180,28 +180,17 @@ func getOrderFunc(order string) func(f float64) int {
 // this is highly unsafe, but is as a backup,
 // in case we were not able to reason about a strategy and we dont want to stop processing actions.
 func GetConfig(config map[time.Duration]Config, key model.Key) Strategy {
-	var matched bool
 	if dConfig, ok := config[key.Duration]; ok {
-		for _, str := range dConfig.Strategies {
-			if str.Name == key.Strategy {
-				log.Info().
-					Str("cid", key.ToString()).
-					Str("strategy", fmt.Sprintf("%+v", str)).
-					Msg("using strategy")
-				matched = true
-				return str
-			}
+		if dConfig.Strategy.Name == key.Strategy {
+			log.Info().
+				Str("cid", key.ToString()).
+				Str("strategy", fmt.Sprintf("%+v", dConfig.Strategy)).
+				Msg("using strategy")
+			return dConfig.Strategy
 		}
 	}
-	if !matched {
-		log.Warn().
-			Str("cid", key.ToString()).
-			Msg("using random strategy ... ")
-		for _, m := range config {
-			if len(m.Strategies) > 0 {
-				return m.Strategies[0]
-			}
-		}
-	}
+	log.Error().
+		Str("cid", key.ToString()).
+		Msg("no strategy found ... ")
 	return Strategy{}
 }

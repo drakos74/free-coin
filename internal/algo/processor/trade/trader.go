@@ -65,29 +65,27 @@ func (tr *trader) getAll(c model.Coin) map[time.Duration]processor.Config {
 //	return k.Duration, tr.configs[k.Coin][k.Duration]
 //}
 
-func (tr *trader) evaluate(pp stats.TradeSignal, strategies []processor.Strategy) predictionsPairs {
+func (tr *trader) evaluate(pp stats.TradeSignal, strategy processor.Strategy) predictionsPairs {
 	var pairs predictionsPairs = make([]PredictionPair, 0)
 	// NOTE : we can have multiple predictions because of the number of sequences we are tracking
 	// lookback and lookahead for the stats processor configs
 	for _, prediction := range pp.Predictions {
-		for _, strategy := range strategies {
-			executor := tr.getStrategy(strategy.Name)
-			if values, probability, confidence, ttype := executor(pp.SignalEvent, prediction, strategy); ttype != model.NoType {
-				pair := PredictionPair{
-					SignalID:    pp.ID,
-					Price:       pp.Price,
-					Time:        pp.Time,
-					Strategy:    strategy,
-					Confidence:  confidence,
-					Label:       prediction.Label,
-					Key:         prediction.Key,
-					Values:      values,
-					Probability: probability,
-					Sample:      prediction.Sample,
-					Type:        ttype,
-				}
-				pairs = append(pairs, pair)
+		executor := tr.getStrategy(strategy.Name)
+		if values, probability, confidence, ttype := executor(pp.SignalEvent, prediction, strategy); ttype != model.NoType {
+			pair := PredictionPair{
+				SignalID:    pp.ID,
+				Price:       pp.Price,
+				Time:        pp.Time,
+				Strategy:    strategy,
+				Confidence:  confidence,
+				Label:       prediction.Label,
+				Key:         prediction.Key,
+				Values:      values,
+				Probability: probability,
+				Sample:      prediction.Sample,
+				Type:        ttype,
 			}
+			pairs = append(pairs, pair)
 		}
 	}
 	sort.Sort(sort.Reverse(pairs))

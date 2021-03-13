@@ -47,9 +47,9 @@ type TimeWindow struct {
 }
 
 // NewTimeWindow creates a new TimeWindow with the given Duration.
-func NewTimeWindow(duration time.Duration) *TimeWindow {
+func NewTimeWindow(duration time.Duration) TimeWindow {
 	d := int64(duration.Seconds())
-	return &TimeWindow{
+	return TimeWindow{
 		Duration: d,
 		window:   NewWindow(1),
 	}
@@ -84,13 +84,13 @@ func (tw *TimeWindow) Next(iterations int64) time.Time {
 
 // HistoryWindow keeps the last x buckets based on the Window interval given
 type HistoryWindow struct {
-	window  *TimeWindow `json:"window"`
-	buckets *Ring       `json:"-"`
+	window  TimeWindow `json:"window"`
+	buckets *Ring      `json:"-"`
 }
 
 // NewHistoryWindow creates a new history Window.
-func NewHistoryWindow(duration time.Duration, size int) *HistoryWindow {
-	return &HistoryWindow{
+func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
+	return HistoryWindow{
 		window:  NewTimeWindow(duration),
 		buckets: NewRing(size),
 	}
@@ -98,7 +98,7 @@ func NewHistoryWindow(duration time.Duration, size int) *HistoryWindow {
 
 // Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
-func (h *HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
+func (h HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 	if bucket, ok := h.window.Push(t, v...); ok {
 		h.buckets.Push(bucket)
 		return bucket, true
@@ -107,6 +107,6 @@ func (h *HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 }
 
 // Get returns the transformed bucket value at the corresponding Index.
-func (h *HistoryWindow) Get(transform Transform) []interface{} {
+func (h HistoryWindow) Get(transform Transform) []interface{} {
 	return h.buckets.Get(transform)
 }

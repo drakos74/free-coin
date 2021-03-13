@@ -36,18 +36,17 @@ func trackUserActions(user api.User, trader *trader) {
 
 		// return the current configs
 		for d, cfg := range trader.getAll(c) {
-			for _, strategy := range cfg.Strategies {
-				user.Send(api.Private,
-					api.NewMessage(processor.Audit(ProcessorName, "positions")).
-						AddLine(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
-							c,
-							cfg.Duration,
-							// TODO : we dont need both, but keeping them for debugging for now
-							d,
-							strategy.Probability,
-							strategy.Sample,
-							strategy.Threshold)), nil)
-			}
+			strategy := cfg.Strategy
+			user.Send(api.Private,
+				api.NewMessage(processor.Audit(ProcessorName, "positions")).
+					AddLine(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
+						c,
+						cfg.Duration,
+						// TODO : we dont need both, but keeping them for debugging for now
+						d,
+						strategy.Probability,
+						strategy.Sample,
+						strategy.Threshold)), nil)
 		}
 		// TODO : allow to edit based on the reply message
 	}
@@ -86,7 +85,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 					// we got a trade signal, let's see if we can get an action out of it
 					if cfg, ok := trader.get(ts.Key); ok && len(ts.Predictions) > 0 {
 						// check if we should make a buy order
-						pairs := trader.evaluate(ts, cfg.Strategies)
+						pairs := trader.evaluate(ts, cfg.Strategy)
 						// act here ... once for every trade signal only once per coin
 						if len(pairs) > 0 {
 							// note the first pair should have the highest probability !!!
