@@ -18,6 +18,8 @@ import (
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
 	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -168,7 +170,15 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			// lets add the positions if multi stats intervals are defined
-			if _, ok := target.Data[model.ManualConfig]; ok {
+			if cfg, ok := target.Data[model.ManualConfig]; ok {
+				// check tha manual config
+				config, err := coin.ReadConfig(cfg)
+				fmt.Println(fmt.Sprintf("config = %+v", config))
+				fmt.Println(fmt.Sprintf("err = %+v", err))
+				if err != nil {
+					log.Error().Err(err).Msg("error during config parsing")
+					return
+				}
 				profitSeries := make([][]float64, 0)
 				coinPositions := positions[c]
 				log.Info().
@@ -187,9 +197,10 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 					total += net
 					profitSeries = append(profitSeries, []float64{total, model.Time(pos.Close)})
 				}
+				key := coinmodel.NewKey(coinmodel.Coin(target.Target), cointime.ToMinutes(config.Duration), config.Strategy.Name)
+				fmt.Println(fmt.Sprintf("key = %+v", key))
 				data = append(data, model.Series{
-					// TODO : print the config details used ... or not (?)
-					Target:     fmt.Sprintf("%s P&L", target.Target),
+					Target:     fmt.Sprintf("P&L %s", key.ToString()),
 					DataPoints: profitSeries,
 				})
 			}
@@ -211,7 +222,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 						Type: "string",
 					},
 					model.Column{
-						Text: "Stats",
+						Text: "Model",
 						Type: "string",
 					},
 					model.Column{
@@ -285,7 +296,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pair := keys[0]
-	registryKeyDir := coin.BackTestRegistryPath
+	registryKeyDir := storage.BackTestRegistryPath
 	if len(keys) > 1 {
 		registryKeyDir = keys[1]
 	}
@@ -343,7 +354,6 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 					// skipping position. it should be matched with a closed one
 					log.Debug().Str("trade", fmt.Sprintf("%+v", trade)).Msg("open position found")
 				}
-
 			}
 		}
 
@@ -351,7 +361,6 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 			Int("trades", len(trades.Order)).
 			Int("annotations", len(annotations)).
 			Msg("loaded annotations for history trades")
-
 	case AnnotationTradePairs:
 		predictionPairs, err := trade.GetPairs(registryKeyDir, pair)
 		if err != nil {

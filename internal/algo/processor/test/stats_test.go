@@ -84,7 +84,7 @@ func TestStats_Gather(t *testing.T) {
 func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 	config := processor.Config{
 		Duration: 10,
-		Stats: []processor.Stats{
+		Model: []processor.Stats{
 			{
 				LookBack:  2,
 				LookAhead: 1,

@@ -18,7 +18,7 @@ func TestConfigJson(t *testing.T) {
 		Notify: Notify{
 			Stats: true,
 		},
-		Stats: []Stats{
+		Model: []Stats{
 			{
 				LookBack:  1,
 				LookAhead: 1,

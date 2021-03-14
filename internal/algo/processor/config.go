@@ -23,7 +23,7 @@ type Config struct {
 	Duration int      `json:"duration"`
 	Order    Order    `json:"order"`
 	Notify   Notify   `json:"notify"`
-	Stats    []Stats  `json:"stats"`
+	Model    Model    `json:"model"`
 	Strategy Strategy `json:"strategy"`
 }
 
@@ -36,6 +36,12 @@ type Order struct {
 // Notify defines notification actions and limits
 type Notify struct {
 	Stats bool `json:"stats"`
+}
+
+// Model defines the stats conditions and instance.
+type Model struct {
+	Index int64   `json:"index"`
+	Stats []Stats `json:"stats"`
 }
 
 // Stats defines the prediction target intervals.

@@ -27,8 +27,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const BackTestRegistryPath = "backtest-events"
-
 type Service struct {
 }
 
@@ -37,7 +35,7 @@ func New() *Service {
 }
 
 func CleanBackTestingDir(coin string) {
-	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, BackTestRegistryPath, coin)
+	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, storage.BackTestRegistryPath, coin)
 	err := os.RemoveAll(registryPath)
 	if err != nil {
 		log.Warn().Msg("could not remove back-testing registry directory")
@@ -61,7 +59,7 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 	}
 
 	registryFilter := true
-	//backtestFilter := false
+	backtestFilter := false
 	for _, filter := range query.Filters {
 		switch filter.Key {
 		case model.RegistryFilterKey:
@@ -69,10 +67,10 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 				log.Warn().Msg("skip registry refresh")
 				registryFilter = false
 			}
-			//case model.BackTestOptionKey:
-			//	if filter.Value == model.BackTestOptionTrue {
-			//		backtestFilter = true
-			//	}
+		case model.BackTestOptionKey:
+			if filter.Value == model.BackTestOptionTrue {
+				backtestFilter = true
+			}
 		}
 	}
 
@@ -95,8 +93,7 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 
 	backtestConfig := make(map[coinmodel.Coin]map[time.Duration]processor.Config)
 	if config, ok := query.Data[model.ManualConfig]; ok {
-		var cfg processor.Config
-		err = FromJsonMap("", config, &cfg)
+		cfg, err := ReadConfig(config)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("could not init config: %w", err)
 		}
@@ -116,7 +113,7 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 		OneOfEvery(redux)
 
 	registry := refreshRegistry(string(c), registryFilter)
-	localStore := storage.VoidShard(storage.InternalPath)
+	localStore := initLocalStorage(backtestFilter)
 
 	block := api.NewBlock()
 	statsProcessor := stats.MultiStats(localStore, registry, user, backtestConfig)
@@ -148,6 +145,12 @@ func (s *Service) error(err error) (map[coinmodel.Coin][]coinmodel.Trade, map[co
 	return nil, nil, nil, err
 }
 
+func ReadConfig(config interface{}) (processor.Config, error) {
+	var cfg processor.Config
+	err := FromJsonMap("", config, &cfg)
+	return cfg, err
+}
+
 func FromJsonMap(name string, m interface{}, n interface{}) error {
 	// serialise and deserialize ...
 	b, err := json.Marshal(m)
@@ -168,7 +171,7 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 }
 
 func refreshRegistry(coin string, refresh bool) storage.Registry {
-	registrySubPath := BackTestRegistryPath
+	registrySubPath := storage.BackTestRegistryPath
 	log.Warn().Str("path", registrySubPath).Msg("registry")
 	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, registrySubPath, coin)
 	if ok, err := IsEmpty(registryPath); refresh || ok || err != nil {
@@ -176,6 +179,13 @@ func refreshRegistry(coin string, refresh bool) storage.Registry {
 		return jsonstore.NewEventRegistry(registrySubPath).WithHash(0)
 	}
 	return storage.NewVoidRegistry()
+}
+
+func initLocalStorage(active bool) storage.Shard {
+	if active {
+		return jsonstore.BlobShard(storage.BackTestInternalPath)
+	}
+	return storage.VoidShard(storage.InternalPath)
 }
 
 func IsEmpty(name string) (bool, error) {

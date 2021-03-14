@@ -25,6 +25,12 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 
 	windows := make(map[model.Key]Window)
 
+	state, err := shard(ProcessorName)
+	if err != nil {
+		log.Error().Err(err).Msg("could not init storage")
+		state = storage.NewVoidStorage()
+	}
+
 	for c, dConfig := range configs {
 		for d, cfg := range dConfig {
 			k := model.Key{
@@ -33,15 +39,11 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 				Strategy: cfg.Strategy.Name,
 			}
 			// TODO : check if we can load the window (?)
-			windows[k] = newWindow(cfg)
+			key := model.NewKey(c, d, cfg.Strategy.Name)
+			windows[k] = newWindow(key, cfg, state)
 		}
 	}
 
-	state, err := shard(ProcessorName)
-	if err != nil {
-		log.Error().Err(err).Msg("could not init storage")
-		state = storage.NewVoidStorage()
-	}
 	stats := &statsCollector{
 		registry: registry,
 		state:    state,

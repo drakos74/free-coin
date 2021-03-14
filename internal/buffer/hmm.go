@@ -45,6 +45,23 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 	}
 }
 
+// NewMultiHMM creates a new model from a previous one.
+func HMMFromState(hmm HMM) *HMM {
+	var max int
+	for _, s := range hmm.Config {
+		if s.LookBack+s.LookAhead > max {
+			max = s.LookBack + s.LookAhead
+		}
+	}
+	return &HMM{
+		max:      max,
+		sequence: ring.New(max + 1),
+		Config:   hmm.Config,
+		State:    hmm.State,
+		Status:   hmm.Status,
+	}
+}
+
 // HMM counts occurrences in a sequence of strings.
 // It implements effectively several hidden markov model of the n-grams lengths provided in the Config.
 type HMM struct {

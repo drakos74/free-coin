@@ -8,11 +8,15 @@ import (
 )
 
 const (
-	BookDir      = "book"
-	HistoryDir   = "history"
-	RegistryDir  = "registry"
-	RegistryPath = "events"
-	InternalPath = "internal"
+	BookDir     = "book"
+	HistoryDir  = "history"
+	RegistryDir = "registry"
+
+	BackTestRegistryPath = "backtest-events"
+	RegistryPath         = "events"
+
+	BackTestInternalPath = "backtest-internal"
+	InternalPath         = "internal"
 )
 
 var (

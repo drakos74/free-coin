@@ -13,7 +13,7 @@ const delimiter = "-"
 type Key struct {
 	Coin     Coin          `json:"coin"`
 	Duration time.Duration `json:"duration"`
-	Index    int           `json:"index"`
+	Index    int64         `json:"index"`
 	Strategy string        `json:"strategy"`
 }
 
@@ -39,11 +39,10 @@ func NewKeyFromString(cid string) (Key, error) {
 		return Key{}, fmt.Errorf("could not de-correlate '%s': %w", cid, err)
 	}
 	duration := time.Duration(d) * time.Minute
-	i, err := strconv.ParseInt(parts[3], 10, 64)
+	index, err := strconv.ParseInt(parts[3], 10, 64)
 	if err != nil {
 		return Key{}, fmt.Errorf("could not de-correlate '%s': %w", cid, err)
 	}
-	index := int(i)
 	return Key{
 		Coin:     coin,
 		Duration: duration,

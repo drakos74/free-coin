@@ -71,7 +71,7 @@ func TestTrader_Gather(t *testing.T) {
 					Order: processor.Order{
 						Name: "O10",
 					},
-					Stats: []processor.Stats{
+					Model: []processor.Stats{
 						{
 							LookBack:  2,
 							LookAhead: 1,
@@ -94,7 +94,7 @@ func TestTrader_Gather(t *testing.T) {
 					Order: processor.Order{
 						Name: "O2",
 					},
-					Stats: []processor.Stats{
+					Model: []processor.Stats{
 						{
 							LookBack:  2,
 							LookAhead: 1,

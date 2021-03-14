@@ -182,9 +182,13 @@ func (tp *tradePositions) update(client api.Exchange) error {
 				log.Warn().Str("cid", p.CID).Err(err).Msg("could not correlate position")
 			}
 			if _, ok := tp.book[k]; !ok {
-				tp.book[k] = Portfolio{
+				// load the portfolio if its there ...
+				portfolio := Portfolio{
 					Positions: make(map[string]TradePosition),
 				}
+				err := tp.state.Load(processor.NewStateKey(ProcessorName, k), &portfolio)
+				log.Warn().Err(err).Msg("loaded portfolio")
+				tp.book[k] = portfolio
 			}
 			tp.book[k].Positions[p.ID] = TradePosition{
 				Position: model.TrackedPosition{
@@ -208,7 +212,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 		}
 		portfolio.Positions = positions
 		book[k] = portfolio
-		storage.Store(tp.state, processor.NewStateKey(ProcessorName, k), tp.book)
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, k), tp.book[k])
 	}
 	tp.book = book
 	// save the state
@@ -330,8 +334,7 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 	}
 	for _, action := range actions {
 		tp.book[action.key].Positions[action.position.Position.ID] = action.position
-		storage.Store(tp.state, processor.NewStateKey(ProcessorName, action.key), tp.book)
-
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, action.key), tp.book[action.key])
 	}
 	return actions
 }
@@ -416,7 +419,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Ke
 		// TODO : would be good if we do all together atomically
 		tp.delete(key, id)
 		tp.budget(key, net)
-		storage.Store(tp.state, processor.NewStateKey(ProcessorName, key), tp.book)
+		storage.Store(tp.state, processor.NewStateKey(ProcessorName, key), tp.book[key])
 		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "")).
 			AddLine(fmt.Sprintf("%s closed %s %s ( %.3f | %.2f%s )",
 				emoji.MapToSign(profit),
