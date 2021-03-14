@@ -17,15 +17,11 @@ const (
 
 func Signal(user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
-	err := server.NewServer("trade-view", port).
+	go server.NewServer("trade-view", port).
 		Add(server.Live()).
 		AddRoute(server.GET, server.Api, "test-get", handle(user)).
 		AddRoute(server.POST, server.Api, "test-post", handle(user)).
 		Run()
-
-	if err != nil {
-		log.Error().Err(err).Msg("could not start external signal server")
-	}
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
