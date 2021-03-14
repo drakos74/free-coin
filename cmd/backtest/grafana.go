@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/server"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	"github.com/drakos74/free-coin/cmd/backtest/coin"
 	"github.com/drakos74/free-coin/cmd/backtest/model"
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
-	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	cointime "github.com/drakos74/free-coin/internal/time"
@@ -25,12 +25,6 @@ import (
 )
 
 const (
-	port     = 6122
-	basePath = "data"
-
-	GET  = "GET"
-	POST = "POST"
-
 	AnnotationOpenPositions   = "position_open"
 	AnnotationClosedPositions = "position_close"
 	AnnotationTradePairs      = "trade"
@@ -41,76 +35,12 @@ func init() {
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 }
 
-type Server struct {
-	block api.Block
-}
+func query(r *http.Request) (payload []byte, code int, err error) {
 
-func New() *Server {
-	return &Server{
-		block: api.NewBlock(),
-	}
-}
-
-func (s *Server) handle(method string, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
-	// we should only handle one request per time,
-	// in order to ease memory footprint.
-	s.block.Action <- api.NewAction("request").Create()
-	defer func() {
-		s.block.ReAction <- api.NewAction("request").Create()
-	}()
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case method:
-			handler(w, r)
-		default:
-			w.WriteHeader(http.StatusNotImplemented)
-		}
-	}
-}
-
-func (s *Server) Run() error {
-
-	go func() {
-		for action := range s.block.Action {
-			log.Warn().
-				Time("time", action.Time).
-				Str("action", action.Name).
-				Msg("started execution")
-			reaction := <-s.block.ReAction
-			log.Warn().
-				Time("time", action.Time).
-				Float64("duration", time.Since(action.Time).Seconds()).
-				Str("reaction", reaction.Name).
-				Msg("completed execution")
-		}
-	}()
-
-	http.HandleFunc(fmt.Sprintf("/%s", basePath), s.handle(GET, s.live))
-	http.HandleFunc(fmt.Sprintf("/%s/search", basePath), s.handle(POST, s.search))
-	http.HandleFunc(fmt.Sprintf("/%s/tag-keys", basePath), s.handle(POST, s.keys))
-	http.HandleFunc(fmt.Sprintf("/%s/tag-values", basePath), s.handle(POST, s.values))
-	http.HandleFunc(fmt.Sprintf("/%s/annotations", basePath), s.handle(POST, s.annotations))
-	http.HandleFunc(fmt.Sprintf("/%s/query", basePath), s.handle(POST, s.query))
-
-	log.Warn().Str("server", "backtest").Int("port", port).Msg("starting server")
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		return fmt.Errorf("could not start storage server: %w", err)
-	}
-	return nil
-}
-
-func (s *Server) query(w http.ResponseWriter, r *http.Request) {
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
 	var query model.Query
-	err = json.Unmarshal(body, &query)
+	err = server.JsonRead(r, false, &query)
 	if err != nil {
-		s.error(w, err)
-		return
+		return payload, code, err
 	}
 
 	qq := model.QQ{
@@ -140,8 +70,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 	log.Info().Msg("service")
 
 	if err != nil {
-		s.error(w, err)
-		return
+		return payload, code, err
 	}
 
 	data := make([]model.Series, 0)
@@ -165,8 +94,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 						DataPoints: points,
 					})
 				} else {
-					s.error(w, err)
-					return
+					return payload, code, err
 				}
 			}
 			// lets add the positions if multi stats intervals are defined
@@ -177,7 +105,7 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 				fmt.Println(fmt.Sprintf("err = %+v", err))
 				if err != nil {
 					log.Error().Err(err).Msg("error during config parsing")
-					return
+					return nil, code, err
 				}
 				profitSeries := make([][]float64, 0)
 				coinPositions := positions[c]
@@ -258,42 +186,25 @@ func (s *Server) query(w http.ResponseWriter, r *http.Request) {
 		response = append(response, d)
 	}
 
-	b, err := json.Marshal(response)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	s.respond(w, b)
+	payload, err = json.Marshal(response)
+	return
 }
 
-func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	log.Warn().
-		Str("body", string(body)).
-		Str("endpoint", "annotations").
-		Msg("request body")
+func annotations(r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.AnnotationQuery
-	err = json.Unmarshal(body, &query)
+	err = server.JsonRead(r, false, &query)
 	if err != nil {
-		s.error(w, err)
-		return
+		return payload, code, err
 	}
 
 	if query.Annotation.Enable == false {
-		s.respond(w, []byte("{}"))
-		return
+		return []byte("{}"), 400, nil
 	}
 
 	keys := strings.Split(query.Annotation.Query, " ")
 	if len(keys) == 0 {
-		s.error(w, fmt.Errorf("query cannot be empty"))
-		return
+		return payload, 400, fmt.Errorf("query cannot be empty")
 	}
 	pair := keys[0]
 	registryKeyDir := storage.BackTestRegistryPath
@@ -306,8 +217,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	case "history":
 		historyClient, err := kraken.NewHistory(context.Background())
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 
 		trades, err := historyClient.Get(query.Range.From, query.Range.To)
@@ -315,8 +225,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		log.Info().Int("order", len(trades.Order)).Int("trades", len(trades.Trades)).Msg("loaded trades")
 
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 		for _, id := range trades.Order {
 			trade := trades.Trades[id]
@@ -364,8 +273,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	case AnnotationTradePairs:
 		predictionPairs, err := trade.GetPairs(registryKeyDir, pair)
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 		for _, pair := range predictionPairs {
 			annotations = append(annotations, coin.PredictionPair(pair))
@@ -373,8 +281,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	case AnnotationOpenPositions:
 		orders, err := position.GetOpen(registryKeyDir, pair)
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 		for _, order := range orders {
 			annotations = append(annotations, coin.TrackingOrder(order))
@@ -382,8 +289,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	case AnnotationClosedPositions:
 		positions, err := position.GetClosed(registryKeyDir, pair)
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 		sort.SliceStable(positions, func(i, j int) bool {
 			return positions[i].Open.Before(positions[j].Open)
@@ -394,8 +300,7 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 	case AnnotationTradeStrategy:
 		strategyEvents, err := trade.StrategyEvents(registryKeyDir, pair)
 		if err != nil {
-			s.error(w, err)
-			return
+			return payload, code, err
 		}
 		for _, event := range strategyEvents {
 			if event.Sample.Valid &&
@@ -407,14 +312,10 @@ func (s *Server) annotations(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	b, err := json.Marshal(annotations)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	s.respond(w, b)
+	payload, err = json.Marshal(annotations)
+	return payload, code, err
 }
-func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
+func keys(r *http.Request) (payload []byte, code int, err error) {
 	tags := []model.Tag{
 		{
 			Type: "bool",
@@ -425,24 +326,15 @@ func (s *Server) keys(w http.ResponseWriter, r *http.Request) {
 			Text: model.BackTestOptionKey,
 		},
 	}
-	b, err := json.Marshal(tags)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	s.respond(w, b)
+	payload, err = json.Marshal(tags)
+	return payload, code, err
 }
 
-func (s *Server) values(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
+func values(r *http.Request) (payload []byte, code int, err error) {
 	var tag model.Tag
-	err = json.Unmarshal(body, &tag)
+	err = server.JsonRead(r, false, &tag)
 	if err != nil {
-		s.error(w, err)
+		return payload, code, err
 	}
 
 	values := make([]model.Tag, 0)
@@ -470,47 +362,17 @@ func (s *Server) values(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	default:
-		s.code(w, []byte(fmt.Sprintf("unknown tag: %+v", tag)), http.StatusInternalServerError)
-		return
+		return []byte(fmt.Sprintf("unknown tag: %+v", tag)), http.StatusInternalServerError, err
 	}
-	b, err := json.Marshal(values)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	s.respond(w, b)
+	payload, err = json.Marshal(values)
+	return payload, code, err
 }
 
-func (s *Server) live(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
-}
-
-func (s *Server) search(w http.ResponseWriter, r *http.Request) {
+func search(r *http.Request) (payload []byte, code int, err error) {
 	coins := make([]string, 0)
 	for _, coin := range coinmodel.Coins {
 		coins = append(coins, string(coin))
 	}
-	b, err := json.Marshal(coins)
-	if err != nil {
-		s.error(w, err)
-		return
-	}
-	s.respond(w, b)
-}
-
-func (s *Server) code(w http.ResponseWriter, b []byte, code int) {
-	s.respond(w, b)
-	w.WriteHeader(code)
-}
-
-func (s *Server) respond(w http.ResponseWriter, b []byte) {
-	_, err := w.Write(b)
-	if err != nil {
-		log.Error().Err(err).Msg("could not write response")
-	}
-}
-
-func (s *Server) error(w http.ResponseWriter, err error) {
-	log.Error().Err(err).Msg("error for http request")
-	s.code(w, []byte(err.Error()), http.StatusInternalServerError)
+	payload, err = json.Marshal(coins)
+	return
 }
