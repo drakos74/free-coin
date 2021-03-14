@@ -38,7 +38,7 @@ func init() {
 func query(r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.Query
-	err = server.JsonRead(r, false, &query)
+	err = server.JsonRead(r, true, &query)
 	if err != nil {
 		return payload, code, err
 	}
