@@ -1,6 +1,7 @@
 package external
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func handle(user api.User) server.Handler {
-	return func(r *http.Request) ([]byte, int, error) {
+	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
 		var payload map[string]interface{}
 		err := server.JsonRead(r, true, &payload)
 		if err != nil {
