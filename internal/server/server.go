@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
+	"runtime"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -74,11 +76,13 @@ func (s *Server) Add(route ...Route) *Server {
 func (s *Server) handle(method Method, handler Handler) func(w http.ResponseWriter, r *http.Request) {
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
-	s.block.Action <- api.NewAction("request").Create()
-	defer func() {
-		s.block.ReAction <- api.NewAction("request").Create()
-	}()
+	name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
+		request := fmt.Sprintf("%s request : %s", method, name)
+		s.block.Action <- api.NewAction(request).Create()
+		defer func() {
+			s.block.ReAction <- api.NewAction(request).Create()
+		}()
 		requestMethod := Method(r.Method)
 		switch requestMethod {
 		case method:
