@@ -19,8 +19,8 @@ func Signal(user api.User, configs map[model.Coin]map[time.Duration]processor.Co
 
 	err := server.NewServer("trade-view", port).
 		Add(server.Live()).
-		AddRoute(server.GET, server.Data, "", handle(user)).
-		AddRoute(server.POST, server.Api, "", handle(user)).
+		AddRoute(server.GET, server.Api, "test-get", handle(user)).
+		AddRoute(server.POST, server.Api, "test-post", handle(user)).
 		Run()
 
 	if err != nil {
