@@ -42,7 +42,7 @@ func CleanBackTestingDir(coin string) {
 	}
 }
 
-func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
+func (s *Service) Run(ctx context.Context, query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map[coinmodel.Coin][]coinmodel.TrackedPosition, []api.Message, error) {
 
 	//ctx := context.Background()
 
@@ -64,7 +64,7 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 		switch filter.Key {
 		case model.RegistryFilterKey:
 			if filter.Value == model.RegistryFilterKeep {
-				log.Warn().Msg("skip registry refresh")
+				log.Info().Msg("skip registry refresh")
 				registryFilter = false
 			}
 		case model.BackTestOptionKey:
@@ -100,7 +100,7 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 		backtestConfig[c] = map[time.Duration]processor.Config{
 			cointime.ToMinutes(cfg.Duration): processor.Parse(cfg),
 		}
-		log.Warn().
+		log.Info().
 			Str("config", fmt.Sprintf("%+v", config)).
 			Msg("loaded config from back-test")
 	}
@@ -128,6 +128,10 @@ func (s *Service) Run(query model.QQ) (map[coinmodel.Coin][]coinmodel.Trade, map
 		positionProcessor,
 		tradeProcessor,
 	)
+	go func() {
+		<-ctx.Done()
+		overWatch.Stop(c)
+	}()
 
 	if err != nil {
 		return s.error(fmt.Errorf("could not start engine for '%s': %w", c, err))
@@ -172,7 +176,6 @@ func FromJsonMap(name string, m interface{}, n interface{}) error {
 
 func refreshRegistry(coin string, refresh bool) storage.Registry {
 	registrySubPath := storage.BackTestRegistryPath
-	log.Warn().Str("path", registrySubPath).Msg("registry")
 	registryPath := path.Join(storage.DefaultDir, storage.RegistryDir, registrySubPath, coin)
 	if ok, err := IsEmpty(registryPath); refresh || ok || err != nil {
 		CleanBackTestingDir(coin)

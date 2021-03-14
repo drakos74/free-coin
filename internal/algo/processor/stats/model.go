@@ -44,7 +44,7 @@ func newWindow(key model.Key, cfg processor.Config, store storage.Persistence) W
 		key.Index = cfg.Model.Index
 		var window StaticWindow
 		err := store.Load(processor.NewStateKey(ProcessorName, key), &window)
-		log.Warn().
+		log.Info().
 			Err(err).
 			Str("key", fmt.Sprintf("%+v", key)).
 			Int64("index", cfg.Model.Index).
@@ -56,7 +56,7 @@ func newWindow(key model.Key, cfg processor.Config, store storage.Persistence) W
 			}
 		}
 	}
-	log.Warn().
+	log.Info().
 		Str("key", fmt.Sprintf("%+v", key)).
 		Int64("index", cfg.Model.Index).
 		Msg("start new HMM")

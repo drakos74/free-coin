@@ -35,7 +35,7 @@ func init() {
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 }
 
-func query(r *http.Request) (payload []byte, code int, err error) {
+func query(ctx context.Context, r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.Query
 	err = server.JsonRead(r, true, &query)
@@ -65,7 +65,7 @@ func query(r *http.Request) (payload []byte, code int, err error) {
 		Str("endpoint", "query").
 		Msg("query")
 	service := coin.New()
-	trades, positions, messages, err := service.Run(qq)
+	trades, positions, messages, err := service.Run(ctx, qq)
 
 	log.Info().Msg("service")
 
@@ -187,7 +187,7 @@ func query(r *http.Request) (payload []byte, code int, err error) {
 	return
 }
 
-func annotations(r *http.Request) (payload []byte, code int, err error) {
+func annotations(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.AnnotationQuery
 	err = server.JsonRead(r, false, &query)
@@ -312,7 +312,7 @@ func annotations(r *http.Request) (payload []byte, code int, err error) {
 	payload, err = json.Marshal(annotations)
 	return payload, code, err
 }
-func keys(r *http.Request) (payload []byte, code int, err error) {
+func keys(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 	tags := []model.Tag{
 		{
 			Type: "bool",
@@ -327,7 +327,7 @@ func keys(r *http.Request) (payload []byte, code int, err error) {
 	return payload, code, err
 }
 
-func values(r *http.Request) (payload []byte, code int, err error) {
+func values(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 	var tag model.Tag
 	err = server.JsonRead(r, false, &tag)
 	if err != nil {
@@ -365,7 +365,7 @@ func values(r *http.Request) (payload []byte, code int, err error) {
 	return payload, code, err
 }
 
-func search(r *http.Request) (payload []byte, code int, err error) {
+func search(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 	coins := make([]string, 0)
 	for _, coin := range coinmodel.Coins {
 		coins = append(coins, string(coin))

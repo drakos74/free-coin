@@ -23,7 +23,11 @@ func main() {
 		AddRoute(server.POST, server.Data, "tag-keys", keys).
 		AddRoute(server.POST, server.Data, "tag-values", values).
 		AddRoute(server.POST, server.Data, "annotations", annotations).
-		AddRoute(server.POST, server.Data, "query", query)
+		Add(server.NewRoute(server.POST, server.Data).
+			WithPath("query").
+			Handler(query).
+			AllowInterrupt().
+			Create())
 	go func() {
 		err := srv.Run()
 		if err != nil {

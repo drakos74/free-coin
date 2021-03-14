@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -25,13 +26,43 @@ const (
 	POST Method = "POST"
 )
 
-type Handler func(r *http.Request) ([]byte, int, error)
+type Handler func(ctx context.Context, r *http.Request) ([]byte, int, error)
 
 type Route struct {
-	Action Action
-	Path   string
-	Method Method
-	Exec   Handler
+	Action    Action
+	Interrupt bool
+	Path      string
+	Method    Method
+	Exec      Handler
+}
+
+func NewRoute(method Method, action Action) *Route {
+	return &Route{
+		Action: action,
+		Method: method,
+		Exec: func(ctx context.Context, r *http.Request) ([]byte, int, error) {
+			return []byte{}, http.StatusNotImplemented, nil
+		},
+	}
+}
+
+func (r *Route) AllowInterrupt() *Route {
+	r.Interrupt = true
+	return r
+}
+
+func (r *Route) WithPath(path string) *Route {
+	r.Path = path
+	return r
+}
+
+func (r *Route) Handler(exec Handler) *Route {
+	r.Exec = exec
+	return r
+}
+
+func (r *Route) Create() Route {
+	return *r
 }
 
 type Server struct {
@@ -73,20 +104,32 @@ func (s *Server) Add(route ...Route) *Server {
 	return s
 }
 
-func (s *Server) handle(method Method, handler Handler) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w http.ResponseWriter, r *http.Request) {
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
 	name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
 		request := fmt.Sprintf("%s request : %s", method, name)
-		s.block.Action <- api.NewAction(request).Create()
+		ctx, cancel := context.WithCancel(context.Background())
+		control := NewController(Start, name)
+		if interrupt {
+			control.AllowInterrupt().WithCancel(cancel)
+		}
+		action := api.NewAction(request).
+			WithContent(control).
+			Create()
+		s.block.Action <- action
+		// wait for the go-ahead
+		<-control.Reaction
 		defer func() {
-			s.block.ReAction <- api.NewAction(request).Create()
+			control.Status = Finish
+			action.WithContent(control)
+			s.block.ReAction <- action
 		}()
 		requestMethod := Method(r.Method)
 		switch requestMethod {
 		case method:
-			b, code, err := handler(r)
+			b, code, err := handler(ctx, r)
 			if err != nil {
 				s.error(w, err)
 			} else if code != http.StatusOK {
@@ -103,25 +146,72 @@ func (s *Server) handle(method Method, handler Handler) func(w http.ResponseWrit
 // Run starts the server
 func (s *Server) Run() error {
 	go func() {
-		for action := range s.block.Action {
-			log.Warn().
-				Time("time", action.Time).
-				Str("action", action.Name).
-				Msg("started execution")
-			reaction := <-s.block.ReAction
-			log.Warn().
-				Time("time", action.Time).
-				Float64("duration", time.Since(action.Time).Seconds()).
-				Str("reaction", reaction.Name).
-				Msg("completed execution")
+		actions := make(map[string]api.Action)
+		pendingActions := make([]api.Action, 0)
+
+		var triggerNext = func() {
+			if len(actions) > 0 {
+				log.Warn().Int("pending", len(actions)).Msg("execution halted")
+				return
+			}
+			// if we have no running actions ... trigger what is pending
+			newPendingActions := make([]api.Action, 0)
+			for i := 0; i < len(pendingActions); i++ {
+				action := pendingActions[i]
+				if i == 0 {
+					log.Warn().
+						Time("time", action.Time).
+						Str("action", action.Name).
+						Msg("started execution")
+					controller := action.Content.(*Control)
+					actions[action.ID] = action
+					controller.Reaction <- struct{}{}
+				} else {
+					newPendingActions = append(newPendingActions, action)
+				}
+			}
+			pendingActions = newPendingActions
+		}
+
+		for {
+			select {
+			case reaction := <-s.block.ReAction:
+				if act, ok := actions[reaction.ID]; ok {
+					// it s an existing action ... we probably need to close it
+					log.Warn().
+						Time("time", act.Time).
+						Float64("duration", time.Since(act.Time).Seconds()).
+						Str("reaction", act.Name).
+						Msg("completed execution")
+					delete(actions, reaction.ID)
+					triggerNext()
+					continue
+				}
+			case action := <-s.block.Action:
+				// add current action ot pending ones ...
+				pendingActions = append(pendingActions, action)
+				// check if we have running actions and need to cancel any
+				ctrl := action.Content.(*Control)
+				for _, a := range actions {
+					control := a.Content.(*Control)
+					if ctrl.Type == control.Type {
+						if control.Interrupt {
+							control.Cancel()
+							log.Warn().Str("type", control.Type).Msg("cancel execution")
+							delete(actions, a.ID)
+						}
+					}
+				}
+				triggerNext()
+			}
 		}
 	}()
 
 	for _, route := range s.routes {
 		if route.Path != "" {
-			http.HandleFunc(fmt.Sprintf("/%s/%s", route.Action, route.Path), s.handle(route.Method, route.Exec))
+			http.HandleFunc(fmt.Sprintf("/%s/%s", route.Action, route.Path), s.handle(route.Method, route.Interrupt, route.Exec))
 		} else {
-			http.HandleFunc(fmt.Sprintf("/%s", route.Action), s.handle(route.Method, route.Exec))
+			http.HandleFunc(fmt.Sprintf("/%s", route.Action), s.handle(route.Method, route.Interrupt, route.Exec))
 		}
 	}
 
@@ -153,7 +243,7 @@ func Live() Route {
 	return Route{
 		Action: Data,
 		Method: GET,
-		Exec: func(r *http.Request) (payload []byte, code int, err error) {
+		Exec: func(ctx context.Context, r *http.Request) (payload []byte, code int, err error) {
 			return []byte{}, 200, nil
 		},
 	}
