@@ -101,8 +101,6 @@ func query(r *http.Request) (payload []byte, code int, err error) {
 			if cfg, ok := target.Data[model.ManualConfig]; ok {
 				// check tha manual config
 				config, err := coin.ReadConfig(cfg)
-				fmt.Println(fmt.Sprintf("config = %+v", config))
-				fmt.Println(fmt.Sprintf("err = %+v", err))
 				if err != nil {
 					log.Error().Err(err).Msg("error during config parsing")
 					return nil, code, err
@@ -126,7 +124,6 @@ func query(r *http.Request) (payload []byte, code int, err error) {
 					profitSeries = append(profitSeries, []float64{total, model.Time(pos.Close)})
 				}
 				key := coinmodel.NewKey(coinmodel.Coin(target.Target), cointime.ToMinutes(config.Duration), config.Strategy.Name)
-				fmt.Println(fmt.Sprintf("key = %+v", key))
 				data = append(data, model.Series{
 					Target:     fmt.Sprintf("P&L %s", key.ToString()),
 					DataPoints: profitSeries,
