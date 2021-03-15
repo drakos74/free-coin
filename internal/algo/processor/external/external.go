@@ -12,7 +12,7 @@ import (
 
 const (
 	ProcessorName = "external"
-	port          = 6129
+	port          = 80
 )
 
 func Signal(user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
