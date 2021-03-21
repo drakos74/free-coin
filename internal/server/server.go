@@ -270,11 +270,9 @@ func Read(r *http.Request, debug bool) (string, error) {
 
 func JsonRead(r *http.Request, debug bool, v interface{}) error {
 	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
 	if debug {
 		log.Info().
+			Err(err).
 			Str("url", fmt.Sprintf("%+v", r.URL)).
 			Str("request", r.RequestURI).
 			Str("header", fmt.Sprintf("%+v", r.Header)).
@@ -283,6 +281,9 @@ func JsonRead(r *http.Request, debug bool, v interface{}) error {
 			Str("method", r.Method).
 			Str("body", string(body)).
 			Msg("received payload")
+	}
+	if err != nil {
+		return err
 	}
 	if len(body) > 0 {
 		err = json.Unmarshal(body, v)

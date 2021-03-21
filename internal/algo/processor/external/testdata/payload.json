@@ -1,0 +1,8 @@
+{
+  "exchange": "{{exchange}}",
+  "ticker": "{{ticker}}",
+  "price": "{{close}}",
+  "volume": "{{volume}}",
+  "time": "{{time}}",
+  "interval": "{{interval}}"
+}
