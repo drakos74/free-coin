@@ -14,7 +14,7 @@ func handle(user api.User) server.Handler {
 	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
 		var bb []byte
 		var payload string
-		jsonErr := server.ReadJson(r, true, bb)
+		jsonErr := server.ReadJson(r, true, &bb)
 		if jsonErr != nil {
 			var err error
 			payload, err = server.Read(r, true)
