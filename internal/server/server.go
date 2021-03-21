@@ -251,6 +251,17 @@ func Live() Route {
 
 func Read(r *http.Request, debug bool) (string, error) {
 	body, err := ioutil.ReadAll(r.Body)
+	if debug {
+		log.Info().
+			Str("url", fmt.Sprintf("%+v", r.URL)).
+			Str("request", r.RequestURI).
+			Str("header", fmt.Sprintf("%+v", r.Header)).
+			Str("remote-address", r.RemoteAddr).
+			Str("host", r.Host).
+			Str("method", r.Method).
+			Str("body", string(body)).
+			Msg("received payload")
+	}
 	if err != nil {
 		return "", err
 	}
