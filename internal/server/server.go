@@ -249,6 +249,14 @@ func Live() Route {
 	}
 }
 
+func Read(r *http.Request, debug bool) (string, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
 func JsonRead(r *http.Request, debug bool, v interface{}) error {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {

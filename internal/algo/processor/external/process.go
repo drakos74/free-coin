@@ -12,8 +12,7 @@ import (
 
 func handle(user api.User) server.Handler {
 	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
-		var payload map[string]interface{}
-		err := server.JsonRead(r, true, &payload)
+		payload, err := server.Read(r, true)
 		if err != nil {
 			log.Error().Err(err).Msg("error decoding request")
 			return nil, http.StatusBadGateway, err
