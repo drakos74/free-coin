@@ -12,7 +12,7 @@ import (
 
 func handle(user api.User) server.Handler {
 	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
-		var bb []byte
+		var bb map[string]interface{}
 		var payload string
 		jsonErr := server.ReadJson(r, true, &bb)
 		if jsonErr != nil {
@@ -25,7 +25,7 @@ func handle(user api.User) server.Handler {
 			user.Send(api.Private, api.NewMessage(fmt.Sprintf("error = %v \n raw = %+v", jsonErr.Error(), payload)), nil)
 			return []byte{}, http.StatusOK, nil
 		}
-		payload = string(bb)
+		payload = fmt.Sprintf("%+v", bb)
 		user.Send(api.Private, api.NewMessage(fmt.Sprintf("json = %+v", payload)), nil)
 		return []byte{}, http.StatusOK, nil
 	}
