@@ -268,7 +268,7 @@ func Read(r *http.Request, debug bool) (string, error) {
 	return string(body), nil
 }
 
-func JsonRead(r *http.Request, debug bool, v interface{}) error {
+func ReadJson(r *http.Request, debug bool, v interface{}) error {
 	body, err := ioutil.ReadAll(r.Body)
 	if debug {
 		log.Info().
