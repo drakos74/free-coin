@@ -15,7 +15,7 @@ const (
 	port          = 8080
 )
 
-func Signal(user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func Lux(user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
 	go server.NewServer("trade-view", port).
 		Add(server.Live()).

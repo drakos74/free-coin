@@ -268,7 +268,7 @@ func Read(r *http.Request, debug bool) (string, error) {
 	return string(body), nil
 }
 
-func ReadJson(r *http.Request, debug bool, v interface{}) error {
+func ReadJson(r *http.Request, debug bool, v interface{}) (string, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if debug {
 		log.Info().
@@ -282,14 +282,17 @@ func ReadJson(r *http.Request, debug bool, v interface{}) error {
 			Str("body", string(body)).
 			Msg("received payload")
 	}
+
+	payload := string(body)
+
 	if err != nil {
-		return err
+		return payload, err
 	}
 	if len(body) > 0 {
 		err = json.Unmarshal(body, v)
 		if err != nil {
-			return err
+			return payload, err
 		}
 	}
-	return nil
+	return payload, nil
 }

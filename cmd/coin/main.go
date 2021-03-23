@@ -79,7 +79,7 @@ func main() {
 	statsProcessor := stats.MultiStats(storageShard, registry, user, configs)
 	positionProcessor := position.Position(storageShard, registry, exchange, user, block, configs)
 	tradeProcessor := trade.Trade(registry, user, block, configs)
-	signalProcessor := external.Signal(user, configs)
+	signalProcessor := external.Lux(user, configs)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log,
 			statsProcessor,
