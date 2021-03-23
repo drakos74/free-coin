@@ -38,7 +38,7 @@ func init() {
 func query(ctx context.Context, r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.Query
-	err = server.ReadJson(r, true, &query)
+	_, err = server.ReadJson(r, true, &query)
 	if err != nil {
 		return payload, code, err
 	}
@@ -190,7 +190,7 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 func annotations(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 
 	var query model.AnnotationQuery
-	err = server.ReadJson(r, false, &query)
+	_, err = server.ReadJson(r, false, &query)
 	if err != nil {
 		return payload, code, err
 	}
@@ -329,7 +329,7 @@ func keys(_ context.Context, r *http.Request) (payload []byte, code int, err err
 
 func values(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 	var tag model.Tag
-	err = server.ReadJson(r, false, &tag)
+	_, err = server.ReadJson(r, false, &tag)
 	if err != nil {
 		return payload, code, err
 	}
