@@ -10,6 +10,7 @@ type Config struct {
 	SA       string `json:"SA"`
 	Interval string `json:"Interval"`
 	Position string `json:"Position"`
+	Mode     string `json:"Mode"` // AUTO | MANUAL
 }
 
 type Signal struct {
