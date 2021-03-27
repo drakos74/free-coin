@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drakos74/free-coin/cmd/backtest/model"
+	"github.com/drakos74/free-coin/internal/metrics"
+
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -12,8 +13,8 @@ import (
 	cointime "github.com/drakos74/free-coin/internal/time"
 )
 
-func TrackingOrder(order coinmodel.TrackedOrder) model.AnnotationInstance {
-	return model.AnnotationInstance{
+func TrackingOrder(order coinmodel.TrackedOrder) metrics.AnnotationInstance {
+	return metrics.AnnotationInstance{
 		Title: fmt.Sprintf("%2.f %.2f", order.Price, order.Volume),
 		Text:  fmt.Sprintf("%s %v", order.ID, order.TxIDs),
 		Time:  cointime.ToMilli(order.Time),
@@ -21,9 +22,9 @@ func TrackingOrder(order coinmodel.TrackedOrder) model.AnnotationInstance {
 	}
 }
 
-func TrackedPosition(position coinmodel.TrackedPosition) model.AnnotationInstance {
+func TrackedPosition(position coinmodel.TrackedPosition) metrics.AnnotationInstance {
 	net, profit := position.Value()
-	return model.AnnotationInstance{
+	return metrics.AnnotationInstance{
 		Title:    fmt.Sprintf("%2.f (%.2f)", net, profit),
 		Text:     fmt.Sprintf("%s %v", emoji.MapToSign(profit), position.Position.ID),
 		Time:     cointime.ToMilli(position.Open),
@@ -33,8 +34,8 @@ func TrackedPosition(position coinmodel.TrackedPosition) model.AnnotationInstanc
 	}
 }
 
-func PredictionPair(pair trade.PredictionPair) model.AnnotationInstance {
-	return model.AnnotationInstance{
+func PredictionPair(pair trade.PredictionPair) metrics.AnnotationInstance {
+	return metrics.AnnotationInstance{
 		Title: fmt.Sprintf("%s %v", pair.Key, pair.Values),
 		Text:  fmt.Sprintf("%.2f %d", pair.Probability, pair.Sample),
 		Time:  cointime.ToMilli(pair.Time),
@@ -42,12 +43,12 @@ func PredictionPair(pair trade.PredictionPair) model.AnnotationInstance {
 	}
 }
 
-func StrategyEvent(event trade.StrategyEvent) model.AnnotationInstance {
+func StrategyEvent(event trade.StrategyEvent) metrics.AnnotationInstance {
 	tag := ""
 	if event.Result.Confidence > 0 {
 		tag = "trigger"
 	}
-	return model.AnnotationInstance{
+	return metrics.AnnotationInstance{
 		Title: fmt.Sprintf("%s | %.2f/%.2f",
 			event.Strategy,
 			event.Result.Sum,

@@ -2,7 +2,7 @@ package external
 
 import (
 	"fmt"
-	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -37,7 +37,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	grafana := metrics.NewServer("grafana", grafanaPort)
 
 	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.RegistryPath)
-	err := filepath.Walk(registryPath, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
 		if info != nil && !info.IsDir() {
 			dir := filepath.Dir(path)
 			grafana.Target(dir, func(data map[string]interface{}) metrics.Series {
