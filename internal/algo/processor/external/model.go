@@ -23,7 +23,7 @@ func (m Message) Price() (float64, error) {
 
 func (m Message) Volume() (float64, error) {
 	// TODO : re-enable to use the right amounts
-	size := 10.0
+	size := 20.0
 	//vol, err := strconv.ParseFloat(m.Config.Position, 64)
 	//if err != nil {
 	//	return 0, fmt.Errorf("could not parse volume from '%v': %w", m.Config.Position, err)
