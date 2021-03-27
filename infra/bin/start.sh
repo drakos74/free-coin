@@ -115,6 +115,7 @@ fi
 i=1;
 for user in "$@"
 do
+    echo "restarting $i"
     restart "$i";
     i=$((i + 1));
 done

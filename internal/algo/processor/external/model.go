@@ -40,11 +40,14 @@ func (m Message) Type() (model.Type, error) {
 		buy, buyErr = strconv.ParseInt(m.Signal.StrongBuy, 10, 64)
 	}
 	if buyErr == nil && sellErr == nil {
-		return t, fmt.Errorf("inconsistent type parsing ( buy : %v , sell : %v )", buy, sell)
-	} else if buyErr == nil {
-		return model.Buy, nil
-	} else if sellErr == nil {
-		return model.Sell, nil
+		if buy == sell {
+			return t, fmt.Errorf("inconsistent type parsing ( buy : %v , sell : %v )", buy, sell)
+		} else if buy == 1 {
+			return model.Buy, nil
+		} else if sell == 1 {
+			return model.Sell, nil
+		}
+		return t, fmt.Errorf("invalid type ( buy : %v , sell : %v )", buy, sell)
 	}
 	return t, fmt.Errorf("could not parse type: %+v", m)
 }
@@ -66,7 +69,7 @@ func (m Message) Duration() time.Duration {
 }
 
 func (m Message) Key() string {
-	return fmt.Sprintf("%s_%s_%s", m.Config.SA, m.Config.Interval, m.Config.Mode)
+	return fmt.Sprintf("%s_%s_%s_%s", m.Data.Ticker, m.Config.SA, m.Config.Interval, m.Config.Mode)
 }
 
 type Config struct {
