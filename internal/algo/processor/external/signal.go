@@ -38,6 +38,8 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			api.Contains("?p"),
 		)
 
+		fmt.Println(fmt.Sprintf("command = %+v", command))
+
 		if err != nil {
 			api.Reply(api.External, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
 			continue
