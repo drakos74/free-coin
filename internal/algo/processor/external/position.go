@@ -23,7 +23,8 @@ func newTracker(shard storage.Shard) (*tracker, error) {
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
 	positions := make(map[string]model.Position)
-	st.Load(stKey(), &positions)
+	err = st.Load(stKey(), &positions)
+	log.Info().Err(err).Int("num", len(positions)).Msg("loaded positions")
 	return &tracker{
 		positions: make(map[string]model.Position),
 		storage:   st,
