@@ -127,7 +127,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 
 	// init tracker related actions
 	tracker, err := newTracker(shard)
-	tracker.trackUserActions(client, user)
+	go tracker.trackUserActions(client, user)
 	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
 		positions := tracker.getAll()
 		annotations := make([]metrics.AnnotationInstance, len(positions))
