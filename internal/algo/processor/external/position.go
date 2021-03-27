@@ -9,6 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const storagePath = "external-positions"
+
 type tracker struct {
 	positions map[string]model.Position
 	storage   storage.Persistence
@@ -16,10 +18,12 @@ type tracker struct {
 }
 
 func newTracker(shard storage.Shard) (*tracker, error) {
-	st, err := shard("external-positions")
+	st, err := shard(storagePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
+	positions := make(map[string]model.Position)
+	st.Load(stKey(), &positions)
 	return &tracker{
 		positions: make(map[string]model.Position),
 		storage:   st,
@@ -63,5 +67,12 @@ func (t *tracker) add(key string, order model.Order, close bool) error {
 			Msg("extending position")
 	}
 	t.positions[key] = position
-	return nil
+	return t.storage.Store(stKey(), t.positions)
+}
+
+func stKey() storage.Key {
+	return storage.Key{
+		Pair:  "all",
+		Label: ProcessorName,
+	}
 }

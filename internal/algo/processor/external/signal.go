@@ -69,7 +69,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							user.Send(api.External,
 								api.NewMessage("ignoring signal").
 									AddLine(createTypeMessage(coin, t, v, p, false)).
-									AddLine(createReportMessage(key)),
+									AddLine(createReportMessage(key, fmt.Errorf("ignored signal:%v", position))),
 								nil)
 							continue
 						}
@@ -88,7 +88,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Strategy: message.Key(),
 						}, message.Time())
 					_, err = client.OpenOrder(order)
-					if err != nil {
+					if err == nil {
 						regErr := registry.Add(storage.K{
 							Pair:  message.Data.Ticker,
 							Label: message.Key(),
@@ -96,12 +96,9 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Message: message,
 							Order:   order,
 						})
-						trackedErr := tracker.add(key, order.Order, close)
-						log.Info().
-							Err(regErr).Err(trackedErr).
-							Msg("completed action")
-						if err != nil {
-							log.Error().Err(err).
+						trackErr := tracker.add(key, order.Order, close)
+						if regErr != nil || trackErr != nil {
+							log.Error().Err(regErr).Err(trackErr).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
 								Msg("could not save to registry")
