@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
+	coinmath "github.com/drakos74/free-coin/internal/math"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -23,6 +25,45 @@ const (
 	grafanaPort        = 6124
 	openPositionsQuery = "open-positions"
 )
+
+var positionKey = api.ConsumerKey{
+	Key:    "Position",
+	Prefix: "?p",
+}
+
+func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
+	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
+		_, err := command.Validate(
+			api.AnyUser(),
+			api.Contains("?p"),
+		)
+
+		if err != nil {
+			api.Reply(api.External, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
+			continue
+		}
+
+		for k, pos := range t.getAll() {
+			net, profit := pos.Value()
+			configMsg := fmt.Sprintf("[ %s ]", k)
+			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
+				emoji.MapToSign(net),
+				pos.Coin,
+				profit,
+				"%",
+				net,
+				emoji.MapType(pos.Type),
+				coinmath.Format(pos.Volume),
+			)
+			// TODO : send a trigger for each Position to give access to adjust it
+			trigger := &api.Trigger{
+				ID:  pos.ID,
+				Key: positionKey,
+			}
+			user.Send(api.External, api.NewMessage(msg).AddLine(configMsg), trigger)
+		}
+	}
+}
 
 // TODO : use in a unified channel for all tracked currencies ...
 // TODO : this needs to be a combined client pushing many coins to the trade source ...
@@ -84,8 +125,9 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 			Msg("could not look into registry path")
 	}
 
+	// init tracker related actions
 	tracker, err := newTracker(shard)
-
+	tracker.trackUserActions(client, user)
 	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
 		positions := tracker.getAll()
 		annotations := make([]metrics.AnnotationInstance, len(positions))
@@ -94,7 +136,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 			annotations[i] = metrics.AnnotationInstance{
 				Title: k,
 				// TODO : track also the current price
-				Text: fmt.Sprintf("%f", p.OpenPrice),
+				Text: fmt.Sprintf("%f at %f", p.Volume, p.OpenPrice),
 				Time: cointime.ToMilli(p.OpenTime),
 				Tags: []string{emoji.MapType(p.Type), string(p.Coin)},
 			}
@@ -103,6 +145,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 		return annotations
 	})
 
+	// run the grafana server
 	grafana.Run()
 
 	if err != nil {
