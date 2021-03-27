@@ -22,15 +22,17 @@ func (m Message) Price() (float64, error) {
 }
 
 func (m Message) Volume() (float64, error) {
-	vol, err := strconv.ParseFloat(m.Config.Position, 64)
-	if err != nil {
-		return 0, fmt.Errorf("could not parse volume from '%v': %w", m.Config.Position, err)
-	}
+	// TODO : re-enable to use the right amounts
+	size := 1.0
+	//vol, err := strconv.ParseFloat(m.Config.Position, 64)
+	//if err != nil {
+	//	return 0, fmt.Errorf("could not parse volume from '%v': %w", m.Config.Position, err)
+	//}
 	price, err := strconv.ParseFloat(m.Data.Price, 64)
 	if err != nil {
 		return 0, fmt.Errorf("could not parse price from '%v': %w", m.Data.Price, err)
 	}
-	return vol / price, nil
+	return size / price, nil
 }
 
 func (m Message) Type() (model.Type, error) {
