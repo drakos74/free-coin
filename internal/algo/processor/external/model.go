@@ -32,11 +32,11 @@ func (m Message) Volume() (float64, error) {
 func (m Message) Type() (model.Type, error) {
 	t := model.NoType
 	sell, sellErr := strconv.ParseInt(m.Signal.Sell, 10, 64)
-	if sellErr != nil {
+	if sellErr != nil || sell == 0 {
 		sell, sellErr = strconv.ParseInt(m.Signal.StrongSell, 10, 64)
 	}
 	buy, buyErr := strconv.ParseInt(m.Signal.Buy, 10, 64)
-	if buyErr != nil {
+	if buyErr != nil || buy == 0 {
 		buy, buyErr = strconv.ParseInt(m.Signal.StrongBuy, 10, 64)
 	}
 	if buyErr == nil && sellErr == nil {
