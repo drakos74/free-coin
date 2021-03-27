@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/emoji"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -131,7 +133,7 @@ func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, clo
 	if close {
 		action = "close"
 	}
-	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), action, t.String(), volume, price)
+	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), action, emoji.MapType(t), volume, price)
 }
 
 func createReportMessage(key string, err ...error) string {
