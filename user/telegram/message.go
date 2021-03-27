@@ -72,7 +72,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
 			// panic ...
-			if update.Message.Text == "stop" {
+			if update.Message.Text == "kill -9" {
 				panic("panic signal received!")
 			}
 			for k, consumer := range b.consumers {
