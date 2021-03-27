@@ -20,11 +20,12 @@ type CoinFormatter struct {
 func (p CoinFormatter) Format(c Coin, f float64) string {
 	precision := p.precision[c]
 	if _, ok := p.precision[c]; !ok {
+		precision = 4
 		log.Warn().
 			Float64("value", f).
 			Str("coin", string(c)).
+			Int("precision", precision).
 			Msg("unknown precision for coin")
-		precision = 0
 	}
 	price := strconv.FormatFloat(f, 'f', precision, 64)
 	return price
