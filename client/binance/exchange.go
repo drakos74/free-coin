@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/adshao/go-binance/v2"
 	"github.com/drakos74/free-coin/client/binance/model"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
@@ -45,8 +47,9 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
 		Quantity(coinmodel.Volume.Format(order.Coin, order.Volume)).
 		Price(coinmodel.Price.Format(order.Coin, order.Volume)).
 		Do(context.Background())
+	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
-		return nil, fmt.Errorf("could not complete order: %w")
+		return nil, fmt.Errorf("could not complete order: %w", err)
 	}
 	return []string{orderResponse.ClientOrderID}, nil
 }

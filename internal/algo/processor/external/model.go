@@ -17,6 +17,10 @@ type Message struct {
 
 // TODO : make these methods part of the decoding ...
 
+func (m Message) Price() (float64, error) {
+	return strconv.ParseFloat(m.Data.Price, 64)
+}
+
 func (m Message) Volume() (float64, error) {
 	vol, err := strconv.ParseFloat(m.Config.Position, 64)
 	if err != nil {

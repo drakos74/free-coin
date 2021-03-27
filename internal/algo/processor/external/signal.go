@@ -53,10 +53,9 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				key := message.Key()
 				t, tErr := message.Type()
 				v, vErr := message.Volume()
+				p, pErr := message.Price()
 				var err error
 				var close bool
-				var vol float64
-				var price float64
 				if tErr == nil && vErr == nil {
 					// check the positions ...
 					position, ok := tracker.check(key)
@@ -69,7 +68,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 								Msg("ignoring signal")
 							user.Send(api.External,
 								api.NewMessage("ignoring signal").
-									AddLine(createTypeMessage(coin, vol, price, false)).
+									AddLine(createTypeMessage(coin, t, v, p, false)).
 									AddLine(createReportMessage(key)),
 								nil)
 							continue
@@ -116,12 +115,12 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				log.Info().
 					Str("type", t.String()).
 					Str("coin", string(coin)).
-					Err(tErr).Err(vErr).Err(err).
-					Msg("received signal")
+					Err(tErr).Err(vErr).Err(pErr).Err(err).
+					Msg("processed signal")
 				user.Send(api.External,
 					api.NewMessage("processed signal").
-						AddLine(createTypeMessage(coin, vol, price, close)).
-						AddLine(createReportMessage(key, tErr, vErr, err)),
+						AddLine(createTypeMessage(coin, t, v, p, close)).
+						AddLine(createReportMessage(key, tErr, vErr, pErr, err)),
 					nil)
 			case trade := <-in:
 				out <- trade
@@ -130,19 +129,19 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	}
 }
 
-func createTypeMessage(coin model.Coin, volume, price float64, close bool) string {
+func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close bool) string {
 	action := "open"
 	if close {
 		action = "close"
 	}
-	return fmt.Sprintf("%s %s %.2f at %.2f", string(coin), action, volume, price)
+	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), action, t.String(), volume, price)
 }
 
 func createReportMessage(key string, err ...error) string {
 	var errs string
 	for _, e := range err {
 		if e != nil {
-			errs = fmt.Sprintf("%s , %s", errs, e.Error())
+			errs = fmt.Sprintf("%s:%s", errs, e.Error())
 		}
 	}
 	return fmt.Sprintf("%s [%s]", key, errs)
