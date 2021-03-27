@@ -67,12 +67,20 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 	if !ok {
 		return order, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
 	}
+
+	volume := strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)
+
+	log.Debug().
+		Str("volume", volume).
+		Str("order", fmt.Sprintf("%+v", order)).
+		Msg("submit order")
+
 	orderResponse, err := c.api.NewCreateOrderService().
 		Symbol(c.converter.Coin.Pair(order.Coin)).
 		Side(c.converter.Type.From(order.Type)).
 		Type(c.converter.OrderType.From(order.OType)).
 		//TimeInForce(binance.TimeInForceTypeGTC).
-		Quantity(strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)).
+		Quantity(volume).
 		//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
 		Do(context.Background())
 	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
