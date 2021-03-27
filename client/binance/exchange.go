@@ -45,7 +45,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
 		Type(c.converter.OrderType.From(order.OType)).
 		//TimeInForce(binance.TimeInForceTypeGTC).
 		Quantity(coinmodel.Volume.Format(order.Coin, order.Volume)).
-		Price(coinmodel.Price.Format(order.Coin, order.Volume)).
+		//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
 		Do(context.Background())
 	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
