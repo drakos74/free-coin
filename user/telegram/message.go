@@ -60,17 +60,21 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				b.execute(private, update.Message, reply.MessageID)
 				continue
 			}
-
 			var chatID int64
 			if update.Message.Chat != nil {
 				chatID = update.Message.Chat.ID
 			}
+
 			log.Debug().
 				Str("from", update.Message.From.UserName).
 				Str("text", update.Message.Text).
 				Int64("chat", chatID).
 				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
+			// panic ...
+			if update.Message.Text == "stop" {
+				panic("panic signal received!")
+			}
 			for k, consumer := range b.consumers {
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.Prefix) {

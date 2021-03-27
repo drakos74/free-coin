@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	}, uuid.New().String()).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
-	exchange := binance.NewExchange(binance.Free)
+	exchange := binance.NewExchange(binance.External)
 
 	var user api.User
 	var err error
