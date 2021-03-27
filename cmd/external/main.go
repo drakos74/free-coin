@@ -69,7 +69,7 @@ func main() {
 	registry := json.NewEventRegistry(storage.RegistryPath)
 
 	// load the default configuration
-	configs := processor.LoadDefaults(model.Coins)
+	configs := make(map[model.Coin]map[time.Duration]processor.Config)
 	signalProcessor := external.Signal(storageShard, registry, exchange, user, configs)
 	for _, c := range model.Coins {
 		if c != model.BTC {
