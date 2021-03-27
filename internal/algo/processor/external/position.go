@@ -31,6 +31,16 @@ func newTracker(shard storage.Shard) (*tracker, error) {
 	}, nil
 }
 
+func (t *tracker) getAll() map[string]model.Position {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	positions := make(map[string]model.Position)
+	for k, p := range t.positions {
+		positions[k] = p
+	}
+	return positions
+}
+
 func (t *tracker) check(key string) (model.Position, bool) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -40,7 +50,7 @@ func (t *tracker) check(key string) (model.Position, bool) {
 	return model.Position{}, false
 }
 
-func (t *tracker) add(key string, order model.Order, close bool) error {
+func (t *tracker) add(key string, order model.TrackedOrder, close bool) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if close {

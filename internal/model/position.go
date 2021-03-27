@@ -77,7 +77,7 @@ func (p *Position) Value() (value, percent float64) {
 }
 
 // OpenPosition creates a position from a given order.
-func OpenPosition(order Order) Position {
+func OpenPosition(order TrackedOrder) Position {
 	return Position{
 		ID:        uuid.New().String(),
 		OrderID:   order.ID,
@@ -85,5 +85,6 @@ func OpenPosition(order Order) Position {
 		Type:      order.Type,
 		Volume:    order.Volume,
 		OpenPrice: order.Price,
+		OpenTime:  order.Time,
 	}
 }

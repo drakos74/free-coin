@@ -14,19 +14,23 @@ type TagQuery func() []string
 
 type TargetQuery func(data map[string]interface{}) Series
 
+type AnnotationsQuery func(query string) []AnnotationInstance
+
 type Server struct {
-	name    string
-	port    int
-	tags    map[string]TagQuery
-	targets map[string]TargetQuery
+	name     string
+	port     int
+	tags     map[string]TagQuery
+	targets  map[string]TargetQuery
+	annotate map[string]AnnotationsQuery
 }
 
 func NewServer(name string, port int) *Server {
 	return &Server{
-		name:    name,
-		port:    port,
-		tags:    make(map[string]TagQuery),
-		targets: make(map[string]TargetQuery),
+		name:     name,
+		port:     port,
+		tags:     make(map[string]TagQuery),
+		targets:  make(map[string]TargetQuery),
+		annotate: make(map[string]AnnotationsQuery),
 	}
 }
 
@@ -37,6 +41,11 @@ func (s *Server) Tag(tag string, query TagQuery) *Server {
 
 func (s *Server) Target(target string, query TargetQuery) *Server {
 	s.targets[target] = query
+	return s
+}
+
+func (s *Server) Annotate(annotation string, query AnnotationsQuery) *Server {
+	s.annotate[annotation] = query
 	return s
 }
 
@@ -103,8 +112,12 @@ func (s *Server) annotations(_ context.Context, r *http.Request) (payload []byte
 		return []byte("{}"), 400, nil
 	}
 
-	annotations := make([]AnnotationInstance, 0)
+	annotation, ok := s.annotate[query.Annotation.Name]
+	if !ok {
+		return payload, 400, fmt.Errorf("invalid name for annotation: %s", query.Annotation.Name)
+	}
 
+	annotations := annotation(query.Annotation.Query)
 	payload, err = json.Marshal(annotations)
 	return payload, code, err
 }

@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	ProcessorName = "signal"
-	port          = 8080
-	grafanaPort   = 6124
+	ProcessorName      = "signal"
+	port               = 8080
+	grafanaPort        = 6124
+	openPositionsQuery = "open-positions"
 )
 
 // TODO : use in a unified channel for all tracked currencies ...
@@ -83,9 +84,27 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 			Msg("could not look into registry path")
 	}
 
+	tracker, err := newTracker(shard)
+
+	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
+		positions := tracker.getAll()
+		annotations := make([]metrics.AnnotationInstance, len(positions))
+		i := 0
+		for k, p := range positions {
+			annotations[i] = metrics.AnnotationInstance{
+				Title: k,
+				// TODO : track also the current price
+				Text: fmt.Sprintf("%f", p.OpenPrice),
+				Time: cointime.ToMilli(p.OpenTime),
+				Tags: []string{emoji.MapType(p.Type), string(p.Coin)},
+			}
+			i++
+		}
+		return annotations
+	})
+
 	grafana.Run()
 
-	tracker, err := newTracker(shard)
 	if err != nil {
 		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not start processor")
 		return func(in <-chan *model.Trade, out chan<- *model.Trade) {
@@ -151,7 +170,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Message: message,
 							Order:   order,
 						})
-						trackErr := tracker.add(key, order.Order, close)
+						trackErr := tracker.add(key, order, close)
 						if regErr != nil || trackErr != nil {
 							log.Error().Err(regErr).Err(trackErr).
 								Str("order", fmt.Sprintf("%+v", order)).

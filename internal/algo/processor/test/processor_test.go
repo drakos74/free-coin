@@ -119,9 +119,9 @@ func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, e
 	}, nil
 }
 
-func (c *mockClient) OpenOrder(order model.TrackedOrder) ([]string, error) {
-	c.positions = append(c.positions, model.OpenPosition(order.Order))
-	return []string{}, nil
+func (c *mockClient) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
+	c.positions = append(c.positions, model.OpenPosition(order))
+	return model.TrackedOrder{}, []string{}, nil
 }
 
 func (c *mockClient) ClosePosition(position model.Position) error {
