@@ -89,6 +89,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 						User:    update.Message.From.UserName,
 						Content: update.Message.Text,
 					}:
+						// TODO : wait until consumer has processed !
 					case <-time.After(1 * time.Second):
 						log.Warn().Str("prefix", k.Prefix).Str("consumer", fmt.Sprintf("%+v", k)).Str("command", update.Message.Text).Msg("consumer did not receive command")
 					}
