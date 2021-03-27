@@ -105,7 +105,7 @@ if [ $# -eq 0 ]
     # restart backtesting process
     restart "backtest"
     # restart external process
-    restart_grafana "external"
+    restart "external"
     # just stop and start
     restart_grafana "grafana"
     echo "ALL DONE!"
