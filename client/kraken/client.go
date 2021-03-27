@@ -142,17 +142,20 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (coinmodel.T
 
 // Exchange implements the exchange interface for kraken.
 type Exchange struct {
-	Api *RemoteExchange
+	Api  *RemoteExchange
+	info map[coinmodel.Coin]krakenapi.AssetPairInfo
 }
 
 // NewExchange creates a new exchange client.
 func NewExchange(ctx context.Context) api.Exchange {
-	client := &Exchange{
+	exchange := &Exchange{
 		Api: &RemoteExchange{
 			converter: model.NewConverter(),
 			private:   krakenapi.New(os.Getenv(key), os.Getenv(secret)),
 		},
 	}
+	exchange.Api.getInfo()
+	client := exchange
 	return client
 }
 

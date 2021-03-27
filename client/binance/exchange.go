@@ -3,6 +3,7 @@ package binance
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/rs/zerolog/log"
 
@@ -21,6 +22,7 @@ const (
 // Exchange is a binance client wrapper
 type Exchange struct {
 	api       *binance.Client
+	info      map[coinmodel.Coin]binance.Symbol
 	converter model.Converter
 }
 
@@ -28,10 +30,32 @@ type Exchange struct {
 func NewExchange(option Option) *Exchange {
 	k, s := ExchangeConfig(option)
 	client := binance.NewClient(k, s)
-	return &Exchange{
+	exchange := &Exchange{
 		api:       client,
 		converter: model.NewConverter(),
 	}
+	exchange.getInfo()
+	return exchange
+}
+
+func (c *Exchange) getInfo() {
+	if c.info != nil {
+		return
+	}
+	info, err := c.api.NewExchangeInfoService().Do(context.Background())
+	if err != nil {
+		log.Error().Str("exchange", "binance").Msg("could not get exchange info")
+	}
+	log.Info().
+		Int("pairs", len(info.Symbols)).
+		Str("exchange", "binance").
+		Msg("exchange info")
+	symbols := make(map[coinmodel.Coin]binance.Symbol)
+	for _, s := range info.Symbols {
+		coin := coinmodel.Coin(s.Symbol)
+		symbols[coin] = s
+	}
+	c.info = symbols
 }
 
 func (c *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
@@ -39,12 +63,16 @@ func (c *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch,
 }
 
 func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
+	s, ok := c.info[order.Coin]
+	if !ok {
+		return nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
+	}
 	orderResponse, err := c.api.NewCreateOrderService().
 		Symbol(c.converter.Coin.Pair(order.Coin)).
 		Side(c.converter.Type.From(order.Type)).
 		Type(c.converter.OrderType.From(order.OType)).
 		//TimeInForce(binance.TimeInForceTypeGTC).
-		Quantity(coinmodel.Volume.Format(order.Coin, order.Volume)).
+		Quantity(strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)).
 		//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
 		Do(context.Background())
 	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")

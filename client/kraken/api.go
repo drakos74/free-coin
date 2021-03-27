@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
@@ -66,6 +67,27 @@ func (r *RemoteClient) transform(pair string, interval time.Duration, response *
 type RemoteExchange struct {
 	converter model.Converter
 	private   *krakenapi.KrakenAPI
+	info      map[coinmodel.Coin]krakenapi.AssetPairInfo
+}
+
+func (r *RemoteExchange) getInfo() {
+	pairs, err := r.private.AssetPairs()
+	if err != nil {
+		log.Error().Str("exchange", "kraken").Msg("could not get exchange info")
+	}
+
+	symbols := make(map[coinmodel.Coin]krakenapi.AssetPairInfo)
+
+	for c, pair := range *pairs {
+		coin := coinmodel.Coin(c)
+		symbols[coin] = pair
+	}
+
+	r.info = symbols
+	log.Info().
+		Int("pairs", len(symbols)).
+		Str("exchange", "kraken").
+		Msg("exchange info")
 }
 
 func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel.TradeMap, error) {
@@ -90,6 +112,12 @@ func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel
 
 // Order opens an order in kraken.
 func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
+
+	s, ok := r.info[order.Coin]
+	if !ok {
+		return nil, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(r.info))
+	}
+
 	params := make(map[string]string)
 
 	if order.Leverage != coinmodel.NoLeverage {
@@ -104,7 +132,7 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 		r.converter.Coin.Pair(order.Coin),
 		r.converter.Type.From(order.Type),
 		r.converter.OrderType.From(order.OType),
-		coinmodel.Volume.Format(order.Coin, order.Volume),
+		strconv.FormatFloat(order.Volume, 'f', s.PairDecimals, 64),
 		params)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not add order '%+v': %w", order, err)
