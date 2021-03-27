@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/metrics"
+
 	"github.com/drakos74/free-coin/internal/server"
 
 	"github.com/drakos74/free-coin/client/kraken"
@@ -37,7 +39,7 @@ func init() {
 
 func query(ctx context.Context, r *http.Request) (payload []byte, code int, err error) {
 
-	var query model.Query
+	var query metrics.Query
 	_, err = server.ReadJson(r, true, &query)
 	if err != nil {
 		return payload, code, err
@@ -73,8 +75,8 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 		return payload, code, err
 	}
 
-	data := make([]model.Series, 0)
-	tables := make([]model.Table, 0)
+	data := make([]metrics.Series, 0)
+	tables := make([]metrics.Table, 0)
 	for _, target := range query.Targets {
 		switch target.Type {
 		case "timeseries":
@@ -89,7 +91,7 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 						Str("target", target.Target).
 						Msg("adding response set")
 					points := model.TradesData(f, coinTrades)
-					data = append(data, model.Series{
+					data = append(data, metrics.Series{
 						Target:     fmt.Sprintf("%s %s", target.Target, field),
 						DataPoints: points,
 					})
@@ -124,7 +126,7 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 					profitSeries = append(profitSeries, []float64{total, model.Time(pos.Close)})
 				}
 				key := coinmodel.NewKey(coinmodel.Coin(target.Target), cointime.ToMinutes(config.Duration), config.Strategy.Name)
-				data = append(data, model.Series{
+				data = append(data, metrics.Series{
 					Target:     fmt.Sprintf("P&L %s", key.ToString()),
 					DataPoints: profitSeries,
 				})
@@ -136,21 +138,21 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 					Str("set", model.Messages).
 					Str("target", target.Target).
 					Msg("adding response set")
-				table := model.NewTable()
+				table := metrics.NewTable()
 				table.Columns = append(table.Columns,
-					model.Column{
+					metrics.Column{
 						Text: "Time",
 						Type: "date",
 					},
-					model.Column{
+					metrics.Column{
 						Text: "Message",
 						Type: "string",
 					},
-					model.Column{
+					metrics.Column{
 						Text: "Model",
 						Type: "string",
 					},
-					model.Column{
+					metrics.Column{
 						Text: "Predictions",
 						Type: "string",
 					},
@@ -189,7 +191,7 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 
 func annotations(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
 
-	var query model.AnnotationQuery
+	var query metrics.AnnotationQuery
 	_, err = server.ReadJson(r, false, &query)
 	if err != nil {
 		return payload, code, err
@@ -209,7 +211,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 		registryKeyDir = keys[1]
 	}
 
-	annotations := make([]model.AnnotationInstance, 0)
+	annotations := make([]metrics.AnnotationInstance, 0)
 	switch query.Annotation.Name {
 	case "history":
 		historyClient, err := kraken.NewHistory(context.Background())
@@ -239,7 +241,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 							tag = "loss"
 						}
 						// pull in the related trade
-						annotations = append(annotations, model.AnnotationInstance{
+						annotations = append(annotations, metrics.AnnotationInstance{
 							Text:     fmt.Sprintf("%.2f (%.2f) - %.2f", trade.Price, otherTrade.Price, trade.Volume),
 							Title:    fmt.Sprintf("%s - %s ( %.2f € )", trade.Coin, trade.Type.String(), trade.Net),
 							TimeEnd:  otherTrade.Time.Unix() * 1000,
@@ -249,7 +251,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 						})
 					} else {
 						// pull in the related trade
-						annotations = append(annotations, model.AnnotationInstance{
+						annotations = append(annotations, metrics.AnnotationInstance{
 							Text:  fmt.Sprintf("%.2f - %.2f", trade.Price, trade.Volume),
 							Title: fmt.Sprintf("%s - %s", trade.Coin, trade.Type.String()),
 							Time:  trade.Time.Unix() * 1000,
@@ -313,7 +315,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 	return payload, code, err
 }
 func keys(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
-	tags := []model.Tag{
+	tags := []metrics.Tag{
 		{
 			Type: "bool",
 			Text: model.RegistryFilterKey,
@@ -328,16 +330,16 @@ func keys(_ context.Context, r *http.Request) (payload []byte, code int, err err
 }
 
 func values(_ context.Context, r *http.Request) (payload []byte, code int, err error) {
-	var tag model.Tag
+	var tag metrics.Tag
 	_, err = server.ReadJson(r, false, &tag)
 	if err != nil {
 		return payload, code, err
 	}
 
-	values := make([]model.Tag, 0)
+	values := make([]metrics.Tag, 0)
 	switch tag.Key {
 	case model.RegistryFilterKey:
-		values = []model.Tag{
+		values = []metrics.Tag{
 			{
 				Type: "boolean",
 				Text: model.RegistryFilterRefresh,
@@ -348,7 +350,7 @@ func values(_ context.Context, r *http.Request) (payload []byte, code int, err e
 			},
 		}
 	case model.BackTestOptionKey:
-		values = []model.Tag{
+		values = []metrics.Tag{
 			{
 				Type: "boolean",
 				Text: model.BackTestOptionTrue,

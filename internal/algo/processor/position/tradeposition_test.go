@@ -455,9 +455,9 @@ func assertPositions(t *testing.T, tt test, tracker *tradePositions, client api.
 		for _, action := range actions {
 			if action.doClose {
 				assert.True(t, tt.close)
-				assert.Equal(t, testCoin, action.key.coin)
+				assert.Equal(t, testCoin, action.key.Coin)
 				assert.Equal(t, testCoin, action.position.Position.Coin)
-				assert.Equal(t, testID, action.key.id)
+				assert.Equal(t, testID, action.key.Index)
 				assert.Equal(t, testID, action.position.Position.ID)
 				_, profit := action.position.Position.Value()
 				assert.Equal(t, fmt.Sprintf("%.2f", tt.expProfit), fmt.Sprintf("%.2f", profit))
@@ -510,7 +510,7 @@ func (e *exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, err
 	return &e.positions, nil
 }
 
-func (e *exchange) OpenOrder(order model.Order) ([]string, error) {
+func (e *exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
 	panic("implement me")
 }
 

@@ -2,22 +2,25 @@ package external
 
 import (
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"time"
-
-	"github.com/drakos74/free-coin/internal/emoji"
-
-	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/emoji"
+	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/server"
+	"github.com/drakos74/free-coin/internal/storage"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
 )
 
 const (
 	ProcessorName = "signal"
 	port          = 8080
+	grafanaPort   = 6124
 )
 
 // TODO : use in a unified channel for all tracked currencies ...
@@ -27,10 +30,60 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	signal := make(chan Message)
 
 	go server.NewServer("trade-view", port).
-		Add(server.Live()).
 		AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
 		AddRoute(server.POST, server.Api, "test-post", handle(user, signal)).
 		Run()
+
+	grafana := metrics.NewServer("grafana", grafanaPort)
+
+	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.RegistryPath)
+	err := filepath.Walk(registryPath, func(path string, info fs.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
+			dir := filepath.Dir(path)
+			grafana.Target(dir, func(data map[string]interface{}) metrics.Series {
+				orders := []Order{{}}
+
+				key := storage.K{
+					Pair:  filepath.Base(filepath.Dir(dir)),
+					Label: filepath.Base(dir),
+				}
+
+				err := registry.GetAll(key, &orders)
+				if err != nil {
+					log.Error().Str("key", fmt.Sprintf("%+v", key)).Err(err).Msg("could not parse orders")
+				}
+
+				series := metrics.Series{
+					Target:     dir,
+					DataPoints: make([][]float64, len(orders)),
+				}
+
+				sum := 0.0
+				for i, order := range orders {
+					switch order.Order.Type {
+					case model.Buy:
+						sum -= order.Order.Price * order.Order.Volume
+					case model.Sell:
+						sum += order.Order.Price * order.Order.Volume
+					}
+					series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
+				}
+				fmt.Println(fmt.Sprintf("series = %+v", series))
+				return series
+			})
+		}
+
+		return nil
+
+	})
+	if err != nil {
+		log.Error().
+			Str("path", registryPath).
+			Err(err).
+			Msg("could not look into registry path")
+	}
+
+	grafana.Run()
 
 	tracker, err := newTracker(shard)
 	if err != nil {
@@ -89,7 +142,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Duration: message.Duration(),
 							Strategy: message.Key(),
 						}, message.Time())
-					_, err = client.OpenOrder(order)
+					order, _, err = client.OpenOrder(order)
 					if err == nil {
 						regErr := registry.Add(storage.K{
 							Pair:  message.Data.Ticker,

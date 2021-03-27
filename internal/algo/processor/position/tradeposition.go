@@ -33,7 +33,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						break
 					}
 
-					txIDs, err := client.OpenOrder(order)
+					_, txIDs, err := client.OpenOrder(order)
 					if err == nil {
 						// Store for correlation and auditing
 						trackedOrder.TxIDs = txIDs

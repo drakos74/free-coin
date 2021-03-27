@@ -174,12 +174,12 @@ func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 	return nil
 }
 
-func (e *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
+func (e *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
 	_, txids, err := e.Api.Order(order.Order)
 	if err != nil {
-		return nil, fmt.Errorf("could not open order: %w", err)
+		return order, nil, fmt.Errorf("could not open order: %w", err)
 	}
-	return txids, nil
+	return order, txids, nil
 }
 
 // TODO : make sure we reterieve all the positions.

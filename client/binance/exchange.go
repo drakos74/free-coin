@@ -62,10 +62,10 @@ func (c *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch,
 	return coinmodel.EmptyBatch(), nil
 }
 
-func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
+func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
 	s, ok := c.info[order.Coin]
 	if !ok {
-		return nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
+		return order, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
 	}
 	orderResponse, err := c.api.NewCreateOrderService().
 		Symbol(c.converter.Coin.Pair(order.Coin)).
@@ -77,9 +77,29 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) ([]string, error) {
 		Do(context.Background())
 	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
-		return nil, fmt.Errorf("could not complete order: %w", err)
+		return order, nil, fmt.Errorf("could not complete order: %w", err)
 	}
-	return []string{orderResponse.ClientOrderID}, nil
+
+	price := 0.0
+	count := 0.0
+	for _, fill := range orderResponse.Fills {
+		if fill != nil {
+			p, err := strconv.ParseFloat(fill.Price, 64)
+			if err != nil {
+				count = 1.0
+				break
+			}
+			q, err := strconv.ParseFloat(fill.Quantity, 64)
+			if err != nil {
+				count = 1.0
+				break
+			}
+			price += q * p
+			count += q
+		}
+	}
+	order.Price = price / count
+	return order, []string{orderResponse.ClientOrderID}, nil
 }
 
 func (c *Exchange) ClosePosition(position coinmodel.Position) error {
@@ -90,7 +110,7 @@ func (c *Exchange) ClosePosition(position coinmodel.Position) error {
 		WithType(position.Type.Inv()).
 		Create()
 
-	_, err := c.OpenOrder(coinmodel.TrackedOrder{
+	_, _, err := c.OpenOrder(coinmodel.TrackedOrder{
 		Order: order,
 	})
 	return err

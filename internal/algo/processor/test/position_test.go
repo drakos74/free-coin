@@ -24,7 +24,6 @@ func TestPosition_TradeProcessing(t *testing.T) {
 }
 
 func TestPosition_Update(t *testing.T) {
-
 	type test struct {
 		msg         []string
 		cmd         string

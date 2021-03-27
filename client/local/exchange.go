@@ -80,7 +80,7 @@ func (e *Exchange) log(msg string) {
 	}
 }
 
-func (e *Exchange) OpenOrder(order model.TrackedOrder) ([]string, error) {
+func (e *Exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// we assume here it s always market order
@@ -102,7 +102,7 @@ func (e *Exchange) OpenOrder(order model.TrackedOrder) ([]string, error) {
 	}
 	e.positions[position.ID] = trackedPosition
 	e.log(fmt.Sprintf("open order = %+v", position))
-	return []string{order.ID}, nil
+	return order, []string{order.ID}, nil
 }
 
 func (e *Exchange) ClosePosition(position model.Position) error {
