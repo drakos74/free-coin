@@ -17,16 +17,16 @@ import (
 )
 
 // NewMessage creates a new telegram message config
-func (b *Bot) newMessage(private api.Index, message *api.Message) tgbotapi.MessageConfig {
-	tgChatID := b.publicChatID
-	if private {
-		tgChatID = b.privateChatID
+func (b *Bot) newMessage(idx api.Index, message *api.Message) (tgbotapi.MessageConfig, error) {
+	if bot, ok := b.chat[idx]; ok {
+		tgChatID := bot.id
+		msg := tgbotapi.NewMessage(tgChatID, message.Text)
+		if message.Reply > 0 {
+			msg.ReplyToMessageID = message.Reply
+		}
+		return msg, nil
 	}
-	msg := tgbotapi.NewMessage(tgChatID, message.Text)
-	if message.Reply > 0 {
-		msg.ReplyToMessageID = message.Reply
-	}
-	return msg
+	return tgbotapi.MessageConfig{}, fmt.Errorf("index not defined: %v", idx)
 }
 
 func addLine(msg tgbotapi.MessageConfig, txt string) tgbotapi.MessageConfig {
@@ -101,15 +101,14 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 // send will send a message and store the appropriate trigger.
 // it will automatically execute the default command if user does not reply.
 // TODO : send confirmation of auto-invoke - use tgbotapi.Message here
-func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
+func (b *Bot) send(idx api.Index, msg tgbotapi.MessageConfig, trigger *api.Trigger) (int, error) {
 	// before sending check for blocked triggers ...
 	if txt, ok := b.checkIfBlocked(trigger); ok {
-		if private {
-			sent, err := b.privateBot.Send(addLine(msg, txt))
+		if bot, ok := b.chat[idx]; ok {
+			sent, err := bot.b.Send(addLine(msg, txt))
 			return sent.MessageID, err
 		}
-		sent, err := b.publicBot.Send(addLine(msg, txt))
-		return sent.MessageID, err
+		return 0, fmt.Errorf("index not found: %v", idx)
 	}
 	// otherwise send the message and add the trigger
 	// TODO : refactor and wrap up this logic
@@ -125,10 +124,11 @@ func (b *Bot) send(private api.Index, msg tgbotapi.MessageConfig, trigger *api.T
 	}
 	var sent tgbotapi.Message
 	var err error
-	if private {
-		sent, err = b.privateBot.Send(msg)
+	if bot, ok := b.chat[idx]; ok {
+		sent, err = bot.b.Send(msg)
+		return sent.MessageID, err
 	} else {
-		sent, err = b.publicBot.Send(msg)
+		err = fmt.Errorf("could not find index: %v", idx)
 	}
 	if err != nil {
 		return 0, err

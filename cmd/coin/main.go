@@ -11,7 +11,6 @@ import (
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/processor"
-	"github.com/drakos74/free-coin/internal/algo/processor/external"
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/algo/processor/trade"
@@ -79,13 +78,11 @@ func main() {
 	statsProcessor := stats.MultiStats(storageShard, registry, user, configs)
 	positionProcessor := position.Position(storageShard, registry, exchange, user, block, configs)
 	tradeProcessor := trade.Trade(registry, user, block, configs)
-	signalProcessor := external.Lux(user, configs)
 	for _, c := range model.Coins {
 		err := overWatch.Start(c, coin.Log,
 			statsProcessor,
 			positionProcessor,
 			tradeProcessor,
-			signalProcessor,
 		)
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")

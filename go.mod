@@ -3,6 +3,7 @@ module github.com/drakos74/free-coin
 go 1.16
 
 require (
+	github.com/adshao/go-binance/v2 v2.2.1
 	github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/uuid v1.1.1

@@ -58,6 +58,15 @@ type TrackedOrder struct {
 	TxIDs []string  `json:"txIds"`
 }
 
+// NewTrackedOrder creates a new tracked order.
+func NewTrackedOrder(key Key, time time.Time, order Order) TrackedOrder {
+	return TrackedOrder{
+		Order: order,
+		Key:   key,
+		Time:  time,
+	}
+}
+
 // Order defines an order
 type Order struct {
 	ID       string    `json:"id"`
@@ -171,6 +180,12 @@ func (o *Order) Create() Order {
 	}
 	log.Debug().Str("order", fmt.Sprintf("%+v", o)).Msg("creating order")
 	return *o
+}
+
+// CreateTracked creates the tracked order from the order builder.
+func (o *Order) CreateTracked(key Key, time time.Time) TrackedOrder {
+	order := o.Create()
+	return NewTrackedOrder(key, time, order)
 }
 
 func (o *Order) mustBeEmpty(t int) {

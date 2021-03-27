@@ -7,12 +7,13 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-type Index bool
+type Index int
 
 // TODO : star simple now, but we can make it an int64 in the future ;)
 const (
-	Public  Index = false
-	Private Index = true
+	Public Index = iota + 1
+	Private
+	External
 )
 
 // Query is the trades query object.

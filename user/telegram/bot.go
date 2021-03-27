@@ -18,6 +18,8 @@ const (
 	telegramChatID          = "TELEGRAM_CHAT_ID"
 	privateTelegramBotToken = "PRIVATE_TELEGRAM_BOT_TOKEN"
 	privateTelegramChatID   = "PRIVATE_TELEGRAM_CHAT_ID"
+	extTelegramBotToken     = "EXT_TELEGRAM_BOT_TOKEN"
+	extTelegramChatID       = "EXT_TELEGRAM_CHAT_ID"
 )
 
 // allow to change these for the tests
@@ -33,12 +35,14 @@ type botAPI interface {
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 }
 
+type bot struct {
+	b  botAPI
+	id int64
+}
+
 // Bot defines the telegram bot coinapi.User api implementation.
 type Bot struct {
-	publicBot       botAPI
-	publicChatID    int64
-	privateBot      botAPI
-	privateChatID   int64
+	chat            map[api.Index]*bot
 	messages        map[int]string
 	triggers        map[string]*api.Trigger
 	blockedTriggers map[string]time.Time
@@ -47,35 +51,63 @@ type Bot struct {
 }
 
 // NewBot creates a new telegram bot implementing the coinapi.User api.
-func NewBot() (*Bot, error) {
-	// public bot set up
-	publicBot, err := tgbotapi.NewBotAPI(os.Getenv(telegramBotToken))
-	if err != nil {
-		return nil, fmt.Errorf("error creating bot: %w", err)
+func NewBot(idxs ...api.Index) (*Bot, error) {
+	chat := make(map[api.Index]*bot)
+	for _, idx := range idxs {
+		var b botAPI
+		var cID int64
+		switch idx {
+		case api.Public:
+			// public bot set up
+			bt, err := tgbotapi.NewBotAPI(os.Getenv(telegramBotToken))
+			if err != nil {
+				return nil, fmt.Errorf("error creating bot: %w", err)
+			}
+			chatIDProperty := os.Getenv(telegramChatID)
+			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
+			}
+			bt.Buffer = 0
+			b = bt
+			cID = chatID
+		case api.Private:
+			// private bot set up
+			bt, err := tgbotapi.NewBotAPI(os.Getenv(privateTelegramBotToken))
+			if err != nil {
+				return nil, fmt.Errorf("error creating bot: %w", err)
+			}
+			chatIDProperty := os.Getenv(privateTelegramChatID)
+			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
+			}
+			bt.Buffer = 0
+			b = bt
+			cID = chatID
+		case api.External:
+			// external bot set up
+			bt, err := tgbotapi.NewBotAPI(os.Getenv(extTelegramBotToken))
+			if err != nil {
+				return nil, fmt.Errorf("error creating bot: %w", err)
+			}
+			chatIDProperty := os.Getenv(extTelegramChatID)
+			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
+			}
+			bt.Buffer = 0
+			b = bt
+			cID = chatID
+		}
+		chat[idx] = &bot{
+			b:  b,
+			id: cID,
+		}
 	}
-	publicChatIDProperty := os.Getenv(telegramChatID)
-	publicChatID, err := strconv.ParseInt(publicChatIDProperty, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing public chat ID: %w", err)
-	}
-	// private bot set up
-	privateBot, err := tgbotapi.NewBotAPI(os.Getenv(privateTelegramBotToken))
-	if err != nil {
-		return nil, fmt.Errorf("error creating bot: %w", err)
-	}
-	privateChatIDProperty := os.Getenv(privateTelegramChatID)
-	privateChatID, err := strconv.ParseInt(privateChatIDProperty, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing public chat ID: %w", err)
-	}
-	//bot.Debug = true
-	publicBot.Buffer = 0
-	privateBot.Buffer = 0
+
 	return &Bot{
-		publicBot:       publicBot,
-		publicChatID:    publicChatID,
-		privateBot:      privateBot,
-		privateChatID:   privateChatID,
+		chat:            chat,
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
@@ -89,18 +121,14 @@ func (b *Bot) Run(ctx context.Context) error {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 10
 
-	publicUpdates, err := b.publicBot.GetUpdatesChan(u)
-	if err != nil {
-		return err
+	// listen to updates for the configured indexes
+	for idx, bot := range b.chat {
+		updates, err := bot.b.GetUpdatesChan(u)
+		if err != nil {
+			return err
+		}
+		go b.listenToUpdates(ctx, idx, updates)
 	}
-
-	privateUpdates, err := b.privateBot.GetUpdatesChan(u)
-	if err != nil {
-		return err
-	}
-
-	go b.listenToUpdates(ctx, api.Public, publicUpdates)
-	go b.listenToUpdates(ctx, api.Private, privateUpdates)
 	return nil
 }
 
@@ -118,7 +146,11 @@ func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 
 // Send sends the given message with the attached details to the specified telegram chat.
 func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger) int {
-	msg := b.newMessage(private, message)
+	msg, err := b.newMessage(private, message)
+	if err != nil {
+		log.Err(err).Msg("could not create message")
+		return 0
+	}
 	msgID, err := b.send(private, msg, trigger)
 	if err != nil {
 		log.Err(err).Msg("could not send message")

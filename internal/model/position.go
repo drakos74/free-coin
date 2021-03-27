@@ -26,6 +26,13 @@ type PositionBatch struct {
 	Index     int64
 }
 
+// EmptyBatch creates an empty batch.
+func EmptyBatch() *PositionBatch {
+	return &PositionBatch{
+		Positions: []Position{},
+	}
+}
+
 // Position defines an open position details.
 type Position struct {
 	ID           string    `json:"id"`

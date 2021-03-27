@@ -141,7 +141,8 @@ func (o *OverWatch) Run(ctx context.Context) *sync.WaitGroup {
 					api.OneOf(&c, model.KnownCoins()...),
 					api.OneOf(&action, "start", "stop"))
 				if err != nil {
-					api.Reply(true, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+					// TODO : find the right chat id ...
+					api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
 					continue
 				}
 				// ...execute
