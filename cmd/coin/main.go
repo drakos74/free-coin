@@ -67,7 +67,7 @@ func main() {
 	overWatch := coin.New(client, user)
 	finished := overWatch.Run(ctx)
 
-	registry := json.NewEventRegistry(storage.RegistryPath)
+	registry := json.NewEventRegistry(storage.EventsPath)
 
 	exchange := kraken.NewExchange(ctx)
 	block := api.NewBlock()

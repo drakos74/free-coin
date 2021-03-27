@@ -13,7 +13,8 @@ const (
 	RegistryDir = "registry"
 
 	BackTestRegistryPath = "backtest-events"
-	RegistryPath         = "events"
+	EventsPath           = "events"
+	SignalsPath          = "signals"
 
 	BackTestInternalPath = "backtest-internal"
 	InternalPath         = "internal"

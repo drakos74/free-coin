@@ -66,7 +66,7 @@ func main() {
 	finished := overWatch.Run(ctx)
 
 	storageShard := json.BlobShard(storage.InternalPath)
-	registry := json.NewEventRegistry(storage.RegistryPath)
+	registry := json.NewEventRegistry(storage.SignalsPath)
 
 	// load the default configuration
 	configs := make(map[model.Coin]map[time.Duration]processor.Config)
