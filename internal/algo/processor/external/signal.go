@@ -38,14 +38,13 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			api.Contains("?p"),
 		)
 
-		fmt.Println(fmt.Sprintf("command = %+v", command))
-
 		if err != nil {
 			api.Reply(api.External, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
 			continue
 		}
 
 		for k, pos := range t.getAll() {
+			fmt.Println(fmt.Sprintf("pos = %+v", pos))
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
 			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",

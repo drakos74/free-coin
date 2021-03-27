@@ -26,7 +26,7 @@ func newTracker(shard storage.Shard) (*tracker, error) {
 	err = st.Load(stKey(), &positions)
 	log.Info().Err(err).Int("num", len(positions)).Msg("loaded positions")
 	return &tracker{
-		positions: make(map[string]model.Position),
+		positions: positions,
 		storage:   st,
 		lock:      new(sync.RWMutex),
 	}, nil
