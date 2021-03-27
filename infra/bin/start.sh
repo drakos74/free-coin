@@ -113,10 +113,10 @@ if [ $# -eq 0 ]
 fi
 
 i=1;
-for user in "$@"
+for process in "$@"
 do
-    echo "restarting $i"
-    restart "$i";
+    echo "restarting $process"
+    restart "$process";
     i=$((i + 1));
 done
 echo "ALL DONE!"
