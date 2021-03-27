@@ -95,17 +95,31 @@ if [ ! "${dir: -9}" == "free-coin" ]; then
   exit 1
 fi
 
-# restart server process for ui and static file access
-restart "server"
+if [ $# -eq 0 ]
+  then
+    echo "No arguments supplied"
+    # restart server process for ui and static file access
+    restart "server"
+    # restart coin process
+    restart "coin"
+    # restart backtesting process
+    restart "backtest"
+    # restart external process
+    restart_grafana "external"
+    # just stop and start
+    restart_grafana "grafana"
+    echo "ALL DONE!"
+    exit 0
+fi
 
-# restart coin process
-restart "coin"
-
-# restart backtesting process
-restart "backtest"
-
-# just stop and start
-restart_grafana "grafana"
-
-echo "DONE!"
+i=1;
+for user in "$@"
+do
+    restart "$i";
+    i=$((i + 1));
+done
+echo "ALL DONE!"
 exit 0
+
+
+
