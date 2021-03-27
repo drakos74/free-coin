@@ -53,7 +53,7 @@ func main() {
 		log.Warn().Msg("running local user interface")
 		user, err = botlocal.NewUser("", "")
 	} else {
-		user, err = telegram.NewBot()
+		user, err = telegram.NewBot(api.Public, api.Private)
 	}
 	if err != nil {
 		panic(err.Error())
