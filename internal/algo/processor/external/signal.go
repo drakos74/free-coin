@@ -27,7 +27,7 @@ const (
 )
 
 var positionKey = api.ConsumerKey{
-	Key:    "Position",
+	Key:    ProcessorName,
 	Prefix: "?p",
 }
 
