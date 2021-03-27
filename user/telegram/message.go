@@ -65,13 +65,12 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 			if update.Message.Chat != nil {
 				chatID = update.Message.Chat.ID
 			}
-			log.Info().
+			log.Debug().
 				Str("from", update.Message.From.UserName).
 				Str("text", update.Message.Text).
 				Int64("chat", chatID).
 				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
-
 			for k, consumer := range b.consumers {
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.Prefix) {

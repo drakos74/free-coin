@@ -108,6 +108,10 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 								Msg("could not save to registry")
 						}
 					}
+				} else {
+					log.Warn().
+						Str("message", fmt.Sprintf("%+v", message)).
+						Msg("could not parse message")
 				}
 				log.Info().
 					Str("type", t.String()).
