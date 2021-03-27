@@ -44,7 +44,6 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		for k, pos := range t.getAll() {
-			fmt.Println(fmt.Sprintf("pos = %+v", pos))
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
 			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
@@ -52,7 +51,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				pos.Coin,
 				profit,
 				"%",
-				net,
+				pos.OpenPrice,
 				emoji.MapType(pos.Type),
 				coinmath.Format(pos.Volume),
 			)
