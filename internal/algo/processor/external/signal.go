@@ -235,11 +235,19 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 								Msg("could not save to registry")
 						}
 					} else {
+						tError := ""
+						if tErr != nil {
+							tError = tErr.Error()
+						}
+						vError := ""
+						if vErr != nil {
+							vError = vErr.Error()
+						}
 						// save to the registry to keep track of the messages anyway
 						errs := map[string]string{
 							"order":  err.Error(),
-							"type":   tErr.Error(),
-							"volume": vErr.Error(),
+							"type":   tError,
+							"volume": vError,
 							//"price":  pErr.Error(),
 						}
 						regErr := registry.Add(storage.K{
