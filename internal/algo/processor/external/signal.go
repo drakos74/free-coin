@@ -56,7 +56,6 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		for k, pos := range positions {
-
 			// check the current price
 			if cp, ok := prices[pos.Coin]; ok {
 				pos.CurrentPrice = cp.Price
@@ -64,7 +63,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
-			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
+			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %f",
 				emoji.MapToSign(net),
 				pos.Coin,
 				profit,
