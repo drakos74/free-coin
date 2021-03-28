@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const storagePath = "external-positions"
+const storagePath = "signals"
 
 type tracker struct {
 	positions map[string]model.Position
