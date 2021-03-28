@@ -183,7 +183,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				key := message.Key()
 				t, tErr := message.Type()
 				v, vErr := message.Volume()
-				p, pErr := message.Price()
+				//p, pErr := message.Price()
 				var err error
 				var close bool
 				var order model.TrackedOrder
@@ -194,14 +194,14 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 						// if we had a position already ...
 						if position.Type == t {
 							// but .. we dont want to extend the current one ...
-							log.Info().
+							log.Debug().
 								Str("position", fmt.Sprintf("%+v", position)).
 								Msg("ignoring signal")
-							user.Send(api.External,
-								api.NewMessage("ignoring signal").
-									AddLine(createTypeMessage(coin, t, v, p, false)).
-									AddLine(createReportMessage(key, fmt.Errorf("%s:%v:%v", emoji.MapType(position.Type), position.Volume, position.OpenPrice))),
-								nil)
+							//user.Send(api.External,
+							//	api.NewMessage("ignoring signal").
+							//		AddLine(createTypeMessage(coin, t, v, p, false)).
+							//		AddLine(createReportMessage(key, fmt.Errorf("%s:%v:%v", emoji.MapType(position.Type), position.Volume, position.OpenPrice))),
+							//	nil)
 							continue
 						}
 						// we need to close the position
@@ -240,7 +240,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							"order":  err.Error(),
 							"type":   tErr.Error(),
 							"volume": vErr.Error(),
-							"price":  pErr.Error(),
+							//"price":  pErr.Error(),
 						}
 						regErr := registry.Add(storage.K{
 							Pair:  message.Data.Ticker,
@@ -266,12 +266,12 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				log.Info().
 					Str("type", t.String()).
 					Str("coin", string(coin)).
-					Err(tErr).Err(vErr).Err(pErr).Err(err).
+					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
 				user.Send(api.External,
 					api.NewMessage("processed signal").
 						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
-						AddLine(createReportMessage(key, tErr, vErr, pErr, err)),
+						AddLine(createReportMessage(key, tErr, vErr, err)),
 					nil)
 			case trade := <-in:
 				out <- trade
