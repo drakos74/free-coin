@@ -32,6 +32,7 @@ var positionKey = api.ConsumerKey{
 
 func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
+
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p"),
@@ -42,7 +43,13 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			continue
 		}
 
-		for k, pos := range t.getAll() {
+		positions := t.getAll()
+		if len(positions) == 0 {
+			api.Reply(api.External, user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
+			continue
+		}
+
+		for k, pos := range positions {
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
 			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",
