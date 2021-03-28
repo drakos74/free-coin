@@ -68,6 +68,13 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		return order, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
 	}
 
+	lotSize, err := model.ParseLOTSize(s.Filters)
+	if err != nil {
+		log.Trace().Str("filters", fmt.Sprintf("%+v", s.Filters)).Msg("no lot size filter found")
+	}
+
+	// adjust the volume to cpmply with lot size filter
+	order.Volume = lotSize.Adjust(order.Volume)
 	volume := strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)
 
 	log.Debug().
