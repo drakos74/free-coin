@@ -59,7 +59,7 @@ func (t *tracker) add(key string, order model.TrackedOrder, close bool) error {
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}
 		delete(t.positions, key)
-		return nil
+		return t.storage.Store(stKey(), t.positions)
 	}
 	// we need to be careful here and add the position ...
 	position := model.OpenPosition(order)

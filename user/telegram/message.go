@@ -72,9 +72,10 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
 			// panic ...
-			if update.Message.Text == "kill -9" {
+			if update.Message.Text == "?potso" {
 				panic("panic signal received!")
 			}
+			b.lock.Lock()
 			for k, consumer := range b.consumers {
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.Prefix) {
@@ -95,6 +96,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 					}
 				}
 			}
+			b.lock.Unlock()
 		case <-ctx.Done():
 			log.Info().Msg("closing bot")
 			return
