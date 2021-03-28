@@ -73,7 +73,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		log.Trace().Str("filters", fmt.Sprintf("%+v", s.Filters)).Msg("no lot size filter found")
 	}
 
-	// adjust the volume to cpmply with lot size filter
+	// adjust the volume to comply with lot size filter
 	order.Volume = lotSize.Adjust(order.Volume)
 	volume := strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)
 

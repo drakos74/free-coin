@@ -83,12 +83,10 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 			dir := filepath.Dir(path)
 			grafana.Target(dir, func(data map[string]interface{}) metrics.Series {
 				orders := []Order{{}}
-
 				key := storage.K{
 					Pair:  filepath.Base(filepath.Dir(dir)),
 					Label: filepath.Base(dir),
 				}
-
 				err := registry.GetAll(key, &orders)
 				if err != nil {
 					log.Error().Str("key", fmt.Sprintf("%+v", key)).Err(err).Msg("could not parse orders")
@@ -109,7 +107,6 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 					}
 					series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
 				}
-				fmt.Println(fmt.Sprintf("series = %+v", series))
 				return series
 			})
 		}
@@ -215,6 +212,29 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 						trackErr := tracker.add(key, order, close)
 						if regErr != nil || trackErr != nil {
 							log.Error().Err(regErr).Err(trackErr).
+								Str("order", fmt.Sprintf("%+v", order)).
+								Str("message", fmt.Sprintf("%+v", message)).
+								Msg("could not save to registry")
+						}
+					} else {
+						// save to the registry to keep track of the messages anyway
+						errs := map[string]string{
+							"order":  err.Error(),
+							"type":   tErr.Error(),
+							"volume": vErr.Error(),
+							"price":  pErr.Error(),
+						}
+						regErr := registry.Add(storage.K{
+							Pair:  message.Data.Ticker,
+							Label: fmt.Sprintf("%s_%s", message.Key(), "error"),
+						}, Order{
+							Message: message,
+							Order:   order,
+							Errors:  errs,
+						})
+						if regErr != nil {
+							log.Error().Err(regErr).
+								Str("errors", fmt.Sprintf("%+v", errs)).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
 								Msg("could not save to registry")

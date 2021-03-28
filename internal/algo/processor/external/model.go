@@ -103,4 +103,5 @@ type Data struct {
 type Order struct {
 	Message Message            `json:"message"`
 	Order   model.TrackedOrder `json:"order"`
+	Errors  map[string]string  `json:"errors"`
 }
