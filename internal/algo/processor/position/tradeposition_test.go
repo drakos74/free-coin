@@ -505,6 +505,10 @@ type exchange struct {
 	requests  int
 }
 
+func (e *exchange) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
+	return make(map[model.Coin]model.CurrentPrice), nil
+}
+
 func (e *exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
 	e.requests++
 	return &e.positions, nil

@@ -1,6 +1,7 @@
 package external
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,19 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			continue
 		}
 
+		prices, err := client.CurrentPrice(context.Background())
+		if err != nil {
+			log.Error().Err(err).Msg("could not get current prices")
+			prices = make(map[model.Coin]model.CurrentPrice)
+		}
+
 		for k, pos := range positions {
+
+			// check the current price
+			if cp, ok := prices[pos.Coin]; ok {
+				pos.CurrentPrice = cp.Price
+			}
+
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
 			msg := fmt.Sprintf("%s %s:%.2f%s(%.2f€) <- %s | %s",

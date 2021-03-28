@@ -182,6 +182,10 @@ func (e *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 	return order, txids, nil
 }
 
+func (e *Exchange) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {
+	return make(map[coinmodel.Coin]coinmodel.CurrentPrice), nil
+}
+
 // TODO : make sure we reterieve all the positions.
 // If we have too many, the response might not have them all
 func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {

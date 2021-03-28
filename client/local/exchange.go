@@ -60,6 +60,10 @@ func (e *Exchange) SignalProcessed(processed chan<- api.Action) *Exchange {
 	return e
 }
 
+func (e *Exchange) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
+	return make(map[model.Coin]model.CurrentPrice), nil
+}
+
 func (e *Exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()

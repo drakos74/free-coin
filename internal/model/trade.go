@@ -89,3 +89,8 @@ func (t *TradeMap) Append(m *TradeMap) {
 	}
 	t.Order = newOrder
 }
+
+type CurrentPrice struct {
+	Coin  Coin
+	Price float64
+}

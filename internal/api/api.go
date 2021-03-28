@@ -33,6 +33,7 @@ type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
 	OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error)
 	ClosePosition(position model.Position) error
+	CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error)
 }
 
 // User defines an external interface for exchanging information and sharing control with the user(s)

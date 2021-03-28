@@ -112,6 +112,10 @@ func (c *mockClient) Trades(process <-chan api.Action, query api.Query) (model.T
 	panic("implement me")
 }
 
+func (e *mockClient) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
+	return make(map[model.Coin]model.CurrentPrice), nil
+}
+
 func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
 	return &model.PositionBatch{
 		Positions: c.positions,

@@ -58,6 +58,26 @@ func (c *Exchange) getInfo() {
 	c.info = symbols
 }
 
+func (c *Exchange) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {
+	prices, err := c.api.NewListPricesService().Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not get price list: %w", err)
+	}
+	priceMap := make(map[coinmodel.Coin]coinmodel.CurrentPrice)
+	for _, price := range prices {
+		coin := coinmodel.Coin(price.Symbol)
+		p, err := strconv.ParseFloat(price.Price, 64)
+		if err != nil {
+			log.Error().Str("coin", price.Symbol).Err(err).Msg("could not parse price")
+		}
+		priceMap[coin] = coinmodel.CurrentPrice{
+			Coin:  coin,
+			Price: p,
+		}
+	}
+	return priceMap, nil
+}
+
 func (c *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {
 	return coinmodel.EmptyBatch(), nil
 }
