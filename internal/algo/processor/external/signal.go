@@ -10,7 +10,6 @@ import (
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
-	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/server"
@@ -72,7 +71,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				"%",
 				pos.OpenPrice,
 				emoji.MapType(pos.Type),
-				coinmath.Format(pos.Volume),
+				pos.Volume,
 			)
 			// TODO : send a trigger for each Position to give access to adjust it
 			//trigger := &api.Trigger{
@@ -189,6 +188,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				p, pErr := message.Price()
 				var err error
 				var close bool
+				var order model.TrackedOrder
 				if tErr == nil && vErr == nil {
 					// check the positions ...
 					position, ok := tracker.check(key)
@@ -211,7 +211,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 						t = position.Type.Inv()
 						v = position.Volume
 					}
-					order := model.NewOrder(coin).
+					order = model.NewOrder(coin).
 						Market().
 						WithType(t).
 						WithVolume(v).
@@ -272,7 +272,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 					Msg("processed signal")
 				user.Send(api.External,
 					api.NewMessage("processed signal").
-						AddLine(createTypeMessage(coin, t, v, p, close)).
+						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
 						AddLine(createReportMessage(key, tErr, vErr, pErr, err)),
 					nil)
 			case trade := <-in:
