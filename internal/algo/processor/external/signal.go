@@ -185,7 +185,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							user.Send(api.External,
 								api.NewMessage("ignoring signal").
 									AddLine(createTypeMessage(coin, t, v, p, false)).
-									AddLine(createReportMessage(key, fmt.Errorf("ignored signal:%v", position))),
+									AddLine(createReportMessage(key, fmt.Errorf("%s:%v:%v", emoji.MapType(position.Type), position.Volume, position.OpenPrice))),
 								nil)
 							continue
 						}
