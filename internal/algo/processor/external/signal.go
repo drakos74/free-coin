@@ -55,11 +55,11 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				coinmath.Format(pos.Volume),
 			)
 			// TODO : send a trigger for each Position to give access to adjust it
-			trigger := &api.Trigger{
-				ID:  pos.ID,
-				Key: positionKey,
-			}
-			user.Send(api.External, api.NewMessage(msg).AddLine(configMsg), trigger)
+			//trigger := &api.Trigger{
+			//	ID:  pos.ID,
+			//	Key: positionKey,
+			//}
+			user.Send(api.External, api.NewMessage(msg).AddLine(configMsg), nil)
 		}
 	}
 }
