@@ -30,11 +30,6 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 					log.Error().Str("key", fmt.Sprintf("%+v", key)).Err(err).Msg("could not parse orders")
 				}
 
-				series := metrics.Series{
-					Target:     filepath.Base(dir),
-					DataPoints: make([][]float64, len(orders)),
-				}
-
 				sum := 0.0
 
 				var sortedOrders Orders
@@ -44,6 +39,10 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 				if len(sortedOrders)%2 != 0 {
 					// remove the last ...
 					sortedOrders = sortedOrders[:len(sortedOrders)-1]
+				}
+				series := metrics.Series{
+					Target:     filepath.Base(dir),
+					DataPoints: make([][]float64, len(sortedOrders)),
 				}
 				for i, order := range sortedOrders {
 					switch order.Order.Type {
