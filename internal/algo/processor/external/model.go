@@ -105,3 +105,10 @@ type Order struct {
 	Order   model.TrackedOrder `json:"order"`
 	Errors  map[string]string  `json:"errors"`
 }
+
+type Orders []Order
+
+// for sorting predictions
+func (o Orders) Len() int           { return len(o) }
+func (o Orders) Less(i, j int) bool { return o[i].Message.Time().Before(o[j].Message.Time()) }
+func (o Orders) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }

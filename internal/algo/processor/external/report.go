@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
@@ -35,7 +36,16 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 				}
 
 				sum := 0.0
-				for i, order := range orders {
+
+				var sortedOrders Orders
+				sortedOrders = orders
+				sort.Sort(sortedOrders)
+				fmt.Println(fmt.Sprintf("sortedOrders = %+v", sortedOrders))
+				if len(sortedOrders)%2 == 1 {
+					// remove the last ...
+					sortedOrders = sortedOrders[:len(sortedOrders)-1]
+				}
+				for i, order := range sortedOrders {
 					switch order.Order.Type {
 					case model.Buy:
 						sum -= order.Order.Price * order.Order.Volume
