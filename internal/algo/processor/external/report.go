@@ -28,9 +28,9 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 func readFromRegistry(registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders) metrics.Series) func(data map[string]interface{}) []metrics.Series {
 	return func(data map[string]interface{}) []metrics.Series {
 		assets := make([]metrics.Series, 0)
+		accountFor := make(map[string]struct{})
 		err := filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
 			// take into account only files
-			accountFor := make(map[string]struct{})
 			dir := filepath.Dir(path)
 			index := filepath.Base(dir)
 			if info != nil && !info.IsDir() {
