@@ -123,6 +123,7 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 			case model.Sell:
 				diff = lastOrder.Order.Price - p.Price
 			}
+			fmt.Println(fmt.Sprintf("diff = %+v", diff))
 			sum += lastOrder.Order.Volume * diff
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
 		}
