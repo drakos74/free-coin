@@ -116,15 +116,12 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 		if p, ok := prices[lastOrder.Order.Coin]; ok {
 			fmt.Println(fmt.Sprintf("p = %+v", p))
 			// if we have a last price for this asset ...
-			var diff float64
 			switch lastOrder.Order.Type {
 			case model.Buy:
-				diff = p.Price - lastOrder.Order.Price
+				sum += lastOrder.Order.Volume * p.Price
 			case model.Sell:
-				diff = lastOrder.Order.Price - p.Price
+				sum += lastOrder.Order.Volume * p.Price
 			}
-			fmt.Println(fmt.Sprintf("diff = %+v", diff))
-			sum += lastOrder.Order.Volume * diff
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
 		}
 		fmt.Println(fmt.Sprintf("sum = %+v", sum))
