@@ -112,7 +112,9 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 	}
 	// if we are at the last one .. we ll add a virtual one at the current price
 	if close {
+		fmt.Println(fmt.Sprintf("order.Order = %+v", lastOrder.Order))
 		if p, ok := prices[lastOrder.Order.Coin]; ok {
+			fmt.Println(fmt.Sprintf("p = %+v", p))
 			// if we have a last price for this asset ...
 			var diff float64
 			switch lastOrder.Order.Type {
