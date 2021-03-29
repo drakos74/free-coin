@@ -25,13 +25,23 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 	grafana.Target("errors", readFromRegistry(registryPath, registry, isError, count))
 }
 
-func readFromRegistry(registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders, assets []metrics.Series)) func(data map[string]interface{}) []metrics.Series {
+func readFromRegistry(registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders) metrics.Series) func(data map[string]interface{}) []metrics.Series {
 	return func(data map[string]interface{}) []metrics.Series {
 		assets := make([]metrics.Series, 0)
 		err := filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
 			// take into account only files
+			accountFor := make(map[string]struct{})
+			dir := filepath.Dir(path)
+			index := filepath.Base(dir)
 			if info != nil && !info.IsDir() {
-				return parseEvents(path, registry, assets, condition, addSeries)
+				if _, ok := accountFor[index]; ok {
+					return nil
+				}
+				series, err := parseEvents(dir, index, registry, condition, addSeries)
+				if err != nil {
+					assets = append(assets, series)
+				}
+				accountFor[index] = struct{}{}
 			}
 			return nil
 		})
@@ -45,15 +55,9 @@ func readFromRegistry(registryPath string, registry storage.Registry, condition 
 	}
 }
 
-func parseEvents(path string, registry storage.Registry, assets []metrics.Series, condition func(dir string) bool, addSeries func(index string, orders Orders, assets []metrics.Series)) error {
-	accountFor := make(map[string]struct{})
-
-	dir := filepath.Dir(path)
-	index := filepath.Base(dir)
+func parseEvents(dir string, index string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders) metrics.Series) (metrics.Series, error) {
 	if condition(dir) {
-		if _, ok := accountFor[index]; ok {
-			return nil
-		}
+
 		orders := []Order{{}}
 		// look up one level up
 		key := storage.K{
@@ -62,19 +66,18 @@ func parseEvents(path string, registry storage.Registry, assets []metrics.Series
 		}
 		err := registry.GetAll(key, &orders)
 		if err != nil {
-			log.Error().Str("key", fmt.Sprintf("%+v", key)).Err(err).Msg("could not parse orders")
+			return metrics.Series{}, fmt.Errorf("could not read from registry: %w", err)
 		}
 		var sortedOrders Orders
 		sortedOrders = orders
 		sort.Sort(sortedOrders)
 
-		addSeries(index, sortedOrders, assets)
-		accountFor[index] = struct{}{}
+		return addSeries(index, sortedOrders), nil
 	}
-	return nil
+	return metrics.Series{}, fmt.Errorf("invalid dir")
 }
 
-func addPnL(index string, orders Orders, assets []metrics.Series) {
+func addPnL(index string, orders Orders) metrics.Series {
 	series := metrics.Series{
 		Target:     index,
 		DataPoints: make([][]float64, 0),
@@ -94,10 +97,10 @@ func addPnL(index string, orders Orders, assets []metrics.Series) {
 		}
 		close = !close
 	}
-	assets = append(assets, series)
+	return series
 }
 
-func count(index string, orders Orders, assets []metrics.Series) {
+func count(index string, orders Orders) metrics.Series {
 	count := 0.0
 
 	series := metrics.Series{
@@ -108,7 +111,7 @@ func count(index string, orders Orders, assets []metrics.Series) {
 		count++
 		series.DataPoints = append(series.DataPoints, []float64{count, float64(cointime.ToMilli(order.Order.Time))})
 	}
-	assets = append(assets, series)
+	return series
 }
 
 func noError(dir string) bool {
