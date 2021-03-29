@@ -65,10 +65,10 @@ func (t *tracker) check(key string) (model.Position, bool) {
 	return model.Position{}, false
 }
 
-func (t *tracker) add(key string, order model.TrackedOrder, close bool) error {
+func (t *tracker) add(key string, order model.TrackedOrder, close string) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if close {
+	if close != "" {
 		if _, ok := t.positions[key]; !ok {
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}

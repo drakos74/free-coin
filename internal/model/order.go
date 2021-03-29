@@ -54,6 +54,7 @@ func (l Leverage) String() string {
 type TrackedOrder struct {
 	Order
 	Key   Key
+	RefID string    `json:"ref_id"`
 	Time  time.Time `json:"time"`
 	TxIDs []string  `json:"txIds"`
 }

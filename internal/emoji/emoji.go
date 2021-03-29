@@ -34,7 +34,17 @@ const (
 	Recycling = "🤑"
 
 	Error = "🚫"
+
+	HasValue = "🏳️‍🌈"
+	NoValue  = "🏴‍☠️"
 )
+
+func MapBool(s bool) string {
+	if s {
+		return HasValue
+	}
+	return NoValue
+}
 
 // MapType maps the type of buy and sell to an emoji
 func MapType(t model.Type) string {

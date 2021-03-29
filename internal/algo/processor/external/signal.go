@@ -128,7 +128,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				v, vErr := message.Volume()
 				//p, pErr := message.Price()
 				var err error
-				var close bool
+				var close string
 				var order model.TrackedOrder
 				if tErr == nil && vErr == nil {
 					// check the positions ...
@@ -148,7 +148,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							continue
 						}
 						// we need to close the position
-						close = true
+						close = position.OrderID
 						t = position.Type.Inv()
 						v = position.Volume
 						log.Debug().
@@ -167,6 +167,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Duration: message.Duration(),
 							Strategy: message.Key(),
 						}, message.Time())
+					order.RefID = close
 					order, _, err = client.OpenOrder(order)
 					if err == nil {
 						regErr := registry.Add(storage.K{
@@ -237,12 +238,8 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	}
 }
 
-func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close bool) string {
-	action := "open"
-	if close {
-		action = "close"
-	}
-	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), action, emoji.MapType(t), volume, price)
+func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string) string {
+	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), emoji.MapBool(close == ""), emoji.MapType(t), volume, price)
 }
 
 func createReportMessage(key string, err ...error) string {
