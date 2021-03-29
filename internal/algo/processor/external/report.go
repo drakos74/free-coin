@@ -35,10 +35,7 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 				var sortedOrders Orders
 				sortedOrders = orders
 				sort.Sort(sortedOrders)
-				if len(sortedOrders)%2 != 0 {
-					// remove the last ...
-					sortedOrders = sortedOrders[:len(sortedOrders)-1]
-				}
+
 				series := metrics.Series{
 					Target:     filepath.Base(dir),
 					DataPoints: make([][]float64, len(sortedOrders)),
@@ -50,7 +47,9 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 					case model.Sell:
 						sum += order.Order.Price * order.Order.Volume
 					}
-					series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
+					if i%2 == 0 {
+						series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
+					}
 				}
 				return series
 			})
