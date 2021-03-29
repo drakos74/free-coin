@@ -96,7 +96,9 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 	sum := 0.0
 	var closingOrder bool
 	var lastOrder Order
+	var lastSum float64
 	for _, order := range orders {
+		lastSum = sum
 		switch order.Order.Type {
 		case model.Buy:
 			sum -= order.Order.Price * order.Order.Volume
@@ -106,15 +108,15 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 		// every second order is a closing one ...
 		if closingOrder {
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
+		} else {
+			series.DataPoints = append(series.DataPoints, []float64{lastSum, float64(cointime.ToMilli(order.Order.Time))})
 		}
 		lastOrder = order
 		closingOrder = !closingOrder
 	}
 	// if we are at the last one .. we ll add a virtual one at the current price
 	if closingOrder {
-		log.Info().Int("count", len(orders)).Float64("sum", sum).Str("order", fmt.Sprintf("%+v", lastOrder)).Msg("last order")
 		if p, ok := prices[lastOrder.Order.Coin]; ok {
-			fmt.Println(fmt.Sprintf("p = %+v", p))
 			// if we have a last price for this asset ...
 			switch lastOrder.Order.Type {
 			case model.Buy:
@@ -124,7 +126,6 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 			}
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
 		}
-		fmt.Println(fmt.Sprintf("sum = %+v", sum))
 	}
 	return series
 }
