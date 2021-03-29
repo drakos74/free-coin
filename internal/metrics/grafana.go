@@ -12,7 +12,7 @@ import (
 
 type TagQuery func() []string
 
-type TargetQuery func(data map[string]interface{}) Series
+type TargetQuery func(data map[string]interface{}) []Series
 
 type AnnotationsQuery func(query string) []AnnotationInstance
 
@@ -84,7 +84,7 @@ func (s *Server) query(ctx context.Context, r *http.Request) (payload []byte, co
 		if !ok {
 			log.Error().Str("target", target.Target).Msg("unknown target")
 		}
-		data = append(data, t(target.Data))
+		data = append(data, t(target.Data)...)
 	}
 
 	response := make([]interface{}, 0)
