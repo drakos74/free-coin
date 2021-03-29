@@ -38,18 +38,21 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 
 				series := metrics.Series{
 					Target:     filepath.Base(dir),
-					DataPoints: make([][]float64, len(sortedOrders)),
+					DataPoints: make([][]float64, 0),
 				}
-				for i, order := range sortedOrders {
+				var close bool
+				for _, order := range sortedOrders {
 					switch order.Order.Type {
 					case model.Buy:
 						sum -= order.Order.Price * order.Order.Volume
 					case model.Sell:
 						sum += order.Order.Price * order.Order.Volume
 					}
-					if i%2 == 0 {
-						series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
+					// every second order is a closing one ...
+					if close {
+						series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
 					}
+					close = !close
 				}
 				return series
 			})
