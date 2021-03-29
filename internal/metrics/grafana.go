@@ -92,7 +92,9 @@ func (s *Server) query(ctx context.Context, r *http.Request) (payload []byte, co
 		response = append(response, table)
 	}
 	for _, d := range data {
-		response = append(response, d)
+		if len(d.DataPoints) > 0 {
+			response = append(response, d)
+		}
 	}
 
 	payload, err = json.Marshal(response)
