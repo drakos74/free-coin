@@ -79,7 +79,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 		Run()
 
 	grafana := metrics.NewServer("grafana", grafanaPort)
-	addTargets(grafana, registry)
+	addTargets(client, grafana, registry)
 
 	// init tracker related actions
 	tracker, err := newTracker(client, shard)
