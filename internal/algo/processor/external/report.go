@@ -22,7 +22,7 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 
 	grafana.Target("trades", readFromRegistry(registryPath, registry, noError, count))
 
-	grafana.Target("errors", readFromRegistry(registryPath, registry, isError, instance))
+	grafana.Target("errors", readFromRegistry(registryPath, registry, isError, count))
 }
 
 func readFromRegistry(registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders) metrics.Series) func(data map[string]interface{}) []metrics.Series {
