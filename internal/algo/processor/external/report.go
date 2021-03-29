@@ -22,7 +22,7 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 
 	grafana.Target("trades", readFromRegistry(registryPath, registry, noError, count))
 
-	grafana.Target("errors", readFromRegistry(registryPath, registry, isError, count))
+	grafana.Target("errors", readFromRegistry(registryPath, registry, isError, instance))
 }
 
 func readFromRegistry(registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, orders Orders) metrics.Series) func(data map[string]interface{}) []metrics.Series {
@@ -110,6 +110,17 @@ func count(index string, orders Orders) metrics.Series {
 	for _, order := range orders {
 		count++
 		series.DataPoints = append(series.DataPoints, []float64{count, float64(cointime.ToMilli(order.Order.Time))})
+	}
+	return series
+}
+
+func instance(index string, orders Orders) metrics.Series {
+	series := metrics.Series{
+		Target:     index,
+		DataPoints: make([][]float64, 0),
+	}
+	for _, order := range orders {
+		series.DataPoints = append(series.DataPoints, []float64{1.0, float64(cointime.ToMilli(order.Order.Time))})
 	}
 	return series
 }
