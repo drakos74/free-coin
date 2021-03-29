@@ -35,7 +35,6 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 				var sortedOrders Orders
 				sortedOrders = orders
 				sort.Sort(sortedOrders)
-				fmt.Println(fmt.Sprintf("sortedOrders = %+v", sortedOrders))
 				if len(sortedOrders)%2 != 0 {
 					// remove the last ...
 					sortedOrders = sortedOrders[:len(sortedOrders)-1]
