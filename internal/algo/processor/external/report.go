@@ -120,7 +120,7 @@ func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Order
 			case model.Buy:
 				sum += lastOrder.Order.Volume * p.Price
 			case model.Sell:
-				sum += lastOrder.Order.Volume * p.Price
+				sum -= lastOrder.Order.Volume * p.Price
 			}
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
 		}
