@@ -120,7 +120,7 @@ func addTargets(grafana *metrics.Server, registry storage.Registry) {
 		err := filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
 			if info != nil && !info.IsDir() {
 				dir := filepath.Dir(path)
-				if strings.HasSuffix(path, "error") {
+				if strings.HasSuffix(dir, "error") {
 					orders := []Order{{}}
 					key := storage.K{
 						Pair:  filepath.Base(filepath.Dir(dir)),
