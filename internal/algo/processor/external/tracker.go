@@ -1,8 +1,11 @@
 package external
 
 import (
+	"context"
 	"fmt"
 	"sync"
+
+	"github.com/drakos74/free-coin/internal/api"
 
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -12,12 +15,13 @@ import (
 const storagePath = "signals"
 
 type tracker struct {
+	client    api.Exchange
 	positions map[string]model.Position
 	storage   storage.Persistence
 	lock      *sync.RWMutex
 }
 
-func newTracker(shard storage.Shard) (*tracker, error) {
+func newTracker(client api.Exchange, shard storage.Shard) (*tracker, error) {
 	st, err := shard(storagePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
@@ -26,6 +30,7 @@ func newTracker(shard storage.Shard) (*tracker, error) {
 	err = st.Load(stKey(), &positions)
 	log.Info().Err(err).Int("num", len(positions)).Msg("loaded positions")
 	return &tracker{
+		client:    client,
 		positions: positions,
 		storage:   st,
 		lock:      new(sync.RWMutex),
@@ -35,8 +40,17 @@ func newTracker(shard storage.Shard) (*tracker, error) {
 func (t *tracker) getAll() map[string]model.Position {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
+	prices, err := t.client.CurrentPrice(context.Background())
+	if err != nil {
+		log.Error().Err(err).Msg("could not get current prices")
+		prices = make(map[model.Coin]model.CurrentPrice)
+	}
 	positions := make(map[string]model.Position)
 	for k, p := range t.positions {
+		// check the current price
+		if cp, ok := prices[p.Coin]; ok {
+			p.CurrentPrice = cp.Price
+		}
 		positions[k] = p
 	}
 	return positions

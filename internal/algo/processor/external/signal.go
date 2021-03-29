@@ -1,10 +1,7 @@
 package external
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -49,18 +46,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			continue
 		}
 
-		prices, err := client.CurrentPrice(context.Background())
-		if err != nil {
-			log.Error().Err(err).Msg("could not get current prices")
-			prices = make(map[model.Coin]model.CurrentPrice)
-		}
-
 		for k, pos := range positions {
-			// check the current price
-			if cp, ok := prices[pos.Coin]; ok {
-				pos.CurrentPrice = cp.Price
-			}
-
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
 			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f",
@@ -93,53 +79,10 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 		Run()
 
 	grafana := metrics.NewServer("grafana", grafanaPort)
-
-	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
-	err := filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
-		if info != nil && !info.IsDir() {
-			dir := filepath.Dir(path)
-			grafana.Target(dir, func(data map[string]interface{}) metrics.Series {
-				orders := []Order{{}}
-				key := storage.K{
-					Pair:  filepath.Base(filepath.Dir(dir)),
-					Label: filepath.Base(dir),
-				}
-				err := registry.GetAll(key, &orders)
-				if err != nil {
-					log.Error().Str("key", fmt.Sprintf("%+v", key)).Err(err).Msg("could not parse orders")
-				}
-
-				series := metrics.Series{
-					Target:     dir,
-					DataPoints: make([][]float64, len(orders)),
-				}
-
-				sum := 0.0
-				for i, order := range orders {
-					switch order.Order.Type {
-					case model.Buy:
-						sum -= order.Order.Price * order.Order.Volume
-					case model.Sell:
-						sum += order.Order.Price * order.Order.Volume
-					}
-					series.DataPoints[i] = []float64{sum, float64(cointime.ToMilli(order.Order.Time))}
-				}
-				return series
-			})
-		}
-
-		return nil
-
-	})
-	if err != nil {
-		log.Error().
-			Str("path", registryPath).
-			Err(err).
-			Msg("could not look into registry path")
-	}
+	addTargets(grafana, registry)
 
 	// init tracker related actions
-	tracker, err := newTracker(shard)
+	tracker, err := newTracker(client, shard)
 	go tracker.trackUserActions(client, user)
 	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
 		positions := tracker.getAll()
@@ -208,6 +151,12 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 						close = true
 						t = position.Type.Inv()
 						v = position.Volume
+						log.Debug().
+							Str("message", fmt.Sprintf("%+v", message)).
+							Str("position", fmt.Sprintf("%+v", position)).
+							Str("type", t.String()).
+							Float64("volume", v).
+							Msg("closing position")
 					}
 					order = model.NewOrder(coin).
 						Market().
