@@ -38,10 +38,10 @@ func readFromRegistry(registryPath string, registry storage.Registry, condition 
 					return nil
 				}
 				series, err := parseEvents(dir, index, registry, condition, addSeries)
-				if err != nil {
+				if err == nil {
 					assets = append(assets, series)
+					accountFor[index] = struct{}{}
 				}
-				accountFor[index] = struct{}{}
 			}
 			return nil
 		})
