@@ -100,9 +100,10 @@ func addPnL(index string, timeRange cointime.Range, prices map[model.Coin]model.
 	var lastSum float64
 	openingOrders := make(map[string]Order)
 	for _, order := range orders {
-		if !timeRange.IsWithin(order.Order.Time) {
-			continue
-		}
+		// TODO : dont filter on time range for now ...
+		//if !timeRange.IsWithin(order.Order.Time) {
+		//	continue
+		//}
 		if order.Order.RefID == "" {
 			openingOrders[order.Order.ID] = order
 			series.DataPoints = append(series.DataPoints, []float64{lastSum, float64(cointime.ToMilli(order.Order.Time))})
