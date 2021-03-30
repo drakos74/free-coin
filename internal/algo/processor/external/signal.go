@@ -132,7 +132,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 				var order model.TrackedOrder
 				if tErr == nil && vErr == nil {
 					// check the positions ...
-					position, ok := tracker.check(key)
+					position, ok, positions := tracker.check(key, coin)
 					if ok {
 						// if we had a position already ...
 						if position.Type == t {
@@ -157,6 +157,20 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							Str("type", t.String()).
 							Float64("volume", v).
 							Msg("closing position")
+					} else if len(positions) > 0 {
+						var ignore bool
+						for _, p := range positions {
+							if p.Type != t {
+								// if it will be an opposite opening to the current position,
+								// it will act as a close, and it will break our metrics ...
+								ignore = true
+							}
+						}
+						if ignore {
+							log.Debug().
+								Str("positions", fmt.Sprintf("%+v", positions)).
+								Msg("ignoring conflicting signal")
+						}
 					}
 					order = model.NewOrder(coin).
 						Market().

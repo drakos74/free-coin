@@ -56,13 +56,22 @@ func (t *tracker) getAll() map[string]model.Position {
 	return positions
 }
 
-func (t *tracker) check(key string) (model.Position, bool) {
+// TODO : make this for now ... to have clear pairs
+func (t *tracker) check(key string, coin model.Coin) (model.Position, bool, []model.Position) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	if p, ok := t.positions[key]; ok {
-		return p, true
+		return p, true, []model.Position{}
 	}
-	return model.Position{}, false
+	// TODO : remove this at some point.
+	// We want ... for now to ... basically avoid closing with the same coin but different key
+	positions := make([]model.Position, 0)
+	for _, p := range t.positions {
+		if p.Coin == coin {
+			positions = append(positions, p)
+		}
+	}
+	return model.Position{}, false, positions
 }
 
 func (t *tracker) add(key string, order model.TrackedOrder, close string) error {
