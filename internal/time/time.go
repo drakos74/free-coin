@@ -20,6 +20,10 @@ type Range struct {
 	ToInt64 func(t time.Time) int64 `json:"-"`
 }
 
+func (r Range) IsWithin(time time.Time) bool {
+	return time.Before(r.To) && time.After(r.From)
+}
+
 func FromNano(nano int64) time.Time {
 	return time.Unix(nano/timeUnixNano, 0)
 }

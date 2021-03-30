@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 
@@ -29,8 +28,8 @@ func addTargets(client api.Exchange, grafana *metrics.Server, registry storage.R
 	grafana.Target("errors", readFromRegistry(client, registryPath, registry, isError, count))
 }
 
-func readFromRegistry(client api.Exchange, registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series) func(data map[string]interface{}) []metrics.Series {
-	return func(data map[string]interface{}) []metrics.Series {
+func readFromRegistry(client api.Exchange, registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(index string, timeRange cointime.Range, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series) metrics.TargetQuery {
+	return func(data map[string]interface{}, timeRange cointime.Range) []metrics.Series {
 		assets := make([]metrics.Series, 0)
 		accountFor := make(map[string]struct{})
 
@@ -48,7 +47,7 @@ func readFromRegistry(client api.Exchange, registryPath string, registry storage
 				if _, ok := accountFor[index]; ok {
 					return nil
 				}
-				series, err := parseEvents(dir, index, registry, prices, condition, addSeries)
+				series, err := parseEvents(dir, index, timeRange, registry, prices, condition, addSeries)
 				if err == nil {
 					assets = append(assets, series)
 					accountFor[index] = struct{}{}
@@ -66,7 +65,7 @@ func readFromRegistry(client api.Exchange, registryPath string, registry storage
 	}
 }
 
-func parseEvents(dir string, index string, registry storage.Registry, prices map[model.Coin]model.CurrentPrice, condition func(dir string) bool, addSeries func(index string, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series) (metrics.Series, error) {
+func parseEvents(dir string, index string, timeRange cointime.Range, registry storage.Registry, prices map[model.Coin]model.CurrentPrice, condition func(dir string) bool, addSeries func(index string, timeRange cointime.Range, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series) (metrics.Series, error) {
 	if condition(dir) {
 
 		orders := []Order{{}}
@@ -83,54 +82,66 @@ func parseEvents(dir string, index string, registry storage.Registry, prices map
 		sortedOrders = orders
 		sort.Sort(sortedOrders)
 
-		return addSeries(index, prices, sortedOrders), nil
+		return addSeries(index, timeRange, prices, sortedOrders), nil
 	}
 	return metrics.Series{}, fmt.Errorf("invalid dir")
 }
 
-func addPnL(index string, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series {
+func addPnL(index string, timeRange cointime.Range, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series {
 	series := metrics.Series{
 		Target:     index,
 		DataPoints: make([][]float64, 0),
 	}
 	sum := 0.0
-	var closingOrder bool
-	var lastOrder Order
+	//var closingOrder bool
+	//var lastOrder Order
 	var lastSum float64
+	openingOrders := make(map[string]Order)
 	for _, order := range orders {
-		lastSum = sum
-		switch order.Order.Type {
-		case model.Buy:
-			sum -= order.Order.Price * order.Order.Volume
-		case model.Sell:
-			sum += order.Order.Price * order.Order.Volume
-		}
-		// every second order is a closing one ...
-		if closingOrder {
-			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
-		} else {
+		if order.Order.RefID == "" {
+			openingOrders[order.Order.ID] = order
 			series.DataPoints = append(series.DataPoints, []float64{lastSum, float64(cointime.ToMilli(order.Order.Time))})
+			continue
 		}
-		lastOrder = order
-		closingOrder = !closingOrder
+		// else lets find the opening order
+		if o, ok := openingOrders[order.Order.RefID]; ok {
+			sum += order.Order.Value() + o.Order.Value()
+			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
+		}
+		lastSum = sum
+		//lastSum = sum
+		//switch order.Order.Type {
+		//case model.Buy:
+		//	sum -= order.Order.Price * order.Order.Volume
+		//case model.Sell:
+		//	sum += order.Order.Price * order.Order.Volume
+		//}
+		//// every second order is a closing one ...
+		//if closingOrder {
+		//	series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
+		//} else {
+		//	series.DataPoints = append(series.DataPoints, []float64{lastSum, float64(cointime.ToMilli(order.Order.Time))})
+		//}
+		//lastOrder = order
+		//closingOrder = !closingOrder
 	}
 	// if we are at the last one .. we ll add a virtual one at the current price
-	if closingOrder {
-		if p, ok := prices[lastOrder.Order.Coin]; ok {
-			// if we have a last price for this asset ...
-			switch lastOrder.Order.Type {
-			case model.Buy:
-				sum += lastOrder.Order.Volume * p.Price
-			case model.Sell:
-				sum -= lastOrder.Order.Volume * p.Price
-			}
-			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
-		}
-	}
+	//if closingOrder {
+	//	if p, ok := prices[lastOrder.Order.Coin]; ok {
+	//		// if we have a last price for this asset ...
+	//		switch lastOrder.Order.Type {
+	//		case model.Buy:
+	//			sum += lastOrder.Order.Volume * p.Price
+	//		case model.Sell:
+	//			sum -= lastOrder.Order.Volume * p.Price
+	//		}
+	//		series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(time.Now()))})
+	//	}
+	//}
 	return series
 }
 
-func count(index string, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series {
+func count(index string, timeRange cointime.Range, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series {
 	count := 0.0
 
 	series := metrics.Series{
@@ -138,8 +149,10 @@ func count(index string, prices map[model.Coin]model.CurrentPrice, orders Orders
 		DataPoints: make([][]float64, 0),
 	}
 	for _, order := range orders {
-		count++
-		series.DataPoints = append(series.DataPoints, []float64{count, float64(cointime.ToMilli(order.Order.Time))})
+		if timeRange.IsWithin(order.Order.Time) {
+			count++
+			series.DataPoints = append(series.DataPoints, []float64{count, float64(cointime.ToMilli(order.Order.Time))})
+		}
 	}
 	return series
 }

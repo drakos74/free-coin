@@ -59,6 +59,17 @@ type TrackedOrder struct {
 	TxIDs []string  `json:"txIds"`
 }
 
+// Value returns the value of this order in respect to our portfolio.
+func (to TrackedOrder) Value() float64 {
+	switch to.Type {
+	case Buy:
+		return -1 * to.Price * to.Volume
+	case Sell:
+		return to.Price * to.Volume
+	}
+	return 0
+}
+
 // NewTrackedOrder creates a new tracked order.
 func NewTrackedOrder(key Key, time time.Time, order Order) TrackedOrder {
 	return TrackedOrder{
