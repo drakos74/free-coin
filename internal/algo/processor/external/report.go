@@ -138,7 +138,7 @@ func addPnL(index string, timeRange cointime.Range, prices map[model.Coin]model.
 	now := time.Now()
 	// if we are at the last one .. we ll add a virtual one at the current price
 	log.Info().Str("index", index).Bool("open", open).Time("now", now).Float64("sum", sum).Str("coin", string(lastOrder.Order.Coin)).Msg("pnl")
-	if open {
+	if open && len(orders)%2 != 0 {
 		// we only extrapolate if the time range is close to now
 		// and the last order was an opening order
 		// and we have a current price for the asset
