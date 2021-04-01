@@ -5,10 +5,6 @@ import (
 	"runtime"
 	"time"
 
-	botlocal "github.com/drakos74/free-coin/user/local"
-
-	"github.com/drakos74/free-coin/user/telegram"
-
 	"github.com/drakos74/free-coin/client/binance"
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -19,6 +15,8 @@ import (
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
+	botlocal "github.com/drakos74/free-coin/user/local"
+	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -29,6 +27,17 @@ func init() {
 }
 
 func main() {
+
+	for {
+		log.Info().Msg("running app ... ")
+		// this should block ..
+		run()
+		time.Sleep(1 * time.Hour)
+	}
+
+}
+
+func run() {
 	ctx, cnl := context.WithCancel(context.Background())
 	upstream := func(since int64) (api.Client, error) {
 		return binance.NewClient(), nil

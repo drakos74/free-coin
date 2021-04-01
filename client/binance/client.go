@@ -53,5 +53,4 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (coinmodel.T
 	}()
 
 	return tradeSource, nil
-
 }
