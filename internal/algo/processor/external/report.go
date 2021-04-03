@@ -178,7 +178,9 @@ func addPnL(query query) metrics.Series {
 		if h > lh {
 			// add the previous one ...
 			v := ss[lh]
-			series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
+			if lh > 0 {
+				series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
+			}
 			lh = h
 		}
 		lastOrder = order
