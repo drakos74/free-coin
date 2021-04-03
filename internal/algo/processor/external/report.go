@@ -135,9 +135,7 @@ func addPnL(query query) metrics.Series {
 		Target:     query.index,
 		DataPoints: make([][]float64, 0),
 	}
-	sum := 0.0
-	var open bool
-	var lastOrder Order
+
 	openingOrders := make(map[string]Order)
 
 	interval, err := parseDuration(intervalKey, query.data)
@@ -149,6 +147,9 @@ func addPnL(query query) metrics.Series {
 	hash := cointime.NewHash(interval)
 
 	ss := make(map[int64]float64)
+
+	var lastValue float64
+	var lastOrder Order
 
 	var lh int64
 	// we must assume time ordering of the orders for the below logic to work.
@@ -174,21 +175,19 @@ func addPnL(query query) metrics.Series {
 
 		if order.Order.RefID == "" {
 			openingOrders[order.Order.ID] = order
-			open = true
 		} else {
 			// else lets find the opening order
 			if o, ok := openingOrders[order.Order.RefID]; ok {
-				sum += order.Order.Value() + o.Order.Value()
-				ss[h] = ss[h] + sum
+				ss[h] = ss[h] + (order.Order.Value() + o.Order.Value())
 			} else {
 				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-id", order.Order.RefID).Msg("could not pair order")
 			}
-			open = false
 		}
 		if h > lh {
 			// add the previous one ... if it s not the first one ...
 			if lh > 0 {
 				v := ss[lh]
+				lastValue = v
 				fmt.Println(fmt.Sprintf("v = %+v", v))
 				series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			}
@@ -199,14 +198,14 @@ func addPnL(query query) metrics.Series {
 	// TODO : how to interpolate ...
 	now := time.Now()
 	// if we are at the last one .. we ll add a virtual one at the current price
-	if open && len(query.orders)%2 != 0 {
+	if lastOrder.Order.RefID == "" {
 		// we only extrapolate if the time range is close to now
 		// and the last order was an opening order
 		// and we have a current price for the asset
 		if p, ok := query.prices[lastOrder.Order.Coin]; ok && math.Abs(now.Sub(query.timeRange.To).Minutes()) < 30 {
 			// if we have a last price for this asset ...
-			sum += (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
-			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(query.timeRange.To))})
+			lastValue += (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
+			series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
 		}
 	}
 	return series
