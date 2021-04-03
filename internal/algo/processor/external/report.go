@@ -160,7 +160,7 @@ func addPnL(query query) metrics.Series {
 
 		h := hash.Do(order.Order.Time) + 1 // +1 because we want to assign the order to the end of the interval
 
-		fmt.Println(fmt.Sprintf("order.Order = %+v", order.Order))
+		fmt.Println(fmt.Sprintf("%s = %+v", order.Order.Coin, order.Order))
 
 		if _, ok := ss[h]; !ok {
 			if acc {
@@ -189,6 +189,7 @@ func addPnL(query query) metrics.Series {
 			// add the previous one ... if it s not the first one ...
 			if lh > 0 {
 				v := ss[lh]
+				fmt.Println(fmt.Sprintf("v = %+v", v))
 				series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			}
 			lh = h
