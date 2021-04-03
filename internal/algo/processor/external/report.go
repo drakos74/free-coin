@@ -179,7 +179,9 @@ func addPnL(query query) metrics.Series {
 			open = false
 		}
 		if h > lh {
-			series.DataPoints = append(series.DataPoints, []float64{orderValue, float64(cointime.ToMilli(order.Order.Time))})
+			// add the previous one ...
+			v := ss[lh]
+			series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			lh = h
 		}
 		lastSum = sum
