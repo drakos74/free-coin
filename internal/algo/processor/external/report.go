@@ -131,10 +131,6 @@ func parseEvents(queryGen queryGenerator) (metrics.Series, error) {
 // addPnL calculates the pnl for the given query
 // note , the orders must always be sorted within the query
 func addPnL(query query) metrics.Series {
-	series := metrics.Series{
-		Target:     query.index,
-		DataPoints: make([][]float64, 0),
-	}
 
 	openingOrders := make(map[string]Order)
 
@@ -143,6 +139,11 @@ func addPnL(query query) metrics.Series {
 		log.Warn().Err(err).Msg("could not parse query data")
 	}
 	acc := parseBool(accumulateKey, query.data)
+
+	series := metrics.Series{
+		Target:     fmt.Sprintf("%s[interval:%v|accumulate:%v]", query.index, interval, acc),
+		DataPoints: make([][]float64, 0),
+	}
 
 	hash := cointime.NewHash(interval)
 
@@ -202,7 +203,6 @@ func addPnL(query query) metrics.Series {
 			if lh > 0 {
 				v := ss[lh]
 				lastValue = v
-				fmt.Println(fmt.Sprintf("v = %+v", v))
 				series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			}
 			lh = h
@@ -215,7 +215,6 @@ func addPnL(query query) metrics.Series {
 
 	if last.Before(now) {
 		lastValue += ss[lh]
-		fmt.Println(fmt.Sprintf("flush = %+v <- %v", ss[lh], lastValue))
 		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(last))})
 	}
 
@@ -223,9 +222,6 @@ func addPnL(query query) metrics.Series {
 	p, ok := query.prices[lastOrder.Order.Coin]
 	lastIsOpen := lastOrder.Order.RefID == ""
 	EndTimeIsNow := math.Abs(now.Sub(query.timeRange.To).Minutes())
-	fmt.Println(fmt.Sprintf("current-price = %+v <- %v", p, ok))
-	fmt.Println(fmt.Sprintf("lastIsOpen = %+v", lastIsOpen))
-	fmt.Println(fmt.Sprintf("EndTimeIsNow = %+v", EndTimeIsNow))
 	if ok &&
 		lastIsOpen &&
 		EndTimeIsNow < 1 {
@@ -236,7 +232,6 @@ func addPnL(query query) metrics.Series {
 		} else {
 			lastValue += (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
 		}
-		fmt.Println(fmt.Sprintf("lastValue = %+v", lastValue))
 		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
 	}
 

@@ -170,6 +170,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 							log.Debug().
 								Str("positions", fmt.Sprintf("%+v", positions)).
 								Msg("ignoring conflicting signal")
+							continue
 						}
 					}
 					order = model.NewOrder(coin).
