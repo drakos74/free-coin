@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	intervalKey = "interval"
+	intervalKey   = "interval"
+	accumulateKey = "accumulate"
 )
 
 type queryGenerator struct {
@@ -143,6 +144,7 @@ func addPnL(query query) metrics.Series {
 	if err != nil {
 		log.Warn().Err(err).Msg("could not parse query data")
 	}
+	acc := parseBool(accumulateKey, query.data)
 
 	hash := cointime.NewHash(interval)
 
@@ -160,7 +162,13 @@ func addPnL(query query) metrics.Series {
 
 		fmt.Println(fmt.Sprintf("lh = %v , h = %+v", lh, h))
 		if _, ok := ss[h]; !ok {
-			ss[h] = 0.0
+			if acc {
+				// start from previous interval
+				ss[h] = ss[lh]
+			} else {
+				// start anew
+				ss[h] = 0.0
+			}
 		}
 
 		if order.Order.RefID == "" {
@@ -246,4 +254,13 @@ func parseDuration(key string, data map[string]interface{}) (time.Duration, erro
 		return d, nil
 	}
 	return 0, fmt.Errorf("key does not exist: %s", key)
+}
+
+func parseBool(key string, data map[string]interface{}) bool {
+	if s, ok := data[key]; ok {
+		if b, ok := s.(bool); ok {
+			return b
+		}
+	}
+	return false
 }
