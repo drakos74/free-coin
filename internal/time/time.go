@@ -24,6 +24,14 @@ func (r Range) IsWithin(time time.Time) bool {
 	return time.Before(r.To) && time.After(r.From)
 }
 
+func (r Range) IsBeforeEnd(time time.Time) bool {
+	return time.Before(r.To)
+}
+
+func (r Range) IsAfterStart(time time.Time) bool {
+	return time.After(r.From)
+}
+
 func FromNano(nano int64) time.Time {
 	return time.Unix(nano/timeUnixNano, 0)
 }
