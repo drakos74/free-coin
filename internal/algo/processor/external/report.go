@@ -221,7 +221,7 @@ func addPnL(query query) metrics.Series {
 	// add a virtual trade for now ... if the last one is an open one
 	if p, ok := query.prices[lastOrder.Order.Coin]; ok &&
 		lastOrder.Order.RefID == "" &&
-		math.Abs(now.Sub(hash.Undo(lh)).Minutes()) < 30 {
+		math.Abs(now.Sub(lastOrder.Order.Time).Minutes()) < 1 {
 		// if we have a last price for this asset ...
 		// and we re left with an open order
 		if lastOrder.Order.Type == model.Buy {
