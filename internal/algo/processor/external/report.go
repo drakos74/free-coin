@@ -215,13 +215,18 @@ func addPnL(query query) metrics.Series {
 
 	if last.Before(now) {
 		lastValue += ss[lh]
-		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(hash.Undo(lh)))})
+		fmt.Println(fmt.Sprintf("flush = %+v <- %v", ss[lh], lastValue))
+		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(last))})
 	}
 
 	// add a virtual trade for now ... if the last one is an open one
+	lastIsOpen := lastOrder.Order.RefID == ""
+	EndTimeIsNow := math.Abs(now.Sub(lastOrder.Order.Time).Minutes())
+	fmt.Println(fmt.Sprintf("lastIsOpen = %+v", lastIsOpen))
+	fmt.Println(fmt.Sprintf("EndTimeIsNow = %+v", EndTimeIsNow))
 	if p, ok := query.prices[lastOrder.Order.Coin]; ok &&
-		lastOrder.Order.RefID == "" &&
-		math.Abs(now.Sub(lastOrder.Order.Time).Minutes()) < 1 {
+		lastIsOpen &&
+		EndTimeIsNow < 1 {
 		// if we have a last price for this asset ...
 		// and we re left with an open order
 		if lastOrder.Order.Type == model.Buy {
@@ -229,6 +234,7 @@ func addPnL(query query) metrics.Series {
 		} else {
 			lastValue += (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
 		}
+		fmt.Println(fmt.Sprintf("lastValue = %+v", lastValue))
 		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
 	}
 
