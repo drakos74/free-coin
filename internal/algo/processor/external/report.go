@@ -164,15 +164,6 @@ func addPnL(query query) metrics.Series {
 
 		h := hash.Do(order.Order.Time) + 1 // +1 because we want to assign the order to the end of the interval
 
-		log.Debug().
-			Str("strategy", order.Message.Key()).
-			Str("coin", string(order.Order.Coin)).
-			Str("id", order.Order.ID).
-			Str("ref-id", order.Order.RefID).
-			Str("type", order.Order.Type.String()).
-			Float64("price", order.Order.Price).
-			Msg("close")
-
 		if _, ok := ss[h]; !ok {
 			if acc {
 				// start from previous interval
@@ -189,12 +180,6 @@ func addPnL(query query) metrics.Series {
 			// else lets find the opening order
 			if o, ok := openingOrders[order.Order.RefID]; ok {
 				net := order.Order.Value() + o.Order.Value()
-				log.Debug().
-					Float64("net", net).
-					Str("type", o.Order.Type.String()).
-					Float64("open", o.Order.Value()).
-					Float64("close", order.Order.Value()).
-					Msg("close")
 				ss[h] = ss[h] + net
 			} else {
 				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-id", order.Order.RefID).Msg("could not pair order")
