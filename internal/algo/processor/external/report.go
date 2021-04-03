@@ -178,7 +178,14 @@ func addPnL(query query) metrics.Series {
 		} else {
 			// else lets find the opening order
 			if o, ok := openingOrders[order.Order.RefID]; ok {
-				ss[h] = ss[h] + (order.Order.Value() + o.Order.Value())
+				net := order.Order.Value() + o.Order.Value()
+				log.Debug().
+					Float64("net", net).
+					Str("type", o.Order.Type.String()).
+					Float64("open", o.Order.Value()).
+					Float64("close", order.Order.Value()).
+					Msg("close")
+				ss[h] = ss[h] + net
 			} else {
 				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-id", order.Order.RefID).Msg("could not pair order")
 			}
