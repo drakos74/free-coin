@@ -161,7 +161,14 @@ func addPnL(query query) metrics.Series {
 
 		h := hash.Do(order.Order.Time) + 1 // +1 because we want to assign the order to the end of the interval
 
-		fmt.Println(fmt.Sprintf("%s = %+v", order.Order.Coin, order.Order))
+		log.Debug().
+			Str("strategy", order.Message.Key()).
+			Str("coin", string(order.Order.Coin)).
+			Str("id", order.Order.ID).
+			Str("ref-id", order.Order.RefID).
+			Str("type", order.Order.Type.String()).
+			Float64("price", order.Order.Price).
+			Msg("close")
 
 		if _, ok := ss[h]; !ok {
 			if acc {
