@@ -222,7 +222,7 @@ func addPnL(query query) metrics.Series {
 	// add a virtual trade for now ... if the last one is an open one
 	p, ok := query.prices[lastOrder.Order.Coin]
 	lastIsOpen := lastOrder.Order.RefID == ""
-	EndTimeIsNow := math.Abs(now.Sub(lastOrder.Order.Time).Minutes())
+	EndTimeIsNow := math.Abs(now.Sub(query.timeRange.To).Minutes())
 	fmt.Println(fmt.Sprintf("current-price = %+v <- %v", p, ok))
 	fmt.Println(fmt.Sprintf("lastIsOpen = %+v", lastIsOpen))
 	fmt.Println(fmt.Sprintf("EndTimeIsNow = %+v", EndTimeIsNow))
