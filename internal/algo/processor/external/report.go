@@ -3,6 +3,7 @@ package external
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -209,27 +210,28 @@ func addPnL(query query) metrics.Series {
 		lastOrder = order
 	}
 
-	// TODO : how to interpolate ...
+	last := hash.Undo(lh)
 	now := time.Now()
 
-	if now.Sub(hash.Undo(lh)).Minutes() > 30 {
-		// flush the rest ...
-		series.DataPoints = append(series.DataPoints, []float64{ss[lh], float64(cointime.ToMilli(hash.Undo(lh)))})
-	} else {
-		// if we are at the last one .. we ll add a virtual one at the current price
-		// while flushing the current value
-		if p, ok := query.prices[lastOrder.Order.Coin]; ok && lastOrder.Order.RefID == "" {
-			// if we have a last price for this asset ...
-			lastValue += ss[lh]
-			// and we re left with an open order
-			if lastOrder.Order.Type == model.Buy {
-				lastValue += (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
-			} else {
-				lastValue += (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
-			}
-			series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
-		}
+	if last.Before(now) {
+		lastValue += ss[lh]
+		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(hash.Undo(lh)))})
 	}
+
+	// add a virtual trade for now ... if the last one is an open one
+	if p, ok := query.prices[lastOrder.Order.Coin]; ok &&
+		lastOrder.Order.RefID == "" &&
+		math.Abs(now.Sub(hash.Undo(lh)).Minutes()) < 30 {
+		// if we have a last price for this asset ...
+		// and we re left with an open order
+		if lastOrder.Order.Type == model.Buy {
+			lastValue += (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
+		} else {
+			lastValue += (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
+		}
+		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
+	}
+
 	return series
 }
 
