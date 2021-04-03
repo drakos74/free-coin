@@ -76,7 +76,7 @@ type Hash struct {
 // NewHash creates a new time hash for the given duration.
 func NewHash(duration time.Duration) Hash {
 	if duration == 0 {
-		return Hash{duration: int64(time.Second)}
+		return Hash{duration: 1}
 	}
 	return Hash{duration: int64(duration.Seconds())}
 }
