@@ -137,7 +137,6 @@ func addPnL(query query) metrics.Series {
 	sum := 0.0
 	var open bool
 	var lastOrder Order
-	var lastSum float64
 	openingOrders := make(map[string]Order)
 
 	interval, err := parseDuration(intervalKey, query.data)
@@ -163,16 +162,14 @@ func addPnL(query query) metrics.Series {
 			ss[h] = 0.0
 		}
 
-		var orderValue float64
 		if order.Order.RefID == "" {
 			openingOrders[order.Order.ID] = order
-			ss[h] += lastSum
 			open = true
 		} else {
 			// else lets find the opening order
 			if o, ok := openingOrders[order.Order.RefID]; ok {
 				sum += order.Order.Value() + o.Order.Value()
-				ss[h] += sum
+				ss[h] = ss[h] + sum
 			} else {
 				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-id", order.Order.RefID).Msg("could not pair order")
 			}
@@ -184,9 +181,9 @@ func addPnL(query query) metrics.Series {
 			series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			lh = h
 		}
-		lastSum = sum
 		lastOrder = order
 	}
+	// TODO : hopw to interpolate ...
 	now := time.Now()
 	// if we are at the last one .. we ll add a virtual one at the current price
 	if open && len(query.orders)%2 != 0 {
