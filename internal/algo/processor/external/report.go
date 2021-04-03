@@ -140,8 +140,10 @@ func addPnL(query query) metrics.Series {
 	}
 	acc := parseBool(accumulateKey, query.data)
 
+	props := formatProps(interval, acc)
+
 	series := metrics.Series{
-		Target:     fmt.Sprintf("%s[interval:%v|accumulate:%v]", query.index, interval, acc),
+		Target:     fmt.Sprintf("%s[%s]", query.index, props),
 		DataPoints: make([][]float64, 0),
 	}
 
@@ -291,4 +293,19 @@ func parseBool(key string, data map[string]interface{}) bool {
 		}
 	}
 	return false
+}
+
+func formatProps(interval time.Duration, acc bool) string {
+
+	props := make([]string, 0)
+
+	if interval > 0 {
+		props = append(props, interval.String())
+	}
+
+	if acc {
+		props = append(props, "acc")
+	}
+
+	return strings.Join(props, ":")
 }
