@@ -58,6 +58,10 @@ func (c *Exchange) getInfo() {
 	c.info = symbols
 }
 
+func (c *Exchange) CoinInfo(coin coinmodel.Coin) binance.Symbol {
+	return c.info[coin]
+}
+
 func (c *Exchange) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {
 	prices, err := c.api.NewListPricesService().Do(ctx)
 	if err != nil {

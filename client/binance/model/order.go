@@ -125,7 +125,8 @@ func (l LotSize) Adjust(volume float64) float64 {
 	}
 	// adjust the min step
 	steps := volume / l.StepSize
-	return math.Floor(steps) * l.StepSize
+	// note steps must be round integer
+	return math.Round(steps) * l.StepSize
 }
 
 func ParseLOTSize(filters []map[string]interface{}) (LotSize, error) {

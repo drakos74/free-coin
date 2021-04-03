@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
-
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -22,11 +21,8 @@ import (
 func addTargets(client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
 	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
 	// TODO : get current prices ...
-
 	grafana.Target("PnL", readFromRegistry(client, registryPath, registry, noError, addPnL))
-
 	grafana.Target("trades", readFromRegistry(client, registryPath, registry, noError, count))
-
 	grafana.Target("errors", readFromRegistry(client, registryPath, registry, isError, count))
 }
 
@@ -101,9 +97,10 @@ func addPnL(index string, timeRange cointime.Range, prices map[model.Coin]model.
 	openingOrders := make(map[string]Order)
 	for _, order := range orders {
 		// TODO : dont filter on time range for now ...
-		//if !timeRange.IsWithin(order.Order.Time) {
-		//	continue
-		//}
+		// TODO : filter ... trades that are open within the timeframe ... or have been closed within the timeframe
+		if !timeRange.IsWithin(order.Order.Time) {
+			continue
+		}
 		if order.Order.RefID == "" {
 			openingOrders[order.Order.ID] = order
 			series.DataPoints = append(series.DataPoints, []float64{lastSum, float64(cointime.ToMilli(order.Order.Time))})
