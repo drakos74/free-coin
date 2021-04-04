@@ -112,7 +112,7 @@ func (c *mockClient) Trades(process <-chan api.Action, query api.Query) (model.T
 	panic("implement me")
 }
 
-func (e *mockClient) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
+func (c *mockClient) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
 	return make(map[model.Coin]model.CurrentPrice), nil
 }
 
@@ -148,6 +148,11 @@ func (c *mockClient) ClosePosition(position model.Position) error {
 		return nil
 	}
 	return fmt.Errorf("could not remove position")
+}
+
+func (c *mockClient) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
+	// TODO :
+	return make(map[model.Coin]model.Balance), nil
 }
 
 const basePrice = 40000

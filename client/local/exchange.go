@@ -172,3 +172,8 @@ func (e *Exchange) Trades(coin model.Coin) []model.Trade {
 func (e *Exchange) Positions(coin model.Coin) (positions []model.TrackedPosition) {
 	return e.closedPositions[coin]
 }
+
+func (e *Exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
+	// TODO :
+	return make(map[model.Coin]model.Balance), nil
+}

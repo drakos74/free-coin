@@ -44,6 +44,7 @@ type query struct {
 
 func addTargets(client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
 	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
+	grafana.Target("ALL", readFromRegistry(client, registryPath, registry, noError, addPnL))
 	grafana.Target("PnL", readFromRegistry(client, registryPath, registry, noError, addPnL))
 	grafana.Target("trades", readFromRegistry(client, registryPath, registry, noError, count))
 	grafana.Target("errors", readFromRegistry(client, registryPath, registry, isError, count))

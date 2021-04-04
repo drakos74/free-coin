@@ -1,7 +1,9 @@
 package external
 
 import (
+	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -30,6 +32,10 @@ var positionKey = api.ConsumerKey{
 func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
 
+		ctx := context.Background()
+
+		errMsg := ""
+
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p"),
@@ -40,29 +46,41 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			continue
 		}
 
-		positions := t.getAll()
+		keys, positions := t.getAll(ctx)
 		if len(positions) == 0 {
 			api.Reply(api.External, user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
 			continue
 		}
 
-		for k, pos := range positions {
+		// get account balance first to double check ...
+		bb, err := client.Balance(ctx, nil)
+		if err != nil {
+			errMsg = err.Error()
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			pos := positions[k]
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ]", k)
-			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f",
+			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f [%f]",
 				emoji.MapToSign(net),
 				profit,
 				"%",
 				pos.OpenPrice,
 				emoji.MapType(pos.Type),
 				pos.Volume,
+				bb[pos.Coin].Volume,
 			)
 			// TODO : send a trigger for each Position to give access to adjust it
 			//trigger := &api.Trigger{
 			//	ID:  pos.ID,
 			//	Key: positionKey,
 			//}
-			user.Send(api.External, api.NewMessage(msg).AddLine(configMsg), nil)
+			line := api.NewMessage(msg).AddLine(configMsg)
+			if errMsg != "" {
+				line = line.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
+			}
+			user.Send(api.External, line, nil)
 		}
 	}
 }
@@ -85,7 +103,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	tracker, err := newTracker(client, shard)
 	go tracker.trackUserActions(client, user)
 	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
-		positions := tracker.getAll()
+		_, positions := tracker.getAll(context.Background())
 		annotations := make([]metrics.AnnotationInstance, len(positions))
 		i := 0
 		for k, p := range positions {

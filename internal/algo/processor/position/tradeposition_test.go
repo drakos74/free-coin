@@ -424,10 +424,8 @@ func TestTradePosition_DoClose(t *testing.T) {
 
 			config := processor.Config{
 				Duration: 10,
-				Strategies: []processor.Strategy{
-					{
-						Close: tt.config,
-					},
+				Strategy: processor.Strategy{
+					Close: tt.config,
 				},
 			}
 			tracker := newPositionTracker(storage.VoidShard(""), storage.NewVoidRegistry(), map[model.Coin]map[time.Duration]processor.Config{
@@ -519,5 +517,9 @@ func (e *exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []st
 }
 
 func (e *exchange) ClosePosition(position model.Position) error {
+	panic("implement me")
+}
+
+func (e *exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
 	panic("implement me")
 }

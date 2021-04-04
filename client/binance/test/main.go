@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/drakos74/free-coin/client/binance"
@@ -15,6 +17,13 @@ func init() {
 
 func main() {
 
+	//testOrderOrder()
+
+	testAccountBalance()
+
+}
+
+func testOrderOrder() {
 	exchange := binance.NewExchange(binance.Free)
 
 	order := model.TrackedOrder{
@@ -34,5 +43,20 @@ func main() {
 	}
 	fmt.Println(fmt.Sprintf("txids = %+v", txids))
 	fmt.Println(fmt.Sprintf("o = %+v", o))
+}
+
+func testAccountBalance() {
+
+	exchange := binance.NewExchange(binance.Free)
+
+	bb, err := exchange.Balance(context.Background())
+
+	if err != nil {
+		log.Fatalf("could not get balance: %v", err)
+	}
+
+	for c, b := range bb {
+		fmt.Println(fmt.Sprintf("%s b = %+v", c, b))
+	}
 
 }

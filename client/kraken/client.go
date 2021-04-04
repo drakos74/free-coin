@@ -220,3 +220,8 @@ func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch,
 		Index:     time.Now().Unix(),
 	}, nil
 }
+
+func (e *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coinmodel.CurrentPrice) (map[coinmodel.Coin]coinmodel.Balance, error) {
+	// TODO :
+	return make(map[coinmodel.Coin]coinmodel.Balance), nil
+}
