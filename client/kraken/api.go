@@ -115,7 +115,8 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 
 	s, ok := r.info[order.Coin]
 	if !ok {
-		return nil, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(r.info))
+		log.Warn().Str("coin", string(order.Coin)).Msg("could not find exchange info")
+		//return nil, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(r.info))
 	}
 
 	params := make(map[string]string)
