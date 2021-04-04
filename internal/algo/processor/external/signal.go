@@ -3,6 +3,7 @@ package external
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -63,7 +64,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			pos := positions[k]
 			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
-			configMsg := fmt.Sprintf("[ %s ] [ %v ]", k, since)
+			configMsg := fmt.Sprintf("[ %s ] [ %.0f ]", k, math.Round(since.Hours()))
 			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f [%f]",
 				emoji.MapToSign(net),
 				profit,
