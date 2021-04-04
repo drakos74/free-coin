@@ -64,7 +64,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			pos := positions[k]
 			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
-			configMsg := fmt.Sprintf("[ %s ] [ %.0f ]", k, math.Round(since.Hours()))
+			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
 			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f [%f]",
 				emoji.MapToSign(net),
 				profit,
