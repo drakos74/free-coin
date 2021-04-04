@@ -58,10 +58,12 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			errMsg = err.Error()
 		}
 		sort.Strings(keys)
+		now := time.Now()
 		for _, k := range keys {
 			pos := positions[k]
+			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
-			configMsg := fmt.Sprintf("[ %s ]", k)
+			configMsg := fmt.Sprintf("[ %s ] [ %v ]", k, since)
 			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f [%f]",
 				emoji.MapToSign(net),
 				profit,
