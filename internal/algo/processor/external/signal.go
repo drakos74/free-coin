@@ -68,6 +68,8 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		sort.Strings(keys)
 		now := time.Now()
 
+		report := api.NewMessage("positions")
+
 		for i, k := range keys {
 			pos := positions[k]
 
@@ -75,7 +77,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
 			msg := fmt.Sprintf("%d %s %.2f%s (%.2f€) <- %s | %f [%f]",
-				i,
+				i+1,
 				emoji.MapToSign(net),
 				profit,
 				"%",
@@ -98,33 +100,33 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			//	ID:  pos.ID,
 			//	Key: positionKey,
 			//}
-			line := api.NewMessage(msg).AddLine(configMsg)
+			report = report.AddLine(msg).AddLine(configMsg)
 			if errMsg != "" {
-				line = line.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
+				report = report.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
 			}
-			user.Send(api.External, line, nil)
 		}
+		// send all positions report ... to avoid spamming the chat
+		user.Send(api.External, report, nil)
 
+		balanceReport := api.NewMessage("balance")
 		for coin, balance := range bb {
 			if balance.Volume != 0 {
-				user.Send(api.External,
-					api.NewMessage(fmt.Sprintf("%s %f -> %f%s",
-						string(coin),
-						balance.Volume,
-						balance.Volume*balance.Price,
-						emoji.Money)), nil)
+				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
+					string(coin),
+					balance.Volume,
+					balance.Volume*balance.Price,
+					emoji.Money))
 			}
 		}
-
 		// print also the total ...
-		user.Send(api.External,
-			api.NewMessage(fmt.Sprintf("%s %s %f%s -> %f%s",
-				total.Coin,
-				emoji.MapValue(total.Volume, total.Locked),
-				total.Locked,
-				emoji.Money,
-				total.Volume,
-				emoji.Money)), nil)
+		balanceReport.AddLine(fmt.Sprintf("%s %s %f%s -> %f%s",
+			total.Coin,
+			emoji.MapValue(total.Volume, total.Locked),
+			total.Locked,
+			emoji.Money,
+			total.Volume,
+			emoji.Money))
+		user.Send(api.External, balanceReport, nil)
 	}
 }
 
