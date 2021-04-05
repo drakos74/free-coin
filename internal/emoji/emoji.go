@@ -37,6 +37,8 @@ const (
 
 	HasValue = "🏳️‍🌈"
 	NoValue  = "🏴‍☠️"
+
+	Money = "💰"
 )
 
 func MapBool(s bool) string {

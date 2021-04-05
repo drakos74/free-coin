@@ -79,6 +79,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 			if balance, ok := bb[pos.Coin]; ok {
 				balance.Volume -= pos.Volume
+				bb[pos.Coin] = balance
 			}
 
 			// TODO : send a trigger for each Position to give access to adjust it
@@ -95,7 +96,12 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 		for coin, balance := range bb {
 			if balance.Volume != 0 {
-				user.Send(api.External, api.NewMessage(fmt.Sprintf("%s %f -> %f", string(coin), balance.Volume, balance.Volume*balance.Price)), nil)
+				user.Send(api.External,
+					api.NewMessage(fmt.Sprintf("%s %f -> %f%s",
+						string(coin),
+						balance.Volume,
+						balance.Volume*balance.Price,
+						emoji.Money)), nil)
 			}
 		}
 	}
