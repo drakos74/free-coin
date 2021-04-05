@@ -69,7 +69,6 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		now := time.Now()
 
 		report := api.NewMessage("positions")
-
 		for i, k := range keys {
 			pos := positions[k]
 
@@ -111,7 +110,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 		balanceReport := api.NewMessage("balance")
 		for coin, balance := range bb {
-			if math.Abs(balance.Volume) > 0 {
+			if math.Abs(balance.Volume) > 0.000000001 {
 				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
 					string(coin),
 					balance.Volume,
