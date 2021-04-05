@@ -89,25 +89,25 @@ func MapToSymbols(ss []string) []string {
 	return emojiSlice
 }
 
-func MapValue(value, base float64) string {
-	// scale to 5
-	percent := 10 * (value - base) / base
+// MapValue maps the given value to an emoji
+// it returns valuable results for values between [-5,5]
+func MapValue(value float64) string {
 
-	if percent >= 5 {
+	if value >= 5 {
 		return Star
-	} else if percent >= 4 {
+	} else if value >= 4 {
 		return SunFace
-	} else if percent >= 3 {
+	} else if value >= 3 {
 		return FullMoon
-	} else if percent >= 2 {
+	} else if value >= 2 {
 		return FirstEclipse
-	} else if percent <= 5 {
+	} else if value <= 5 {
 		return Comet
-	} else if percent <= 4 {
+	} else if value <= 4 {
 		return EclipseFace
-	} else if percent <= 3 {
+	} else if value <= 3 {
 		return FullEclipse
-	} else if percent <= 2 {
+	} else if value <= 2 {
 		return ThirdEclipse
 	}
 	return HalfEclipse

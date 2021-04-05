@@ -76,12 +76,13 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
-			msg := fmt.Sprintf("%d %s %.2f%s (%.2f€) <- %s | %f [%f]",
+			msg := fmt.Sprintf("[%d] %s %.2f%s (%.2f%s) <- %s | %f [%f]",
 				i+1,
 				emoji.MapToSign(net),
 				profit,
 				"%",
 				pos.OpenPrice,
+				emoji.Money,
 				emoji.MapType(pos.Type),
 				pos.Volume,
 				bb[pos.Coin].Volume,
@@ -110,7 +111,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 		balanceReport := api.NewMessage("balance")
 		for coin, balance := range bb {
-			if balance.Volume != 0 {
+			if math.Abs(balance.Volume) != 0 {
 				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
 					string(coin),
 					balance.Volume,
@@ -119,9 +120,11 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			}
 		}
 		// print also the total ...
-		balanceReport.AddLine(fmt.Sprintf("%s %s %f%s -> %f%s",
-			total.Coin,
-			emoji.MapValue(total.Volume, total.Locked),
+		v := 10 * (total.Volume - total.Locked) / total.Locked
+		balanceReport.AddLine(fmt.Sprintf("%s(%.2f%s) %f%s -> %f%s",
+			emoji.MapValue(v/2),
+			v,
+			"%",
 			total.Locked,
 			emoji.Money,
 			total.Volume,
