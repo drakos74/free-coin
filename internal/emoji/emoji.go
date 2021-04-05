@@ -89,6 +89,30 @@ func MapToSymbols(ss []string) []string {
 	return emojiSlice
 }
 
+func MapValue(value, base float64) string {
+	// scale to 5
+	percent := 10 * (value - base) / base
+
+	if percent >= 5 {
+		return Star
+	} else if percent >= 4 {
+		return SunFace
+	} else if percent >= 3 {
+		return FullMoon
+	} else if percent >= 2 {
+		return FirstEclipse
+	} else if percent <= 5 {
+		return Comet
+	} else if percent <= 4 {
+		return EclipseFace
+	} else if percent <= 3 {
+		return FullEclipse
+	} else if percent <= 2 {
+		return ThirdEclipse
+	}
+	return HalfEclipse
+}
+
 // MapToSymbol maps the given number according to it's order.
 func MapToSymbol(i string) string {
 	symbol := HalfEclipse

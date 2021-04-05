@@ -58,16 +58,24 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		if err != nil {
 			errMsg = err.Error()
 		}
+
+		freeCoin := model.Coin("free")
+		// add the total coin
+		total := model.Balance{
+			Coin: freeCoin,
+		}
+
 		sort.Strings(keys)
 		now := time.Now()
 
-		for _, k := range keys {
+		for i, k := range keys {
 			pos := positions[k]
 
 			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
-			msg := fmt.Sprintf("%s %.2f%s (%.2f€) <- %s | %f [%f]",
+			msg := fmt.Sprintf("%d %s %.2f%s (%.2f€) <- %s | %f [%f]",
+				i,
 				emoji.MapToSign(net),
 				profit,
 				"%",
@@ -81,6 +89,9 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				balance.Volume -= pos.Volume
 				bb[pos.Coin] = balance
 			}
+
+			total.Locked += pos.OpenPrice * pos.Volume
+			total.Volume += pos.CurrentPrice * pos.Volume
 
 			// TODO : send a trigger for each Position to give access to adjust it
 			//trigger := &api.Trigger{
@@ -104,6 +115,16 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 						emoji.Money)), nil)
 			}
 		}
+
+		// print also the total ...
+		user.Send(api.External,
+			api.NewMessage(fmt.Sprintf("%s %s %f%s -> %f%s",
+				total.Coin,
+				emoji.MapValue(total.Volume, total.Locked),
+				total.Locked,
+				emoji.Money,
+				total.Volume,
+				emoji.Money)), nil)
 	}
 }
 
