@@ -3,10 +3,16 @@ package external
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	intervalKey   = "interval"
+	accumulateKey = "accumulate"
 )
 
 type Message struct {
@@ -112,3 +118,36 @@ type Orders []Order
 func (o Orders) Len() int           { return len(o) }
 func (o Orders) Less(i, j int) bool { return o[i].Message.Time().Before(o[j].Message.Time()) }
 func (o Orders) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
+
+// QueryData represents the query data details.
+type QueryData struct {
+	Interval time.Duration
+	Acc      bool
+}
+
+func ParseQueryData(data map[string]interface{}) QueryData {
+	interval, err := parseDuration(intervalKey, data)
+	if err != nil {
+		log.Warn().Err(err).Msg("could not parse query data")
+	}
+	acc := parseBool(accumulateKey, data)
+
+	return QueryData{
+		Interval: interval,
+		Acc:      acc,
+	}
+}
+
+func (qd QueryData) String() string {
+	props := make([]string, 0)
+
+	if qd.Interval > 0 {
+		props = append(props, qd.Interval.String())
+	}
+
+	if qd.Acc {
+		props = append(props, "acc")
+	}
+
+	return strings.Join(props, ":")
+}

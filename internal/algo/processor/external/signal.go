@@ -47,21 +47,23 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			continue
 		}
 
-		keys, positions := t.getAll(ctx)
+		keys, positions, prices := t.getAll(ctx)
 		if len(positions) == 0 {
 			api.Reply(api.External, user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
 			continue
 		}
 
 		// get account balance first to double check ...
-		bb, err := client.Balance(ctx, nil)
+		bb, err := client.Balance(ctx, prices)
 		if err != nil {
 			errMsg = err.Error()
 		}
 		sort.Strings(keys)
 		now := time.Now()
+
 		for _, k := range keys {
 			pos := positions[k]
+
 			since := now.Sub(pos.OpenTime)
 			net, profit := pos.Value()
 			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
@@ -74,6 +76,11 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				pos.Volume,
 				bb[pos.Coin].Volume,
 			)
+
+			if balance, ok := bb[pos.Coin]; ok {
+				balance.Volume -= pos.Volume
+			}
+
 			// TODO : send a trigger for each Position to give access to adjust it
 			//trigger := &api.Trigger{
 			//	ID:  pos.ID,
@@ -84,6 +91,12 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 				line = line.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
 			}
 			user.Send(api.External, line, nil)
+		}
+
+		for coin, balance := range bb {
+			if balance.Volume != 0 {
+				user.Send(api.External, api.NewMessage(fmt.Sprintf("%s %f -> %f", string(coin), balance.Volume, balance.Volume*balance.Price)), nil)
+			}
 		}
 	}
 }
@@ -106,7 +119,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 	tracker, err := newTracker(client, shard)
 	go tracker.trackUserActions(client, user)
 	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
-		_, positions := tracker.getAll(context.Background())
+		_, positions, _ := tracker.getAll(context.Background())
 		annotations := make([]metrics.AnnotationInstance, len(positions))
 		i := 0
 		for k, p := range positions {

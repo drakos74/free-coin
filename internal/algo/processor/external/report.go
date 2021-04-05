@@ -18,11 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	intervalKey   = "interval"
-	accumulateKey = "accumulate"
-)
-
 type queryGenerator struct {
 	dir       string
 	index     string
@@ -44,7 +39,6 @@ type query struct {
 
 func addTargets(client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
 	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
-	grafana.Target("ALL", readFromRegistry(client, registryPath, registry, noError, addPnL))
 	grafana.Target("PnL", readFromRegistry(client, registryPath, registry, noError, addPnL))
 	grafana.Target("trades", readFromRegistry(client, registryPath, registry, noError, count))
 	grafana.Target("errors", readFromRegistry(client, registryPath, registry, isError, count))
@@ -135,20 +129,14 @@ func addPnL(query query) metrics.Series {
 
 	openingOrders := make(map[string]Order)
 
-	interval, err := parseDuration(intervalKey, query.data)
-	if err != nil {
-		log.Warn().Err(err).Msg("could not parse query data")
-	}
-	acc := parseBool(accumulateKey, query.data)
-
-	props := formatProps(interval, acc)
+	qd := ParseQueryData(query.data)
 
 	series := metrics.Series{
-		Target:     fmt.Sprintf("%s[%s]", query.index, props),
+		Target:     fmt.Sprintf("%s[%v]", query.index, qd),
 		DataPoints: make([][]float64, 0),
 	}
 
-	hash := cointime.NewHash(interval)
+	hash := cointime.NewHash(qd.Interval)
 
 	ss := make(map[int64]float64)
 
@@ -166,7 +154,7 @@ func addPnL(query query) metrics.Series {
 		h := hash.Do(order.Order.Time) + 1 // +1 because we want to assign the order to the end of the interval
 
 		if _, ok := ss[h]; !ok {
-			if acc {
+			if qd.Acc {
 				// start from previous interval
 				ss[h] = ss[lh]
 			} else {
@@ -279,19 +267,4 @@ func parseBool(key string, data map[string]interface{}) bool {
 		}
 	}
 	return false
-}
-
-func formatProps(interval time.Duration, acc bool) string {
-
-	props := make([]string, 0)
-
-	if interval > 0 {
-		props = append(props, interval.String())
-	}
-
-	if acc {
-		props = append(props, "acc")
-	}
-
-	return strings.Join(props, ":")
 }

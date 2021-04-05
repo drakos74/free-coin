@@ -37,7 +37,7 @@ func newTracker(client api.Exchange, shard storage.Shard) (*tracker, error) {
 	}, nil
 }
 
-func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Position) {
+func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Position, map[model.Coin]model.CurrentPrice) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	prices, err := t.client.CurrentPrice(ctx)
@@ -56,7 +56,7 @@ func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Positi
 		positions[k] = p
 		keys = append(keys, k)
 	}
-	return keys, positions
+	return keys, positions, prices
 }
 
 // TODO : make this for now ... to have clear pairs
