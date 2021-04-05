@@ -92,22 +92,21 @@ func MapToSymbols(ss []string) []string {
 // MapValue maps the given value to an emoji
 // it returns valuable results for values between [-5,5]
 func MapValue(value float64) string {
-
-	if value >= 5 {
+	if value >= 4 {
 		return Star
-	} else if value >= 4 {
-		return SunFace
 	} else if value >= 3 {
-		return FullMoon
+		return SunFace
 	} else if value >= 2 {
+		return FullMoon
+	} else if value >= 1 {
 		return FirstEclipse
-	} else if value <= 5 {
+	} else if value <= -4 {
 		return Comet
-	} else if value <= 4 {
+	} else if value <= -3 {
 		return EclipseFace
-	} else if value <= 3 {
+	} else if value <= -2 {
 		return FullEclipse
-	} else if value <= 2 {
+	} else if value <= -1 {
 		return ThirdEclipse
 	}
 	return HalfEclipse
