@@ -101,7 +101,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			//	ID:  pos.ID,
 			//	Key: positionKey,
 			//}
-			report = report.AddLine(msg).AddLine(configMsg).AddLine("\n")
+			report = report.AddLine(msg).AddLine(configMsg).AddLine("************")
 			if errMsg != "" {
 				report = report.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
 			}
@@ -111,19 +111,19 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 		balanceReport := api.NewMessage("balance")
 		for coin, balance := range bb {
-			if math.Abs(balance.Volume) != 0 {
+			if math.Abs(balance.Volume) > 0 {
 				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
 					string(coin),
 					balance.Volume,
 					balance.Volume*balance.Price,
-					emoji.Money)).AddLine("\n")
+					emoji.Money))
 			}
 		}
 		// print also the total ...
-		v := 10 * (total.Volume - total.Locked) / total.Locked
+		v := (total.Volume - total.Locked) / total.Locked
 		balanceReport.AddLine(fmt.Sprintf("%s(%.2f%s) %f%s -> %f%s",
-			emoji.MapValue(v/2),
-			v,
+			emoji.MapValue(10*v/2),
+			100*v,
 			"%",
 			total.Locked,
 			emoji.Money,
