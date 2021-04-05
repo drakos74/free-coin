@@ -101,7 +101,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			//	ID:  pos.ID,
 			//	Key: positionKey,
 			//}
-			report = report.AddLine(msg).AddLine(configMsg)
+			report = report.AddLine(msg).AddLine(configMsg).AddLine("\n")
 			if errMsg != "" {
 				report = report.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
 			}
@@ -116,7 +116,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 					string(coin),
 					balance.Volume,
 					balance.Volume*balance.Price,
-					emoji.Money))
+					emoji.Money)).AddLine("\n")
 			}
 		}
 		// print also the total ...
