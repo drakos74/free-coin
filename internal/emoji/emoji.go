@@ -38,6 +38,9 @@ const (
 	HasValue = "🏳‍🌈"
 	NoValue  = "‍☠️"
 
+	Open  = "🔔"
+	Close = "🔕"
+
 	Money = "💰"
 )
 
@@ -46,6 +49,13 @@ func MapBool(s bool) string {
 		return HasValue
 	}
 	return NoValue
+}
+
+func MapOpen(s bool) string {
+	if s {
+		return Open
+	}
+	return Close
 }
 
 // MapType maps the type of buy and sell to an emoji

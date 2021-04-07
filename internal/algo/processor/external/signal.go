@@ -358,7 +358,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 }
 
 func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string) string {
-	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), emoji.MapBool(close == ""), emoji.MapType(t), volume, price)
+	return fmt.Sprintf("%s %s %s %.2f at %.2f", string(coin), emoji.MapOpen(close == ""), emoji.MapType(t), volume, price)
 }
 
 func createReportMessage(key string, err ...error) string {
