@@ -53,7 +53,7 @@ func (t *tracker) switchOnOff(user api.User) {
 		case "stop":
 			t.running = false
 		}
-		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), fmt.Sprintf("running: %s", emoji.MapBool(t.running)))).ReplyTo(command.ID), nil)
+		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), emoji.MapBool(t.running))).ReplyTo(command.ID), nil)
 
 	}
 }
