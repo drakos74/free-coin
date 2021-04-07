@@ -189,6 +189,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 	// init tracker related actions
 	tracker, err := newTracker(id, client, shard)
 	go tracker.trackUserActions(client, user)
+	go tracker.switchOnOff(user)
 
 	if err != nil {
 		log.Error().Err(err).Str("user", tracker.user).Str("processor", ProcessorName).Msg("could not start processor")
