@@ -86,6 +86,23 @@ func run() {
 		Output: make(chan external.Message),
 	}
 
+	// add the users
+	err = user.AddUser(api.External, "Vagz", 0)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	err = user.AddUser(api.External, "moneytized", 0)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	// + add the default user for the processor to be able to reply
+	err = user.AddUser(api.External, "", 0)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
 	signalProcessor := external.Signal("", storageShard, registry, exchange, user, signal, configs)
 
 	// TODO : orchestrate the closing of signals
@@ -96,15 +113,6 @@ func run() {
 		Output: make(chan external.Message),
 	}
 	secExchange := local.Noop{}
-	err = user.AddUser(api.External, "Vagz", 0)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	err = user.AddUser(api.External, "moneytized", 0)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
 
 	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
 
