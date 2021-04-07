@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	log2 "log"
+	"fmt"
+	"log"
 	"runtime"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	logger "github.com/rs/zerolog/log"
 )
 
 func init() {
@@ -30,7 +31,7 @@ func init() {
 func main() {
 
 	for {
-		log.Info().Msg("running app ... ")
+		logger.Info().Msg("running app ... ")
 		// this should block ..
 		run()
 		time.Sleep(1 * time.Hour)
@@ -58,7 +59,7 @@ func run() {
 	var err error
 
 	if runtime.GOOS == "darwin" {
-		log.Warn().Msg("running local user interface")
+		logger.Warn().Msg("running local user interface")
 		user, err = botlocal.NewUser("", "")
 	} else {
 		user, err = telegram.NewBot(api.External)
@@ -87,6 +88,8 @@ func run() {
 
 	signalProcessor := external.Signal("", storageShard, registry, exchange, user, signal, configs)
 
+	// TODO : orchestrate the closing of signals
+
 	// secondary user ...
 	secSignal := external.MessageSignal{
 		Source: signal.Output,
@@ -95,9 +98,16 @@ func run() {
 	secExchange := local.Noop{}
 	err = user.AddUser(api.External, "Vagz", 0)
 	if err != nil {
-		log2.Fatalf(err.Error())
+		log.Fatalf(err.Error())
 	}
 	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
+
+	// add a final processor for the signals ...
+	go func() {
+		for msg := range secSignal.Output {
+			logger.Debug().Str("message", fmt.Sprintf("%+v", msg)).Msg("signal received")
+		}
+	}()
 
 	for _, c := range model.Coins {
 		if c != model.BTC {
@@ -108,7 +118,7 @@ func run() {
 			secSignalProcessor,
 		)
 		if err != nil {
-			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")
+			logger.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")
 		}
 	}
 
