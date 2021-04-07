@@ -159,8 +159,12 @@ func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger
 	return msgID
 }
 
+// AddUser assigns a user to a channel by ID
 func (b *Bot) AddUser(channel api.Index, user string, chatID int64) error {
 	if bb, ok := b.chat[channel]; ok {
+		if chatID == 0 {
+			chatID = bb.id
+		}
 		b.chat[api.Index(user)] = &bot{
 			b:  bb.b,
 			id: chatID,

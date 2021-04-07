@@ -66,7 +66,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 			}
 
 			log.Debug().
-				Str("from", update.Message.From.UserName).
+				Str("from", fmt.Sprintf("%+v", update.Message.From)).
 				Str("text", update.Message.Text).
 				Int64("chat", chatID).
 				Str("private", fmt.Sprintf("%v", private)).

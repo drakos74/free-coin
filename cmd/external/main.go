@@ -92,7 +92,7 @@ func run() {
 		Output: make(chan external.Message),
 	}
 	secExchange := local.Noop{}
-	secSignalProcessor := external.Signal("drakos", storageShard, registry, secExchange, user, secSignal, configs)
+	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
 
 	for _, c := range model.Coins {
 		if c != model.BTC {
