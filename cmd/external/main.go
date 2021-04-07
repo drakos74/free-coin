@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	log2 "log"
 	"runtime"
 	"time"
 
@@ -92,6 +93,10 @@ func run() {
 		Output: make(chan external.Message),
 	}
 	secExchange := local.Noop{}
+	err = user.AddUser(api.External, "Vagz", 0)
+	if err != nil {
+		log2.Fatalf(err.Error())
+	}
 	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
 
 	for _, c := range model.Coins {
