@@ -3,6 +3,7 @@ package external
 import (
 	"context"
 	"fmt"
+	"path"
 	"sync"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -18,21 +19,25 @@ type tracker struct {
 	client    api.Exchange
 	positions map[string]model.Position
 	storage   storage.Persistence
+	user      string
+	running   bool
 	lock      *sync.RWMutex
 }
 
-func newTracker(client api.Exchange, shard storage.Shard) (*tracker, error) {
-	st, err := shard(storagePath)
+func newTracker(id string, client api.Exchange, shard storage.Shard) (*tracker, error) {
+	st, err := shard(path.Join(storagePath, id))
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
 	positions := make(map[string]model.Position)
-	err = st.Load(stKey(), &positions)
+	err = st.Load(stKey(id), &positions)
 	log.Info().Err(err).Int("num", len(positions)).Msg("loaded positions")
 	return &tracker{
 		client:    client,
 		positions: positions,
 		storage:   st,
+		user:      id,
+		running:   true,
 		lock:      new(sync.RWMutex),
 	}, nil
 }
@@ -85,7 +90,7 @@ func (t *tracker) add(key string, order model.TrackedOrder, close string) error 
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}
 		delete(t.positions, key)
-		return t.storage.Store(stKey(), t.positions)
+		return t.storage.Store(stKey(t.user), t.positions)
 	}
 	// we need to be careful here and add the position ...
 	position := model.OpenPosition(order)
@@ -104,12 +109,12 @@ func (t *tracker) add(key string, order model.TrackedOrder, close string) error 
 			Msg("extending position")
 	}
 	t.positions[key] = position
-	return t.storage.Store(stKey(), t.positions)
+	return t.storage.Store(stKey(t.user), t.positions)
 }
 
-func stKey() storage.Key {
+func stKey(id string) storage.Key {
 	return storage.Key{
 		Pair:  "all",
-		Label: ProcessorName,
+		Label: path.Join(ProcessorName, id),
 	}
 }

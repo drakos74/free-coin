@@ -21,6 +21,7 @@ type Method string
 const (
 	Data Action = "data"
 	Api  Action = "api"
+	Test Action = "test"
 
 	GET  Method = "GET"
 	POST Method = "POST"

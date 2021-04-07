@@ -14,42 +14,75 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/server"
 	"github.com/drakos74/free-coin/internal/storage"
-	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
 )
 
 const (
 	ProcessorName      = "signal"
+	OnOffSwitch        = "signal-on-off"
 	port               = 8080
 	grafanaPort        = 6124
 	openPositionsQuery = "open-positions"
 )
 
-var positionKey = api.ConsumerKey{
-	Key:    ProcessorName,
-	Prefix: "?p",
+func (t *tracker) compoundKey(prefix string) string {
+	return fmt.Sprintf("%s_%s", prefix, t.user)
+}
+
+func (t *tracker) switchOnOff(user api.User) {
+	for command := range user.Listen(t.compoundKey(OnOffSwitch), "?r") {
+
+		if t.user != "" && command.User != t.user {
+			continue
+		}
+
+		var action string
+		_, err := command.Validate(
+			api.AnyUser(),
+			api.Contains("?p"),
+			api.OneOf(&action, "start", "stop"),
+		)
+
+		if err != nil {
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
+			continue
+		}
+
+		switch action {
+		case "start":
+			t.running = true
+		case "stop":
+			t.running = false
+		}
+		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), fmt.Sprintf("%s...ed", action))).ReplyTo(command.ID), nil)
+
+	}
 }
 
 func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
-	for command := range user.Listen(positionKey.Key, positionKey.Prefix) {
+
+	for command := range user.Listen(t.compoundKey(ProcessorName), "?p") {
+
+		if t.user != "" && t.user != command.User {
+			continue
+		}
 
 		ctx := context.Background()
 
 		errMsg := ""
-
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p"),
 		)
 
 		if err != nil {
-			api.Reply(api.External, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
 			continue
 		}
 
 		keys, positions, prices := t.getAll(ctx)
 		if len(positions) == 0 {
-			api.Reply(api.External, user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
+			api.Reply(api.Index(command.User), user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -106,7 +139,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			}
 		}
 		// send all positions report ... to avoid spamming the chat
-		user.Send(api.External, report, nil)
+		user.Send(api.Index(command.User), report, nil)
 
 		balanceReport := api.NewMessage("balance")
 		for coin, balance := range bb {
@@ -128,46 +161,36 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 			emoji.Money,
 			total.Volume,
 			emoji.Money))
-		user.Send(api.External, balanceReport, nil)
+		user.Send(api.Index(command.User), balanceReport, nil)
 	}
+}
+
+type MessageSignal struct {
+	Source chan Message
+	Output chan Message
 }
 
 // TODO : use in a unified channel for all tracked currencies ...
 // TODO : this needs to be a combined client pushing many coins to the trade source ...
-func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func Signal(id string, shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
-	signal := make(chan Message)
+	if signal.Source == nil {
+		signal.Source = make(chan Message)
+		go server.NewServer("trade-view", port).
+			AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
+			AddRoute(server.POST, server.Api, "test-post", handle(user, signal.Source)).
+			Run()
 
-	go server.NewServer("trade-view", port).
-		AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
-		AddRoute(server.POST, server.Api, "test-post", handle(user, signal)).
-		Run()
+		grafana := metrics.NewServer("grafana", grafanaPort)
+		addTargets("", client, grafana, registry)
 
-	grafana := metrics.NewServer("grafana", grafanaPort)
-	addTargets(client, grafana, registry)
+		// run the grafana server
+		grafana.Run()
+	}
 
 	// init tracker related actions
-	tracker, err := newTracker(client, shard)
+	tracker, err := newTracker(id, client, shard)
 	go tracker.trackUserActions(client, user)
-	grafana.Annotate(openPositionsQuery, func(query string) []metrics.AnnotationInstance {
-		_, positions, _ := tracker.getAll(context.Background())
-		annotations := make([]metrics.AnnotationInstance, len(positions))
-		i := 0
-		for k, p := range positions {
-			annotations[i] = metrics.AnnotationInstance{
-				Title: k,
-				// TODO : track also the current price
-				Text: fmt.Sprintf("%f at %f", p.Volume, p.OpenPrice),
-				Time: cointime.ToMilli(p.OpenTime),
-				Tags: []string{emoji.MapType(p.Type), string(p.Coin)},
-			}
-			i++
-		}
-		return annotations
-	})
-
-	// run the grafana server
-	grafana.Run()
 
 	if err != nil {
 		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not start processor")
@@ -186,7 +209,17 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 
 		for {
 			select {
-			case message := <-signal:
+			case message := <-signal.Source:
+				// propagate message to others ...
+				signal.Output <- message
+				if !tracker.running {
+					// we are in stopped state ...
+					log.Debug().
+						Str("user", tracker.user).
+						Str("message", fmt.Sprintf("%+v", message)).
+						Msg("ignoring signal")
+					continue
+				}
 				coin := model.Coin(message.Data.Ticker)
 				key := message.Key()
 				t, tErr := message.Type()
@@ -306,7 +339,7 @@ func Signal(shard storage.Shard, registry storage.Registry, client api.Exchange,
 					Str("coin", string(coin)).
 					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
-				user.Send(api.External,
+				user.Send(api.Index(tracker.user),
 					api.NewMessage("processed signal").
 						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
 						AddLine(createReportMessage(key, tErr, vErr, err)),

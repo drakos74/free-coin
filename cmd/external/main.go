@@ -79,13 +79,28 @@ func run() {
 
 	// load the default configuration
 	configs := make(map[model.Coin]map[time.Duration]processor.Config)
-	signalProcessor := external.Signal(storageShard, registry, exchange, user, configs)
+
+	signal := external.MessageSignal{
+		Output: make(chan external.Message),
+	}
+
+	signalProcessor := external.Signal("", storageShard, registry, exchange, user, signal, configs)
+
+	// secondary user ...
+	secSignal := external.MessageSignal{
+		Source: signal.Output,
+		Output: make(chan external.Message),
+	}
+	secExchange := local.Noop{}
+	secSignalProcessor := external.Signal("drakos", storageShard, registry, secExchange, user, secSignal, configs)
+
 	for _, c := range model.Coins {
 		if c != model.BTC {
 			continue
 		}
 		err := overWatch.Start(c, coin.Log,
 			signalProcessor,
+			secSignalProcessor,
 		)
 		if err != nil {
 			log.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")

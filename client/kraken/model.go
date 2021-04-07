@@ -8,6 +8,10 @@ import (
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 )
 
+const (
+	Name = "kraken"
+)
+
 // newTrade creates a new trade from the kraken trade response.
 func (r *RemoteClient) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) coinmodel.Trade {
 	var t coinmodel.Type

@@ -28,6 +28,9 @@ var (
 // Shard creates a new storage implementation for the given shard.
 type Shard func(shard string) (Persistence, error)
 
+// EventRegistry creates a registry for the given path
+type EventRegistry func(path string) (Registry, error)
+
 var (
 	NotFoundErr      = errors.New("not found")
 	CouldNotLoadErr  = errors.New("could not load")

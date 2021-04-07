@@ -26,6 +26,17 @@ type Exchange struct {
 	converter model.Converter
 }
 
+// Raw creates a new binance client from the given key and secret.
+func Raw(key, secret string) *Exchange {
+	client := binance.NewClient(key, secret)
+	exchange := &Exchange{
+		api:       client,
+		converter: model.NewConverter(),
+	}
+	exchange.getInfo()
+	return exchange
+}
+
 // NewExchange creates a new binance client.
 func NewExchange(option Option) *Exchange {
 	k, s := ExchangeConfig(option)

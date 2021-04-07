@@ -18,8 +18,21 @@ type Exchange struct {
 	info map[coinmodel.Coin]krakenapi.AssetPairInfo
 }
 
+// Raw creates a new exchange client from the given key and secret.
+func Raw(key, secret string) *Exchange {
+	exchange := &Exchange{
+		Api: &RemoteExchange{
+			converter: model.NewConverter(),
+			private:   krakenapi.New(key, secret),
+		},
+	}
+	exchange.Api.getInfo()
+	client := exchange
+	return client
+}
+
 // NewExchange creates a new exchange client.
-func NewExchange(ctx context.Context) api.Exchange {
+func NewExchange() api.Exchange {
 	exchange := &Exchange{
 		Api: &RemoteExchange{
 			converter: model.NewConverter(),

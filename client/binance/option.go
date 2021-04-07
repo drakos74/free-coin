@@ -8,6 +8,7 @@ import (
 type Option int
 
 const (
+	Name        = "binance"
 	Free Option = iota + 1
 	External
 )

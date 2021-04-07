@@ -159,6 +159,17 @@ func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger
 	return msgID
 }
 
+func (b *Bot) AddUser(channel api.Index, user string, chatID int64) error {
+	if bb, ok := b.chat[channel]; ok {
+		b.chat[api.Index(user)] = &bot{
+			b:  bb.b,
+			id: chatID,
+		}
+		return nil
+	}
+	return fmt.Errorf("bot does not exist: '%s'", channel)
+}
+
 // checkIfBlocked checks if the trigger is currently blocked.
 func (b *Bot) checkIfBlocked(trigger *api.Trigger) (string, bool) {
 	if trigger != nil {

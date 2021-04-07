@@ -37,11 +37,11 @@ type query struct {
 	orders    Orders
 }
 
-func addTargets(client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
+func addTargets(prefix string, client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
 	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
-	grafana.Target("PnL", readFromRegistry(client, registryPath, registry, noError, addPnL))
-	grafana.Target("trades", readFromRegistry(client, registryPath, registry, noError, count))
-	grafana.Target("errors", readFromRegistry(client, registryPath, registry, isError, count))
+	grafana.Target(fmt.Sprintf("%s-%s", prefix, "PnL"), readFromRegistry(client, registryPath, registry, noError, addPnL))
+	grafana.Target(fmt.Sprintf("%s-%s", prefix, "trades"), readFromRegistry(client, registryPath, registry, noError, count))
+	grafana.Target(fmt.Sprintf("%s-%s", prefix, "errors"), readFromRegistry(client, registryPath, registry, isError, count))
 }
 
 func readFromRegistry(client api.Exchange, registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(query query) metrics.Series) metrics.TargetQuery {
@@ -171,7 +171,7 @@ func addPnL(query query) metrics.Series {
 				net := order.Order.Value() + o.Order.Value()
 				ss[h] = ss[h] + net
 			} else {
-				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-id", order.Order.RefID).Msg("could not pair order")
+				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-user", order.Order.RefID).Msg("could not pair order")
 			}
 		}
 		if h > lh {

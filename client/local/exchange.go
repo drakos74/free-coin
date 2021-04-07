@@ -177,3 +177,26 @@ func (e *Exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.Cu
 	// TODO :
 	return make(map[model.Coin]model.Balance), nil
 }
+
+type Noop struct {
+}
+
+func (n Noop) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
+	return nil, fmt.Errorf("noop 'OpenPositions'")
+}
+
+func (n Noop) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
+	return order, []string{}, fmt.Errorf("noop 'OpenOrder'")
+}
+
+func (n Noop) ClosePosition(position model.Position) error {
+	return fmt.Errorf("noop 'ClosePosition'")
+}
+
+func (n Noop) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error) {
+	return make(map[model.Coin]model.CurrentPrice), fmt.Errorf("noop 'CurrentPrice'")
+}
+
+func (n Noop) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
+	return make(map[model.Coin]model.Balance), fmt.Errorf("noop 'Balance'")
+}

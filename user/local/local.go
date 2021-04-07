@@ -91,3 +91,7 @@ func (v *User) Send(channel api.Index, message *api.Message, trigger *api.Trigge
 	// do nothing ...
 	return -1
 }
+
+func (v *User) AddUser(channel api.Index, user string, chatID int64) error {
+	panic("implement me")
+}
