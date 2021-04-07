@@ -100,6 +100,12 @@ func run() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+
+	err = user.AddUser(api.External, "moneytized", 0)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
 	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
 
 	// add a final processor for the signals ...
