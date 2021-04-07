@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/drakos74/free-coin/internal/api"
-
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
@@ -31,7 +30,9 @@ func newTracker(id string, client api.Exchange, shard storage.Shard) (*tracker, 
 	}
 	positions := make(map[string]model.Position)
 	err = st.Load(stKey(id), &positions)
-	log.Info().Err(err).Int("num", len(positions)).Msg("loaded positions")
+	log.Info().Err(err).
+		Str("user", id).
+		Int("num", len(positions)).Msg("loaded positions")
 	return &tracker{
 		client:    client,
 		positions: positions,
@@ -47,7 +48,9 @@ func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Positi
 	defer t.lock.RUnlock()
 	prices, err := t.client.CurrentPrice(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("could not get current prices")
+		log.Error().Err(err).
+			Str("user", t.user).
+			Msg("could not get current prices")
 		prices = make(map[model.Coin]model.CurrentPrice)
 	}
 
@@ -103,6 +106,7 @@ func (t *tracker) add(key string, order model.TrackedOrder, close string) error 
 		}
 		position.Volume += p.Volume
 		log.Warn().
+			Str("user", t.user).
 			Str("key", key).
 			Float64("from", p.Volume).
 			Float64("to", position.Volume).

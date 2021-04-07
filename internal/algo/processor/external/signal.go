@@ -193,7 +193,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 	go tracker.trackUserActions(client, user)
 
 	if err != nil {
-		log.Error().Err(err).Str("processor", ProcessorName).Msg("could not start processor")
+		log.Error().Err(err).Str("user", tracker.user).Str("processor", ProcessorName).Msg("could not start processor")
 		return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 			for t := range in {
 				out <- t
@@ -203,7 +203,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
-			log.Info().Str("processor", ProcessorName).Msg("closing processor")
+			log.Info().Str("user", tracker.user).Str("processor", ProcessorName).Msg("closing processor")
 			close(out)
 		}()
 
@@ -236,6 +236,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						if position.Type == t {
 							// but .. we dont want to extend the current one ...
 							log.Debug().
+								Str("user", tracker.user).
 								Str("position", fmt.Sprintf("%+v", position)).
 								Msg("ignoring signal")
 							//user.Send(api.External,
@@ -250,6 +251,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						t = position.Type.Inv()
 						v = position.Volume
 						log.Debug().
+							Str("user", tracker.user).
 							Str("message", fmt.Sprintf("%+v", message)).
 							Str("position", fmt.Sprintf("%+v", position)).
 							Str("type", t.String()).
@@ -266,6 +268,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						}
 						if ignore {
 							log.Debug().
+								Str("user", tracker.user).
 								Str("positions", fmt.Sprintf("%+v", positions)).
 								Msg("ignoring conflicting signal")
 							continue
@@ -293,6 +296,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						trackErr := tracker.add(key, order, close)
 						if regErr != nil || trackErr != nil {
 							log.Error().Err(regErr).Err(trackErr).
+								Str("user", tracker.user).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
 								Msg("could not save to registry")
@@ -323,6 +327,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						})
 						if regErr != nil {
 							log.Error().Err(regErr).
+								Str("user", tracker.user).
 								Str("errors", fmt.Sprintf("%+v", errs)).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
@@ -331,16 +336,18 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 					}
 				} else {
 					log.Warn().
+						Str("user", tracker.user).
 						Str("message", fmt.Sprintf("%+v", message)).
 						Msg("could not parse message")
 				}
 				log.Info().
+					Str("user", tracker.user).
 					Str("type", t.String()).
 					Str("coin", string(coin)).
 					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
 				user.Send(api.Index(tracker.user),
-					api.NewMessage("processed signal").
+					api.NewMessage(processor.Audit(tracker.compoundKey(ProcessorName), "processed signal")).
 						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
 						AddLine(createReportMessage(key, tErr, vErr, err)),
 					nil)
