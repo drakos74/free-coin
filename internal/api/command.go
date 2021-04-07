@@ -115,7 +115,7 @@ func OneOf(v *string, args ...string) Validator {
 			}
 		}
 		if !isOneOf {
-			return fmt.Errorf("must be one of %v", args)
+			return fmt.Errorf("must be one of ['%s']", strings.Join(args, "','"))
 		}
 		*v = s
 		return nil
