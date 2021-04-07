@@ -35,8 +35,8 @@ const (
 
 	Error = "🚫"
 
-	HasValue = "🏳️‍🌈"
-	NoValue  = "🏴‍☠️"
+	HasValue = "🏳‍🌈"
+	NoValue  = "‍☠️"
 
 	Money = "💰"
 )
