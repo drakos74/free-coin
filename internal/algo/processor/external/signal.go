@@ -80,10 +80,6 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		keys, positions, prices := t.getAll(ctx)
-		if len(positions) == 0 {
-			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "no open positions")).ReplyTo(command.ID), err)
-			continue
-		}
 
 		// get account balance first to double check ...
 		bb, err := client.Balance(ctx, prices)
@@ -101,6 +97,9 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		now := time.Now()
 
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "positions"))
+		if len(positions) == 0 {
+			report.AddLine("no open positions")
+		}
 		for i, k := range keys {
 			pos := positions[k]
 
