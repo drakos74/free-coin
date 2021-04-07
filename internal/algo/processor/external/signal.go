@@ -39,7 +39,7 @@ func (t *tracker) switchOnOff(user api.User) {
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?r"),
-			api.OneOf(&action, "start", "stop"),
+			api.OneOf(&action, "start", "stop", ""),
 		)
 
 		if err != nil {
