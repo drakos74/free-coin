@@ -82,7 +82,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 
 		keys, positions, prices := t.getAll(ctx)
 		if len(positions) == 0 {
-			api.Reply(api.Index(command.User), user, api.NewMessage("no open positions").ReplyTo(command.ID), err)
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "no open positions")).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -101,7 +101,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		sort.Strings(keys)
 		now := time.Now()
 
-		report := api.NewMessage("positions")
+		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "positions"))
 		for i, k := range keys {
 			pos := positions[k]
 
@@ -141,7 +141,7 @@ func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
 		// send all positions report ... to avoid spamming the chat
 		user.Send(api.Index(command.User), report, nil)
 
-		balanceReport := api.NewMessage("balance")
+		balanceReport := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "balance"))
 		for coin, balance := range bb {
 			if math.Abs(balance.Volume) > 0.000000001 {
 				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
