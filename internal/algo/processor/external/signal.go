@@ -18,11 +18,10 @@ import (
 )
 
 const (
-	ProcessorName      = "signal"
-	OnOffSwitch        = "signal-on-off"
-	port               = 8080
-	grafanaPort        = 6124
-	openPositionsQuery = "open-positions"
+	ProcessorName = "coin-processor"
+	OnOffSwitch   = "coin-processor-coin-on-off"
+	port          = 8080
+	grafanaPort   = 6124
 )
 
 func (t *tracker) compoundKey(prefix string) string {
