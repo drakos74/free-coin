@@ -80,7 +80,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.Prefix) {
 					log.Info().
-						Str("from", update.Message.From.UserName).
+						Str("from", fmt.Sprintf("%+v", update.Message.From)).
 						Str("text", update.Message.Text).
 						Str("consumer", fmt.Sprintf("%+v", k)).
 						Msg("message propagated")
