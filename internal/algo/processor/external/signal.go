@@ -38,7 +38,7 @@ func (t *tracker) switchOnOff(user api.User) {
 		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
-			api.Contains("?p"),
+			api.Contains("?r"),
 			api.OneOf(&action, "start", "stop"),
 		)
 
