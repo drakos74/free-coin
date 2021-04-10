@@ -138,11 +138,25 @@ func run() {
 				Source: signalChannel.Output,
 				Output: make(chan signal.Message),
 			}
-			userExchange := binance.NewExchange(detail.Name)
+			var userExchange api.Exchange
+			if detail.Exchange.Margin {
+				userExchange = binance.NewMarginExchange(detail.Name)
+			} else {
+				userExchange = binance.NewExchange(detail.Name)
+			}
 			processors = append(processors, signal.Receiver(detail.User.Alias, storageShard, registry, userExchange, user, userSignal, configs))
 			output = userSignal.Output
+			logger.Info().
+				Str("exchange", string(detail.Exchange.Name)).
+				Bool("margin", detail.Exchange.Margin).
+				Str("user", string(detail.Name)).
+				Msg("init exchange")
 		} else {
-			logger.Warn().Str("user", string(detail.Name)).Msg("user has not exchange config")
+			logger.Warn().
+				Str("exchange", string(detail.Exchange.Name)).
+				Bool("margin", detail.Exchange.Margin).
+				Str("user", string(detail.Name)).
+				Msg("user has not exchange config")
 		}
 
 	}
