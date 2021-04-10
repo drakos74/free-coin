@@ -138,8 +138,8 @@ func run() {
 				Source: signal.Output,
 				Output: make(chan external.Message),
 			}
-			secExchange := local.Noop{}
-			processors = append(processors, external.Signal(detail.User.Alias, storageShard, registry, secExchange, user, userSignal, configs))
+			userExchange := binance.NewExchange(detail.Name)
+			processors = append(processors, external.Signal(detail.User.Alias, storageShard, registry, userExchange, user, userSignal, configs))
 			output = userSignal.Output
 		} else {
 			logger.Warn().Str("user", string(detail.Name)).Msg("user has not exchange config")
