@@ -248,12 +248,12 @@ func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.Trac
 
 // Balance returns the account balance.
 // if price map is empty it will try to retrieve it with the CurrentPrice API.
-func (c *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coinmodel.CurrentPrice) (map[coinmodel.Coin]coinmodel.Balance, error) {
+func (e *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coinmodel.CurrentPrice) (map[coinmodel.Coin]coinmodel.Balance, error) {
 	balances := make(map[coinmodel.Coin]coinmodel.Balance)
 
 	prices := priceMap
 	if prices == nil {
-		p, err := c.CurrentPrice(ctx)
+		p, err := e.CurrentPrice(ctx)
 		if err != nil {
 			log.Error().Err(err).Msg("could not get price info")
 			//return balance, fmt.Errorf("could not get price information: %w", err)
@@ -263,7 +263,7 @@ func (c *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coi
 		}
 	}
 
-	account, err := c.api.NewGetMarginAccountService().Do(ctx)
+	account, err := e.api.NewGetMarginAccountService().Do(ctx)
 	if err != nil {
 		return balances, fmt.Errorf("could not get balance: %w", err)
 	}
