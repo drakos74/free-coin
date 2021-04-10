@@ -239,6 +239,7 @@ func NewMarginExchange(user account.Name) *MarginExchange {
 			converter: model.NewConverter(),
 		},
 	}
+
 	exchange.getInfo()
 	exchange.getPairs()
 
@@ -251,7 +252,6 @@ func (e *MarginExchange) getPairs() {
 		log.Error().Err(err).Msg("could not get margin pairs")
 	}
 	for _, pair := range pairs {
-		fmt.Println(fmt.Sprintf("pair = %+v", pair))
 		if pair != nil {
 			coin := coinmodel.Coin(pair.Symbol)
 			e.pairs[coin] = *pair
