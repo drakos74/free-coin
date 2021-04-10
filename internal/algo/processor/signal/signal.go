@@ -168,7 +168,13 @@ type MessageSignal struct {
 	Output chan Message
 }
 
-func Receiver(id string, shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+
+	registry, err := eventRegistry(id)
+	if err != nil {
+		log.Error().Err(err).Msg("could not create registry")
+		return processor.Void(id)
+	}
 
 	if signal.Source == nil {
 		signal.Source = make(chan Message)

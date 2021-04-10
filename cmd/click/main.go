@@ -78,8 +78,7 @@ func run() {
 	finished := overWatch.Run(ctx)
 
 	storageShard := json.BlobShard(storage.InternalPath)
-	registry := json.NewEventRegistry(storage.SignalsPath)
-
+	registry := json.EventRegistry(storage.SignalsPath)
 	// load the default configuration
 	configs := make(map[model.Coin]map[time.Duration]processor.Config)
 
@@ -105,6 +104,16 @@ func run() {
 				Alias: "Vagz",
 			},
 		},
+		{
+			Name: account.Rasta,
+			Exchange: account.ExchangeDetails{
+				Name: binance.Name,
+			},
+			User: account.UserDetails{
+				Index: api.CoinClick,
+				Alias: "jimbrast",
+			},
+		}, //-1001366701259
 	}
 
 	signalChannel := signal.MessageSignal{

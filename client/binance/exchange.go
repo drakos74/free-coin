@@ -225,6 +225,7 @@ func (c *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coin
 }
 
 type MarginExchange struct {
+	pairs map[coinmodel.Coin]binance.MarginAllPair
 	Exchange
 }
 
@@ -232,16 +233,36 @@ func NewMarginExchange(user account.Name) *MarginExchange {
 	k, s := exchangeConfig(user)
 	client := binance.NewClient(k, s)
 	exchange := &MarginExchange{
-		Exchange{
+		pairs: make(map[coinmodel.Coin]binance.MarginAllPair),
+		Exchange: Exchange{
 			api:       client,
 			converter: model.NewConverter(),
 		},
 	}
 	exchange.getInfo()
+	exchange.getPairs()
+
 	return exchange
 }
 
+func (e *MarginExchange) getPairs() {
+	pairs, err := e.api.NewGetMarginAllPairsService().Do(context.Background())
+	if err != nil {
+		log.Error().Err(err).Msg("could not get margin pairs")
+	}
+	for _, pair := range pairs {
+		fmt.Println(fmt.Sprintf("pair = %+v", pair))
+		if pair != nil {
+			coin := coinmodel.Coin(pair.Symbol)
+			e.pairs[coin] = *pair
+		}
+	}
+}
+
 func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
+	if _, ok := e.pairs[order.Coin]; !ok {
+		return order, nil, fmt.Errorf("not a valid margin pair: %s", string(order.Coin))
+	}
 	order.Leverage = coinmodel.L_3
 	return e.Exchange.OpenOrder(order)
 }

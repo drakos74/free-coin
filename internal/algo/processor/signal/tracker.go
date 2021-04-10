@@ -29,7 +29,7 @@ func newTrader(id string, client api.Exchange, shard storage.Shard) (*trader, er
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
 	positions := make(map[string]model.Position)
-	err = st.Load(stKey(id), &positions)
+	err = st.Load(stKey(), &positions)
 	log.Info().Err(err).
 		Str("account", id).
 		Int("num", len(positions)).Msg("loaded positions")
@@ -93,7 +93,7 @@ func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}
 		delete(t.positions, key)
-		return t.storage.Store(stKey(t.account), t.positions)
+		return t.storage.Store(stKey(), t.positions)
 	}
 	// we need to be careful here and add the position ...
 	position := model.OpenPosition(order)
@@ -113,12 +113,12 @@ func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 			Msg("extending position")
 	}
 	t.positions[key] = position
-	return t.storage.Store(stKey(t.account), t.positions)
+	return t.storage.Store(stKey(), t.positions)
 }
 
-func stKey(id string) storage.Key {
+func stKey() storage.Key {
 	return storage.Key{
 		Pair:  "all",
-		Label: path.Join(ProcessorName, id),
+		Label: ProcessorName,
 	}
 }
