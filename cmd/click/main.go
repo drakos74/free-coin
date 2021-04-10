@@ -97,7 +97,8 @@ func run() {
 		{
 			Name: account.Drakos,
 			Exchange: account.ExchangeDetails{
-				Name: binance.Name,
+				Name:   binance.Name,
+				Margin: true,
 			},
 			User: account.UserDetails{
 				Index: api.CoinClick,
