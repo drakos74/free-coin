@@ -24,14 +24,14 @@ const (
 	grafanaPort   = 6124
 )
 
-func (t *tracker) compoundKey(prefix string) string {
-	return fmt.Sprintf("%s_%s", prefix, t.user)
+func (t *trader) compoundKey(prefix string) string {
+	return fmt.Sprintf("%s_%s", prefix, t.account)
 }
 
-func (t *tracker) switchOnOff(user api.User) {
+func (t *trader) switchOnOff(user api.User) {
 	for command := range user.Listen(t.compoundKey(OnOffSwitch), "?r") {
 
-		if t.user != "" && command.User != t.user {
+		if t.account != "" && command.User != t.account {
 			continue
 		}
 
@@ -58,11 +58,11 @@ func (t *tracker) switchOnOff(user api.User) {
 	}
 }
 
-func (t *tracker) trackUserActions(client api.Exchange, user api.User) {
+func (t *trader) trackUserActions(client api.Exchange, user api.User) {
 
 	for command := range user.Listen(t.compoundKey(ProcessorName), "?p") {
 
-		if t.user != "" && t.user != command.User {
+		if t.account != "" && t.account != command.User {
 			continue
 		}
 
@@ -168,8 +168,6 @@ type MessageSignal struct {
 	Output chan Message
 }
 
-// TODO : use in a unified channel for all tracked currencies ...
-// TODO : this needs to be a combined client pushing many coins to the trade source ...
 func Signal(id string, shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
 	if signal.Source == nil {
@@ -186,13 +184,13 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 		grafana.Run()
 	}
 
-	// init tracker related actions
-	tracker, err := newTracker(id, client, shard)
-	go tracker.trackUserActions(client, user)
-	go tracker.switchOnOff(user)
+	// init trader related actions
+	trader, err := newTrader(id, client, shard)
+	go trader.trackUserActions(client, user)
+	go trader.switchOnOff(user)
 
 	if err != nil {
-		log.Error().Err(err).Str("user", tracker.user).Str("processor", ProcessorName).Msg("could not start processor")
+		log.Error().Err(err).Str("account", trader.account).Str("processor", ProcessorName).Msg("could not start processor")
 		return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 			for t := range in {
 				out <- t
@@ -202,7 +200,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
-			log.Info().Str("user", tracker.user).Str("processor", ProcessorName).Msg("closing processor")
+			log.Info().Str("account", trader.account).Str("processor", ProcessorName).Msg("closing processor")
 			close(out)
 		}()
 
@@ -211,10 +209,10 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 			case message := <-signal.Source:
 				// propagate message to others ...
 				signal.Output <- message
-				if !tracker.running {
+				if !trader.running {
 					// we are in stopped state ...
 					log.Debug().
-						Str("user", tracker.user).
+						Str("account", trader.account).
 						Str("message", fmt.Sprintf("%+v", message)).
 						Msg("ignoring signal")
 					continue
@@ -229,16 +227,16 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 				var order model.TrackedOrder
 				if tErr == nil && vErr == nil {
 					// check the positions ...
-					position, ok, positions := tracker.check(key, coin)
+					position, ok, positions := trader.check(key, coin)
 					if ok {
 						// if we had a position already ...
 						if position.Type == t {
 							// but .. we dont want to extend the current one ...
 							log.Debug().
-								Str("user", tracker.user).
+								Str("account", trader.account).
 								Str("position", fmt.Sprintf("%+v", position)).
 								Msg("ignoring signal")
-							//user.Send(api.External,
+							//account.Send(api.External,
 							//	api.NewMessage("ignoring signal").
 							//		AddLine(createTypeMessage(coin, t, v, p, false)).
 							//		AddLine(createReportMessage(key, fmt.Errorf("%s:%v:%v", emoji.MapType(position.Type), position.Volume, position.OpenPrice))),
@@ -250,7 +248,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						t = position.Type.Inv()
 						v = position.Volume
 						log.Debug().
-							Str("user", tracker.user).
+							Str("account", trader.account).
 							Str("message", fmt.Sprintf("%+v", message)).
 							Str("position", fmt.Sprintf("%+v", position)).
 							Str("type", t.String()).
@@ -267,7 +265,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						}
 						if ignore {
 							log.Debug().
-								Str("user", tracker.user).
+								Str("account", trader.account).
 								Str("positions", fmt.Sprintf("%+v", positions)).
 								Msg("ignoring conflicting signal")
 							continue
@@ -292,10 +290,10 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 							Message: message,
 							Order:   order,
 						})
-						trackErr := tracker.add(key, order, close)
+						trackErr := trader.add(key, order, close)
 						if regErr != nil || trackErr != nil {
 							log.Error().Err(regErr).Err(trackErr).
-								Str("user", tracker.user).
+								Str("account", trader.account).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
 								Msg("could not save to registry")
@@ -326,7 +324,7 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 						})
 						if regErr != nil {
 							log.Error().Err(regErr).
-								Str("user", tracker.user).
+								Str("account", trader.account).
 								Str("errors", fmt.Sprintf("%+v", errs)).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
@@ -335,18 +333,18 @@ func Signal(id string, shard storage.Shard, registry storage.Registry, client ap
 					}
 				} else {
 					log.Warn().
-						Str("user", tracker.user).
+						Str("account", trader.account).
 						Str("message", fmt.Sprintf("%+v", message)).
 						Msg("could not parse message")
 				}
 				log.Info().
-					Str("user", tracker.user).
+					Str("account", trader.account).
 					Str("type", t.String()).
 					Str("coin", string(coin)).
 					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
-				user.Send(api.Index(tracker.user),
-					api.NewMessage(processor.Audit(tracker.compoundKey(ProcessorName), "processed signal")).
+				user.Send(api.Index(trader.account),
+					api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
 						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
 						AddLine(createReportMessage(key, tErr, vErr, err)),
 					nil)

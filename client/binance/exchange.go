@@ -5,18 +5,13 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/adshao/go-binance/v2"
 	"github.com/drakos74/free-coin/client/binance/model"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
-)
-
-const (
-	key       = "BINANCE_KEY"
-	secret    = "BINANCE_SECRET"
-	extKey    = "EXT_BINANCE_KEY"
-	extSecret = "EXT_BINANCE_SECRET"
 )
 
 // Exchange is a binance client wrapper
@@ -26,20 +21,9 @@ type Exchange struct {
 	converter model.Converter
 }
 
-// Raw creates a new binance client from the given key and secret.
-func Raw(key, secret string) *Exchange {
-	client := binance.NewClient(key, secret)
-	exchange := &Exchange{
-		api:       client,
-		converter: model.NewConverter(),
-	}
-	exchange.getInfo()
-	return exchange
-}
-
 // NewExchange creates a new binance client.
-func NewExchange(option Option) *Exchange {
-	k, s := ExchangeConfig(option)
+func NewExchange(user account.Name) *Exchange {
+	k, s := exchangeConfig(user)
 	client := binance.NewClient(k, s)
 	exchange := &Exchange{
 		api:       client,
@@ -104,8 +88,8 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		return order, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
 	}
 
-	lotSize, err := model.ParseLOTSize(s.Filters)
-	if err != nil {
+	lotSize, lotErr := model.ParseLOTSize(s.Filters)
+	if lotErr != nil {
 		log.Trace().Str("filters", fmt.Sprintf("%+v", s.Filters)).Msg("no lot size filter found")
 	}
 
@@ -118,15 +102,28 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		Str("order", fmt.Sprintf("%+v", order)).
 		Msg("submit order")
 
-	orderResponse, err := c.api.NewCreateOrderService().
-		Symbol(c.converter.Coin.Pair(order.Coin)).
-		Side(c.converter.Type.From(order.Type)).
-		Type(c.converter.OrderType.From(order.OType)).
-		//TimeInForce(binance.TimeInForceTypeGTC).
-		Quantity(volume).
-		//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
-		Do(context.Background())
-	log.Debug().Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
+	var orderResponse *binance.CreateOrderResponse
+	var err error
+	if order.Leverage > 0 {
+		orderResponse, err = c.api.NewCreateMarginOrderService().
+			Symbol(c.converter.Coin.Pair(order.Coin)).
+			Side(c.converter.Type.From(order.Type)).
+			Type(c.converter.OrderType.From(order.OType)).
+			//TimeInForce(binance.TimeInForceTypeGTC).
+			Quantity(volume).
+			//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
+			Do(context.Background())
+	} else {
+		orderResponse, err = c.api.NewCreateOrderService().
+			Symbol(c.converter.Coin.Pair(order.Coin)).
+			Side(c.converter.Type.From(order.Type)).
+			Type(c.converter.OrderType.From(order.OType)).
+			//TimeInForce(binance.TimeInForceTypeGTC).
+			Quantity(volume).
+			//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
+			Do(context.Background())
+	}
+	log.Debug().Err(err).Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
 		return order, nil, fmt.Errorf("could not complete order: %w", err)
 	}
@@ -225,4 +222,26 @@ func (c *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coin
 	}
 
 	return balances, nil
+}
+
+type MarginExchange struct {
+	Exchange
+}
+
+func NewMarginExchange(user account.Name) *MarginExchange {
+	k, s := exchangeConfig(user)
+	client := binance.NewClient(k, s)
+	exchange := &MarginExchange{
+		Exchange{
+			api:       client,
+			converter: model.NewConverter(),
+		},
+	}
+	exchange.getInfo()
+	return exchange
+}
+
+func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
+	order.Leverage = coinmodel.L_3
+	return e.Exchange.OpenOrder(order)
 }

@@ -14,16 +14,16 @@ import (
 
 const storagePath = "signals"
 
-type tracker struct {
+type trader struct {
 	client    api.Exchange
 	positions map[string]model.Position
 	storage   storage.Persistence
-	user      string
+	account   string
 	running   bool
 	lock      *sync.RWMutex
 }
 
-func newTracker(id string, client api.Exchange, shard storage.Shard) (*tracker, error) {
+func newTrader(id string, client api.Exchange, shard storage.Shard) (*trader, error) {
 	st, err := shard(path.Join(storagePath, id))
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
@@ -31,25 +31,25 @@ func newTracker(id string, client api.Exchange, shard storage.Shard) (*tracker, 
 	positions := make(map[string]model.Position)
 	err = st.Load(stKey(id), &positions)
 	log.Info().Err(err).
-		Str("user", id).
+		Str("account", id).
 		Int("num", len(positions)).Msg("loaded positions")
-	return &tracker{
+	return &trader{
 		client:    client,
 		positions: positions,
 		storage:   st,
-		user:      id,
+		account:   id,
 		running:   true,
 		lock:      new(sync.RWMutex),
 	}, nil
 }
 
-func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Position, map[model.Coin]model.CurrentPrice) {
+func (t *trader) getAll(ctx context.Context) ([]string, map[string]model.Position, map[model.Coin]model.CurrentPrice) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	prices, err := t.client.CurrentPrice(ctx)
 	if err != nil {
 		log.Error().Err(err).
-			Str("user", t.user).
+			Str("account", t.account).
 			Msg("could not get current prices")
 		prices = make(map[model.Coin]model.CurrentPrice)
 	}
@@ -68,7 +68,7 @@ func (t *tracker) getAll(ctx context.Context) ([]string, map[string]model.Positi
 }
 
 // TODO : make this for now ... to have clear pairs
-func (t *tracker) check(key string, coin model.Coin) (model.Position, bool, []model.Position) {
+func (t *trader) check(key string, coin model.Coin) (model.Position, bool, []model.Position) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	if p, ok := t.positions[key]; ok {
@@ -85,7 +85,7 @@ func (t *tracker) check(key string, coin model.Coin) (model.Position, bool, []mo
 	return model.Position{}, false, positions
 }
 
-func (t *tracker) add(key string, order model.TrackedOrder, close string) error {
+func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if close != "" {
@@ -93,7 +93,7 @@ func (t *tracker) add(key string, order model.TrackedOrder, close string) error 
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}
 		delete(t.positions, key)
-		return t.storage.Store(stKey(t.user), t.positions)
+		return t.storage.Store(stKey(t.account), t.positions)
 	}
 	// we need to be careful here and add the position ...
 	position := model.OpenPosition(order)
@@ -106,14 +106,14 @@ func (t *tracker) add(key string, order model.TrackedOrder, close string) error 
 		}
 		position.Volume += p.Volume
 		log.Warn().
-			Str("user", t.user).
+			Str("account", t.account).
 			Str("key", key).
 			Float64("from", p.Volume).
 			Float64("to", position.Volume).
 			Msg("extending position")
 	}
 	t.positions[key] = position
-	return t.storage.Store(stKey(t.user), t.positions)
+	return t.storage.Store(stKey(t.account), t.positions)
 }
 
 func stKey(id string) storage.Key {

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 )
 
 const (
-	Name = "kraken"
+	Name api.ExchangeName = "kraken"
 )
 
 // newTrade creates a new trade from the kraken trade response.

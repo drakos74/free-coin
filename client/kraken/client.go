@@ -14,11 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	key    = "KRAKEN_KEY"
-	secret = "KRAKEN_SECRET"
-)
-
 // Client is the exchange client used To interact with the exchange methods.
 type Client struct {
 	since         int64

@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/user/telegram"
 
 	"github.com/drakos74/free-coin/client/kraken"
@@ -51,9 +53,9 @@ func main() {
 
 	if runtime.GOOS == "darwin" {
 		log.Warn().Msg("running local user interface")
-		user, err = botlocal.NewUser("", "")
+		user, err = botlocal.NewUser("")
 	} else {
-		user, err = telegram.NewBot(api.Public, api.Private)
+		user, err = telegram.NewBot(api.FreeCoin, api.DrCoin)
 	}
 	if err != nil {
 		panic(err.Error())
@@ -69,7 +71,7 @@ func main() {
 
 	registry := json.NewEventRegistry(storage.EventsPath)
 
-	exchange := kraken.NewExchange(ctx)
+	exchange := kraken.NewExchange(account.Drakos)
 	block := api.NewBlock()
 
 	// load the default configuration

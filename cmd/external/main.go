@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/client/binance"
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -29,14 +31,12 @@ func init() {
 }
 
 func main() {
-
 	for {
 		logger.Info().Msg("running app ... ")
 		// this should block ..
 		run()
 		time.Sleep(1 * time.Hour)
 	}
-
 }
 
 func run() {
@@ -53,16 +53,17 @@ func run() {
 	}, uuid.New().String()).
 		WithUpstream(upstream).
 		WithPersistence(persistence)
-	exchange := binance.NewExchange(binance.External)
+	exchange := binance.NewExchange(account.Parakmi)
+	//exchange := local.NewExchange("coin_click_exchange")
 
 	var user api.User
 	var err error
 
 	if runtime.GOOS == "darwin" {
 		logger.Warn().Msg("running local user interface")
-		user, err = botlocal.NewUser("", "")
+		user, err = botlocal.NewUser("coin_click_bot")
 	} else {
-		user, err = telegram.NewBot(api.External)
+		user, err = telegram.NewBot(api.CoinClick)
 	}
 	if err != nil {
 		panic(err.Error())
@@ -82,43 +83,75 @@ func run() {
 	// load the default configuration
 	configs := make(map[model.Coin]map[time.Duration]processor.Config)
 
+	details := []account.Details{
+		{
+			Name: account.Parakmi,
+			//Exchange: account.ExchangeDetails{
+			//	Name: binance.Name,
+			//},
+			User: account.UserDetails{
+				Index: api.CoinClick,
+				Alias: "moneytized",
+			},
+		},
+		{
+			Name: account.Drakos,
+			Exchange: account.ExchangeDetails{
+				Name: binance.Name,
+			},
+			User: account.UserDetails{
+				Index: api.CoinClick,
+				Alias: "Vagz",
+			},
+		},
+	}
+
 	signal := external.MessageSignal{
 		Output: make(chan external.Message),
 	}
+	output := make(chan external.Message)
 
-	// add the users
-	err = user.AddUser(api.External, "Vagz", 0)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
+	processors := make([]api.Processor, 0)
 
-	err = user.AddUser(api.External, "moneytized", 0)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
+	processors = append(processors, external.Signal("", storageShard, registry, exchange, user, signal, configs))
 	// + add the default user for the processor to be able to reply
-	err = user.AddUser(api.External, "", 0)
+	err = user.AddUser(api.CoinClick, "")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	signalProcessor := external.Signal("", storageShard, registry, exchange, user, signal, configs)
+	for _, detail := range details {
+
+		if detail.User.Index != "" && detail.User.Alias != "" {
+			// add the users
+			err = user.AddUser(detail.User.Index, detail.User.Alias)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+		} else {
+			logger.Warn().Str("user", string(detail.Name)).Msg("user has no comm channel config")
+		}
+
+		if detail.Exchange.Name != "" {
+			// secondary user ...
+			userSignal := external.MessageSignal{
+				Source: signal.Output,
+				Output: make(chan external.Message),
+			}
+			secExchange := local.Noop{}
+			processors = append(processors, external.Signal(detail.User.Alias, storageShard, registry, secExchange, user, userSignal, configs))
+			output = userSignal.Output
+		} else {
+			logger.Warn().Str("user", string(detail.Name)).Msg("user has not exchange config")
+		}
+
+	}
 
 	// TODO : orchestrate the closing of signals
 
-	// secondary user ...
-	secSignal := external.MessageSignal{
-		Source: signal.Output,
-		Output: make(chan external.Message),
-	}
-	secExchange := local.Noop{}
-
-	secSignalProcessor := external.Signal("Vagz", storageShard, registry, secExchange, user, secSignal, configs)
-
 	// add a final processor for the signals ...
 	go func() {
-		for msg := range secSignal.Output {
+		for msg := range output {
 			logger.Debug().Str("message", fmt.Sprintf("%+v", msg)).Msg("signal received")
 		}
 	}()
@@ -128,8 +161,7 @@ func run() {
 			continue
 		}
 		err := overWatch.Start(c, coin.Log,
-			signalProcessor,
-			secSignalProcessor,
+			processors...,
 		)
 		if err != nil {
 			logger.Error().Str("coin", string(c)).Err(err).Msg("could not start engine")

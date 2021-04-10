@@ -171,7 +171,7 @@ func addPnL(query query) metrics.Series {
 				net := order.Order.Value() + o.Order.Value()
 				ss[h] = ss[h] + net
 			} else {
-				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-user", order.Order.RefID).Msg("could not pair order")
+				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-account", order.Order.RefID).Msg("could not pair order")
 			}
 		}
 		if h > lh {

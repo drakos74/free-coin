@@ -56,7 +56,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			Err(err).
 			Msg("received user action")
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
+			api.Reply(api.DrCoin, user, api.NewMessage(processor.Audit(ProcessorName, "error")).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -67,11 +67,11 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			err = tp.update(client)
 			if err != nil {
 				log.Error().Err(err).Msg("could not get book")
-				api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "api error")).ReplyTo(command.ID), err)
+				api.Reply(api.DrCoin, user, api.NewMessage(processor.Audit(ProcessorName, "api error")).ReplyTo(command.ID), err)
 			}
 			i := 0
 			if len(tp.book) == 0 {
-				user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, NoPositionMsg)), nil)
+				user.Send(api.DrCoin, api.NewMessage(processor.Audit(ProcessorName, NoPositionMsg)), nil)
 				continue
 			}
 			for k, pos := range tp.getAll() {
@@ -98,13 +98,13 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 							ID:  id,
 							Key: positionKey,
 						}
-						user.Send(api.Private, api.NewMessage(msg).AddLine(configMsg), trigger)
+						user.Send(api.DrCoin, api.NewMessage(msg).AddLine(configMsg), trigger)
 						i++
 					}
 				}
 			}
 		default:
-			user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "unknown command")).AddLine("[ close ]"), nil)
+			user.Send(api.DrCoin, api.NewMessage(processor.Audit(ProcessorName, "unknown command")).AddLine("[ close ]"), nil)
 		}
 	}
 }
@@ -158,7 +158,7 @@ func Position(shard storage.Shard, registry storage.Registry, client api.Exchang
 							string(trade.Coin),
 							coinmath.Format(profit),
 							coinmath.Format(net))
-						user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "alert")).
+						user.Send(api.DrCoin, api.NewMessage(processor.Audit(ProcessorName, "alert")).
 							AddLine(msg).
 							ReferenceTime(trade.Time), &api.Trigger{
 							ID:      positionAction.position.Position.ID,

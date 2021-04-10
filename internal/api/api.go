@@ -7,14 +7,9 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-type Index string
+type ExchangeName string
 
-// TODO : star simple now, but we can make it an int64 in the future ;)
-const (
-	Public   Index = "public"
-	Private  Index = "private"
-	External Index = "external"
-)
+type Index string
 
 // Query is the trades query object.
 type Query struct {
@@ -48,7 +43,7 @@ type User interface {
 	// Send sends a message to the user adn returns the message ID
 	Send(channel Index, message *Message, trigger *Trigger) int
 	// AddUser adds the given chatID for the specified user name
-	AddUser(channel Index, user string, chatID int64) error
+	AddUser(channel Index, user string) error
 }
 
 // Reply sends a reply message based on the given error to the user.

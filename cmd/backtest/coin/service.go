@@ -46,7 +46,7 @@ func (s *Service) Run(ctx context.Context, query model.QQ) (map[coinmodel.Coin][
 
 	//ctx := context.Background()
 
-	user, err := userlocal.NewUser("", "")
+	user, err := userlocal.NewUser("")
 	if err != nil {
 		if err != nil {
 			panic(err.Error())

@@ -16,7 +16,8 @@ func handle(user api.User, signal chan<- Message) server.Handler {
 		var message Message
 		payload, jsonErr := server.ReadJson(r, false, &message)
 		if jsonErr != nil {
-			user.Send(api.External, api.NewMessage(fmt.Sprintf("error = %v \n raw = %+v", jsonErr.Error(), payload)), nil)
+			// TODO : remove this irregularity
+			user.Send(api.CoinClick, api.NewMessage(fmt.Sprintf("error = %v \n raw = %+v", jsonErr.Error(), payload)), nil)
 			return []byte{}, http.StatusBadRequest, nil
 		}
 		log.Debug().Str("message", fmt.Sprintf("%+v", message)).Msg("signal received")

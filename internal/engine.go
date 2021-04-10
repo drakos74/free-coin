@@ -129,46 +129,47 @@ func New(client api.Client, user api.User) *OverWatch {
 
 // Run executes starts the OverWatch instance.
 func (o *OverWatch) Run(ctx context.Context) *sync.WaitGroup {
-	go func() {
-		for {
-			select {
-			case command := <-o.user.Listen("overwatch", "?c"):
-				var c string
-				var action string
-				_, err := command.Validate(
-					api.AnyUser(),
-					api.Contains("?c", "?coin"),
-					api.OneOf(&c, model.KnownCoins()...),
-					api.OneOf(&action, "start", "stop"))
-				if err != nil {
-					// TODO : find the right chat id ...
-					api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
-					continue
-				}
-				// ...execute
-				//switch processed {
-				//case "start":
-				//	err = o.Start(api.NewBlock(), model.Coins[strings.ToUpper(c)], Log())
-				//	api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
-				//case "stop":
-				//	err = o.Stop(model.Coins[strings.ToUpper(c)])
-				//}
-				//api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
-			case <-ctx.Done():
-			// kill the engines one by one
-			default: // main run loop
-				for c, eng := range o.engines {
-					select {
-					case <-eng.finished:
-						log.Info().Str("coin", c).Msg("engine done")
-						o.counter.Done()
-					default:
-						// nothing to do
-					}
-				}
-			}
-		}
-	}()
+	// TODO : re-enable global comm channel
+	//go func() {
+	//	for {
+	//		select {
+	//		case command := <-o.user.Listen("overwatch", "?c"):
+	//			var c string
+	//			var action string
+	//			_, err := command.Validate(
+	//				api.AnyUser(),
+	//				api.Contains("?c", "?coin"),
+	//				api.OneOf(&c, model.KnownCoins()...),
+	//				api.OneOf(&action, "start", "stop"))
+	//			if err != nil {
+	//				// TODO : find the right chat id ...
+	//				api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[error]: %s", err.Error())).ReplyTo(command.ID), err)
+	//				continue
+	//			}
+	//			// ...execute
+	//			//switch processed {
+	//			//case "start":
+	//			//	err = o.Start(api.NewBlock(), model.Coins[strings.ToUpper(c)], Log())
+	//			//	api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+	//			//case "stop":
+	//			//	err = o.Stop(model.Coins[strings.ToUpper(c)])
+	//			//}
+	//			//api.Reply(api.Private, o.user, api.NewMessage(fmt.Sprintf("[%s]", command.Content)).ReplyTo(command.ID), err)
+	//		case <-ctx.Done():
+	//		// kill the engines one by one
+	//		default: // main run loop
+	//			for c, eng := range o.engines {
+	//				select {
+	//				case <-eng.finished:
+	//					log.Info().Str("coin", c).Msg("engine done")
+	//					o.counter.Done()
+	//				default:
+	//					// nothing to do
+	//				}
+	//			}
+	//		}
+	//	}
+	//}()
 	return o.counter
 }
 

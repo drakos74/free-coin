@@ -41,7 +41,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
+			api.Reply(api.DrCoin, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 		c := model.Coin(coin)
@@ -59,18 +59,18 @@ func trackUserActions(user api.User, stats *statsCollector) {
 			// TODO : re-enable this functionality.
 			//case "start":
 			//	if stats.windows(timeDuration) {
-			//		api.Reply(api.Private, user,
+			//		api.Reply(api.DrCoin, user,
 			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
 			//				ReplyTo(command.ID), nil)
 			//		continue
 			//	} else {
-			//		api.Reply(api.Private, user,
+			//		api.Reply(api.DrCoin, user,
 			//			api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
 			//				ReplyTo(command.ID), nil)
 			//	}
 			//case "stop":
 			//	stats.stop(timeDuration)
-			//	api.Reply(api.Private, user,
+			//	api.Reply(api.DrCoin, user,
 			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
 			//			ReplyTo(command.ID), nil)
 		}
@@ -79,7 +79,7 @@ func trackUserActions(user api.User, stats *statsCollector) {
 
 func sendWindowConfig(user api.User, k model.Key, w Window) {
 	for _, cfg := range w.C.Config {
-		api.Reply(api.Private,
+		api.Reply(api.DrCoin,
 			user,
 			api.NewMessage(fmt.Sprintf("%s|%v %v -> %v (%d)",
 				k.Coin,
@@ -144,7 +144,7 @@ func MultiStats(shard storage.Shard, registry storage.Registry, user api.User, c
 						})
 						if user != nil && cfg.Notify.Stats {
 							// TODO : add tests for this
-							user.Send(api.Public,
+							user.Send(api.FreeCoin,
 								api.NewMessage(createStatsMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
 									ReferenceTime(trade.Time), nil)
 						}

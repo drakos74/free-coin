@@ -1,17 +1,16 @@
 package kraken
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
-	"github.com/drakos74/free-coin/internal/storage/file/json"
+	"github.com/drakos74/free-coin/internal/account"
 
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
 	cointime "github.com/drakos74/free-coin/internal/time"
+	"github.com/rs/zerolog/log"
 )
 
 type History struct {
@@ -20,8 +19,8 @@ type History struct {
 	hash     cointime.Hash
 }
 
-func NewHistory(ctx context.Context) (*History, error) {
-	exchange := NewExchange(ctx)
+func NewHistory(name account.Name) (*History, error) {
+	exchange := NewExchange(name)
 	if client, ok := exchange.(*Exchange); ok {
 		return &History{
 			exchange: *client,

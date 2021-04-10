@@ -49,7 +49,7 @@ func (tp *tradePositions) track(client api.Exchange, user api.User, ticker *time
 						Float64("volume", trackedOrder.Volume).
 						Str("leverage", trackedOrder.Leverage.String()).
 						Msg("submitted trackedOrder")
-					api.Reply(api.Private, user, api.
+					api.Reply(api.DrCoin, user, api.
 						NewMessage(processor.Audit(ProcessorName, trackedOrder.Key.ToString())).
 						AddLine(fmt.Sprintf("open %s %s %.3f",
 							emoji.MapType(trackedOrder.Type),
@@ -398,7 +398,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Ke
 			Float64("net", net).
 			Float64("profit", profit).
 			Msg("could not close Position")
-		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "error")).
+		user.Send(api.DrCoin, api.NewMessage(processor.Audit(ProcessorName, "error")).
 			AddLine(fmt.Sprintf("could not close %s [%s]: %s",
 				key.ToString(),
 				id,
@@ -420,7 +420,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Ke
 		tp.delete(key, id)
 		tp.budget(key, net)
 		storage.Store(tp.state, processor.NewStateKey(ProcessorName, key), tp.book[key])
-		user.Send(api.Private, api.NewMessage(processor.Audit(ProcessorName, "")).
+		user.Send(api.DrCoin, api.NewMessage(processor.Audit(ProcessorName, "")).
 			AddLine(fmt.Sprintf("%s closed %s %s ( %.3f | %.2f%s )",
 				emoji.MapToSign(profit),
 				key.ToString(),

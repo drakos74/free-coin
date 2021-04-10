@@ -59,6 +59,10 @@ type TrackedOrder struct {
 	TxIDs []string  `json:"txIds"`
 }
 
+func (to TrackedOrder) IsClosing() bool {
+	return to.RefID != ""
+}
+
 // Value returns the value of this order in respect to our portfolio.
 func (to TrackedOrder) Value() float64 {
 	switch to.Type {

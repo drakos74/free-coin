@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/internal/metrics"
 
 	"github.com/drakos74/free-coin/internal/server"
@@ -214,7 +216,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 	annotations := make([]metrics.AnnotationInstance, 0)
 	switch query.Annotation.Name {
 	case "history":
-		historyClient, err := kraken.NewHistory(context.Background())
+		historyClient, err := kraken.NewHistory(account.Drakos)
 		if err != nil {
 			return payload, code, err
 		}

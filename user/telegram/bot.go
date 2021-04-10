@@ -8,18 +8,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/internal/api"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rs/zerolog/log"
-)
-
-const (
-	telegramBotToken        = "TELEGRAM_BOT_TOKEN"
-	telegramChatID          = "TELEGRAM_CHAT_ID"
-	privateTelegramBotToken = "PRIVATE_TELEGRAM_BOT_TOKEN"
-	privateTelegramChatID   = "PRIVATE_TELEGRAM_CHAT_ID"
-	extTelegramBotToken     = "EXT_TELEGRAM_BOT_TOKEN"
-	extTelegramChatID       = "EXT_TELEGRAM_CHAT_ID"
 )
 
 // allow to change these for the tests
@@ -54,55 +47,21 @@ type Bot struct {
 func NewBot(idxs ...api.Index) (*Bot, error) {
 	chat := make(map[api.Index]*bot)
 	for _, idx := range idxs {
-		var b botAPI
-		var cID int64
-		switch idx {
-		case api.Public:
-			// public bot set up
-			bt, err := tgbotapi.NewBotAPI(os.Getenv(telegramBotToken))
-			if err != nil {
-				return nil, fmt.Errorf("error creating bot: %w", err)
-			}
-			chatIDProperty := os.Getenv(telegramChatID)
-			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
-			}
-			bt.Buffer = 0
-			b = bt
-			cID = chatID
-		case api.Private:
-			// private bot set up
-			bt, err := tgbotapi.NewBotAPI(os.Getenv(privateTelegramBotToken))
-			if err != nil {
-				return nil, fmt.Errorf("error creating bot: %w", err)
-			}
-			chatIDProperty := os.Getenv(privateTelegramChatID)
-			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
-			}
-			bt.Buffer = 0
-			b = bt
-			cID = chatID
-		case api.External:
-			// external bot set up
-			bt, err := tgbotapi.NewBotAPI(os.Getenv(extTelegramBotToken))
-			if err != nil {
-				return nil, fmt.Errorf("error creating bot: %w", err)
-			}
-			chatIDProperty := os.Getenv(extTelegramChatID)
-			chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing public chat ID: %w", err)
-			}
-			bt.Buffer = 0
-			b = bt
-			cID = chatID
+		format := account.NewFormat(account.Name(idx), "")
+		// external bot set up
+		bt, err := tgbotapi.NewBotAPI(os.Getenv(format.Token()))
+		if err != nil {
+			return nil, fmt.Errorf("error creating bot: %w", err)
 		}
+		chatIDProperty := os.Getenv(format.ChatID())
+		chatID, err := strconv.ParseInt(chatIDProperty, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing public chat ID: %w", err)
+		}
+		bt.Buffer = 0
 		chat[idx] = &bot{
-			b:  b,
-			id: cID,
+			b:  bt,
+			id: chatID,
 		}
 	}
 
@@ -160,14 +119,11 @@ func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger
 }
 
 // AddUser assigns a user to a channel by ID
-func (b *Bot) AddUser(channel api.Index, user string, chatID int64) error {
+func (b *Bot) AddUser(channel api.Index, user string) error {
 	if bb, ok := b.chat[channel]; ok {
-		if chatID == 0 {
-			chatID = bb.id
-		}
 		b.chat[api.Index(user)] = &bot{
 			b:  bb.b,
-			id: chatID,
+			id: bb.id,
 		}
 		return nil
 	}

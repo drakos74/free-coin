@@ -28,7 +28,7 @@ func trackUserActions(user api.User, trader *trader) {
 			api.Any(&coin),
 		)
 		if err != nil {
-			api.Reply(api.Private, user, api.NewMessage(processor.Audit(ProcessorName, "cmd error")).ReplyTo(command.ID), err)
+			api.Reply(api.DrCoin, user, api.NewMessage(processor.Audit(ProcessorName, "cmd error")).ReplyTo(command.ID), err)
 			continue
 		}
 
@@ -37,7 +37,7 @@ func trackUserActions(user api.User, trader *trader) {
 		// return the current configs
 		for d, cfg := range trader.getAll(c) {
 			strategy := cfg.Strategy
-			user.Send(api.Private,
+			user.Send(api.DrCoin,
 				api.NewMessage(processor.Audit(ProcessorName, "positions")).
 					AddLine(fmt.Sprintf("%s %dm[%v] ( p:%f | s:%d | t:%f )",
 						c,
@@ -123,7 +123,7 @@ func Trade(registry storage.Registry, user api.User, block api.Block, configs ma
 							block.Action <- api.NewAction(model.OrderKey).ForCoin(k.Coin).WithContent(trackedOrder).Create()
 							// wait for the position processor to acknowledge the update
 							<-block.ReAction
-							api.Reply(api.Private, user, api.
+							api.Reply(api.DrCoin, user, api.
 								NewMessage(processor.Audit(ProcessorName, createPredictionMessage(pair))).
 								AddLine(fmt.Sprintf("open %s %s ( %.3f | %.2f )",
 									emoji.MapType(pair.Type),

@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/client/kraken/model"
 	"github.com/drakos74/free-coin/internal/api"
@@ -32,11 +34,24 @@ func Raw(key, secret string) *Exchange {
 }
 
 // NewExchange creates a new exchange client.
-func NewExchange() api.Exchange {
+func NewExchange(user account.Name) api.Exchange {
+
+	format := account.NewFormat(user, Name)
+
+	key := os.Getenv(format.Key())
+	if key == "" {
+		panic(fmt.Sprintf("key not found for %s", format.Key()))
+	}
+
+	secret := os.Getenv(format.Secret())
+	if secret == "" {
+		panic(fmt.Sprintf("secret not found for %s", format.Secret()))
+	}
+
 	exchange := &Exchange{
 		Api: &RemoteExchange{
 			converter: model.NewConverter(),
-			private:   krakenapi.New(os.Getenv(key), os.Getenv(secret)),
+			private:   krakenapi.New(key, secret),
 		},
 	}
 	exchange.Api.getInfo()
