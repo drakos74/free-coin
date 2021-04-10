@@ -268,6 +268,8 @@ func (c *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coi
 		return balances, fmt.Errorf("could not get balance: %w", err)
 	}
 
+	log.Debug().Str("account", fmt.Sprintf("%+v", account)).Msg("balance")
+
 	for _, b := range account.UserAssets {
 
 		pair := fmt.Sprintf("%sUSDT", b.Asset)
