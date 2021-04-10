@@ -106,11 +106,11 @@ func NewEventRegistry(path string) *Registry {
 
 // EventRegistry creates a new registry generator
 func EventRegistry(parent string) storage.EventRegistry {
-	return func(path string) (storage.Registry, error) {
-		if path == "" {
+	return func(p string) (storage.Registry, error) {
+		if p == "" {
 			return NewEventRegistry(parent), nil
 		}
-		return NewEventRegistry(fmt.Sprintf("%s-%s", parent, path)), nil
+		return NewEventRegistry(path.Join(parent, p)), nil
 	}
 }
 

@@ -298,7 +298,9 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						})
 						trackErr := trader.add(key, order, close)
 						if regErr != nil || trackErr != nil {
-							log.Error().Err(regErr).Err(trackErr).
+							log.Error().
+								Str("registry-error", fmt.Sprintf("%v", regErr)).
+								Str("tracker-error", fmt.Sprintf("%v", trackErr)).
 								Str("account", trader.account).
 								Str("order", fmt.Sprintf("%+v", order)).
 								Str("message", fmt.Sprintf("%+v", message)).
