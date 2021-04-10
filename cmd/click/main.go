@@ -104,16 +104,16 @@ func run() {
 				Alias: "Vagz",
 			},
 		},
-		{
-			Name: account.Rasta,
-			Exchange: account.ExchangeDetails{
-				Name: binance.Name,
-			},
-			User: account.UserDetails{
-				Index: api.CoinClick,
-				Alias: "jimbrast",
-			},
-		}, //-1001366701259
+		//{
+		//	Name: account.Rasta,
+		//	Exchange: account.ExchangeDetails{
+		//		Name: binance.Name,
+		//	},
+		//	User: account.UserDetails{
+		//		Index: api.CoinClick,
+		//		Alias: "jimbrast",
+		//	},
+		//}, //-1001366701259
 	}
 
 	signalChannel := signal.MessageSignal{
