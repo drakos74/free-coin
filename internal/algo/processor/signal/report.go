@@ -1,4 +1,4 @@
-package external
+package signal
 
 import (
 	"context"

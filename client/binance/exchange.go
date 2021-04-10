@@ -245,3 +245,63 @@ func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.Trac
 	order.Leverage = coinmodel.L_3
 	return e.Exchange.OpenOrder(order)
 }
+
+// Balance returns the account balance.
+// if price map is empty it will try to retrieve it with the CurrentPrice API.
+func (c *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coinmodel.CurrentPrice) (map[coinmodel.Coin]coinmodel.Balance, error) {
+	balances := make(map[coinmodel.Coin]coinmodel.Balance)
+
+	prices := priceMap
+	if prices == nil {
+		p, err := c.CurrentPrice(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("could not get price info")
+			//return balance, fmt.Errorf("could not get price information: %w", err)
+			prices = make(map[coinmodel.Coin]coinmodel.CurrentPrice)
+		} else {
+			prices = p
+		}
+	}
+
+	account, err := c.api.NewGetMarginAccountService().Do(ctx)
+	if err != nil {
+		return balances, fmt.Errorf("could not get balance: %w", err)
+	}
+
+	for _, b := range account.UserAssets {
+
+		pair := fmt.Sprintf("%sUSDT", b.Asset)
+		coin := coinmodel.Coin(pair)
+
+		vol, err := strconv.ParseFloat(b.Free, 64)
+		if err != nil {
+			return balances, fmt.Errorf("could not parse volume for %s: %w", coin, err)
+		}
+
+		if vol == 0 {
+			continue
+		}
+
+		locked, err := strconv.ParseFloat(b.Locked, 64)
+		if err != nil {
+			log.Error().Str("coin", string(coin)).Err(err).Msg("could not parse locked assets")
+		}
+
+		p, ok := prices[coin]
+		if !ok {
+			log.Error().Str("coin", string(coin)).Msg("could not find price")
+		}
+
+		balance := coinmodel.Balance{
+			Coin:   coin,
+			Volume: vol,
+			Price:  p.Price,
+			Locked: locked,
+		}
+
+		balances[coin] = balance
+
+	}
+
+	return balances, nil
+}

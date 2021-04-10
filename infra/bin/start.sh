@@ -104,8 +104,8 @@ if [ $# -eq 0 ]
     restart "coin"
     # restart backtesting process
     restart "backtest"
-    # restart external process
-    restart "external"
+    # restart click process
+    restart "click"
     # just stop and start
     restart_grafana "grafana"
     echo "ALL DONE!"

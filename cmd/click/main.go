@@ -13,7 +13,7 @@ import (
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/algo/processor"
-	"github.com/drakos74/free-coin/internal/algo/processor/external"
+	"github.com/drakos74/free-coin/internal/algo/processor/signal"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -106,14 +106,14 @@ func run() {
 		},
 	}
 
-	signal := external.MessageSignal{
-		Output: make(chan external.Message),
+	signalChannel := signal.MessageSignal{
+		Output: make(chan signal.Message),
 	}
-	output := make(chan external.Message)
+	output := make(chan signal.Message)
 
 	processors := make([]api.Processor, 0)
 
-	processors = append(processors, external.Signal("", storageShard, registry, exchange, user, signal, configs))
+	processors = append(processors, signal.Receiver("", storageShard, registry, exchange, user, signalChannel, configs))
 	// + add the default user for the processor to be able to reply
 	err = user.AddUser(api.CoinClick, "")
 	if err != nil {
@@ -134,12 +134,12 @@ func run() {
 
 		if detail.Exchange.Name != "" {
 			// secondary user ...
-			userSignal := external.MessageSignal{
-				Source: signal.Output,
-				Output: make(chan external.Message),
+			userSignal := signal.MessageSignal{
+				Source: signalChannel.Output,
+				Output: make(chan signal.Message),
 			}
 			userExchange := binance.NewExchange(detail.Name)
-			processors = append(processors, external.Signal(detail.User.Alias, storageShard, registry, userExchange, user, userSignal, configs))
+			processors = append(processors, signal.Receiver(detail.User.Alias, storageShard, registry, userExchange, user, userSignal, configs))
 			output = userSignal.Output
 		} else {
 			logger.Warn().Str("user", string(detail.Name)).Msg("user has not exchange config")

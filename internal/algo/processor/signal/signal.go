@@ -1,4 +1,4 @@
-package external
+package signal
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	ProcessorName = "coin-processor"
-	OnOffSwitch   = "coin-processor-coin-on-off"
+	ProcessorName = "signal"
+	OnOffSwitch   = "signal-on-off"
 	port          = 8080
 	grafanaPort   = 6124
 )
@@ -168,7 +168,7 @@ type MessageSignal struct {
 	Output chan Message
 }
 
-func Signal(id string, shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func Receiver(id string, shard storage.Shard, registry storage.Registry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
 
 	if signal.Source == nil {
 		signal.Source = make(chan Message)
