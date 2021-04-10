@@ -18,34 +18,34 @@ func TestConfigJson(t *testing.T) {
 		Notify: Notify{
 			Stats: true,
 		},
-		Model: []Stats{
-			{
-				LookBack:  1,
-				LookAhead: 1,
+		Model: Model{
+			Stats: []Stats{
+				{
+					LookBack:  1,
+					LookAhead: 1,
+				},
 			},
 		},
-		Strategies: []Strategy{
-			{
-				Open: Open{
-					Value: 100,
-					Limit: 1000,
-				},
-				Close: Close{
-					Instant: true,
-					Profit: Setup{
-						Min:   0.8,
-						Trail: 0.15,
-					},
-					Loss: Setup{
-						Min: 1,
-					},
-				},
-				Name:        "numeric",
-				Probability: 0.5,
-				Sample:      11,
-				Threshold:   6,
-				Factor:      1,
+		Strategy: Strategy{
+			Open: Open{
+				Value: 100,
+				Limit: 1000,
 			},
+			Close: Close{
+				Instant: true,
+				Profit: Setup{
+					Min:   0.8,
+					Trail: 0.15,
+				},
+				Loss: Setup{
+					Min: 1,
+				},
+			},
+			Name:        "numeric",
+			Probability: 0.5,
+			Sample:      11,
+			Threshold:   6,
+			Factor:      1,
 		},
 	}
 
