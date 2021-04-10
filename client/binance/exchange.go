@@ -263,6 +263,10 @@ func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.Trac
 	if _, ok := e.pairs[order.Coin]; !ok {
 		return order, nil, fmt.Errorf("not a valid margin pair: %s", string(order.Coin))
 	}
+	log.Debug().
+		Str("coin", string(order.Coin)).
+		Str("pair", fmt.Sprintf("%+v", e.pairs[order.Coin])).
+		Msg("trade on margin")
 	order.Leverage = coinmodel.L_3
 	return e.Exchange.OpenOrder(order)
 }
