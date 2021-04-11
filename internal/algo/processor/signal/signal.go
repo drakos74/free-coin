@@ -7,9 +7,7 @@ import (
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
-	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
-	"github.com/drakos74/free-coin/internal/server"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -32,20 +30,6 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	if err != nil {
 		log.Error().Err(err).Msg("could not create registry")
 		return processor.Void(id)
-	}
-
-	if signal.Source == nil {
-		signal.Source = make(chan Message)
-		go server.NewServer("trade-view", port).
-			AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
-			AddRoute(server.POST, server.Api, "test-post", handle(user, signal.Source)).
-			Run()
-
-		grafana := metrics.NewServer("grafana", grafanaPort)
-		addTargets(client, grafana, eventRegistry)
-
-		// run the grafana server
-		grafana.Run()
 	}
 
 	// init trader related actions
@@ -71,8 +55,15 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 		for {
 			select {
 			case message := <-signal.Source:
+				log.Debug().
+					Str("user", trader.account).
+					Str("message", fmt.Sprintf("%+v", message)).
+					Msg("received message")
 				// propagate message to others ...
 				signal.Output <- message
+				log.Debug().
+					Str("user", trader.account).
+					Msg("message propagated")
 				if !trader.running {
 					// we are in stopped state ...
 					log.Debug().

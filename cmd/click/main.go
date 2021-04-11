@@ -87,7 +87,6 @@ func run() {
 	signalChannel := signal.MessageSignal{
 		Output: make(chan signal.Message),
 	}
-	output := make(chan signal.Message)
 
 	processors := make([]api.Processor, 0)
 
@@ -98,6 +97,7 @@ func run() {
 		log.Fatalf(err.Error())
 	}
 
+	output := make(chan signal.Message)
 	for _, detail := range accounts {
 
 		if detail.User.Index != "" && detail.User.Alias != "" {
@@ -136,15 +136,13 @@ func run() {
 				Str("user", string(detail.Name)).
 				Msg("user has not exchange config")
 		}
-
 	}
 
 	// TODO : orchestrate the closing of signals
-
 	// add a final processor for the signals ...
 	go func() {
 		for msg := range output {
-			logger.Debug().Str("message", fmt.Sprintf("%+v", msg)).Msg("signal received")
+			logger.Debug().Str("message", fmt.Sprintf("%+v", msg)).Msg("signal processed")
 		}
 	}()
 
