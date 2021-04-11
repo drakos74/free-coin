@@ -93,7 +93,7 @@ func run() {
 
 	processors = append(processors, signal.Propagate(registry, exchange, user, signalChannel.Output))
 	// + add the default user for the processor to be able to reply
-	err = user.AddUser(api.CoinClick, "")
+	err = user.AddUser(api.CoinClick, "", 0)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -102,7 +102,7 @@ func run() {
 
 		if detail.User.Index != "" && detail.User.Alias != "" {
 			// add the users
-			err = user.AddUser(detail.User.Index, detail.User.Alias)
+			err = user.AddUser(detail.User.Index, detail.User.Alias, detail.User.ChatID)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}

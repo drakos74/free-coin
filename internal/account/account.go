@@ -67,6 +67,7 @@ type ExchangeDetails struct {
 
 // UserDetails are the user communication details.
 type UserDetails struct {
-	Index api.Index
-	Alias string
+	Index  api.Index
+	ChatID int64
+	Alias  string
 }

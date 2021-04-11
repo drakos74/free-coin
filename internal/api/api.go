@@ -43,7 +43,7 @@ type User interface {
 	// Send sends a message to the user adn returns the message ID
 	Send(channel Index, message *Message, trigger *Trigger) int
 	// AddUser adds the given chatID for the specified user name
-	AddUser(channel Index, user string) error
+	AddUser(channel Index, user string, chatID int64) error
 }
 
 // Reply sends a reply message based on the given error to the user.

@@ -74,6 +74,6 @@ func (v *User) Send(channel api.Index, message *api.Message, trigger *api.Trigge
 	return -1
 }
 
-func (v *User) AddUser(channel api.Index, user string) error {
+func (v *User) AddUser(channel api.Index, user string, chatID int64) error {
 	return nil
 }
