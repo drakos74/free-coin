@@ -13,6 +13,7 @@ import (
 const (
 	intervalKey   = "interval"
 	accumulateKey = "accumulate"
+	userKey       = "user"
 )
 
 type Message struct {

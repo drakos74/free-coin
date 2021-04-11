@@ -95,12 +95,14 @@ func (l Logger) Load(k storage.Key, value interface{}) error {
 type Registry struct {
 	hash   int64
 	logger *Logger
+	root   string
 }
 
 func NewEventRegistry(path string) *Registry {
 	return &Registry{
 		hash:   time.Now().Unix(),
 		logger: NewLogger(path),
+		root:   path,
 	}
 }
 
@@ -117,6 +119,10 @@ func EventRegistry(parent string) storage.EventRegistry {
 func (e *Registry) WithHash(h int64) *Registry {
 	e.hash = h
 	return e
+}
+
+func (e *Registry) Root() string {
+	return e.root
 }
 
 func (e *Registry) Add(key storage.K, value interface{}) error {

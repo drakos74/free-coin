@@ -52,10 +52,11 @@ func (m *Mapping) add(key, value string) error {
 
 // Details define the account details.
 type Details struct {
-	Name     Name
-	Alias    []string
-	Exchange ExchangeDetails
-	User     UserDetails
+	Name       Name
+	Alias      []string
+	Multiplier float64
+	Exchange   ExchangeDetails
+	User       UserDetails
 }
 
 // ExchangeDetails are the exchange specific details.

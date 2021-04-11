@@ -12,7 +12,6 @@ import (
 	"github.com/drakos74/free-coin/client/binance"
 	"github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
-	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/algo/processor/signal"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -79,42 +78,11 @@ func run() {
 
 	storageShard := json.BlobShard(storage.InternalPath)
 	registry := json.EventRegistry(storage.SignalsPath)
-	// load the default configuration
-	configs := make(map[model.Coin]map[time.Duration]processor.Config)
 
-	details := []account.Details{
-		{
-			Name: account.Parakmi,
-			//Exchange: account.ExchangeDetails{
-			//	Name: binance.Name,
-			//},
-			User: account.UserDetails{
-				Index: api.CoinClick,
-				Alias: "moneytized",
-			},
-		},
-		{
-			Name: account.Drakos,
-			Exchange: account.ExchangeDetails{
-				Name:   binance.Name,
-				Margin: true,
-			},
-			User: account.UserDetails{
-				Index: api.CoinClick,
-				Alias: "Vagz",
-			},
-		},
-		//{
-		//	Name: account.Rasta,
-		//	Exchange: account.ExchangeDetails{
-		//		Name: binance.Name,
-		//	},
-		//	User: account.UserDetails{
-		//		Index: api.CoinClick,
-		//		Alias: "jimbrast",
-		//	},
-		//}, //-1001366701259
-	}
+	// load the default configuration
+	configs := make(map[model.Coin]map[time.Duration]signal.Settings)
+
+	accounts := getAccounts()
 
 	signalChannel := signal.MessageSignal{
 		Output: make(chan signal.Message),
@@ -123,14 +91,14 @@ func run() {
 
 	processors := make([]api.Processor, 0)
 
-	processors = append(processors, signal.Receiver("", storageShard, registry, exchange, user, signalChannel, configs))
+	processors = append(processors, signal.Propagate(registry, exchange, user, signalChannel.Output))
 	// + add the default user for the processor to be able to reply
 	err = user.AddUser(api.CoinClick, "")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
-	for _, detail := range details {
+	for _, detail := range accounts {
 
 		if detail.User.Index != "" && detail.User.Alias != "" {
 			// add the users

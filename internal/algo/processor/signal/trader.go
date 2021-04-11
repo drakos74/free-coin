@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -16,6 +17,7 @@ const storagePath = "signals"
 
 type trader struct {
 	client    api.Exchange
+	settings  map[model.Coin]map[time.Duration]Settings
 	positions map[string]model.Position
 	storage   storage.Persistence
 	account   string
@@ -23,7 +25,7 @@ type trader struct {
 	lock      *sync.RWMutex
 }
 
-func newTrader(id string, client api.Exchange, shard storage.Shard) (*trader, error) {
+func newTrader(id string, client api.Exchange, shard storage.Shard, settings map[model.Coin]map[time.Duration]Settings) (*trader, error) {
 	st, err := shard(path.Join(storagePath, id))
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
@@ -35,6 +37,7 @@ func newTrader(id string, client api.Exchange, shard storage.Shard) (*trader, er
 		Int("num", len(positions)).Msg("loaded positions")
 	return &trader{
 		client:    client,
+		settings:  settings,
 		positions: positions,
 		storage:   st,
 		account:   id,

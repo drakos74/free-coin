@@ -24,7 +24,7 @@ stop() {
 build() {
   process="$1"
   cd cmd/"$process" || exit
-  GOOS=linux GOARCH=amd64 go build -o "$process" -mod vendor
+  GOOS=linux GOARCH=amd64 go build -o "$process" -mod vendor || exit
 }
 
 start() {

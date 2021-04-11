@@ -1,10 +1,7 @@
 package signal
 
 import (
-	"context"
 	"fmt"
-	"math"
-	"sort"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -24,151 +21,12 @@ const (
 	grafanaPort   = 6124
 )
 
-func (t *trader) compoundKey(prefix string) string {
-	return fmt.Sprintf("%s_%s", prefix, t.account)
-}
-
-func (t *trader) switchOnOff(user api.User) {
-	for command := range user.Listen(t.compoundKey(OnOffSwitch), "?r") {
-
-		if t.account != "" && command.User != t.account {
-			continue
-		}
-
-		var action string
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?r"),
-			api.OneOf(&action, "start", "stop", ""),
-		)
-
-		if err != nil {
-			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
-			continue
-		}
-
-		switch action {
-		case "start":
-			t.running = true
-		case "stop":
-			t.running = false
-		}
-		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), emoji.MapBool(t.running))).ReplyTo(command.ID), nil)
-
-	}
-}
-
-func (t *trader) trackUserActions(client api.Exchange, user api.User) {
-
-	for command := range user.Listen(t.compoundKey(ProcessorName), "?p") {
-
-		if t.account != "" && t.account != command.User {
-			continue
-		}
-
-		ctx := context.Background()
-
-		errMsg := ""
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?p"),
-		)
-
-		if err != nil {
-			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
-			continue
-		}
-
-		keys, positions, prices := t.getAll(ctx)
-
-		// get account balance first to double check ...
-		bb, err := client.Balance(ctx, prices)
-		if err != nil {
-			errMsg = err.Error()
-		}
-
-		freeCoin := model.Coin("free")
-		// add the total coin
-		total := model.Balance{
-			Coin: freeCoin,
-		}
-
-		sort.Strings(keys)
-		now := time.Now()
-
-		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "positions"))
-		if len(positions) == 0 {
-			report.AddLine("no open positions")
-		}
-		for i, k := range keys {
-			pos := positions[k]
-
-			since := now.Sub(pos.OpenTime)
-			net, profit := pos.Value()
-			configMsg := fmt.Sprintf("[ %s ] [ %.0fh ]", k, math.Round(since.Hours()))
-			msg := fmt.Sprintf("[%d] %s %.2f%s (%.2f%s) <- %s | %f [%f]",
-				i+1,
-				emoji.MapToSign(net),
-				profit,
-				"%",
-				pos.OpenPrice,
-				emoji.Money,
-				emoji.MapType(pos.Type),
-				pos.Volume,
-				bb[pos.Coin].Volume,
-			)
-
-			if balance, ok := bb[pos.Coin]; ok {
-				balance.Volume -= pos.Volume
-				bb[pos.Coin] = balance
-			}
-
-			total.Locked += pos.OpenPrice * pos.Volume
-			total.Volume += pos.CurrentPrice * pos.Volume
-
-			// TODO : send a trigger for each Position to give access to adjust it
-			//trigger := &api.Trigger{
-			//	ID:  pos.ID,
-			//	Key: positionKey,
-			//}
-			report = report.AddLine(msg).AddLine(configMsg).AddLine("************")
-			if errMsg != "" {
-				report = report.AddLine(fmt.Sprintf("balance:error:%s", errMsg))
-			}
-		}
-		// send all positions report ... to avoid spamming the chat
-		user.Send(api.Index(command.User), report, nil)
-
-		balanceReport := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "balance"))
-		for coin, balance := range bb {
-			if math.Abs(balance.Volume) > 0.000000001 {
-				balanceReport = balanceReport.AddLine(fmt.Sprintf("%s %f -> %f%s",
-					string(coin),
-					balance.Volume,
-					balance.Volume*balance.Price,
-					emoji.Money))
-			}
-		}
-		// print also the total ...
-		v := (total.Volume - total.Locked) / total.Locked
-		balanceReport.AddLine(fmt.Sprintf("%s(%.2f%s) %f%s -> %f%s",
-			emoji.MapValue(10*v/2),
-			100*v,
-			"%",
-			total.Locked,
-			emoji.Money,
-			total.Volume,
-			emoji.Money))
-		user.Send(api.Index(command.User), balanceReport, nil)
-	}
-}
-
 type MessageSignal struct {
 	Source chan Message
 	Output chan Message
 }
 
-func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistry, client api.Exchange, user api.User, signal MessageSignal, configs map[model.Coin]map[time.Duration]processor.Config) api.Processor {
+func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistry, client api.Exchange, user api.User, signal MessageSignal, settings map[model.Coin]map[time.Duration]Settings) api.Processor {
 
 	registry, err := eventRegistry(id)
 	if err != nil {
@@ -184,14 +42,14 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 			Run()
 
 		grafana := metrics.NewServer("grafana", grafanaPort)
-		addTargets("", client, grafana, registry)
+		addTargets(client, grafana, eventRegistry)
 
 		// run the grafana server
 		grafana.Run()
 	}
 
 	// init trader related actions
-	trader, err := newTrader(id, client, shard)
+	trader, err := newTrader(id, client, shard, settings)
 	go trader.trackUserActions(client, user)
 	go trader.switchOnOff(user)
 
@@ -242,11 +100,6 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 								Str("account", trader.account).
 								Str("position", fmt.Sprintf("%+v", position)).
 								Msg("ignoring signal")
-							//account.Send(api.External,
-							//	api.NewMessage("ignoring signal").
-							//		AddLine(createTypeMessage(coin, t, v, p, false)).
-							//		AddLine(createReportMessage(key, fmt.Errorf("%s:%v:%v", emoji.MapType(position.Type), position.Volume, position.OpenPrice))),
-							//	nil)
 							continue
 						}
 						// we need to close the position

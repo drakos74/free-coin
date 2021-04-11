@@ -59,6 +59,7 @@ func (k Key) Path() string {
 type Registry interface {
 	Add(key K, value interface{}) error
 	GetAll(key K, value interface{}) error
+	Root() string
 }
 
 // Persistence is a batch storage that offers the functionality to store and load large objects at once.
@@ -94,6 +95,10 @@ type VoidRegistry struct {
 
 func NewVoidRegistry() *VoidRegistry {
 	return &VoidRegistry{}
+}
+
+func (v VoidRegistry) Root() string {
+	return ""
 }
 
 func (v VoidRegistry) Add(key K, value interface{}) error {

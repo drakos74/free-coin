@@ -37,30 +37,46 @@ type query struct {
 	orders    Orders
 }
 
-func addTargets(prefix string, client api.Exchange, grafana *metrics.Server, registry storage.Registry) {
-	registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath)
-	grafana.Target(fmt.Sprintf("%s-%s", prefix, "PnL"), readFromRegistry(client, registryPath, registry, noError, addPnL))
-	grafana.Target(fmt.Sprintf("%s-%s", prefix, "trades"), readFromRegistry(client, registryPath, registry, noError, count))
-	grafana.Target(fmt.Sprintf("%s-%s", prefix, "errors"), readFromRegistry(client, registryPath, registry, isError, count))
+func addTargets(client api.Exchange, grafana *metrics.Server, registryConstr storage.EventRegistry) {
+	grafana.Target("PnL", readFromRegistry(client, registryConstr, noError, addPnL))
+	grafana.Target("trades", readFromRegistry(client, registryConstr, noError, count))
+	grafana.Target("errors", readFromRegistry(client, registryConstr, isError, count))
 }
 
-func readFromRegistry(client api.Exchange, registryPath string, registry storage.Registry, condition func(dir string) bool, addSeries func(query query) metrics.Series) metrics.TargetQuery {
+func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry, condition func(dir string) bool, addSeries func(query query) metrics.Series) metrics.TargetQuery {
 	return func(data map[string]interface{}, timeRange cointime.Range) []metrics.Series {
 		assets := make([]metrics.Series, 0)
 		accountFor := make(map[string]struct{})
 
 		prices, err := client.CurrentPrice(context.Background())
-
 		if err != nil {
 			prices = make(map[model.Coin]model.CurrentPrice)
 		}
 
+		u, err := parseString(userKey, data)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("data", fmt.Sprintf("%+v", data)).
+				Msg("could not parse user")
+			return make([]metrics.Series, 0)
+		}
+
+		registry, err := registryConstr(u)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", u).
+				Msg("could not create registry")
+			return make([]metrics.Series, 0)
+		}
+
+		registryPath := filepath.Join(storage.DefaultDir, storage.RegistryDir, storage.SignalsPath, u)
 		err = filepath.Walk(registryPath, func(path string, info os.FileInfo, err error) error {
 			// take into account only files
 			dir := filepath.Dir(path)
 			index := filepath.Base(dir)
 			if info != nil && !info.IsDir() {
-
 				qq := queryGenerator{
 					dir:       dir,
 					index:     index,
@@ -71,7 +87,6 @@ func readFromRegistry(client api.Exchange, registryPath string, registry storage
 					condition: condition,
 					addSeries: addSeries,
 				}
-
 				if _, ok := accountFor[index]; ok {
 					return nil
 				}
@@ -95,7 +110,6 @@ func readFromRegistry(client api.Exchange, registryPath string, registry storage
 
 func parseEvents(queryGen queryGenerator) (metrics.Series, error) {
 	if queryGen.condition(queryGen.dir) {
-
 		orders := []Order{{}}
 		// look up one level up
 		key := storage.K{
@@ -267,4 +281,12 @@ func parseBool(key string, data map[string]interface{}) bool {
 		}
 	}
 	return false
+}
+
+func parseString(key string, data map[string]interface{}) (string, error) {
+	if s, ok := data[key]; ok {
+		u := fmt.Sprintf("%v", s)
+		return u, nil
+	}
+	return "", fmt.Errorf("key does not exist: %s", key)
 }
