@@ -84,13 +84,13 @@ func run() {
 
 	accounts := getAccounts()
 
-	signalChannel := signal.MessageSignal{
+	userSignal := signal.MessageSignal{
 		Output: make(chan signal.Message),
 	}
 
 	processors := make([]api.Processor, 0)
 
-	processors = append(processors, signal.Propagate(registry, exchange, user, signalChannel.Output))
+	processors = append(processors, signal.Propagate(registry, exchange, user, userSignal.Output))
 	// + add the default user for the processor to be able to reply
 	err = user.AddUser(api.CoinClick, "", 0)
 	if err != nil {
@@ -112,8 +112,8 @@ func run() {
 
 		if detail.Exchange.Name != "" {
 			// secondary user ...
-			userSignal := signal.MessageSignal{
-				Source: signalChannel.Output,
+			userSignal = signal.MessageSignal{
+				Source: userSignal.Output,
 				Output: make(chan signal.Message),
 			}
 			var userExchange api.Exchange
