@@ -1,6 +1,8 @@
 package signal
 
 import (
+	"fmt"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
@@ -33,12 +35,20 @@ func Propagate(eventRegistry storage.EventRegistry, client api.Exchange, user ap
 		for {
 			select {
 			case message := <-source:
+				log.Debug().
+					Str("message", fmt.Sprintf("%+v", message)).
+					Msg("received message")
 				// propagate message to others ...
-				output <- message
+				go propagateMessage("", output, message)
 				// TODO ... start consuming prices for the mentioned asset ...
 			case trade := <-in:
 				out <- trade
 			}
 		}
 	}
+}
+
+func propagateMessage(id string, output chan Message, message Message) {
+	output <- message
+	log.Debug().Str("user", id).Msg("message propagated")
 }
