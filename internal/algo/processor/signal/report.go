@@ -126,6 +126,7 @@ func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry,
 				sum += p[0]
 				totals.DataPoints = append(totals.DataPoints, []float64{sum, p[1]})
 			}
+			return []metrics.Series{totals}
 		}
 
 		return assets
