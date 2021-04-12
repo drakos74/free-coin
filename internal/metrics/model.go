@@ -51,9 +51,16 @@ type AnnotationInstance struct {
 	Tags     []string `json:"tags"`
 }
 
+type Points [][]float64
+
+// for sorting predictions
+func (p Points) Len() int           { return len(p) }
+func (p Points) Less(i, j int) bool { return p[i][1] < p[j][1] }
+func (p Points) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 type Series struct {
-	Target     string      `json:"target"`
-	DataPoints [][]float64 `json:"datapoints"`
+	Target     string `json:"target"`
+	DataPoints Points `json:"datapoints"`
 }
 
 func NewTable() Table {

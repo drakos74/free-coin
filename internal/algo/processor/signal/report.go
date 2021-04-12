@@ -108,6 +108,26 @@ func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry,
 				Err(err).
 				Msg("could not look into registry path")
 		}
+
+		total := parseBool(totalsKey, data)
+		if total {
+			sum := 0.0
+			allPoints := make(metrics.Points, 0)
+			for _, a := range assets {
+				allPoints = append(allPoints, a.DataPoints...)
+			}
+			sort.Sort(allPoints)
+
+			totals := metrics.Series{
+				Target:     fmt.Sprintf("%s", "total"),
+				DataPoints: make([][]float64, 0),
+			}
+			for _, p := range allPoints {
+				sum += p[0]
+				totals.DataPoints = append(totals.DataPoints, []float64{sum, p[1]})
+			}
+		}
+
 		return assets
 	}
 }

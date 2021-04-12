@@ -15,6 +15,7 @@ const (
 	accumulateKey = "accumulate"
 	feesKey       = "fees"
 	userKey       = "user"
+	totalsKey     = "totals"
 )
 
 type Message struct {
