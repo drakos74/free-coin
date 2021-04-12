@@ -18,6 +18,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	fee = 0.75
+)
+
 type queryGenerator struct {
 	dir       string
 	index     string
@@ -229,16 +233,23 @@ func addPnL(query query) metrics.Series {
 }
 
 func count(query query) metrics.Series {
-	count := 0.0
+	sum := 0.0
 
 	series := metrics.Series{
 		Target:     query.index,
 		DataPoints: make([][]float64, 0),
 	}
+
+	fees := parseBool(feesKey, query.data)
+
 	for _, order := range query.orders {
 		if query.timeRange.IsWithin(order.Order.Time) {
-			count++
-			series.DataPoints = append(series.DataPoints, []float64{count, float64(cointime.ToMilli(order.Order.Time))})
+			if fees {
+				sum += order.Order.Price * order.Order.Volume * fee / 100
+			} else {
+				sum++
+			}
+			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
 		}
 	}
 	return series

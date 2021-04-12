@@ -13,6 +13,7 @@ import (
 const (
 	intervalKey   = "interval"
 	accumulateKey = "accumulate"
+	feesKey       = "fees"
 	userKey       = "user"
 )
 
