@@ -177,6 +177,8 @@ func addPnL(query query) metrics.Series {
 
 	hash := cointime.NewHash(qd.Interval)
 
+	totals := parseBool(totalsKey, query.data)
+
 	ss := make(map[int64]float64)
 
 	var lastValue float64
@@ -202,12 +204,13 @@ func addPnL(query query) metrics.Series {
 			}
 		}
 
+		var net float64
 		if order.Order.RefID == "" {
 			openingOrders[order.Order.ID] = order
 		} else {
 			// else lets find the opening order
 			if o, ok := openingOrders[order.Order.RefID]; ok {
-				net := order.Order.Value() + o.Order.Value()
+				net = order.Order.Value() + o.Order.Value()
 				ss[h] = ss[h] + net
 			} else {
 				log.Error().Str("coin", string(order.Order.Coin)).Str("ref-account", order.Order.RefID).Msg("could not pair order")
@@ -217,6 +220,9 @@ func addPnL(query query) metrics.Series {
 			// add the previous one ... if it s not the first one ...
 			if lh > 0 {
 				v := ss[lh]
+				if totals {
+					v = net
+				}
 				lastValue = v
 				series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(hash.Undo(lh)))})
 			}
@@ -228,7 +234,7 @@ func addPnL(query query) metrics.Series {
 	last := hash.Undo(lh)
 	now := time.Now()
 
-	if last.Before(now) {
+	if last.Before(now) && !totals {
 		lastValue += ss[lh]
 		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(last))})
 	}
@@ -242,12 +248,16 @@ func addPnL(query query) metrics.Series {
 		EndTimeIsNow < 1 {
 		// if we have a last price for this asset ...
 		// and we re left with an open order
+		var v float64
 		if lastOrder.Order.Type == model.Buy {
-			lastValue += (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
+			v = (p.Price - lastOrder.Order.Price) * lastOrder.Order.Volume
 		} else {
-			lastValue += (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
+			v = (lastOrder.Order.Price - p.Price) * lastOrder.Order.Volume
 		}
-		series.DataPoints = append(series.DataPoints, []float64{lastValue, float64(cointime.ToMilli(query.timeRange.To))})
+		if !totals {
+			v += lastValue
+		}
+		series.DataPoints = append(series.DataPoints, []float64{v, float64(cointime.ToMilli(query.timeRange.To))})
 	}
 
 	return series
@@ -261,28 +271,25 @@ func count(query query) metrics.Series {
 		DataPoints: make([][]float64, 0),
 	}
 
+	totals := parseBool(totalsKey, query.data)
+
 	fees := parseBool(feesKey, query.data)
 
 	for _, order := range query.orders {
 		if query.timeRange.IsWithin(order.Order.Time) {
+			var value float64
 			if fees {
-				sum += order.Order.Price * order.Order.Volume * fee / 100
+				value = order.Order.Price * order.Order.Volume * fee / 100
 			} else {
-				sum++
+				value = 1.0
+			}
+			if totals {
+				sum = value
+			} else {
+				sum += value
 			}
 			series.DataPoints = append(series.DataPoints, []float64{sum, float64(cointime.ToMilli(order.Order.Time))})
 		}
-	}
-	return series
-}
-
-func instance(index string, prices map[model.Coin]model.CurrentPrice, orders Orders) metrics.Series {
-	series := metrics.Series{
-		Target:     index,
-		DataPoints: make([][]float64, 0),
-	}
-	for _, order := range orders {
-		series.DataPoints = append(series.DataPoints, []float64{1.0, float64(cointime.ToMilli(order.Order.Time))})
 	}
 	return series
 }
