@@ -16,6 +16,8 @@ const (
 	feesKey       = "fees"
 	userKey       = "user"
 	totalsKey     = "totals"
+
+	minSize = 20.0
 )
 
 type Message struct {
@@ -32,7 +34,7 @@ func (m Message) Price() (float64, error) {
 
 func (m Message) Volume() (float64, float64, error) {
 	// TODO : re-enable to use the right amounts
-	size := 20.0
+	size := minSize
 	//vol, err := strconv.ParseFloat(m.Config.Position, 64)
 	//if err != nil {
 	//	return 0, fmt.Errorf("could not parse volume from '%v': %w", m.Config.Position, err)

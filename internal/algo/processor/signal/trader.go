@@ -150,26 +150,31 @@ func (t *trader) parseConfig(c model.Coin, b float64) {
 }
 
 func (t *trader) updateConfig(multiplier float64, match func(c model.Coin) bool) error {
-	if multiplier <= 0.0 {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if multiplier < 0.0 {
 		return fmt.Errorf("cannot update config for negative multipler %f", multiplier)
 	}
 
-	var m bool
-
-	newConfig := make(map[model.Coin]config)
+	newCfg := make(map[model.Coin]config)
 	for c, cfg := range t.config {
 		if match(c) {
-			cfg.multiplier = multiplier
-			m = true
+			if multiplier > 0 {
+				cfg.multiplier = multiplier
+			}
 		}
-		newConfig[c] = cfg
+		newCfg[c] = cfg
 	}
 
-	if !m {
-		return fmt.Errorf("could not match any coin")
+	// get whatever we have from the positions...
+	// in case we have not seen this trade yet e.g. restart use-case
+	for _, pos := range t.positions {
+		if _, ok := newCfg[pos.Coin]; !ok {
+			newCfg[pos.Coin] = newConfig(minSize)
+		}
 	}
-	t.config = newConfig
 
+	t.config = newCfg
 	return nil
 }
 
