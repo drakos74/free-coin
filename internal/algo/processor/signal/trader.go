@@ -15,6 +15,26 @@ import (
 
 const storagePath = "signals"
 
+type config struct {
+	multiplier float64
+	base       float64
+}
+
+func newConfig(b float64) config {
+	return config{
+		multiplier: 1.0,
+		base:       b,
+	}
+}
+
+func (c config) value() float64 {
+	return c.multiplier * c.base
+}
+
+func (c config) String() string {
+	return fmt.Sprintf("%.2f * %.2f -> %.2f", c.base, c.multiplier, c.value())
+}
+
 type trader struct {
 	client    api.Exchange
 	settings  map[model.Coin]map[time.Duration]Settings
@@ -22,6 +42,7 @@ type trader struct {
 	storage   storage.Persistence
 	account   string
 	running   bool
+	config    map[model.Coin]config
 	lock      *sync.RWMutex
 }
 
@@ -42,6 +63,7 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		storage:   st,
 		account:   id,
 		running:   true,
+		config:    make(map[model.Coin]config),
 		lock:      new(sync.RWMutex),
 	}, nil
 }
@@ -117,6 +139,38 @@ func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 	}
 	t.positions[key] = position
 	return t.storage.Store(stKey(), t.positions)
+}
+
+func (t *trader) parseConfig(c model.Coin, b float64) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if _, ok := t.config[c]; !ok {
+		t.config[c] = newConfig(b)
+	}
+}
+
+func (t *trader) updateConfig(multiplier float64, match func(c model.Coin) bool) error {
+	if multiplier <= 0.0 {
+		return fmt.Errorf("cannot update config for negative multipler %f", multiplier)
+	}
+
+	var m bool
+
+	newConfig := make(map[model.Coin]config)
+	for c, cfg := range t.config {
+		if match(c) {
+			cfg.multiplier = multiplier
+			m = true
+		}
+		newConfig[c] = cfg
+	}
+
+	if !m {
+		return fmt.Errorf("could not match any coin")
+	}
+	t.config = newConfig
+
+	return nil
 }
 
 func stKey() storage.Key {

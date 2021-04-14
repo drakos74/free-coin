@@ -30,7 +30,7 @@ func (m Message) Price() (float64, error) {
 	return strconv.ParseFloat(m.Data.Price, 64)
 }
 
-func (m Message) Volume() (float64, error) {
+func (m Message) Volume() (float64, float64, error) {
 	// TODO : re-enable to use the right amounts
 	size := 20.0
 	//vol, err := strconv.ParseFloat(m.Config.Position, 64)
@@ -39,9 +39,9 @@ func (m Message) Volume() (float64, error) {
 	//}
 	price, err := strconv.ParseFloat(m.Data.Price, 64)
 	if err != nil {
-		return 0, fmt.Errorf("could not parse price from '%v': %w", m.Data.Price, err)
+		return 0, 0, fmt.Errorf("could not parse price from '%v': %w", m.Data.Price, err)
 	}
-	return size / price, nil
+	return size / price, size, nil
 }
 
 func (m Message) Type() (model.Type, error) {

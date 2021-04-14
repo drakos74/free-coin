@@ -143,6 +143,7 @@ func Int(d *int) Validator {
 
 // Float is a predefined Validator checking that the argument is a float.
 // it passes the reference to the value to the given interface argument.
+// it allows for emopty value, and interprets it as zero
 func Float(f *float64) Validator {
 	return func(s string) error {
 		if s == "" {

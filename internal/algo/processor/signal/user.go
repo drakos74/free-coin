@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -14,8 +15,67 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	PositionsReport = "signal-positions"
+	OnOffSwitch     = "signal-on-off"
+	Configuration   = "signal-configuration"
+	configPrefix    = "?m"
+)
+
 func (t *trader) compoundKey(prefix string) string {
 	return fmt.Sprintf("%s_%s", prefix, t.account)
+}
+
+func (t *trader) configure(user api.User) {
+	for command := range user.Listen(t.compoundKey(Configuration), configPrefix) {
+
+		if t.account != "" && command.User != t.account {
+			continue
+		}
+
+		var multiplier float64
+		var pair string
+		_, err := command.Validate(
+			api.AnyUser(),
+			api.Contains(configPrefix),
+			api.Float(&multiplier),
+			api.Any(&pair),
+		)
+
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Str("text", command.Content).
+				Str("user", command.User).
+				Msg("could not process user message")
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
+			continue
+		}
+
+		coin := model.Coin(pair)
+
+		if multiplier > 0 {
+			// adjust the multiplier ...
+			match := func(c model.Coin) bool {
+				if coin == "" {
+					return true
+				}
+				return coin == c
+			}
+			err := t.updateConfig(multiplier, match)
+			if err != nil {
+				api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
+			}
+		}
+
+		// build the report message
+		var sb strings.Builder
+		for c, cfg := range t.config {
+			sb.WriteString(fmt.Sprintf("%s : %s %s", c, cfg.String(), "\n"))
+		}
+		cfg := sb.String()
+		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), cfg)).ReplyTo(command.ID), nil)
+	}
 }
 
 func (t *trader) switchOnOff(user api.User) {
@@ -48,11 +108,6 @@ func (t *trader) switchOnOff(user api.User) {
 		case "stop":
 			t.running = false
 		}
-		log.Info().
-			Bool("running", t.running).
-			Str("text", command.Content).
-			Str("user", command.User).
-			Msg("processed message")
 		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), emoji.MapBool(t.running))).ReplyTo(command.ID), nil)
 	}
 }

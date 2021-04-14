@@ -14,7 +14,6 @@ import (
 
 const (
 	ProcessorName = "signal"
-	OnOffSwitch   = "signal-on-off"
 	port          = 8080
 	grafanaPort   = 6124
 )
@@ -36,6 +35,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	trader, err := newTrader(id, client, shard, settings)
 	go trader.trackUserActions(client, user)
 	go trader.switchOnOff(user)
+	go trader.configure(user)
 
 	if err != nil {
 		log.Error().Err(err).Str("account", trader.account).Str("processor", ProcessorName).Msg("could not start processor")
@@ -75,7 +75,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				coin := model.Coin(message.Data.Ticker)
 				key := message.Key()
 				t, tErr := message.Type()
-				v, vErr := message.Volume()
+				v, b, vErr := message.Volume()
+				trader.parseConfig(coin, b)
 				//p, pErr := message.Price()
 				var err error
 				var close string
