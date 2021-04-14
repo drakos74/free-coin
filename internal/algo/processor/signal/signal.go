@@ -75,7 +75,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				coin := model.Coin(message.Data.Ticker)
 				key := message.Key()
 				t, tErr := message.Type()
-				v, b, vErr := message.Volume()
+				v, b, vErr := message.Volume(trader.minSize)
 				trader.parseConfig(coin, b)
 				//p, pErr := message.Price()
 				var err error

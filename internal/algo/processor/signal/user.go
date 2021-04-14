@@ -33,12 +33,12 @@ func (t *trader) configure(user api.User) {
 			continue
 		}
 
-		var multiplier float64
+		var base int
 		var pair string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains(configPrefix),
-			api.Float(&multiplier),
+			api.Int(&base),
 			api.Any(&pair),
 		)
 
@@ -52,25 +52,28 @@ func (t *trader) configure(user api.User) {
 			continue
 		}
 
-		coin := model.Coin(pair)
+		//coin := model.Coin(pair)
+		//
+		//// adjust the multiplier ...
+		//match := func(c model.Coin) bool {
+		//	if coin == "" {
+		//		return true
+		//	}
+		//	return coin == c
+		//}
+		//err = t.updateConfig(multiplier, match)
+		//if err != nil {
+		//	api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
+		//}
 
-		// adjust the multiplier ...
-		match := func(c model.Coin) bool {
-			if coin == "" {
-				return true
-			}
-			return coin == c
-		}
-		err = t.updateConfig(multiplier, match)
-		if err != nil {
-			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
-		}
+		t.minSize = base
 
 		// build the report message
 		var sb strings.Builder
 		for c, cfg := range t.config {
 			sb.WriteString(fmt.Sprintf("%s : %s %s", c, cfg.String(), "\n"))
 		}
+		sb.WriteString(fmt.Sprintf("min-size : %d", t.minSize))
 		cfg := sb.String()
 		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), cfg)).ReplyTo(command.ID), nil)
 	}

@@ -32,9 +32,12 @@ func (m Message) Price() (float64, error) {
 	return strconv.ParseFloat(m.Data.Price, 64)
 }
 
-func (m Message) Volume() (float64, float64, error) {
+func (m Message) Volume(b int) (float64, float64, error) {
 	// TODO : re-enable to use the right amounts
 	size := minSize
+	if b > minSize {
+		size = float64(b)
+	}
 	//vol, err := strconv.ParseFloat(m.Config.Position, 64)
 	//if err != nil {
 	//	return 0, fmt.Errorf("could not parse volume from '%v': %w", m.Config.Position, err)

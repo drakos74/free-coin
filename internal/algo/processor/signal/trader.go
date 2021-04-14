@@ -42,6 +42,7 @@ type trader struct {
 	storage   storage.Persistence
 	account   string
 	running   bool
+	minSize   int
 	config    map[model.Coin]config
 	lock      *sync.RWMutex
 }
@@ -63,6 +64,7 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		storage:   st,
 		account:   id,
 		running:   true,
+		minSize:   minSize,
 		config:    make(map[model.Coin]config),
 		lock:      new(sync.RWMutex),
 	}, nil
