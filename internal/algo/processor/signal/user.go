@@ -29,10 +29,11 @@ func (t *trader) compoundKey(prefix string) string {
 func (t *trader) configure(user api.User) {
 	for command := range user.Listen(t.compoundKey(Configuration), configPrefix) {
 
-		fmt.Println(fmt.Sprintf("command = %+v", command))
 		if t.account != "" && command.User != t.account {
 			continue
 		}
+
+		fmt.Println(fmt.Sprintf("command = %+v", command))
 
 		var multiplier float64
 		var pair string
