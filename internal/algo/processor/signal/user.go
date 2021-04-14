@@ -33,8 +33,6 @@ func (t *trader) configure(user api.User) {
 			continue
 		}
 
-		fmt.Println(fmt.Sprintf("command = %+v", command))
-
 		var multiplier float64
 		var pair string
 		_, err := command.Validate(
@@ -56,18 +54,16 @@ func (t *trader) configure(user api.User) {
 
 		coin := model.Coin(pair)
 
-		if multiplier > 0 {
-			// adjust the multiplier ...
-			match := func(c model.Coin) bool {
-				if coin == "" {
-					return true
-				}
-				return coin == c
+		// adjust the multiplier ...
+		match := func(c model.Coin) bool {
+			if coin == "" {
+				return true
 			}
-			err := t.updateConfig(multiplier, match)
-			if err != nil {
-				api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
-			}
+			return coin == c
+		}
+		err = t.updateConfig(multiplier, match)
+		if err != nil {
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "error")).ReplyTo(command.ID), err)
 		}
 
 		// build the report message
