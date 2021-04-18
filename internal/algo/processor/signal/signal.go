@@ -84,6 +84,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				var err error
 				var close string
 				var order model.TrackedOrder
+				var profit float64
 				if tErr == nil && vErr == nil {
 					// check the positions ...
 					position, ok, positions := trader.check(key, coin)
@@ -136,6 +137,10 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						}, message.Time())
 					order.RefID = close
 					order, _, err = client.OpenOrder(order)
+					if order.RefID != "" {
+						position.CurrentPrice = order.Price
+						_, profit = position.Value()
+					}
 					if err == nil {
 						regErr := registry.Add(storage.K{
 							Pair:  message.Data.Ticker,
@@ -196,12 +201,14 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				log.Info().
 					Str("account", trader.account).
 					Str("type", t.String()).
+					Str("ref-id", order.RefID).
+					Float64("profit", profit).
 					Str("coin", string(coin)).
 					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
 				user.Send(api.Index(trader.account),
 					api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
-						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close)).
+						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close, profit)).
 						AddLine(createReportMessage(key, tErr, vErr, err)),
 					nil)
 			case trade := <-in:
@@ -211,13 +218,14 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	}
 }
 
-func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string) string {
-	return fmt.Sprintf("%s %s %s %.4f at %.4f",
+func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string, profit float64) string {
+	return fmt.Sprintf("%s %s %s %.4f at %.4f | %.2f",
 		string(coin),
 		emoji.MapOpen(close == ""),
 		emoji.MapType(t),
 		volume,
 		price,
+		profit,
 	)
 }
 
