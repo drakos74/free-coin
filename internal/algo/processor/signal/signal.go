@@ -33,6 +33,9 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 
 	// init trader related actions
 	trader, err := newTrader(id, client, shard, settings)
+	if err != nil {
+		log.Error().Str("user", id).Err(err).Msg("could not start tracker")
+	}
 	go trader.trackUserActions(client, user)
 	go trader.switchOnOff(user)
 	go trader.configure(user)
