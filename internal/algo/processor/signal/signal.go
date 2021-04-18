@@ -75,6 +75,18 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						Msg("ignoring signal")
 					continue
 				}
+
+				if message.Config.Mode != "MANUAL" {
+					rErr := registry.Add(storage.K{
+						Pair:  fmt.Sprintf("%s_%s", message.Data.Ticker, message.Config.Mode),
+						Label: message.Key(),
+					}, Order{
+						Message: message,
+					})
+					log.Debug().Str("mode", message.Config.Mode).Err(rErr).Msg("error saving other mode")
+					continue
+				}
+
 				coin := model.Coin(message.Data.Ticker)
 				key := message.Key()
 				t, tErr := message.Type()
