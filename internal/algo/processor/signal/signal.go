@@ -231,13 +231,15 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 }
 
 func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string, profit float64) string {
-	return fmt.Sprintf("%s %s %s %.4f at %.4f | %.2f",
+	return fmt.Sprintf("%s %s %s %.4f at %.4f | %s %.2f%s",
 		string(coin),
 		emoji.MapOpen(close == ""),
 		emoji.MapType(t),
 		volume,
 		price,
+		emoji.MapToSign(profit),
 		profit,
+		"%",
 	)
 }
 
