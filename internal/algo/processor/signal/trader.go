@@ -56,7 +56,6 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 	err = st.Load(stKey(), &positions)
 	log.Info().Err(err).
 		Str("account", id).
-		Str("positions", fmt.Sprintf("%+v", positions)).
 		Int("num", len(positions)).Msg("loaded positions")
 	return &trader{
 		client:    client,

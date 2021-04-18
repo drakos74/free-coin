@@ -65,6 +65,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				chatID = update.Message.Chat.ID
 			}
 
+			user := fmt.Sprintf("%+v", update.Message.From)
 			log.Debug().
 				Str("from", fmt.Sprintf("%+v", update.Message.From)).
 				Str("text", update.Message.Text).
@@ -72,8 +73,9 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 				Str("private", fmt.Sprintf("%v", private)).
 				Msg("message received")
 			// panic ...
-			if update.Message.Text == "?potso" {
-				panic("panic signal received!")
+			if update.Message.Text == "?potso" &&
+				(user == "Vagz" || user == "moneytized") {
+				panic(fmt.Sprintf("panic signal received from '%s' !", user))
 			}
 			b.lock.Lock()
 			for k, consumer := range b.consumers {
