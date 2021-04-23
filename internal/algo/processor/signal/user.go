@@ -242,7 +242,6 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		log.Warn().Str("pairs", fmt.Sprintf("%+v", pairs)).Msg("pairs")
 
 		pair := strings.ToUpper(fmt.Sprintf("%s%s", budget, c))
-
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
 			if budget == "" || string(balance.Coin) == pair {
