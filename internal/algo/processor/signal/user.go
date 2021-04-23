@@ -243,10 +243,9 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		pairs := client.Pairs(context.Background())
 		log.Warn().Str("pairs", fmt.Sprintf("%+v", pairs)).Msg("pairs")
 
-		pair := strings.ToUpper(fmt.Sprintf("%s%s", budget, c))
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
-			if matchesBalance(pair, budget, c, balance.Coin) {
+			if pair, ok := matchesBalance(budget, c, balance.Coin); ok {
 				if _, ok := pairs[pair]; !ok {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
 					continue
@@ -279,14 +278,14 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 	}
 }
 
-func matchesBalance(pair, budget, coin string, balance model.Coin) bool {
-	if !strings.HasSuffix(string(balance), coin) {
-		return false
+func matchesBalance(budget, coin string, balance model.Coin) (string, bool) {
+	if !strings.HasSuffix(string(balance), budget) {
+		return "", false
 	}
-	if budget == "all" {
-		return true
+	if coin == "all" {
+		return string(balance), true
 	}
-	return string(balance) == pair
+	return string(balance), string(balance) == strings.ToUpper(fmt.Sprintf("%s%s", budget, coin))
 }
 
 func createPositionMessage(i int, pos model.Position, balance model.Balance) string {
