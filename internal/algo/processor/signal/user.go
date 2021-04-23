@@ -241,13 +241,14 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		}
 
 		pairs := client.Pairs(context.Background())
+		log.Warn().Str("pairs", fmt.Sprintf("%+v", pairs)).Msg("pairs")
 
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
 			pair, err := matchesBalance(budget, c, balance.Coin)
-			if err != nil {
+			if err == nil {
 				if _, ok := pairs[pair]; !ok {
-					report.AddLine(fmt.Sprintf("error:%s:%s:%s", pair, "unknown", err.Error()))
+					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
 					continue
 				}
 				//build the pair ...
