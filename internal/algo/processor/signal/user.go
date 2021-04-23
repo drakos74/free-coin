@@ -281,7 +281,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 }
 
 func matchesBalance(budget, coin string, balance model.Coin) (string, error) {
-	if !strings.HasSuffix(string(balance), coin) {
+	if !strings.HasSuffix(string(balance), strings.ToUpper(coin)) {
 		return "", fmt.Errorf("no valid coin '%s' in '%s'", coin, balance)
 	}
 	if budget == "all" {
