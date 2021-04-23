@@ -17,6 +17,10 @@ type Query struct {
 	Index string
 }
 
+type Pair struct {
+	Coin model.Coin
+}
+
 // Client exposes the low level interface for interacting with a trade source.
 // TODO : split the trade retrieval and ordering logic.
 type Client interface {
@@ -30,6 +34,7 @@ type Exchange interface {
 	ClosePosition(position model.Position) error
 	CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error)
 	Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error)
+	Pairs(ctx context.Context) map[string]Pair
 }
 
 // User defines an external interface for exchanging information and sharing control with the user(s)

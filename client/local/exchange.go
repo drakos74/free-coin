@@ -178,6 +178,11 @@ func (e *Exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.Cu
 	return make(map[model.Coin]model.Balance), nil
 }
 
+func (e *Exchange) Pairs(ctx context.Context) map[string]api.Pair {
+	pairs := make(map[string]api.Pair)
+	return pairs
+}
+
 type Noop struct {
 }
 
@@ -199,4 +204,9 @@ func (n Noop) CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPri
 
 func (n Noop) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
 	return make(map[model.Coin]model.Balance), fmt.Errorf("noop 'Balance'")
+}
+
+func (n Noop) Pairs(ctx context.Context) map[string]api.Pair {
+	pairs := make(map[string]api.Pair)
+	return pairs
 }

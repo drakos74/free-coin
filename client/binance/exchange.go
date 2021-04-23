@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/drakos74/free-coin/internal/api"
+
 	"github.com/drakos74/free-coin/internal/account"
 
 	"github.com/rs/zerolog/log"
@@ -162,6 +164,14 @@ func (c *Exchange) ClosePosition(position coinmodel.Position) error {
 		Order: order,
 	})
 	return err
+}
+
+func (c *Exchange) Pairs(ctx context.Context) map[string]api.Pair {
+	pairs := make(map[string]api.Pair)
+	for k, _ := range c.info {
+		pairs[string(k)] = api.Pair{Coin: k}
+	}
+	return pairs
 }
 
 // Balance returns the account balance.

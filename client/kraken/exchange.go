@@ -125,3 +125,11 @@ func (e *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coin
 	// TODO :
 	return make(map[coinmodel.Coin]coinmodel.Balance), nil
 }
+
+func (e *Exchange) Pairs(ctx context.Context) map[string]api.Pair {
+	pairs := make(map[string]api.Pair)
+	for k, _ := range e.info {
+		pairs[string(k)] = api.Pair{Coin: k}
+	}
+	return pairs
+}

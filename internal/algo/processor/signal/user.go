@@ -203,6 +203,75 @@ func (t *trader) trackUserActions(client api.Exchange, user api.User) {
 	}
 }
 
+func (t *trader) trade(client api.Exchange, user api.User) {
+	for command := range user.Listen(t.compoundKey(ProcessorName), "?t") {
+
+		if t.account != "" && t.account != command.User {
+			continue
+		}
+
+		ctx := context.Background()
+
+		var c string
+		var budget string
+		_, err := command.Validate(
+			api.AnyUser(),
+			api.Contains("?t"),
+			api.NotEmpty(&c),
+			api.NotEmpty(&budget),
+		)
+
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Str("text", command.Content).
+				Str("user", command.User).
+				Msg("could not process user message")
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "command error")).ReplyTo(command.ID), err)
+			continue
+		}
+
+		// get balance to check availability
+		bb, err := client.Balance(ctx, nil)
+		if err != nil {
+			api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "balance error")).ReplyTo(command.ID), err)
+			continue
+		}
+
+		pairs := client.Pairs(context.Background())
+		log.Warn().Str("pairs", fmt.Sprintf("%+v", pairs)).Msg("pairs")
+
+		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
+		for _, balance := range bb {
+			if budget == "" || string(balance.Coin) == strings.ToUpper(budget) {
+				pair := fmt.Sprintf("%s%s", balance.Coin, c)
+				if _, ok := pairs[pair]; !ok {
+					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
+					continue
+				}
+				//build the pair ...
+				order := model.NewOrder(model.Coin(pair)).
+					Sell().
+					Market().
+					WithVolume(balance.Volume).
+					CreateTracked(model.Key{
+						Coin:     model.Coin(c),
+						Strategy: fmt.Sprintf("command:%s:%s", command.Content, command.User),
+					}, time.Now())
+				o, _, err := client.OpenOrder(order)
+				if err != nil {
+					report.AddLine(fmt.Sprintf("error:%s:%s", pair, err.Error()))
+				} else {
+					report.AddLine(fmt.Sprintf("%s %.4f %s for %.4f", emoji.MapType(o.Type), o.Volume, o.Coin, o.Price))
+				}
+			} else {
+				log.Warn().Str("budget", budget).Str("coin", string(balance.Coin)).Msg("no match")
+			}
+		}
+		user.Send(api.Index(command.User), report, nil)
+	}
+}
+
 func createPositionMessage(i int, pos model.Position, balance model.Balance) string {
 	net, profit := pos.Value()
 	return fmt.Sprintf("[%d] %s %.2f%s (%.2f%s) <- %s | %f [%f]",
