@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 const EURO = "€"
 
 // Coin defines a custom coin type
@@ -56,6 +58,21 @@ const (
 	// Sell defines a sell order.
 	Sell
 )
+
+func TypeFromString(t string) Type {
+	t = strings.ToUpper(t)
+	switch t {
+	case "TO":
+		fallthrough
+	case "BUY":
+		return Buy
+	case "FROM":
+		fallthrough
+	case "SELL":
+		return Sell
+	}
+	return NoType
+}
 
 // SignedType returns the type based on the given sign.
 func SignedType(v float64) Type {

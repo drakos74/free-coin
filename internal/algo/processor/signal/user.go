@@ -214,10 +214,12 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 
 		var c string
 		var budget string
+		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?t"),
 			api.NotEmpty(&c),
+			api.OneOf(&action, "buy", "to", "sell", "from"),
 			api.NotEmpty(&budget),
 		)
 
@@ -251,7 +253,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 				}
 				//build the pair ...
 				order := model.NewOrder(model.Coin(pair)).
-					Sell().
+					WithType(model.TypeFromString(action)).
 					Market().
 					WithVolume(balance.Volume).
 					CreateTracked(model.Key{
@@ -281,7 +283,7 @@ func matchesBalance(pair, budget, coin string, balance model.Coin) bool {
 	if !strings.HasSuffix(string(balance), coin) {
 		return false
 	}
-	if budget == "" {
+	if budget == "all" {
 		return true
 	}
 	return string(balance) == pair
