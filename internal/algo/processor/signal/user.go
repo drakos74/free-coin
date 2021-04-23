@@ -247,7 +247,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 			pair, err := matchesBalance(budget, c, balance.Coin)
 			if err != nil {
 				if _, ok := pairs[pair]; !ok {
-					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
+					report.AddLine(fmt.Sprintf("error:%s:%s:%s", pair, "unknown", err.Error()))
 					continue
 				}
 				//build the pair ...
