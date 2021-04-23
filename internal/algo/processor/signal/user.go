@@ -243,9 +243,9 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
-			pair := fmt.Sprintf("%s%s", budget, balance.Coin)
+			pair := strings.ToUpper(fmt.Sprintf("%s%s", budget, balance.Coin))
 
-			if budget == "" || string(balance.Coin) == strings.ToUpper(pair) {
+			if budget == "" || string(balance.Coin) == pair {
 				if _, ok := pairs[pair]; !ok {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
 					continue
@@ -266,7 +266,12 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 					report.AddLine(fmt.Sprintf("%s %.4f %s for %.4f", emoji.MapType(o.Type), o.Volume, o.Coin, o.Price))
 				}
 			} else {
-				log.Warn().Str("budget", budget).Str("coin", string(balance.Coin)).Msg("no match")
+				log.Warn().
+					Str("pair", pair).
+					Str("coin", c).
+					Str("budget", budget).
+					Str("coin", string(balance.Coin)).
+					Msg("no match")
 			}
 		}
 		user.Send(api.Index(command.User), report, nil)
