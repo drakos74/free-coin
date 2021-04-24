@@ -123,9 +123,11 @@ func (t *trader) trackUserActions(client api.Exchange, user api.User) {
 		ctx := context.Background()
 
 		errMsg := ""
+		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?p"),
+			api.OneOf(&action, "reset", ""),
 		)
 
 		if err != nil {
@@ -139,6 +141,13 @@ func (t *trader) trackUserActions(client api.Exchange, user api.User) {
 		}
 
 		keys, positions, prices := t.getAll(ctx)
+
+		if action == "reset" {
+			positions, err = t.reset("")
+			if err != nil {
+				api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "reset error")).ReplyTo(command.ID), err)
+			}
+		}
 
 		// get account balance first to double check ...
 		bb, err := client.Balance(ctx, prices)

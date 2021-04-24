@@ -57,6 +57,7 @@ type Details struct {
 	Multiplier float64
 	Exchange   ExchangeDetails
 	User       UserDetails
+	Filter     Filter
 }
 
 // ExchangeDetails are the exchange specific details.
@@ -70,4 +71,23 @@ type UserDetails struct {
 	Index  api.Index
 	ChatID int64
 	Alias  string
+}
+
+// Filter allows specific filtering logic per user account.
+type Filter struct {
+	Apply func(s string) error
+}
+
+// NoFilter defines a 'pass-all' filter.
+func NoFilter() Filter {
+	return Filter{Apply: func(s string) error {
+		return nil
+	}}
+}
+
+// NegFilter defines an 'always-reject' reject filter.
+func NegFilter() Filter {
+	return Filter{Apply: func(s string) error {
+		return fmt.Errorf("negative filter")
+	}}
 }

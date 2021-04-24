@@ -35,6 +35,12 @@ func (c config) String() string {
 	return fmt.Sprintf("%.2f * %.2f -> %.2f", c.base, c.multiplier, c.value())
 }
 
+type State struct {
+	MinSize   int                       `json:"min_size"`
+	Running   bool                      `json:"running"`
+	Positions map[string]model.Position `json:"positions"`
+}
+
 type trader struct {
 	client    api.Exchange
 	settings  map[model.Coin]map[time.Duration]Settings
@@ -53,11 +59,8 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
 	positions := make(map[string]model.Position)
-	err = st.Load(stKey(), &positions)
-	log.Info().Err(err).
-		Str("account", id).
-		Int("num", len(positions)).Msg("loaded positions")
-	return &trader{
+
+	t := &trader{
 		client:    client,
 		settings:  settings,
 		positions: positions,
@@ -67,7 +70,51 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		minSize:   minSize,
 		config:    make(map[model.Coin]config),
 		lock:      new(sync.RWMutex),
-	}, nil
+	}
+	return t, t.load()
+}
+
+func (t *trader) save() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.storage.Store(stKey(), t.positions)
+}
+
+func (t *trader) load() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	state := State{
+		MinSize:   0,
+		Running:   false,
+		Positions: make(map[string]model.Position),
+	}
+	err := t.storage.Load(stKey(), &state)
+	if err != nil {
+		return fmt.Errorf("could not load state: %w", err)
+	}
+	t.minSize = state.MinSize
+	t.running = state.Running
+	t.positions = state.Positions
+	log.Info().Err(err).
+		Str("account", t.account).
+		Int("num", len(t.positions)).
+		Bool("running", t.running).
+		Int("min-size", t.minSize).
+		Msg("loaded state")
+	return nil
+}
+
+func (t *trader) reset(coin model.Coin) (map[string]model.Position, error) {
+	newPositions := make(map[string]model.Position)
+	if string(coin) != "" {
+		for k, position := range t.positions {
+			if position.Coin != coin {
+				newPositions[k] = position
+			}
+		}
+	}
+	t.positions = newPositions
+	return t.positions, t.save()
 }
 
 func (t *trader) getAll(ctx context.Context) ([]string, map[string]model.Position, map[model.Coin]model.CurrentPrice) {
@@ -113,14 +160,12 @@ func (t *trader) check(key string, coin model.Coin) (model.Position, bool, []mod
 }
 
 func (t *trader) add(key string, order model.TrackedOrder, close string) error {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	if close != "" {
 		if _, ok := t.positions[key]; !ok {
 			return fmt.Errorf("cannot find posiiton to close for key: %s", key)
 		}
 		delete(t.positions, key)
-		return t.storage.Store(stKey(), t.positions)
+		return t.save()
 	}
 	// we need to be careful here and add the position ...
 	position := model.OpenPosition(order)
@@ -140,7 +185,7 @@ func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 			Msg("extending position")
 	}
 	t.positions[key] = position
-	return t.storage.Store(stKey(), t.positions)
+	return t.save()
 }
 
 func (t *trader) parseConfig(c model.Coin, b float64) {
@@ -152,8 +197,6 @@ func (t *trader) parseConfig(c model.Coin, b float64) {
 }
 
 func (t *trader) updateConfig(multiplier float64, match func(c model.Coin) bool) error {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	if multiplier < 0.0 {
 		return fmt.Errorf("cannot update config for negative multipler %f", multiplier)
 	}
@@ -177,12 +220,13 @@ func (t *trader) updateConfig(multiplier float64, match func(c model.Coin) bool)
 	}
 
 	t.config = newCfg
-	return nil
+	return t.save()
 }
 
 func stKey() storage.Key {
 	return storage.Key{
 		Pair:  "all",
+		Hash:  1,
 		Label: ProcessorName,
 	}
 }
