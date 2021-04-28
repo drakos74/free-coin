@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
 func main() {
