@@ -22,6 +22,7 @@ func Propagate(eventRegistry storage.EventRegistry, client api.Exchange, user ap
 	// init grafana monitor
 	grafana := metrics.NewServer("grafana", grafanaPort)
 	addTargets(client, grafana, eventRegistry)
+	// TODO : create grafana annotation for restart !
 	// run the grafana server
 	grafana.Run()
 

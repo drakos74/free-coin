@@ -3,14 +3,20 @@ package signal
 import (
 	"testing"
 
+	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/user/local"
+	"github.com/stretchr/testify/assert"
 )
 
-func testRCommand(t *testing.T) {
+func TestRCommand(t *testing.T) {
 
-	user, _ := local.NewUser("")
+	user := local.NewMockUser()
 
-	trader, _ := newTrader("", nil, nil, nil)
+	trader, _ := newTrader("", nil, storage.VoidShard(""), nil)
 
-	trader.switchOnOff(user)
+	go trader.switchOnOff(user)
+	assert.True(t, trader.running)
+
+	user.Assert(t, local.NewUserMessage("?r"), local.NewAssertion(1, local.Void()))
+
 }

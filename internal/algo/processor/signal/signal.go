@@ -2,6 +2,7 @@ package signal
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -43,6 +44,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 
 	if err != nil {
 		log.Error().Err(err).Str("account", trader.account).Str("processor", ProcessorName).Msg("could not start processor")
+		user.Send(api.Index(trader.account),
+			api.NewMessage(processor.Error(trader.compoundKey(ProcessorName), err)), nil)
 		return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 			for t := range in {
 				out <- t
@@ -50,6 +53,10 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 		}
 	}
 
+	// signal successful start of processor
+	user.Send(api.Index(trader.account),
+		api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "started processor")).
+			AddLine(createConfigMessage(trader)), nil)
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 		defer func() {
 			log.Info().Str("account", trader.account).Str("processor", ProcessorName).Msg("closing processor")
@@ -252,4 +259,13 @@ func createReportMessage(key string, err ...error) string {
 		}
 	}
 	return fmt.Sprintf("%s [%s]", key, errs)
+}
+
+func createConfigMessage(trader *trader) string {
+	parts := []string{
+		emoji.MapBool(trader.running),
+		fmt.Sprintf("[%d]", trader.minSize),
+		fmt.Sprintf("(%d)", len(trader.positions)),
+	}
+	return strings.Join(parts, " ")
 }

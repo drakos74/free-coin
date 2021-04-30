@@ -71,7 +71,7 @@ func Save(filePath string, fileName string, value interface{}) error {
 	}
 	defer f.Close()
 
-	b, err := json.Marshal(value)
+	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("could not save key '%+v': %w", p, err)
 	}

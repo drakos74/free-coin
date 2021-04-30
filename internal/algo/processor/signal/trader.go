@@ -74,10 +74,24 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 	return t, t.load()
 }
 
+func (t *trader) buildState() State {
+	return State{
+		MinSize:   t.minSize,
+		Running:   t.running,
+		Positions: t.positions,
+	}
+}
+
+func (t *trader) parseState(state State) {
+	t.minSize = state.MinSize
+	t.running = state.Running
+	t.positions = state.Positions
+}
+
 func (t *trader) save() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	return t.storage.Store(stKey(), t.positions)
+	return t.storage.Store(stKey(), t.buildState())
 }
 
 func (t *trader) load() error {
@@ -92,9 +106,7 @@ func (t *trader) load() error {
 	if err != nil {
 		return fmt.Errorf("could not load state: %w", err)
 	}
-	t.minSize = state.MinSize
-	t.running = state.Running
-	t.positions = state.Positions
+	t.parseState(state)
 	log.Info().Err(err).
 		Str("account", t.account).
 		Int("num", len(t.positions)).

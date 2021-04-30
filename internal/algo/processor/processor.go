@@ -40,3 +40,8 @@ func Void(name string) api.Processor {
 func Audit(name, msg string) string {
 	return fmt.Sprintf("[%s] %s", name, msg)
 }
+
+// Audit creates an audit message part for the user.
+func Error(name string, err error) string {
+	return fmt.Sprintf("[%s] error: %s", name, err.Error())
+}

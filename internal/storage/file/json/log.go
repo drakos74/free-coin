@@ -49,7 +49,7 @@ func (l *Logger) Store(k storage.Key, value interface{}) error {
 		return fmt.Errorf("timePath given is not a timePath: %s", filePath)
 	}
 
-	b, err := json.Marshal(value)
+	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("could not encode value '%+v': %w", value, err)
 	}
