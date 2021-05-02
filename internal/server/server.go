@@ -160,7 +160,7 @@ func (s *Server) Run() error {
 			for i := 0; i < len(pendingActions); i++ {
 				action := pendingActions[i]
 				if i == 0 {
-					log.Warn().
+					log.Debug().
 						Time("time", action.Time).
 						Str("action", action.Name).
 						Msg("started execution")
@@ -179,7 +179,7 @@ func (s *Server) Run() error {
 			case reaction := <-s.block.ReAction:
 				if act, ok := actions[reaction.ID]; ok {
 					// it s an existing action ... we probably need to close it
-					log.Warn().
+					log.Debug().
 						Time("time", act.Time).
 						Float64("duration", time.Since(act.Time).Seconds()).
 						Str("reaction", act.Name).
@@ -216,7 +216,7 @@ func (s *Server) Run() error {
 		}
 	}
 
-	log.Warn().Str("server", s.name).Int("port", s.port).Msg("starting server")
+	log.Info().Str("server", s.name).Int("port", s.port).Msg("starting server")
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil); err != nil {
 		return fmt.Errorf("could not start storage server: %w", err)
 	}
@@ -253,7 +253,7 @@ func Live() Route {
 func Read(r *http.Request, debug bool) (string, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if debug {
-		log.Info().
+		log.Debug().
 			Str("url", fmt.Sprintf("%+v", r.URL)).
 			Str("request", r.RequestURI).
 			Str("header", fmt.Sprintf("%+v", r.Header)).
@@ -272,7 +272,7 @@ func Read(r *http.Request, debug bool) (string, error) {
 func ReadJson(r *http.Request, debug bool, v interface{}) (string, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if debug {
-		log.Info().
+		log.Debug().
 			Err(err).
 			Str("url", fmt.Sprintf("%+v", r.URL)).
 			Str("request", r.RequestURI).
