@@ -126,6 +126,7 @@ func (l LotSize) Adjust(volume float64) float64 {
 	// adjust the min step
 	steps := volume / l.StepSize
 	// note steps must be round integer
+	// pick the floor to avoid insufficient funds for closing positions and sell-off
 	return math.Floor(steps) * l.StepSize
 }
 

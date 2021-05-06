@@ -256,6 +256,10 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
 			pair, err := matchesBalance(budget, c, balance.Coin)
+			// dont make manual trades with BNB and USDT
+			if strings.Contains(pair, "BNB") || strings.Contains(pair, "USDT") {
+				continue
+			}
 			coin := model.Coin(pair)
 			if err == nil {
 				if _, ok := pairs[pair]; !ok {
@@ -272,7 +276,6 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 						Coin:     model.Coin(c),
 						Strategy: fmt.Sprintf("command:%s:%s", command.Content, command.User),
 					}, time.Now())
-				fmt.Println(fmt.Sprintf("order = %+v", order))
 				o, _, err := client.OpenOrder(order)
 				if err != nil {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, err.Error()))
