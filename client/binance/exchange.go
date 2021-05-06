@@ -99,6 +99,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 	order.Volume = lotSize.Adjust(order.Volume)
 	volume := strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)
 
+	fmt.Println(fmt.Sprintf("order = %+v", order))
 	log.Debug().
 		Str("volume", volume).
 		Str("order", fmt.Sprintf("%+v", order)).
