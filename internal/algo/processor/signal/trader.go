@@ -116,12 +116,14 @@ func (t *trader) load() error {
 	return nil
 }
 
-func (t *trader) reset(coin model.Coin) (map[string]model.Position, error) {
+func (t *trader) reset(coins ...model.Coin) (map[string]model.Position, error) {
 	newPositions := make(map[string]model.Position)
-	if string(coin) != "" {
-		for k, position := range t.positions {
-			if position.Coin != coin {
-				newPositions[k] = position
+	for _, coin := range coins {
+		if string(coin) != "" {
+			for k, position := range t.positions {
+				if position.Coin != coin {
+					newPositions[k] = position
+				}
 			}
 		}
 	}
