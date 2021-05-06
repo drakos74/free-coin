@@ -278,6 +278,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 					completed = append(completed, coin)
 					report.AddLine(fmt.Sprintf("%s %.4f %s for %.4f", emoji.MapType(o.Type), o.Volume, o.Coin, o.Price))
 				}
+				report.AddLine("**********")
 			} else {
 				log.Warn().
 					Err(err).

@@ -118,15 +118,19 @@ func (t *trader) load() error {
 
 func (t *trader) reset(coins ...model.Coin) (map[string]model.Position, error) {
 	newPositions := make(map[string]model.Position)
+	fmt.Println(fmt.Sprintf("completed = %+v", coins))
 	for _, coin := range coins {
 		if string(coin) != "" {
 			for k, position := range t.positions {
+				fmt.Println(fmt.Sprintf("position.Coin = %+v", position.Coin))
+				fmt.Println(fmt.Sprintf("coin = %+v", coin))
 				if position.Coin != coin {
 					newPositions[k] = position
 				}
 			}
 		}
 	}
+	fmt.Println(fmt.Sprintf("newPositions = %+v", newPositions))
 	t.positions = newPositions
 	return t.positions, t.save()
 }
