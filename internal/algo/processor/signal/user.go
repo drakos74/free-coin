@@ -228,7 +228,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 			api.AnyUser(),
 			api.Contains("?t"),
 			api.NotEmpty(&c),
-			api.OneOf(&action, "buy", "to", "sell", "from"),
+			api.OneOf(&action /* "buy", "to", "sell", */, "from"),
 			api.NotEmpty(&budget),
 		)
 
@@ -250,18 +250,20 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		}
 
 		pairs := client.Pairs(context.Background())
-		log.Warn().Str("pairs", fmt.Sprintf("%+v", pairs)).Msg("pairs")
 
+		// execute the command
+		completed := make([]model.Coin, 0)
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
 			pair, err := matchesBalance(budget, c, balance.Coin)
+			coin := model.Coin(pair)
 			if err == nil {
 				if _, ok := pairs[pair]; !ok {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
 					continue
 				}
 				//build the pair ...
-				order := model.NewOrder(model.Coin(pair)).
+				order := model.NewOrder(coin).
 					WithType(model.TypeFromString(action)).
 					Market().
 					WithVolume(balance.Volume).
@@ -273,6 +275,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 				if err != nil {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, err.Error()))
 				} else {
+					completed = append(completed, coin)
 					report.AddLine(fmt.Sprintf("%s %.4f %s for %.4f", emoji.MapType(o.Type), o.Volume, o.Coin, o.Price))
 				}
 			} else {
@@ -284,6 +287,13 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 					Str("coin", string(balance.Coin)).
 					Msg("no match")
 			}
+		}
+		// clear the related positions
+		newPositions, err := t.reset(completed...)
+		if err != nil {
+			report.AddLine(fmt.Sprintf("reset error = %s", err.Error()))
+		} else {
+			report.AddLine(fmt.Sprintf("new positions = %d", len(newPositions)))
 		}
 		user.Send(api.Index(command.User), report, nil)
 	}
