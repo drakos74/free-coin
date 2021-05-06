@@ -260,6 +260,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 			if err == nil {
 				if _, ok := pairs[pair]; !ok {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, "unknown"))
+					report.AddLine("**********")
 					continue
 				}
 				//build the pair ...
@@ -296,6 +297,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		} else {
 			report.AddLine(fmt.Sprintf("new positions = %d", len(newPositions)))
 		}
+		report.AddLine("**********")
 		user.Send(api.Index(command.User), report, nil)
 	}
 }
