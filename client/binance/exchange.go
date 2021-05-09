@@ -18,17 +18,15 @@ import (
 
 // Exchange is a binance client wrapper
 type Exchange struct {
-	api       *binance.Client
+	api       exchange
 	info      map[coinmodel.Coin]binance.Symbol
 	converter model.Converter
 }
 
 // NewExchange creates a new binance client.
 func NewExchange(user account.Name) *Exchange {
-	k, s := exchangeConfig(user)
-	client := binance.NewClient(k, s)
 	exchange := &Exchange{
-		api:       client,
+		api:       createAPI(user),
 		converter: model.NewConverter(),
 	}
 	exchange.getInfo()
@@ -39,7 +37,7 @@ func (c *Exchange) getInfo() {
 	if c.info != nil {
 		return
 	}
-	info, err := c.api.NewExchangeInfoService().Do(context.Background())
+	info, err := c.api.GetExchangeInfo()
 	if err != nil {
 		log.Error().Str("exchange", "binance").Msg("could not get exchange info")
 	}
@@ -60,7 +58,8 @@ func (c *Exchange) CoinInfo(coin coinmodel.Coin) binance.Symbol {
 }
 
 func (c *Exchange) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {
-	prices, err := c.api.NewListPricesService().Do(ctx)
+	prices, err := c.api.ListPrice()
+
 	if err != nil {
 		return nil, fmt.Errorf("could not get price list: %w", err)
 	}
@@ -104,27 +103,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		Str("order", fmt.Sprintf("%+v", order)).
 		Msg("submit order")
 
-	var orderResponse *binance.CreateOrderResponse
-	var err error
-	if order.Leverage > 0 {
-		orderResponse, err = c.api.NewCreateMarginOrderService().
-			Symbol(c.converter.Coin.Pair(order.Coin)).
-			Side(c.converter.Type.From(order.Type)).
-			Type(c.converter.OrderType.From(order.OType)).
-			//TimeInForce(binance.TimeInForceTypeGTC).
-			Quantity(volume).
-			//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
-			Do(context.Background())
-	} else {
-		orderResponse, err = c.api.NewCreateOrderService().
-			Symbol(c.converter.Coin.Pair(order.Coin)).
-			Side(c.converter.Type.From(order.Type)).
-			Type(c.converter.OrderType.From(order.OType)).
-			//TimeInForce(binance.TimeInForceTypeGTC).
-			Quantity(volume).
-			//Price(coinmodel.Price.Format(order.Coin, order.Volume)).
-			Do(context.Background())
-	}
+	orderResponse, err := c.api.CreateOrder(c.converter, order, volume)
 	log.Debug().Err(err).Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
 		return order, nil, fmt.Errorf("could not complete order: %w", err)
@@ -168,7 +147,7 @@ func (c *Exchange) ClosePosition(position coinmodel.Position) error {
 
 func (c *Exchange) Pairs(ctx context.Context) map[string]api.Pair {
 	pairs := make(map[string]api.Pair)
-	for k, _ := range c.info {
+	for k := range c.info {
 		pairs[string(k)] = api.Pair{Coin: k}
 	}
 	return pairs
@@ -191,7 +170,8 @@ func (c *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coin
 		}
 	}
 
-	account, err := c.api.NewGetAccountService().Do(ctx)
+	account, err := c.api.GetAccount()
+
 	if err != nil {
 		return balances, fmt.Errorf("could not get balance: %w", err)
 	}
@@ -226,9 +206,7 @@ func (c *Exchange) Balance(ctx context.Context, priceMap map[coinmodel.Coin]coin
 			Price:  p.Price,
 			Locked: locked,
 		}
-
 		balances[coin] = balance
-
 	}
 
 	return balances, nil
@@ -240,12 +218,10 @@ type MarginExchange struct {
 }
 
 func NewMarginExchange(user account.Name) *MarginExchange {
-	k, s := exchangeConfig(user)
-	client := binance.NewClient(k, s)
 	exchange := &MarginExchange{
 		pairs: make(map[coinmodel.Coin]binance.MarginAllPair),
 		Exchange: Exchange{
-			api:       client,
+			api:       createAPI(user),
 			converter: model.NewConverter(),
 		},
 	}
@@ -257,7 +233,7 @@ func NewMarginExchange(user account.Name) *MarginExchange {
 }
 
 func (e *MarginExchange) getPairs() {
-	pairs, err := e.api.NewGetMarginAllPairsService().Do(context.Background())
+	pairs, err := e.api.GetMarginPairs()
 	if err != nil {
 		log.Error().Err(err).Msg("could not get margin pairs")
 	}
@@ -298,7 +274,7 @@ func (e *MarginExchange) Balance(ctx context.Context, priceMap map[coinmodel.Coi
 		}
 	}
 
-	account, err := e.api.NewGetMarginAccountService().Do(ctx)
+	account, err := e.api.GetMarginAccount()
 	if err != nil {
 		return balances, fmt.Errorf("could not get balance: %w", err)
 	}

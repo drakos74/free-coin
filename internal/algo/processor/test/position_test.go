@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 
 	"github.com/drakos74/free-coin/internal/storage"
@@ -88,7 +90,7 @@ func TestPosition_Update(t *testing.T) {
 			// add some positions
 			if tt.positions != nil {
 				for _, p := range tt.positions {
-					_, err := client.OpenOrder(model.TrackedOrder{Order: model.FromPosition(p, false)})
+					_, _, err := client.OpenOrder(model.TrackedOrder{Order: model.FromPosition(p, false)})
 					assert.NoError(t, err)
 				}
 			}
@@ -147,27 +149,27 @@ func TestPosition_Track(t *testing.T) {
 
 	tests := map[string]test{
 		"normal-loss": { // we should get messages continously
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				return basePrice - 601 // we are right at the -1,5% stop loss
 			},
 			profit: -1.5,
 		},
 		"increasing-loss": { // we should get messages continously
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				return basePrice - 100*float64(i)
 			},
 			profit: -4.5,
 		},
 		"closing-improving-loss": { // we should only get one message
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				return (basePrice - 10000) + 100*float64(i)
 			},
 		},
 		"closing-better-loss": { // we should get only a few messages
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				if i > 50 {
 					return basePrice - 100*float64(i)
@@ -177,13 +179,13 @@ func TestPosition_Track(t *testing.T) {
 			profit: -15.25,
 		},
 		"increasing-profit": { // we should get no message as we are doing continously profit
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				return basePrice + 100*float64(i)
 			},
 		},
 		"trailing-loss-profit": { // we should close position at a good level
-			positions: []model.Position{model.NewPosition(*mockTrade(model.BTC, model.Buy), 1)},
+			positions: []model.Position{newPosition(*mockTrade(model.BTC, model.Buy), 1)},
 			transform: func(i int) float64 {
 				if i > 50 {
 					return basePrice + 100*50.0 - 100*float64(i-50)
@@ -203,7 +205,7 @@ func TestPosition_Track(t *testing.T) {
 			// add some positions
 			if tt.positions != nil {
 				for _, p := range tt.positions {
-					_, err := client.OpenOrder(model.TrackedOrder{Order: model.FromPosition(p, false)})
+					_, _, err := client.OpenOrder(model.TrackedOrder{Order: model.FromPosition(p, false)})
 					assert.NoError(t, err)
 				}
 			}
@@ -257,7 +259,7 @@ func TestPosition_Track(t *testing.T) {
 }
 
 func mockPosition(id string, coin model.Coin, t model.Type) model.Position {
-	pos := model.NewPosition(*mockTrade(coin, t), 1)
+	pos := newPosition(*mockTrade(coin, t), 1)
 	pos.ID = id
 	return pos
 }
@@ -265,24 +267,38 @@ func mockPosition(id string, coin model.Coin, t model.Type) model.Position {
 func newPositionProcessor(client api.Exchange, user api.User) api.Processor {
 	config := processor.Config{
 		Duration: 10,
-		Strategies: []processor.Strategy{
-			{
-				Open: processor.Open{
-					Value: 0,
-					Limit: 0,
+		Strategy: processor.Strategy{
+			Open: processor.Open{
+				Value: 0,
+				Limit: 0,
+			},
+			Close: processor.Close{
+				Instant: true,
+				Profit: processor.Setup{
+					Min:   1.5,
+					Trail: 0.15,
 				},
-				Close: processor.Close{
-					Instant: true,
-					Profit: processor.Setup{
-						Min:   1.5,
-						Trail: 0.15,
-					},
-					Loss: processor.Setup{
-						Min: 1,
-					},
+				Loss: processor.Setup{
+					Min: 1,
 				},
 			},
 		},
 	}
 	return position.Position(storage.VoidShard(""), storage.NewVoidRegistry(), client, user, api.NewBlock(), testConfig("", config))
+}
+
+// newPosition creates a new position.
+// it inherits the coin, type and price of the current trade,
+// but specifies its own quantity.
+func newPosition(trade model.Trade, volume float64) model.Position {
+	return model.Position{
+		Data: model.Data{
+			ID: uuid.New().String(),
+		},
+		Coin:      trade.Coin,
+		Type:      trade.Type,
+		OpenPrice: trade.Price,
+		Volume:    volume,
+		Profit:    nil,
+	}
 }

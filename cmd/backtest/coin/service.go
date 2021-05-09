@@ -130,7 +130,10 @@ func (s *Service) Run(ctx context.Context, query model.QQ) (map[coinmodel.Coin][
 	)
 	go func() {
 		<-ctx.Done()
-		overWatch.Stop(c)
+		err := overWatch.Stop(c)
+		if err != nil {
+			log.Error().Err(err).Msg("could not stop overwatch")
+		}
 	}()
 
 	if err != nil {

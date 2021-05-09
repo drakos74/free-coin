@@ -158,8 +158,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 					order.RefID = close
 					order, _, err = client.OpenOrder(order)
 					if order.RefID != "" {
-						position.CurrentPrice = order.Price
-						_, profit = position.Value()
+						// TODO : parse the time from the signal message
+						_, profit = position.Value(model.NewPrice(order.Price, time.Now()))
 					}
 					if err == nil {
 						regErr := registry.Add(storage.K{

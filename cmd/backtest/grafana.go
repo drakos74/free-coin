@@ -118,7 +118,7 @@ func query(ctx context.Context, r *http.Request) (payload []byte, code int, err 
 					Msg("adding response set")
 				var total float64
 				for _, pos := range coinPositions {
-					net, _ := pos.Value()
+					net, _ := pos.Value(nil)
 					// TODO : this is interesting for each position , but maybe a bit too much
 					//data = append(data, model.Series{
 					//	Target:     fmt.Sprintf("%s %s %.2f (%d)", target.Target, pos.Position.Type.String(), profit, id),
@@ -199,7 +199,7 @@ func annotations(_ context.Context, r *http.Request) (payload []byte, code int, 
 		return payload, code, err
 	}
 
-	if query.Annotation.Enable == false {
+	if !query.Annotation.Enable {
 		return []byte("{}"), 400, nil
 	}
 
@@ -338,7 +338,7 @@ func values(_ context.Context, r *http.Request) (payload []byte, code int, err e
 		return payload, code, err
 	}
 
-	values := make([]metrics.Tag, 0)
+	var values []metrics.Tag
 	switch tag.Key {
 	case model.RegistryFilterKey:
 		values = []metrics.Tag{

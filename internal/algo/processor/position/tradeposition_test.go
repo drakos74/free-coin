@@ -457,7 +457,7 @@ func assertPositions(t *testing.T, tt test, tracker *tradePositions, client api.
 				assert.Equal(t, testCoin, action.position.Position.Coin)
 				assert.Equal(t, testID, action.key.Index)
 				assert.Equal(t, testID, action.position.Position.ID)
-				_, profit := action.position.Position.Value()
+				_, profit := action.position.Position.Value(nil)
 				assert.Equal(t, fmt.Sprintf("%.2f", tt.expProfit), fmt.Sprintf("%.2f", profit))
 				assert.Equal(t, tt.tradeCount, i+1)
 				return
@@ -484,8 +484,10 @@ func mockTrade(p float64) *model.Trade {
 
 func mockPosition(t model.Type, p, v float64) model.Position {
 	return model.Position{
-		Coin:      testCoin,
-		ID:        testID,
+		Coin: testCoin,
+		Data: model.Data{
+			ID: testID,
+		},
 		OpenPrice: p,
 		Volume:    v,
 		Type:      t,
@@ -521,5 +523,9 @@ func (e *exchange) ClosePosition(position model.Position) error {
 }
 
 func (e *exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
+	panic("implement me")
+}
+
+func (e *exchange) Pairs(ctx context.Context) map[string]api.Pair {
 	panic("implement me")
 }

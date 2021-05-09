@@ -44,16 +44,16 @@ func NewMockUser() *MockUser {
 
 func (m *MockUser) mockMessage(s string, user string, account string) {
 	if account == "" {
-		fmt.Println(fmt.Sprintf("s = %+v", s))
-		fmt.Println(fmt.Sprintf("len(m.consumers) = %+v", len(m.consumers)))
+		fmt.Printf("\ns = %+v", s)
+		fmt.Printf("\nlen(m.consumers) = %+v", len(m.consumers))
 		for _, c := range m.consumers {
-			fmt.Println(fmt.Sprintf("c = %+v", c))
+			fmt.Printf("\nc = %+v", c)
 			c <- api.Command{
 				ID:      0,
 				User:    user,
 				Content: s,
 			}
-			fmt.Println(fmt.Sprintf("account = %+v", account))
+			fmt.Printf("\naccount = %+v", account)
 		}
 	}
 }

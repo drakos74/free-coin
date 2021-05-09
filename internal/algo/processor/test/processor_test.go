@@ -86,6 +86,10 @@ func (u *mockUser) Run(ctx context.Context) error {
 	panic("implement me")
 }
 
+func (u *mockUser) AddUser(channel api.Index, user string, chatID int64) error {
+	panic("implement me")
+}
+
 func (u *mockUser) Listen(key, prefix string) <-chan api.Command {
 	return u.incoming
 }
@@ -124,7 +128,7 @@ func (c *mockClient) OpenPositions(ctx context.Context) (*model.PositionBatch, e
 }
 
 func (c *mockClient) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
-	c.positions = append(c.positions, model.OpenPosition(order))
+	c.positions = append(c.positions, model.OpenPosition(order, nil))
 	return model.TrackedOrder{}, []string{}, nil
 }
 
@@ -153,6 +157,10 @@ func (c *mockClient) ClosePosition(position model.Position) error {
 func (c *mockClient) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {
 	// TODO :
 	return make(map[model.Coin]model.Balance), nil
+}
+
+func (c *mockClient) Pairs(ctx context.Context) map[string]api.Pair {
+	panic("implement me")
 }
 
 const basePrice = 40000

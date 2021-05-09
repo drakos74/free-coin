@@ -1,6 +1,8 @@
 package buffer
 
-import "time"
+import (
+	"time"
+)
 
 // TimeWindowView is a time specific but static snapshot on top of a StatsCollector.
 // It allows to retrieve buckets of Stats from a streaming data set.
@@ -84,14 +86,14 @@ func (tw *TimeWindow) Next(iterations int64) time.Time {
 
 // HistoryWindow keeps the last x buckets based on the Window interval given
 type HistoryWindow struct {
-	window  TimeWindow `json:"window"`
+	Window  TimeWindow `json:"Window"`
 	buckets *Ring      `json:"-"`
 }
 
 // NewHistoryWindow creates a new history Window.
 func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 	return HistoryWindow{
-		window:  NewTimeWindow(duration),
+		Window:  NewTimeWindow(duration),
 		buckets: NewRing(size),
 	}
 }
@@ -99,7 +101,7 @@ func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 // Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
 func (h HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
-	if bucket, ok := h.window.Push(t, v...); ok {
+	if bucket, ok := h.Window.Push(t, v...); ok {
 		h.buckets.Push(bucket)
 		return bucket, true
 	}

@@ -112,7 +112,7 @@ func (s *Server) annotations(_ context.Context, r *http.Request) (payload []byte
 		return payload, code, err
 	}
 
-	if query.Annotation.Enable == false {
+	if !query.Annotation.Enable {
 		return []byte("{}"), 400, nil
 	}
 

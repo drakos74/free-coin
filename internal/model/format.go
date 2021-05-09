@@ -30,21 +30,3 @@ func (p CoinFormatter) Format(c Coin, f float64) string {
 	price := strconv.FormatFloat(f, 'f', precision, 64)
 	return price
 }
-
-// Price is a formatter for the price of the coin.
-var Price = CoinFormatter{precision: map[Coin]int{
-	BTC:  0,
-	ETH:  0,
-	DOT:  2,
-	LINK: 2,
-	XRP:  2,
-}}
-
-// Volume is a formatter for the volume of the coin.
-var Volume = CoinFormatter{precision: map[Coin]int{
-	BTC:  3,
-	ETH:  2,
-	DOT:  0,
-	LINK: 0,
-	XRP:  0,
-}}

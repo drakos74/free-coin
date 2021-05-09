@@ -321,7 +321,7 @@ func matchesBalance(budget, coin string, balance model.Coin) (string, error) {
 }
 
 func createPositionMessage(i int, pos model.Position, balance model.Balance) string {
-	net, profit := pos.Value()
+	net, profit := pos.Value(nil)
 	return fmt.Sprintf("[%d] %s %.2f%s (%.2f%s) <- %s | %f [%f]",
 		i+1,
 		emoji.MapToSign(net),

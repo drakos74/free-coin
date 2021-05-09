@@ -89,7 +89,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 					select {
 					case consumer <- api.Command{
 						ID:      update.Message.MessageID,
-						User:    fmt.Sprintf("%s", update.Message.From),
+						User:    fmt.Sprintf("%v", update.Message.From),
 						Content: update.Message.Text,
 					}:
 						// TODO : wait until consumer has processed !

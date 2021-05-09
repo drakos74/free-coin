@@ -84,10 +84,12 @@ func TestStats_Gather(t *testing.T) {
 func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 	config := processor.Config{
 		Duration: 10,
-		Model: []processor.Stats{
-			{
-				LookBack:  2,
-				LookAhead: 1,
+		Model: processor.Model{
+			Stats: []processor.Stats{
+				{
+					LookBack:  2,
+					LookAhead: 1,
+				},
 			},
 		},
 	}
@@ -98,6 +100,6 @@ func testMultiStats() func(client api.Exchange, user api.User) api.Processor {
 				// nothing to do just consume, so that the stats processor can proceed
 			}
 		}()
-		return stats.MultiStats(storage.NewVoidRegistry(), user, testConfig("", config))
+		return stats.MultiStats(storage.VoidShard(""), storage.VoidRegistry{}, user, testConfig("", config))
 	}
 }

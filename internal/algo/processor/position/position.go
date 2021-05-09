@@ -77,7 +77,7 @@ func (tp *tradePositions) trackUserActions(client api.Exchange, user api.User) {
 			for k, pos := range tp.getAll() {
 				if c == "" || k.Coin == c {
 					for id, p := range pos {
-						net, profit := p.Position.Value()
+						net, profit := p.Position.Value(nil)
 						configMsg := fmt.Sprintf("[ profit : %.2f (%.2f) , stop-loss : %.2f (%.2f) ]",
 							p.Config.Close.Profit.Min,
 							p.Config.Close.Profit.High,
@@ -152,7 +152,7 @@ func Position(shard storage.Shard, registry storage.Registry, client api.Exchang
 					if positionAction.position.Config.Close.Instant {
 						positions.close(client, user, positionAction.key, positionAction.position.Position.ID, trade.Time)
 					} else {
-						net, profit := positionAction.position.Position.Value()
+						net, profit := positionAction.position.Position.Value(nil)
 						msg := fmt.Sprintf("%s %s:%s (%s)",
 							emoji.MapToSign(net),
 							string(trade.Coin),

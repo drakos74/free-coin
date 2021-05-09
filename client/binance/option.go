@@ -16,6 +16,7 @@ const (
 )
 
 func exchangeConfig(user account.Name) (k, s string) {
+
 	format := account.NewFormat(user, Name)
 
 	key := os.Getenv(format.Key())

@@ -18,26 +18,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type mockBot struct {
-	input  chan tgbotapi.Update
-	output chan tgbotapi.MessageConfig
-}
-
-func (m *mockBot) GetUpdatesChan(config tgbotapi.UpdateConfig) (tgbotapi.UpdatesChannel, error) {
-	return m.input, nil
-}
-
-func (m *mockBot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
-	if msg, ok := c.(tgbotapi.MessageConfig); ok {
-		m.output <- msg
-	}
-	return tgbotapi.Message{}, nil
-}
-
 func newMockBot(input chan tgbotapi.Update, output chan tgbotapi.MessageConfig) *Bot {
 	return &Bot{
-		publicBot:       &mockBot{input: input, output: output},
-		privateBot:      &Void{},
 		messages:        make(map[int]string),
 		triggers:        make(map[string]*api.Trigger),
 		blockedTriggers: make(map[string]time.Time),
@@ -104,7 +86,7 @@ func TestBot_Listen(t *testing.T) {
 
 func TestBot_SendTrigger(t *testing.T) {
 
-	os.Setenv(telegramChatID, "-1")
+	os.Setenv("", "-1")
 
 	defaultTimeout = 1 * time.Second
 
@@ -208,7 +190,7 @@ func TestBot_SendTrigger(t *testing.T) {
 
 			for i := 0; i < tt.msgCount; i++ {
 				// send a message to the user
-				b.Send(false, api.NewMessage("text"), tt.trigger)
+				b.Send("", api.NewMessage("text"), tt.trigger)
 			}
 
 			wg.Wait()

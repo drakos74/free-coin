@@ -9,5 +9,5 @@ import (
 func main() {
 
 	s := emoji.MapValue(10 * 0.4 / 2)
-	fmt.Println(fmt.Sprintf("s = %+v", s))
+	fmt.Printf("\ns = %+v", s)
 }

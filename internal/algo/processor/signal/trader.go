@@ -185,7 +185,7 @@ func (t *trader) add(key string, order model.TrackedOrder, close string) error {
 		return t.save()
 	}
 	// we need to be careful here and add the position ...
-	position := model.OpenPosition(order)
+	position := model.OpenPosition(order, nil)
 	if p, ok := t.positions[key]; ok {
 		if position.Coin != p.Coin {
 			return fmt.Errorf("different coin found for key: %s [%s vs %s]", key, p.Coin, position.Coin)
@@ -211,33 +211,6 @@ func (t *trader) parseConfig(c model.Coin, b float64) {
 	if _, ok := t.config[c]; !ok {
 		t.config[c] = newConfig(b)
 	}
-}
-
-func (t *trader) updateConfig(multiplier float64, match func(c model.Coin) bool) error {
-	if multiplier < 0.0 {
-		return fmt.Errorf("cannot update config for negative multipler %f", multiplier)
-	}
-
-	newCfg := make(map[model.Coin]config)
-	for c, cfg := range t.config {
-		if match(c) {
-			if multiplier > 0 {
-				cfg.multiplier = multiplier
-			}
-		}
-		newCfg[c] = cfg
-	}
-
-	// get whatever we have from the positions...
-	// in case we have not seen this trade yet e.g. restart use-case
-	for _, pos := range t.positions {
-		if _, ok := newCfg[pos.Coin]; !ok {
-			newCfg[pos.Coin] = newConfig(minSize)
-		}
-	}
-
-	t.config = newCfg
-	return t.save()
 }
 
 func stKey() storage.Key {

@@ -23,7 +23,7 @@ func TrackingOrder(order coinmodel.TrackedOrder) metrics.AnnotationInstance {
 }
 
 func TrackedPosition(position coinmodel.TrackedPosition) metrics.AnnotationInstance {
-	net, profit := position.Value()
+	net, profit := position.Value(nil)
 	return metrics.AnnotationInstance{
 		Title:    fmt.Sprintf("%2.f (%.2f)", net, profit),
 		Text:     fmt.Sprintf("%s %v", emoji.MapToSign(profit), position.Position.ID),

@@ -119,7 +119,7 @@ func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry,
 			sort.Sort(allPoints)
 
 			totals := metrics.Series{
-				Target:     fmt.Sprintf("%s", "total"),
+				Target:     "total",
 				DataPoints: make([][]float64, 0),
 			}
 			for _, p := range allPoints {
@@ -145,8 +145,7 @@ func parseEvents(queryGen queryGenerator) (metrics.Series, error) {
 		if err != nil {
 			return metrics.Series{}, fmt.Errorf("could not read from registry: %w", err)
 		}
-		var sortedOrders Orders
-		sortedOrders = orders
+		var sortedOrders Orders = orders
 		sort.Sort(sortedOrders)
 
 		qq := query{

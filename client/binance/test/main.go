@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/client/binance"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog"
@@ -23,8 +25,9 @@ func main() {
 
 }
 
-func testOrderOrder() {
-	exchange := binance.NewExchange(binance.Free)
+func testOrderOrder() { //nolint
+
+	exchange := binance.NewExchange(account.Drakos)
 
 	order := model.TrackedOrder{
 		Order: model.NewOrder(model.Coin("EOSUSDT")).
@@ -39,24 +42,24 @@ func testOrderOrder() {
 
 	o, txids, err := exchange.OpenOrder(order)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("err = %+v", err))
+		fmt.Printf("\nerr = %+v", err)
 	}
-	fmt.Println(fmt.Sprintf("txids = %+v", txids))
-	fmt.Println(fmt.Sprintf("o = %+v", o))
+	fmt.Printf("\ntxids = %+v", txids)
+	fmt.Printf("\no = %+v", o)
 }
 
 func testAccountBalance() {
 
-	exchange := binance.NewExchange(binance.Free)
+	exchange := binance.NewMarginExchange(account.Drakos)
 
-	bb, err := exchange.Balance(context.Background())
+	bb, err := exchange.Balance(context.Background(), nil)
 
 	if err != nil {
 		log.Fatalf("could not get balance: %v", err)
 	}
 
 	for c, b := range bb {
-		fmt.Println(fmt.Sprintf("%s b = %+v", c, b))
+		fmt.Printf("\n%s b = %+v", c, b)
 	}
 
 }

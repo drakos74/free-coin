@@ -141,6 +141,7 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
 		}
+		cancel()
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const serverPort = 6124
 const port = 6040
 
 func init() {

@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/drakos74/free-coin/internal/account"
+
 	"github.com/drakos74/free-coin/client/binance"
 	"github.com/drakos74/free-coin/client/binance/model"
 )
 
 func main() {
 
-	exc := binance.NewExchange(binance.Free)
+	exc := binance.NewExchange(account.Drakos)
 
 	info := exc.CoinInfo("ADAUSDT")
 
@@ -20,14 +22,14 @@ func main() {
 		log.Fatalf("could not parse lot size: %v", err)
 	}
 
-	fmt.Println(fmt.Sprintf("l = %+v", lotSize))
+	fmt.Printf("\nl = %+v", lotSize)
 
 	f := 16.7
 	v := lotSize.Adjust(f)
 
 	if f != v {
-		fmt.Println(fmt.Sprintf("f = %+v", f))
-		fmt.Println(fmt.Sprintf("v = %+v", v))
+		fmt.Printf("\nf = %+v", f)
+		fmt.Printf("/nv = %+v", v)
 		log.Fatalf("value should be the same")
 	}
 

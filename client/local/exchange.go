@@ -95,7 +95,7 @@ func (e *Exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []st
 		time = trade.Time
 	}
 	order.Price = price
-	position := model.OpenPosition(order)
+	position := model.OpenPosition(order, nil)
 	position.OpenTime = order.Time
 	trackedPosition := model.TrackedPosition{
 		Open:     time,

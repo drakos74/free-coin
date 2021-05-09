@@ -204,7 +204,7 @@ func (tp *tradePositions) update(client api.Exchange) error {
 	// remove old book
 	book := make(map[model.Key]Portfolio)
 	for k, portfolio := range tp.book {
-		positions := make(map[string]TradePosition, 0)
+		positions := make(map[string]TradePosition)
 		for id, position := range portfolio.Positions {
 			if _, ok := posIDs[id]; ok {
 				positions[id] = position
@@ -315,7 +315,7 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 		}
 		for id, p := range portfolio.Positions {
 			p.Position.CurrentPrice = trade.Price
-			net, profit := p.Position.Value()
+			net, profit := p.Position.Value(model.NewPrice(trade.Price, trade.Time))
 			log.Debug().
 				Str("ID", id).
 				Str("coin", string(p.Position.Coin)).
@@ -342,7 +342,7 @@ func (tp *tradePositions) checkClose(trade *model.Trade) []tradeAction {
 // DoClose checks if the given Position should be closed, based on the current configuration.
 // TODO : test this logic
 func (tp *TradePosition) DoClose() bool {
-	net, p := tp.Position.Value()
+	net, p := tp.Position.Value(nil)
 	if net > 0 && p > tp.Config.Close.Profit.Min {
 		if tp.Config.Close.Profit.Trail > 0 {
 			// check the previous profit in order to extend profit
@@ -386,7 +386,7 @@ func (tp *tradePositions) close(client api.Exchange, user api.User, key model.Ke
 		return false
 	}
 	position := tp.book[key].Positions[id].Position
-	net, profit := position.Value()
+	net, profit := position.Value(nil)
 	err := client.ClosePosition(position.Position)
 	position.Close = time
 	if err != nil {

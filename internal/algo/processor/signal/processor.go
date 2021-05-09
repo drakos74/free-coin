@@ -3,10 +3,11 @@ package signal
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/internal/server"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
-	"github.com/drakos74/free-coin/internal/server"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -14,10 +15,15 @@ import (
 func Propagate(eventRegistry storage.EventRegistry, client api.Exchange, user api.User, output chan Message) api.Processor {
 
 	source := make(chan Message)
-	go server.NewServer("trade-view", port).
-		AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
-		AddRoute(server.POST, server.Api, "test-post", handle(user, source)).
-		Run()
+	go func() {
+		err := server.NewServer("trade-view", port).
+			AddRoute(server.GET, server.Api, "test-get", handle(user, nil)).
+			AddRoute(server.POST, server.Api, "test-post", handle(user, source)).
+			Run()
+		if err != nil {
+			log.Error().Err(err).Msg("could not dtart server")
+		}
+	}()
 
 	// init grafana monitor
 	grafana := metrics.NewServer("grafana", grafanaPort)

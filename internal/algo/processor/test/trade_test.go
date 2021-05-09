@@ -71,22 +71,22 @@ func TestTrader_Gather(t *testing.T) {
 					Order: processor.Order{
 						Name: "O10",
 					},
-					Model: []processor.Stats{
-						{
-							LookBack:  2,
-							LookAhead: 1,
-						},
-						{
-							LookBack:  3,
-							LookAhead: 1,
+					Model: processor.Model{
+						Stats: []processor.Stats{
+							{
+								LookBack:  2,
+								LookAhead: 1,
+							},
+							{
+								LookBack:  3,
+								LookAhead: 1,
+							},
 						},
 					},
-					Strategies: []processor.Strategy{
-						{
-							Name:        processor.NumericStrategy,
-							Probability: 0.5,
-							Sample:      1,
-						},
+					Strategy: processor.Strategy{
+						Name:        processor.NumericStrategy,
+						Probability: 0.5,
+						Sample:      1,
 					},
 				},
 				processor.Config{
@@ -94,30 +94,30 @@ func TestTrader_Gather(t *testing.T) {
 					Order: processor.Order{
 						Name: "O2",
 					},
-					Model: []processor.Stats{
-						{
-							LookBack:  2,
-							LookAhead: 1,
-						},
-						{
-							LookBack:  3,
-							LookAhead: 1,
+					Model: processor.Model{
+						Stats: []processor.Stats{
+							{
+								LookBack:  2,
+								LookAhead: 1,
+							},
+							{
+								LookBack:  3,
+								LookAhead: 1,
+							},
 						},
 					},
-					Strategies: []processor.Strategy{
-						tt.config,
-					},
+					Strategy: tt.config,
 				},
 			)
 
 			registry := storage.NewVoidRegistry()
 			// run the stats processor
 			_, statsMessages := run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return stats.MultiStats(registry, user, config)
+				return stats.MultiStats(storage.VoidShard(""), registry, user, config)
 			})
 			// run the position processor to unblock the trade processor when making orders
 			run(client, in, st, func(client api.Exchange, user api.User) api.Processor {
-				return position.Position(registry, client, user, block, config)
+				return position.Position(storage.VoidShard(""), registry, client, user, block, config)
 			})
 			// run the trade processor
 			out := make(chan *model.Trade)

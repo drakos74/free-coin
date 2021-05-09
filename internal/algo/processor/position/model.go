@@ -36,12 +36,6 @@ type TradePosition struct {
 	Config   processor.Strategy    `json:"config"`
 }
 
-func (tp TradePosition) updateCID(cid string) {
-	pos := tp.Position
-	pos.CID = cid
-	tp.Position = pos
-}
-
 type Portfolio struct {
 	Positions map[string]TradePosition `json:"book"`
 	Budget    float64                  `json:"budget"`
@@ -76,18 +70,4 @@ func newPositionTracker(shard storage.Shard, registry storage.Registry, configs 
 		initialConfigs: configs,
 		lock:           new(sync.RWMutex),
 	}
-}
-
-// TODO : disable user adjustments for now
-//func (tp *tradePositions) updateConfig(key tpKey, profit, stopLoss float64) {
-//	tp.lock.Lock()
-//	defer tp.lock.Unlock()
-//	tp.book[key.coin][key.id].Config.Profit.Min = profit
-//	tp.book[key.coin][key.id].Config.Loss.Min = stopLoss
-//}
-
-type cKey struct {
-	cid   string
-	coin  model.Coin
-	txids []string
 }

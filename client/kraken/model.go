@@ -49,17 +49,21 @@ func (r *RemoteExchange) newPosition(id string, response krakenapi.Position) coi
 	net := float64(response.Net)
 	fees := response.Fee * 2
 	return coinmodel.Position{
-		ID:           id,
-		TxID:         response.TransactionID,
-		OrderID:      response.OrderTransactionID,
-		OpenTime:     time.Unix(int64(response.TradeTime), 0),
+		Data: coinmodel.Data{
+			ID:      id,
+			TxID:    response.TransactionID,
+			OrderID: response.OrderTransactionID,
+		},
+		MetaData: coinmodel.MetaData{
+			OpenTime: time.Unix(int64(response.TradeTime), 0),
+			Net:      net,
+			Fees:     fees,
+			Cost:     response.Cost,
+		},
 		Coin:         r.converter.Coin.Coin(response.Pair),
 		Type:         r.converter.Type.To(response.PositionType),
 		OpenPrice:    response.Cost / response.Volume,
 		CurrentPrice: response.Value / response.Volume,
-		Cost:         response.Cost,
-		Net:          net,
-		Fees:         fees,
 		Volume:       response.Volume,
 	}
 }

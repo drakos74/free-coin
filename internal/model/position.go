@@ -3,6 +3,10 @@ package model
 import (
 	"time"
 
+	cointime "github.com/drakos74/free-coin/internal/time"
+
+	"github.com/drakos74/free-coin/internal/buffer"
+
 	"github.com/google/uuid"
 )
 
@@ -33,38 +37,73 @@ func EmptyBatch() *PositionBatch {
 	}
 }
 
-// Position defines an open position details.
-type Position struct {
-	ID           string    `json:"id"`
-	TxID         string    `json:"txId"`
-	OrderID      string    `json:"order_id"`
-	CID          string    `json:"cid"`
-	OpenTime     time.Time `json:"open_time"`
-	Coin         Coin      `json:"coin"`
-	Type         Type      `json:"type"`
-	OpenPrice    float64   `json:"open_price"`
-	CurrentPrice float64   `json:"current_price"`
-	Volume       float64   `json:"volume"`
-	Cost         float64   `json:"cost"`
-	Net          float64   `json:"net"`
-	Fees         float64   `json:"fees"`
+type Data struct {
+	ID      string `json:"id"`
+	TxID    string `json:"txId"`
+	OrderID string `json:"order_id"`
+	CID     string `json:"cid"`
 }
 
-// NewPosition creates a new position.
-// it inherits the coin, type and price of the current trade,
-// but specifies its own quantity.
-func NewPosition(trade Trade, volume float64) Position {
-	return Position{
-		ID:        uuid.New().String(),
-		Coin:      trade.Coin,
-		Type:      trade.Type,
-		OpenPrice: trade.Price,
-		Volume:    volume,
+type MetaData struct {
+	OpenTime time.Time `json:"open_time"`
+	Fees     float64   `json:"fees"`
+	Cost     float64   `json:"cost"`
+	Net      float64   `json:"net"`
+}
+
+// TrackingConfig defines the configuration for tracking position profit
+type TrackingConfig struct {
+	Duration time.Duration
+	Samples  int
+}
+
+// Track creates a new tracking config.
+func Track(duration time.Duration, samples int) *TrackingConfig {
+	return &TrackingConfig{
+		Duration: duration,
+		Samples:  samples,
 	}
 }
 
+// Profit defines the profit tracking
+type Profit struct {
+	Config TrackingConfig       `json:"config"`
+	Window buffer.HistoryWindow `json:"-"`
+	Data   [][]float64          `json:"data"`
+}
+
+// NewProfit creates a new position tracking struct
+func NewProfit(config *TrackingConfig) *Profit {
+	if config == nil {
+		return nil
+	}
+	return &Profit{
+		Config: *config,
+		Window: buffer.NewHistoryWindow(config.Duration, config.Samples),
+		Data:   make([][]float64, 0),
+	}
+}
+
+// Position defines an open position details.
+type Position struct {
+	Data
+	MetaData
+	Coin         Coin    `json:"coin"`
+	Type         Type    `json:"type"`
+	OpenPrice    float64 `json:"open_price"`
+	CurrentPrice float64 `json:"current_price"`
+	Volume       float64 `json:"volume"`
+	Profit       *Profit `json:"profit"`
+}
+
 // Value returns the value of the position and the profit or loss percentage.
-func (p *Position) Value() (value, percent float64) {
+// TODO : add processing function for past profits
+func (p *Position) Value(price *Price) (value, profit float64) {
+
+	if price != nil {
+		p.CurrentPrice = price.Value
+	}
+
 	net := 0.0
 	switch p.Type {
 	case Buy:
@@ -73,18 +112,32 @@ func (p *Position) Value() (value, percent float64) {
 		net = p.OpenPrice - p.CurrentPrice
 	}
 	value = (net * p.Volume) - p.Fees
-	return value, 100 * value / (p.OpenPrice * p.Volume)
+	profit = 100 * value / (p.OpenPrice * p.Volume)
+
+	// add the profit to the window
+	if price != nil && p.Profit != nil {
+		if profit, ok := p.Profit.Window.Push(price.Time, profit); ok {
+			p.Profit.Data = append(p.Profit.Data, []float64{profit.Bucket.Values().Stats()[0].Avg(), float64(cointime.ToMilli(profit.Time))})
+		}
+	}
+
+	return value, profit
 }
 
 // OpenPosition creates a position from a given order.
-func OpenPosition(order TrackedOrder) Position {
+func OpenPosition(order TrackedOrder, trackingConfig *TrackingConfig) Position {
 	return Position{
-		ID:        uuid.New().String(),
-		OrderID:   order.ID,
+		Data: Data{
+			ID:      uuid.New().String(),
+			OrderID: order.ID,
+		},
+		MetaData: MetaData{
+			OpenTime: order.Time,
+		},
 		Coin:      order.Coin,
 		Type:      order.Type,
 		Volume:    order.Volume,
 		OpenPrice: order.Price,
-		OpenTime:  order.Time,
+		Profit:    NewProfit(trackingConfig),
 	}
 }

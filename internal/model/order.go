@@ -192,7 +192,7 @@ func (o *Order) Create() Order {
 		o.mustNotBeZero(o.Volume)
 		o.mustNotBe(byte(o.Type), byte(NoType))
 	default:
-		panic(fmt.Sprintf("cannot create order without order type: %v", o.OType))
+		panic(fmt.Sprintf("cannot create order without 'order type': %v", o.OType))
 	}
 	log.Debug().Str("order", fmt.Sprintf("%+v", o)).Msg("creating order")
 	return *o

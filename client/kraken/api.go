@@ -126,7 +126,9 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 	}
 
 	if order.Price > 0 {
-		params["price"] = coinmodel.Price.Format(order.Coin, order.Price)
+		// TODO : make poer coin as for binance
+		params["price"] = strconv.FormatFloat(order.Price, 'f', 2, 64)
+		//coinmodel.Price.Format(order.Coin, order.Price)
 	}
 
 	response, err := r.private.AddOrder(
