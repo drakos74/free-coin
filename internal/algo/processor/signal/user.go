@@ -277,6 +277,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 						Coin:     model.Coin(c),
 						Strategy: fmt.Sprintf("command:%s:%s", command.Content, command.User),
 					}, time.Now())
+				fmt.Println(fmt.Sprintf("order = %+v", order))
 				o, _, err := client.OpenOrder(order)
 				if err != nil {
 					report.AddLine(fmt.Sprintf("error:%s:%s", pair, err.Error()))
