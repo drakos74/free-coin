@@ -256,9 +256,8 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 		report := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), "trader"))
 		for _, balance := range bb {
 			pair, err := matchesBalance(budget, c, balance.Coin)
-			fmt.Println(fmt.Sprintf("pair = %+v| err = %v", pair, err))
 			// dont make manual trades with BNB and USDT
-			if strings.Contains(pair, "BNB") || strings.Contains(pair, "USDT") {
+			if strings.Contains(pair, "BNB") || strings.HasPrefix(pair, "USDT") {
 				report.AddLine(fmt.Sprintf("ignore:%s:%s", pair, "invalid"))
 				report.AddLine("**********")
 				continue
