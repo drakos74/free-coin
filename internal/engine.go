@@ -240,7 +240,7 @@ func (v *VoidProcessor) Process(trade *model.Trade) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	if trade == nil {
-		log.Warn().Msg("main processor channel closed: nil trade received")
+		log.Debug().Msg("main processor channel closed: nil trade received")
 		return
 	}
 	// TODO : keep track of other properties of the trades
