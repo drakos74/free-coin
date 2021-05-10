@@ -37,7 +37,7 @@ func (lv LeverageConverter) For(order model.Order) string {
 	return "1:1"
 }
 
-// From converts te leverage from the kraken model to the internal leverage model.
+// From converts the leverage from the kraken model to the internal leverage model.
 func (lv LeverageConverter) From(s string) model.Leverage {
 	for l, leverage := range lv.l {
 		if leverage == s {
@@ -116,6 +116,9 @@ func NewLotSize(filter LotSizeFilter) (LotSize, error) {
 	return lotSize, nil
 }
 
+// TODO : make this configurable ...
+// open&close needs to be exact ...
+// sell-off needs to be floor ...
 func (l LotSize) Adjust(volume float64) float64 {
 	if volume < l.MinQuantity {
 		return l.MinQuantity

@@ -89,6 +89,10 @@ func (m Message) Duration() time.Duration {
 }
 
 func (m Message) Key() string {
+	return fmt.Sprintf("%s_%s", m.Data.Ticker, m.Config.Interval)
+}
+
+func (m Message) Detail() string {
 	return fmt.Sprintf("%s_%s_%s_%s", m.Data.Ticker, m.Config.SA, m.Config.Interval, m.Config.Mode)
 }
 

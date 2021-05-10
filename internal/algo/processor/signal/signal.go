@@ -83,18 +83,6 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						Msg("ignoring signal")
 					continue
 				}
-
-				if message.Config.Mode != "MANUAL" {
-					rErr := registry.Add(storage.K{
-						Pair:  fmt.Sprintf("%s_%s", message.Data.Ticker, message.Config.Mode),
-						Label: message.Key(),
-					}, Order{
-						Message: message,
-					})
-					log.Debug().Str("mode", message.Config.Mode).Err(rErr).Msg("error saving other mode")
-					continue
-				}
-
 				coin := model.Coin(message.Data.Ticker)
 				key := message.Key()
 				t, tErr := message.Type()
@@ -106,6 +94,19 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				var order model.TrackedOrder
 				var profit float64
 				if tErr == nil && vErr == nil {
+
+					// ignore the MANUAL-sell signals
+					if message.Config.Mode != "MANUAL" && t == model.Sell {
+						rErr := registry.Add(storage.K{
+							Pair:  fmt.Sprintf("%s_%s_ignored", message.Data.Ticker, message.Config.Mode),
+							Label: message.Detail(),
+						}, Order{
+							Message: message,
+						})
+						log.Debug().Str("mode", message.Config.Mode).Err(rErr).Msg("error saving ignored signal")
+						continue
+					}
+
 					// check the positions ...
 					position, ok, positions := trader.check(key, coin)
 					if ok {
@@ -229,7 +230,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				user.Send(api.Index(trader.account),
 					api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
 						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close, profit)).
-						AddLine(createReportMessage(key, tErr, vErr, err)),
+						AddLine(createReportMessage(key, message.Detail(), tErr, vErr, err)),
 					nil)
 			case trade := <-in:
 				out <- trade
@@ -251,14 +252,14 @@ func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, clo
 	)
 }
 
-func createReportMessage(key string, err ...error) string {
+func createReportMessage(key, detail string, err ...error) string {
 	var errs string
 	for _, e := range err {
 		if e != nil {
 			errs = fmt.Sprintf("%s:%s", errs, e.Error())
 		}
 	}
-	return fmt.Sprintf("%s [%s]", key, errs)
+	return fmt.Sprintf("%s-(%s)-[%s]", key, detail, errs)
 }
 
 func createConfigMessage(trader *trader) string {
