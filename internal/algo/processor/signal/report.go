@@ -94,7 +94,6 @@ func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry,
 				if _, ok := accountFor[index]; ok {
 					return nil
 				}
-				fmt.Printf("\nqq = %+v", qq)
 				series, err := parseEvents(qq)
 				if err == nil {
 					assets = append(assets, series)
@@ -142,7 +141,9 @@ func parseEvents(queryGen queryGenerator) (metrics.Series, error) {
 			Pair:  filepath.Base(filepath.Dir(queryGen.dir)),
 			Label: queryGen.index,
 		}
+		fmt.Printf("\nkey = %+v", key)
 		err := queryGen.registry.GetAll(key, &orders)
+		fmt.Printf("\nerr = %+v", err)
 		if err != nil {
 			return metrics.Series{}, fmt.Errorf("could not read from registry: %w", err)
 		}

@@ -59,7 +59,6 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
 	positions := make(map[string]model.Position)
-
 	t := &trader{
 		client:    client,
 		settings:  settings,
@@ -71,7 +70,8 @@ func newTrader(id string, client api.Exchange, shard storage.Shard, settings map
 		config:    make(map[model.Coin]config),
 		lock:      new(sync.RWMutex),
 	}
-	return t, t.load()
+	err = t.load()
+	return t, err
 }
 
 func (t *trader) buildState() State {
@@ -98,8 +98,6 @@ func (t *trader) load() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	state := State{
-		MinSize:   0,
-		Running:   false,
 		Positions: make(map[string]model.Position),
 	}
 	err := t.storage.Load(stKey(), &state)
