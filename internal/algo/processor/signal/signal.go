@@ -94,8 +94,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				var order model.TrackedOrder
 				var profit float64
 				if tErr == nil && vErr == nil {
-
 					// ignore the MANUAL-sell signals
+					// and the BS-buy signals
 					if (message.Config.Mode == "MANUAL" && t == model.Sell) ||
 						(message.Config.Mode == "BS" && t == model.Buy) {
 						rErr := registry.Add(storage.K{
@@ -220,7 +220,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						Str("message", fmt.Sprintf("%+v", message)).
 						Msg("could not parse message")
 				}
-				log.Info().
+				log.Debug().
 					Str("account", trader.account).
 					Str("type", t.String()).
 					Str("ref-id", order.RefID).
@@ -228,11 +228,15 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 					Str("coin", string(coin)).
 					Err(tErr).Err(vErr).Err(err).
 					Msg("processed signal")
-				user.Send(api.Index(trader.account),
-					api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
-						AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close, profit)).
-						AddLine(createReportMessage(key, message.Detail(), tErr, vErr, err)),
-					nil)
+				// dont spam the user ...
+				// TODO : decide when to show the error though
+				if err == nil || t == model.Buy || close != "" {
+					user.Send(api.Index(trader.account),
+						api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
+							AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close, profit)).
+							AddLine(createReportMessage(key, message.Detail(), tErr, vErr, err)),
+						nil)
+				}
 			case trade := <-in:
 				out <- trade
 			}
