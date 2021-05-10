@@ -94,6 +94,7 @@ func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry,
 				if _, ok := accountFor[index]; ok {
 					return nil
 				}
+				fmt.Printf("\nqq = %+v", qq)
 				series, err := parseEvents(qq)
 				if err == nil {
 					assets = append(assets, series)

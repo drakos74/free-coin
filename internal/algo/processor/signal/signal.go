@@ -96,7 +96,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				if tErr == nil && vErr == nil {
 
 					// ignore the MANUAL-sell signals
-					if message.Config.Mode != "MANUAL" && t == model.Sell {
+					if (message.Config.Mode == "MANUAL" && t == model.Sell) ||
+						(message.Config.Mode == "BS" && t == model.Buy) {
 						rErr := registry.Add(storage.K{
 							Pair:  fmt.Sprintf("%s_%s_ignored", message.Data.Ticker, message.Config.Mode),
 							Label: message.Detail(),
