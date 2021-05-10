@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	filename = "%d.events.log"
+	filename  = "%d.events.log"
+	separator = "\no\n"
 )
 
 type Logger struct {
@@ -60,7 +61,7 @@ func (l *Logger) Store(k storage.Key, value interface{}) error {
 
 	defer f.Close()
 
-	if _, err = f.Write(append(b, []byte("\n")...)); err != nil {
+	if _, err = f.Write(append(b, []byte(separator)...)); err != nil {
 		return fmt.Errorf("could not write log file for  '%+v': %w", k, err)
 	}
 	return nil
@@ -168,7 +169,7 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 				return fmt.Errorf("could not load key '%+v': %w", key, err)
 			}
 			c := 0
-			for _, s := range strings.Split(ss, "\n") {
+			for _, s := range strings.Split(ss, separator) {
 				if s == "" {
 					continue
 				}
