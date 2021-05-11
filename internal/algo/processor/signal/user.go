@@ -78,7 +78,11 @@ func (t *trader) configure(user api.User) {
 		}
 		sb.WriteString(fmt.Sprintf("min-size : %d", t.minSize))
 		cfg := sb.String()
-		api.Reply(api.Index(command.User), user, api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), cfg)).AddLine(fmt.Sprintf("error [%v]", err)).ReplyTo(command.ID), nil)
+		msg := api.NewMessage(processor.Audit(t.compoundKey(ProcessorName), cfg))
+		if err != nil {
+			msg.AddLine(fmt.Sprintf("error [%v]", err))
+		}
+		api.Reply(api.Index(command.User), user, msg.ReplyTo(command.ID), nil)
 	}
 }
 
