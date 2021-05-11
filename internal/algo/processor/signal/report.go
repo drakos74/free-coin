@@ -42,9 +42,9 @@ type query struct {
 }
 
 func addTargets(client api.Exchange, grafana *metrics.Server, registryConstr storage.EventRegistry) {
-	grafana.Target("PnL", readFromRegistry(client, registryConstr, noError, addPnL))
-	grafana.Target("trades", readFromRegistry(client, registryConstr, noError, count))
-	grafana.Target("errors", readFromRegistry(client, registryConstr, isError, count))
+	grafana.Target("PnL", readFromRegistry(client, registryConstr, noSuffix(errorSuffix, ignoredSuffix), addPnL))
+	grafana.Target("trades", readFromRegistry(client, registryConstr, noSuffix(errorSuffix, ignoredSuffix), count))
+	grafana.Target("errors", readFromRegistry(client, registryConstr, withSuffix(errorSuffix), count))
 }
 
 func readFromRegistry(client api.Exchange, registryConstr storage.EventRegistry, condition func(dir string) bool, addSeries func(query query) metrics.Series) metrics.TargetQuery {
@@ -293,12 +293,25 @@ func count(query query) metrics.Series {
 	return series
 }
 
-func noError(dir string) bool {
-	return !isError(dir)
+func noSuffix(suffix ...string) func(dir string) bool {
+	return func(dir string) bool {
+		return !hasSuffix(dir, suffix...)
+	}
 }
 
-func isError(dir string) bool {
-	return strings.HasSuffix(dir, "error")
+func withSuffix(suffix ...string) func(dir string) bool {
+	return func(dir string) bool {
+		return hasSuffix(dir, suffix...)
+	}
+}
+
+func hasSuffix(dir string, suffix ...string) bool {
+	for _, s := range suffix {
+		if strings.HasSuffix(dir, s) {
+			return true
+		}
+	}
+	return false
 }
 
 func parseDuration(key string, data map[string]interface{}) (time.Duration, error) {

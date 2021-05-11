@@ -95,8 +95,9 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 	}
 
 	// adjust the volume to comply with lot size filter
-	order.Volume = lotSize.Adjust(order.Volume)
+	order.Volume = lotSize.Adjust(order.Volume, order.Key.Strategy == "")
 	volume := strconv.FormatFloat(order.Volume, 'f', s.BaseAssetPrecision, 64)
+	order.Audit.Volume = volume
 
 	log.Debug().
 		Str("volume", volume).
@@ -127,6 +128,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 			count += q
 		}
 	}
+	order.Audit.Fills = int(count)
 	order.Price = price / count
 	return order, []string{orderResponse.ClientOrderID}, nil
 }

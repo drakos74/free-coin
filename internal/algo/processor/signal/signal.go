@@ -17,6 +17,9 @@ const (
 	ProcessorName = "signal"
 	port          = 8080
 	grafanaPort   = 6124
+
+	errorSuffix   = "error"
+	ignoredSuffix = "ignored"
 )
 
 type MessageSignal struct {
@@ -99,7 +102,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 					if (message.Config.Mode == "MANUAL" && t == model.Sell) ||
 						(message.Config.Mode == "BS" && t == model.Buy) {
 						rErr := registry.Add(storage.K{
-							Pair:  fmt.Sprintf("%s_%s_ignored", message.Data.Ticker, message.Config.Mode),
+							Pair:  fmt.Sprintf("%s_%s_%s", message.Data.Ticker, message.Config.Mode, ignoredSuffix),
 							Label: message.Detail(),
 						}, Order{
 							Message: message,
@@ -199,7 +202,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 						}
 						regErr := registry.Add(storage.K{
 							Pair:  message.Data.Ticker,
-							Label: fmt.Sprintf("%s_%s", message.Key(), "error"),
+							Label: fmt.Sprintf("%s_%s", message.Key(), errorSuffix),
 						}, Order{
 							Message: message,
 							Order:   order,
@@ -233,7 +236,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				if err == nil || t == model.Buy || close != "" {
 					user.Send(api.Index(trader.account),
 						api.NewMessage(processor.Audit(trader.compoundKey(ProcessorName), "processed signal")).
-							AddLine(createTypeMessage(coin, t, order.Volume, order.Price, close, profit)).
+							AddLine(createTypeMessage(coin, t, order.Audit.Volume, order.Volume, order.Price, close, profit)).
 							AddLine(createReportMessage(key, message.Detail(), tErr, vErr, err)),
 						nil)
 				}
@@ -244,11 +247,12 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	}
 }
 
-func createTypeMessage(coin model.Coin, t model.Type, volume, price float64, close string, profit float64) string {
-	return fmt.Sprintf("%s %s %s %.4f at %.4f | %s %.2f%s",
+func createTypeMessage(coin model.Coin, t model.Type, adjustedVolume string, volume, price float64, close string, profit float64) string {
+	return fmt.Sprintf("%s %s %s %s (%.4f) at %.4f | %s %.2f%s",
 		string(coin),
 		emoji.MapOpen(close == ""),
 		emoji.MapType(t),
+		adjustedVolume,
 		volume,
 		price,
 		emoji.MapToSign(profit),
@@ -264,7 +268,7 @@ func createReportMessage(key, detail string, err ...error) string {
 			errs = fmt.Sprintf("%s:%s", errs, e.Error())
 		}
 	}
-	return fmt.Sprintf("%s-(%s)-[%s]", key, detail, errs)
+	return fmt.Sprintf("%s [%s] | %s", key, detail, errs)
 }
 
 func createConfigMessage(trader *trader) string {

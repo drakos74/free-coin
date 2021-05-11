@@ -50,6 +50,12 @@ func (l Leverage) String() string {
 	}
 }
 
+// Audit defines the exact fields sent to the exchange
+type Audit struct {
+	Volume string `json:"volume"`
+	Fills  int    `json:"fills"`
+}
+
 // TrackedOrder is an order decorated with metadata information.
 type TrackedOrder struct {
 	Order
@@ -57,6 +63,7 @@ type TrackedOrder struct {
 	RefID string    `json:"ref_id"`
 	Time  time.Time `json:"time"`
 	TxIDs []string  `json:"txIds"`
+	Audit Audit     `json:"audit"`
 }
 
 func (to TrackedOrder) IsClosing() bool {

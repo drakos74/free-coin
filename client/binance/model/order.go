@@ -116,10 +116,9 @@ func NewLotSize(filter LotSizeFilter) (LotSize, error) {
 	return lotSize, nil
 }
 
-// TODO : make this configurable ...
 // open&close needs to be exact ...
 // sell-off needs to be floor ...
-func (l LotSize) Adjust(volume float64) float64 {
+func (l LotSize) Adjust(volume float64, selloff bool) float64 {
 	if volume < l.MinQuantity {
 		return l.MinQuantity
 	}
@@ -130,7 +129,10 @@ func (l LotSize) Adjust(volume float64) float64 {
 	steps := volume / l.StepSize
 	// note steps must be round integer
 	// pick the floor to avoid insufficient funds for closing positions and sell-off
-	return math.Floor(steps) * l.StepSize
+	if selloff {
+		return math.Floor(steps) * l.StepSize
+	}
+	return math.Round(steps) * l.StepSize
 }
 
 func ParseLOTSize(filters []map[string]interface{}) (LotSize, error) {
