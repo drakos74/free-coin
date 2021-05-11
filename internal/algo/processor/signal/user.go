@@ -120,7 +120,7 @@ func (t *trader) switchOnOff(user api.User) {
 	}
 }
 
-func (t *trader) trackUserActions(client api.Exchange, user api.User) {
+func (t *trader) portfolio(client api.Exchange, user api.User) {
 	for command := range user.Listen(t.compoundKey(ProcessorName), "?p") {
 
 		if t.account != "" && t.account != command.User {
@@ -283,6 +283,7 @@ func (t *trader) trade(client api.Exchange, user api.User) {
 					WithVolume(balance.Volume).
 					CreateTracked(model.Key{
 						Coin:     model.Coin(c),
+						Index:    sellOff,
 						Strategy: fmt.Sprintf("command:%s:%s", command.Content, command.User),
 					}, time.Now())
 				o, _, err := client.OpenOrder(order)

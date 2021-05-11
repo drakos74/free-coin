@@ -40,7 +40,7 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	if err != nil {
 		log.Error().Str("user", id).Err(err).Msg("could not start tracker")
 	}
-	go trader.trackUserActions(client, user)
+	go trader.portfolio(client, user)
 	go trader.trade(client, user)
 	go trader.switchOnOff(user)
 	go trader.configure(user)

@@ -18,6 +18,12 @@ const (
 	totalsKey     = "totals"
 
 	minSize = 20.0
+
+	// Index for Key definitions
+	// TODO make a proper enum
+	sellOff = -1
+	Open    = 0
+	Close   = 1
 )
 
 type Message struct {
