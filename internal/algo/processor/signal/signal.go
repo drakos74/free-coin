@@ -102,8 +102,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 					if (message.Config.Mode == "MANUAL" && t == model.Sell) ||
 						(message.Config.Mode == "BS" && t == model.Buy) {
 						rErr := registry.Add(storage.K{
-							Pair:  fmt.Sprintf("%s_%s_%s", message.Data.Ticker, message.Config.Mode, ignoredSuffix),
-							Label: message.Detail(),
+							Pair:  message.Data.Ticker,
+							Label: fmt.Sprintf("%s_%s", message.Key(), ignoredSuffix),
 						}, Order{
 							Message: message,
 						})
