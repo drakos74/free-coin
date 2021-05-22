@@ -31,41 +31,42 @@ type MockMessage struct {
 
 type MockUser struct {
 	*User
-	messages chan MockMessage
+	Messages chan MockMessage
 }
 
 func NewMockUser() *MockUser {
 	user, _ := NewUser("")
 	return &MockUser{
 		User:     user,
-		messages: make(chan MockMessage),
+		Messages: make(chan MockMessage),
 	}
 }
 
-func (m *MockUser) mockMessage(s string, user string, account string) {
+func (m *MockUser) MockMessage(s string, user string, account string) {
+	var sent bool
 	if account == "" {
-		fmt.Printf("\ns = %+v", s)
-		fmt.Printf("\nlen(m.consumers) = %+v", len(m.consumers))
-		for _, c := range m.consumers {
-			fmt.Printf("\nc = %+v", c)
-			c <- api.Command{
-				ID:      0,
-				User:    user,
-				Content: s,
+		for k, c := range m.consumers {
+			if strings.HasPrefix(s, k.Prefix) {
+				c <- api.Command{
+					ID:      0,
+					User:    user,
+					Content: s,
+				}
 			}
-			fmt.Printf("\naccount = %+v", account)
 		}
+	}
+	if !sent {
+		panic(fmt.Sprintf("could not send message: %s", s))
 	}
 }
 
 func (m *MockUser) Send(channel api.Index, message *api.Message, trigger *api.Trigger) int {
-
 	msg := MockMessage{
 		channel: channel,
 		message: *message,
 		trigger: trigger,
 	}
-	m.messages <- msg
+	m.Messages <- msg
 	return 0
 }
 
@@ -101,13 +102,13 @@ func (m *MockUser) Assert(t *testing.T, message UserMessage, test Test) {
 	// give it some time for the subscription to be confirmed
 	time.Sleep(1 * time.Second)
 
-	go m.mockMessage(message.Text, message.User, "")
+	go m.MockMessage(message.Text, message.User, "")
 
 	c := new(sync.WaitGroup)
 	c.Add(test.Count)
 	go func() {
 		var i int
-		for msg := range m.messages {
+		for msg := range m.Messages {
 			i++
 			err := test.Assertion(i, msg)
 			assert.NoError(t, err)

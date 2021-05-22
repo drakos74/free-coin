@@ -188,7 +188,7 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 		return fmt.Errorf("could not get events: %w", err)
 	}
 
-	// do teh last pointer assignment ... and ... done :)
+	// do the last pointer assignment ... and ... done :)
 	vv := reflect.Indirect(reflect.ValueOf(values))
 	vv.Set(elemSlice)
 

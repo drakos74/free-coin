@@ -81,6 +81,8 @@ func (e *Exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, err
 func (e *Exchange) log(msg string) {
 	if e.logger != nil {
 		e.logger.Println(msg)
+	} else {
+		fmt.Printf("[local-exchange] %s\n", msg)
 	}
 }
 
@@ -112,6 +114,7 @@ func (e *Exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []st
 func (e *Exchange) ClosePosition(position model.Position) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
+	fmt.Printf("e = %+v\n", e)
 	var price float64
 	var time time.Time
 	if trade, ok := e.trades[position.Coin]; ok {
@@ -167,6 +170,10 @@ func (e *Exchange) Gather() {
 // Trades returns the processed trades.
 func (e *Exchange) Trades(coin model.Coin) []model.Trade {
 	return e.allTrades[coin]
+}
+
+func (e *Exchange) Orders() (positions map[string]model.TrackedPosition) {
+	return e.positions
 }
 
 func (e *Exchange) Positions(coin model.Coin) (positions []model.TrackedPosition) {

@@ -149,6 +149,7 @@ func (t *trader) getAll(ctx context.Context) ([]string, map[string]model.Positio
 		// check the current price
 		if cp, ok := prices[p.Coin]; ok {
 			p.CurrentPrice = cp.Price
+			p.Value(model.NewPrice(cp.Price, time.Now()))
 		}
 		positions[k] = p
 		keys = append(keys, k)

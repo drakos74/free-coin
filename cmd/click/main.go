@@ -84,9 +84,7 @@ func run() {
 
 	accounts := getAccounts()
 
-	userSignal := signal.MessageSignal{
-		Output: make(chan signal.Message),
-	}
+	userSignal := signal.NewSignalChannel(nil)
 
 	processors := make([]api.Processor, 0)
 
@@ -112,10 +110,7 @@ func run() {
 
 		if detail.Exchange.Name != "" {
 			// secondary user ...
-			userSignal = signal.MessageSignal{
-				Source: userSignal.Output,
-				Output: make(chan signal.Message),
-			}
+			userSignal = signal.NewSignalChannel(userSignal.Output)
 			var userExchange api.Exchange
 			if detail.Exchange.Margin {
 				userExchange = binance.NewMarginExchange(detail.Name)

@@ -3,11 +3,10 @@ package signal
 import (
 	"fmt"
 
-	"github.com/drakos74/free-coin/internal/server"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/server"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -21,7 +20,7 @@ func Propagate(eventRegistry storage.EventRegistry, client api.Exchange, user ap
 			AddRoute(server.POST, server.Api, "test-post", handle(user, source)).
 			Run()
 		if err != nil {
-			log.Error().Err(err).Msg("could not dtart server")
+			log.Error().Err(err).Msg("could not start server")
 		}
 	}()
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/concurrent"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -27,6 +28,13 @@ type MessageSignal struct {
 	Output chan Message
 }
 
+func NewSignalChannel(source chan Message) MessageSignal {
+	return MessageSignal{
+		Source: source,
+		Output: make(chan Message),
+	}
+}
+
 func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistry, client api.Exchange, user api.User, signal MessageSignal, settings map[model.Coin]map[time.Duration]Settings) api.Processor {
 
 	registry, err := eventRegistry(id)
@@ -38,12 +46,13 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 	// init trader related actions
 	trader, err := newTrader(id, client, shard, settings)
 	if err != nil {
-		log.Error().Str("user", id).Err(err).Msg("could not start tracker")
+		log.Error().Str("user", id).Err(err).Msg("could not start trader")
 	}
-	go trader.portfolio(client, user)
-	go trader.trade(client, user)
-	go trader.switchOnOff(user)
-	go trader.configure(user)
+
+	concurrent.Async(func() { trader.portfolio(client, user) })
+	concurrent.Async(func() { go trader.trade(client, user) })
+	concurrent.Async(func() { go trader.switchOnOff(user) })
+	concurrent.Async(func() { go trader.configure(user) })
 
 	if err != nil {
 		log.Error().Err(err).Str("account", trader.account).Str("processor", ProcessorName).Msg("could not start processor")
@@ -242,6 +251,8 @@ func Receiver(id string, shard storage.Shard, eventRegistry storage.EventRegistr
 				}
 			case trade := <-in:
 				out <- trade
+			default:
+				// main loop
 			}
 		}
 	}

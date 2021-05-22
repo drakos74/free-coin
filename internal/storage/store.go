@@ -68,47 +68,6 @@ type Persistence interface {
 	Load(k Key, value interface{}) error
 }
 
-type VoidStorage struct {
-}
-
-func (d VoidStorage) Store(k Key, value interface{}) error {
-	return nil
-}
-
-func (d VoidStorage) Load(k Key, value interface{}) error {
-	return fmt.Errorf("not found '%v': %w", k, NotFoundErr)
-}
-
-func NewVoidStorage() *VoidStorage {
-	return &VoidStorage{}
-}
-
-func VoidShard(table string) Shard {
-	return func(shard string) (Persistence, error) {
-		return NewVoidStorage(), nil
-	}
-}
-
-// NewVoidStorage is a dummy event logger which ignores all calls
-type VoidRegistry struct {
-}
-
-func NewVoidRegistry() *VoidRegistry {
-	return &VoidRegistry{}
-}
-
-func (v VoidRegistry) Root() string {
-	return ""
-}
-
-func (v VoidRegistry) Add(key K, value interface{}) error {
-	return nil
-}
-
-func (v VoidRegistry) GetAll(key K, value interface{}) error {
-	return nil
-}
-
 func Store(persistence Persistence, key Key, value interface{}) {
 	err := persistence.Store(key, value)
 	if err != nil {
