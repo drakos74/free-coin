@@ -23,6 +23,9 @@ type User struct {
 	lock      *sync.RWMutex
 }
 
+// NewUser creates a local user implementation.
+// It will use the provided file to write the messages
+// if left empty, it will print the messages to the logs
 func NewUser(l string) (*User, error) {
 	var logger *log.Logger
 	if l != "" {
@@ -31,8 +34,10 @@ func NewUser(l string) (*User, error) {
 			log.Fatal(err)
 		}
 		logger = log.New(privateFile, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	} else {
+		logger = log.Default()
+		logger.SetOutput(os.Stdout)
 	}
-
 	return &User{
 		logger:    logger,
 		consumers: make(map[api.ConsumerKey]chan api.Command),
@@ -60,7 +65,7 @@ func (v *User) Send(channel api.Index, message *api.Message, trigger *api.Trigge
 	v.lock.RLock()
 	defer v.lock.RUnlock()
 	if v.logger != nil {
-		v.logger.Println(fmt.Sprintf("%s | %s | message = \n%+v", string(channel), message.Time.Format(dateFormat), message.Text))
+		v.logger.Println(fmt.Sprintf("MESSAGE: %s | %s \n%+v", string(channel), message.Time.Format(dateFormat), message.Text))
 	}
 	v.Messages = append(v.Messages, *message)
 	// if it s an executable action ... act on it

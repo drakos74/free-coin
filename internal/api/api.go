@@ -7,9 +7,14 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
+// ExchangeName defines the name of the exchange
 type ExchangeName string
 
+// Index is the identifier for the user communication channel
 type Index string
+
+// StrategyProcessor defines a processing logic for a strategy
+type StrategyProcessor func(u User, e Exchange) Processor
 
 // Query is the trades query object.
 type Query struct {
@@ -17,24 +22,24 @@ type Query struct {
 	Index string
 }
 
+// Pair defines a coin trading pair.
 type Pair struct {
 	Coin model.Coin
 }
 
 // Client exposes the low level interface for interacting with a trade source.
-// TODO : split the trade retrieval and ordering logic.
 type Client interface {
-	Trades(process <-chan Action, query Query) (model.TradeSource, error)
+	Trades(process <-chan Signal) (model.TradeSource, error)
 }
 
 // Exchange allows interaction with the exchange for submitting and closing positions and trades.
 type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
-	OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error)
-	ClosePosition(position model.Position) error
-	CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error)
+	OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []string, error)
+	ClosePosition(position *model.Position) error
 	Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error)
 	Pairs(ctx context.Context) map[string]Pair
+	CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error)
 }
 
 // User defines an external interface for exchanging information and sharing control with the user(s)

@@ -1,0 +1,21 @@
+{
+  "config": {
+    "SA": "40-27",
+    "Interval": "60m",
+    "Position": "20",
+    "Mode": "MANUAL"
+  },
+  "signal": {
+    "Buy": "1",
+    "StrongBuy": "0",
+    "Sell": "0",
+    "StrongSell": "0"
+  },
+  "data": {
+    "Exchange": "BINANCE",
+    "Ticker": "LINKUSDT",
+    "Price": "41.1341",
+    "Volume": "462638.1399999976",
+    "TimeNow": "2021-04-19T03:00:00Z"
+  }
+}

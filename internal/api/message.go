@@ -16,6 +16,7 @@ type Message struct {
 func NewMessage(txt string) *Message {
 	return &Message{
 		Text: txt,
+		Time: time.Now(),
 	}
 }
 

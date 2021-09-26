@@ -6,10 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/account"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
-	"github.com/drakos74/free-coin/client/kraken/model"
+	"github.com/drakos74/free-coin/internal/account"
 	"github.com/drakos74/free-coin/internal/api"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 )
@@ -24,8 +22,8 @@ type Exchange struct {
 func Raw(key, secret string) *Exchange {
 	exchange := &Exchange{
 		Api: &RemoteExchange{
-			converter: model.NewConverter(),
-			private:   krakenapi.New(key, secret),
+			baseSource: newSource(),
+			private:    krakenapi.New(key, secret),
 		},
 	}
 	exchange.Api.getInfo()
@@ -50,8 +48,8 @@ func NewExchange(user account.Name) api.Exchange {
 
 	exchange := &Exchange{
 		Api: &RemoteExchange{
-			converter: model.NewConverter(),
-			private:   krakenapi.New(key, secret),
+			baseSource: newSource(),
+			private:    krakenapi.New(key, secret),
 		},
 	}
 	exchange.Api.getInfo()
@@ -59,7 +57,7 @@ func NewExchange(user account.Name) api.Exchange {
 	return client
 }
 
-func (e *Exchange) ClosePosition(position coinmodel.Position) error {
+func (e *Exchange) ClosePosition(position *coinmodel.Position) error {
 	order := coinmodel.NewOrder(position.Coin).
 		Market().
 		WithVolume(position.Volume).
@@ -74,7 +72,7 @@ func (e *Exchange) ClosePosition(position coinmodel.Position) error {
 	return nil
 }
 
-func (e *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
+func (e *Exchange) OpenOrder(order *coinmodel.TrackedOrder) (*coinmodel.TrackedOrder, []string, error) {
 	_, txids, err := e.Api.Order(order.Order)
 	if err != nil {
 		return order, nil, fmt.Errorf("could not open order: %w", err)
@@ -86,6 +84,7 @@ func (e *Exchange) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmod
 	return make(map[coinmodel.Coin]coinmodel.CurrentPrice), nil
 }
 
+// OpenPositions retrieves the open positions from the exchange
 // TODO : make sure we reterieve all the positions.
 // If we have too many, the response might not have them all
 func (e *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch, error) {

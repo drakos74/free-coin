@@ -59,11 +59,13 @@ type Audit struct {
 // TrackedOrder is an order decorated with metadata information.
 type TrackedOrder struct {
 	Order
-	Key   Key
-	RefID string    `json:"ref_id"`
-	Time  time.Time `json:"time"`
-	TxIDs []string  `json:"txIds"`
-	Audit Audit     `json:"audit"`
+	Key    Key
+	Size   float64   `json:"size"`
+	Ticker string    `json:"ticker"`
+	RefID  string    `json:"ref_id"`
+	Time   time.Time `json:"time"`
+	TxIDs  []string  `json:"txIds"`
+	Audit  Audit     `json:"audit"`
 }
 
 func (to TrackedOrder) IsClosing() bool {
@@ -82,8 +84,8 @@ func (to TrackedOrder) Value() float64 {
 }
 
 // NewTrackedOrder creates a new tracked order.
-func NewTrackedOrder(key Key, time time.Time, order Order) TrackedOrder {
-	return TrackedOrder{
+func NewTrackedOrder(key Key, time time.Time, order Order) *TrackedOrder {
+	return &TrackedOrder{
 		Order: order,
 		Key:   key,
 		Time:  time,
@@ -206,7 +208,7 @@ func (o *Order) Create() Order {
 }
 
 // CreateTracked creates the tracked order from the order builder.
-func (o *Order) CreateTracked(key Key, time time.Time) TrackedOrder {
+func (o *Order) CreateTracked(key Key, time time.Time) *TrackedOrder {
 	order := o.Create()
 	return NewTrackedOrder(key, time, order)
 }

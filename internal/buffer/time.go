@@ -1,7 +1,10 @@
 package buffer
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/math"
 )
 
 // TimeWindowView is a time specific but static snapshot on top of a StatsCollector.
@@ -109,6 +112,61 @@ func (h HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 }
 
 // Get returns the transformed bucket value at the corresponding Index.
-func (h HistoryWindow) Get(transform Transform) []interface{} {
-	return h.buckets.Get(transform)
+// TODO : change the signature to act like json.Decode etc... so that we control the appending of properties on our own
+func (h HistoryWindow) Get(transform TimeBucketTransform) []interface{} {
+	return h.buckets.Get(func(bucket interface{}) interface{} {
+		// it's a history window , so we expect to have history buckets inside
+		if b, ok := bucket.(TimeBucket); ok {
+			return transform(b)
+		}
+		// TODO : this will introduce a nil element into the slice ... CAREFUL !!!
+		return nil
+	})
+}
+
+// Polynomial evaluates the polynomial regression
+// for the given polynomial degree
+// and based on the value extracted from the TimeBucket
+// scaled at the corresponding time duration.
+func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, interval time.Duration, degree int) ([]float64, error) {
+	xx := make([]float64, 0)
+	yy := make([]float64, 0)
+	t0 := 0.0
+	buckets := h.buckets.Get(func(bucket interface{}) interface{} {
+		if b, ok := bucket.(TimeBucket); ok {
+			return NewView(b, index)
+		}
+		return bucket
+	})
+
+	if len(buckets) < degree+1 {
+		return nil, fmt.Errorf("not enough buckets to apply polynomial regression")
+	}
+	for i, bucket := range buckets {
+		if view, ok := bucket.(TimeWindowView); ok {
+			if i == 0 {
+				t0 = float64(view.Time.Unix()) / interval.Seconds()
+			}
+			x := float64(view.Time.Unix())/interval.Seconds() - t0
+			xx = append(xx, x)
+
+			y := extract(view)
+			yy = append(yy, y)
+		} else {
+			return nil, fmt.Errorf("window does not contain timebuckets")
+		}
+	}
+
+	return math.Fit(xx, yy, degree)
+}
+
+// StatsWindow is a predefined TimeBucketTransform function that will gather the stats for the given dimensions.
+func StatsWindow(dim int) TimeBucketTransform {
+	return func(bucket TimeBucket) interface{} {
+		views := make([]TimeWindowView, dim)
+		for i := 0; i < dim; i++ {
+			views[i] = NewView(bucket, i)
+		}
+		return views
+	}
 }

@@ -116,7 +116,7 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 		if interrupt {
 			control.AllowInterrupt().WithCancel(cancel)
 		}
-		action := api.NewAction(request).
+		action := api.NewSignal(request).
 			WithContent(control).
 			Create()
 		s.block.Action <- action
@@ -148,8 +148,8 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 // Run starts the server
 func (s *Server) Run() error {
 	go func() {
-		actions := make(map[string]api.Action)
-		pendingActions := make([]api.Action, 0)
+		actions := make(map[string]api.Signal)
+		pendingActions := make([]api.Signal, 0)
 
 		var triggerNext = func() {
 			if len(actions) > 0 {
@@ -157,7 +157,7 @@ func (s *Server) Run() error {
 				return
 			}
 			// if we have no running actions ... trigger what is pending
-			newPendingActions := make([]api.Action, 0)
+			newPendingActions := make([]api.Signal, 0)
 			for i := 0; i < len(pendingActions); i++ {
 				action := pendingActions[i]
 				if i == 0 {

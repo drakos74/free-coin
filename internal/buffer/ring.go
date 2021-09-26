@@ -10,6 +10,9 @@ import (
 // Otherwise it's clear that this method is too generic to be used in another context.
 type Transform func(bucket interface{}) interface{}
 
+// TimeBucketTransform is a operation acting on an TimeWindow slice.
+type TimeBucketTransform func(bucket TimeBucket) interface{}
+
 // Ring is a ring buffer keeping the last x elements
 // TODO : use container/ring
 type Ring struct {

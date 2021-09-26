@@ -3,10 +3,8 @@ package model
 import (
 	"time"
 
-	cointime "github.com/drakos74/free-coin/internal/time"
-
 	"github.com/drakos74/free-coin/internal/buffer"
-
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/google/uuid"
 )
 
@@ -37,6 +35,13 @@ func EmptyBatch() *PositionBatch {
 	}
 }
 
+// FullBatch creates an empty batch.
+func FullBatch(positions ...Position) *PositionBatch {
+	return &PositionBatch{
+		Positions: positions,
+	}
+}
+
 type Data struct {
 	ID      string `json:"id"`
 	TxID    string `json:"txId"`
@@ -45,10 +50,11 @@ type Data struct {
 }
 
 type MetaData struct {
-	OpenTime time.Time `json:"open_time"`
-	Fees     float64   `json:"fees"`
-	Cost     float64   `json:"cost"`
-	Net      float64   `json:"net"`
+	OpenTime    time.Time `json:"open_time"`
+	CurrentTime time.Time `json:"current_time"`
+	Fees        float64   `json:"fees"`
+	Cost        float64   `json:"cost"`
+	Net         float64   `json:"net"`
 }
 
 // TrackingConfig defines the configuration for tracking position profit
@@ -116,8 +122,8 @@ func (p *Position) Value(price *Price) (value, profit float64) {
 
 	// add the profit to the window
 	if price != nil && p.Profit != nil {
-		if profit, ok := p.Profit.Window.Push(price.Time, profit); ok {
-			p.Profit.Data = append(p.Profit.Data, []float64{profit.Bucket.Values().Stats()[0].Avg(), float64(cointime.ToMilli(profit.Time))})
+		if w, ok := p.Profit.Window.Push(price.Time, profit); ok {
+			p.Profit.Data = append(p.Profit.Data, []float64{w.Bucket.Values().Stats()[0].Avg(), float64(cointime.ToMilli(w.Time))})
 		}
 	}
 
@@ -125,7 +131,7 @@ func (p *Position) Value(price *Price) (value, profit float64) {
 }
 
 // OpenPosition creates a position from a given order.
-func OpenPosition(order TrackedOrder, trackingConfig *TrackingConfig) Position {
+func OpenPosition(order *TrackedOrder, trackingConfig *TrackingConfig) Position {
 	return Position{
 		Data: Data{
 			ID:      uuid.New().String(),

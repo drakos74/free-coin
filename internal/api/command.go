@@ -13,7 +13,7 @@ type Command struct {
 	Content string
 }
 
-// NewCommand parses a command from a message details.
+// CommandFromMessage parses a command from a message details.
 func CommandFromMessage(id int, user, cmd string, opts ...string) Command {
 	// TODO : use regex split https://stackoverflow.com/questions/4466091/split-string-using-regular-expression-in-go/51195890
 	return Command{

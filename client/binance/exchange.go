@@ -83,7 +83,7 @@ func (c *Exchange) OpenPositions(ctx context.Context) (*coinmodel.PositionBatch,
 	return coinmodel.EmptyBatch(), nil
 }
 
-func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
+func (c *Exchange) OpenOrder(order *coinmodel.TrackedOrder) (*coinmodel.TrackedOrder, []string, error) {
 	s, ok := c.info[order.Coin]
 	if !ok {
 		return order, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(c.info))
@@ -104,7 +104,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 		Str("order", fmt.Sprintf("%+v", order)).
 		Msg("submit order")
 
-	orderResponse, err := c.api.CreateOrder(c.converter, order, volume)
+	orderResponse, err := c.api.CreateOrder(c.converter, *order, volume)
 	log.Debug().Err(err).Str("response", fmt.Sprintf("%+v", orderResponse)).Msg("order")
 	if err != nil {
 		return order, nil, fmt.Errorf("could not complete order: %w", err)
@@ -133,7 +133,7 @@ func (c *Exchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrd
 	return order, []string{orderResponse.ClientOrderID}, nil
 }
 
-func (c *Exchange) ClosePosition(position coinmodel.Position) error {
+func (c *Exchange) ClosePosition(position *coinmodel.Position) error {
 	order := coinmodel.NewOrder(position.Coin).
 		Market().
 		WithVolume(position.Volume).
@@ -141,7 +141,7 @@ func (c *Exchange) ClosePosition(position coinmodel.Position) error {
 		WithType(position.Type.Inv()).
 		Create()
 
-	_, _, err := c.OpenOrder(coinmodel.TrackedOrder{
+	_, _, err := c.OpenOrder(&coinmodel.TrackedOrder{
 		Order: order,
 	})
 	return err
@@ -247,7 +247,7 @@ func (e *MarginExchange) getPairs() {
 	}
 }
 
-func (e *MarginExchange) OpenOrder(order coinmodel.TrackedOrder) (coinmodel.TrackedOrder, []string, error) {
+func (e *MarginExchange) OpenOrder(order *coinmodel.TrackedOrder) (*coinmodel.TrackedOrder, []string, error) {
 	if _, ok := e.pairs[order.Coin]; !ok {
 		return order, nil, fmt.Errorf("not a valid margin pair: %s", string(order.Coin))
 	}

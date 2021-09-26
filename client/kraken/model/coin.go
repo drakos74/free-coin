@@ -14,6 +14,7 @@ const (
 	XWAVESZEUR = "WAVESEUR"
 	XDOTZEUR   = "DOTEUR"
 	XXRPZEUR   = "XXRPZEUR"
+	MINAZEUR   = "MINAEUR"
 )
 
 // Coin creates a new coin converter for kraken.
@@ -26,6 +27,7 @@ func Coin() CoinConverter {
 		model.WAVES: XWAVESZEUR,
 		model.DOT:   XDOTZEUR,
 		model.XRP:   XXRPZEUR,
+		model.MINA:  MINAZEUR,
 	}}
 }
 

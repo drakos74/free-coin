@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/client"
+
 	"github.com/google/uuid"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -47,13 +49,13 @@ func NewClient(timeRange cointime.Range, uuid string) *Client {
 }
 
 // WithUpstream adds an upstream client to the local client.
-func (c *Client) WithUpstream(upstream func(since int64) (api.Client, error)) *Client {
+func (c *Client) WithUpstream(upstream client.Factory) *Client {
 	c.upstream = upstream
 	return c
 }
 
 // WithPersistence adds a storage layer to the local client.
-func (c *Client) WithPersistence(persistence func(shard string) (storage.Persistence, error)) *Client {
+func (c *Client) WithPersistence(persistence storage.Shard) *Client {
 	c.persistence = persistence
 	return c
 }
@@ -68,7 +70,7 @@ func (c *Client) Mock() *Client {
 // it will try to get trades from the persistence layer if available by day
 // otherwise it will call the upstream client if available.
 // In that sense it works always in batches of one day interval.
-func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Signal, query api.Query) (model.TradeSource, error) {
 	// check if we have trades in the store ...
 
 	if _, ok := c.trades[query.Coin]; !ok {
@@ -105,7 +107,7 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.Trade
 			log.Error().Err(err).Msg("could not create upstream")
 			return
 		}
-		source, err := cl.Trades(make(chan api.Action), query)
+		source, err := cl.Trades(make(chan api.Signal))
 		if err != nil {
 			log.Error().Err(err).Msg("could not get trades from upstream")
 			return
@@ -162,7 +164,7 @@ func (c *Client) Trades(process <-chan api.Action, query api.Query) (model.Trade
 
 }
 
-func (c *Client) localTrades(uuid string, startTime time.Time, coin model.Coin, store storage.Persistence, process <-chan api.Action) (time.Time, error) {
+func (c *Client) localTrades(uuid string, startTime time.Time, coin model.Coin, store storage.Persistence, process <-chan api.Signal) (time.Time, error) {
 	hash := c.hash.Do(startTime)
 	k := c.key(hash, coin)
 	trades := make([]model.Trade, 0)

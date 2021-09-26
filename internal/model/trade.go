@@ -20,6 +20,7 @@ type TradeSource chan *Trade
 // Trade represents a trade object with all necessary details.
 type Trade struct {
 	SourceID string    `json:"-"`
+	Exchange string    `json:"exchange"`
 	ID       string    `json:"id"`
 	RefID    string    `json:"refId"`
 	Net      float64   `json:"net"`

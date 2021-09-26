@@ -15,22 +15,22 @@ type Processor func(in <-chan *model.Trade, out chan<- *model.Trade)
 
 // Block allows 2 processes to sync
 type Block struct {
-	// Action block.Action <- api.Action{}
-	Action chan Action
+	// Action block.Signal <- api.Signal{}
+	Action chan Signal
 	// ReAction	<-block.ReAction
-	ReAction chan Action
+	ReAction chan Signal
 }
 
 func NewBlock() Block {
 	return Block{
-		Action:   make(chan Action),
-		ReAction: make(chan Action),
+		Action:   make(chan Signal),
+		ReAction: make(chan Signal),
 	}
 }
 
-// Action is a generic struct used to trigger actions on other processes.
+// Signal is a generic struct used to trigger actions on other processes.
 // it can hold several metadata information , but for now we leave it empty.
-type Action struct {
+type Signal struct {
 	Name    string
 	ID      string
 	Coin    model.Coin
@@ -38,9 +38,9 @@ type Action struct {
 	Time    time.Time
 }
 
-// NewAction creates a new action with the given name.
-func NewAction(name string) *Action {
-	return &Action{
+// NewSignal creates a new action with the given name.
+func NewSignal(name string) *Signal {
+	return &Signal{
 		Name: name,
 		Time: time.Now(),
 		ID:   uuid.New().String(),
@@ -48,18 +48,18 @@ func NewAction(name string) *Action {
 }
 
 // Create returns an immutable instance of the action
-func (a *Action) Create() Action {
+func (a *Signal) Create() Signal {
 	return *a
 }
 
 // ForCoin assigns a coin to the action
-func (a *Action) ForCoin(coin model.Coin) *Action {
+func (a *Signal) ForCoin(coin model.Coin) *Signal {
 	a.Coin = coin
 	return a
 }
 
 // WithID assigns an id to the action
-func (a *Action) WithID(id string) *Action {
+func (a *Signal) WithID(id string) *Signal {
 	a.ID = id
 	return a
 }
@@ -67,7 +67,7 @@ func (a *Action) WithID(id string) *Action {
 // WithContent adds content to the action.
 // This would indicate an actionable event.
 // The content should be de-coded by using the the name of the action.
-func (a *Action) WithContent(s interface{}) *Action {
+func (a *Signal) WithContent(s interface{}) *Signal {
 	a.Content = s
 	return a
 }

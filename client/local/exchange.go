@@ -24,14 +24,14 @@ type Exchange struct {
 	count           map[model.Coin]int
 	mutex           *sync.Mutex
 	logger          *log.Logger
-	processed       chan<- api.Action
+	processed       chan<- api.Signal
 }
 
 // NewExchange creates a new local exchange
 func NewExchange(logFile string) *Exchange {
 	var logger *log.Logger
 	if logFile != "" {
-		file, err := os.OpenFile("cmd/test/logs/tracker_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func (e *Exchange) OneOfEvery(n int) *Exchange {
 }
 
 // SignalProcessed defines the channel to signal a trade having reached the end of the pipeline.
-func (e *Exchange) SignalProcessed(processed chan<- api.Action) *Exchange {
+func (e *Exchange) SignalProcessed(processed chan<- api.Signal) *Exchange {
 	e.processed = processed
 	return e
 }
@@ -86,7 +86,7 @@ func (e *Exchange) log(msg string) {
 	}
 }
 
-func (e *Exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []string, error) {
+func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []string, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// we assume here it s always market order
@@ -111,7 +111,7 @@ func (e *Exchange) OpenOrder(order model.TrackedOrder) (model.TrackedOrder, []st
 	return order, []string{order.ID}, nil
 }
 
-func (e *Exchange) ClosePosition(position model.Position) error {
+func (e *Exchange) ClosePosition(position *model.Position) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	fmt.Printf("e = %+v\n", e)
@@ -155,7 +155,7 @@ func (e *Exchange) Process(trade *model.Trade) {
 		e.allTrades[trade.Coin] = append(e.allTrades[trade.Coin], tr)
 	}
 	// signal to the source we are done processing this one
-	e.processed <- api.Action{}
+	e.processed <- api.Signal{}
 }
 
 func (e *Exchange) Gather() {

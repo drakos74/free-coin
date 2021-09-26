@@ -1,8 +1,9 @@
 package buffer
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRing_Push(t *testing.T) {

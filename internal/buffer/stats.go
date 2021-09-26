@@ -62,7 +62,7 @@ func (s Stats) EMA() float64 {
 	return s.ema
 }
 
-// Avg returns the average value of the set.
+// Sum returns the sum value of the set.
 func (s Stats) Sum() float64 {
 	return s.sum
 }
@@ -130,7 +130,7 @@ func (sc StatsCollector) Stats() []*Stats {
 	return sc.stats
 }
 
-// Push pushes each value to the corresponding dimension.
+// Size returns the size of the bucket.
 func (sc *StatsCollector) Size() int {
 	// we expect all buffer to have the same size
 	return sc.stats[0].count
@@ -167,7 +167,7 @@ func (b Bucket) Size() int {
 	return b.stats.Size()
 }
 
-// Stats returns the bucket Stats for the bucket.
+// Values returns the bucket StatsCollector for the bucket.
 func (b Bucket) Values() StatsCollector {
 	return *b.stats
 }

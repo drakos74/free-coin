@@ -42,22 +42,30 @@ func NewMockUser() *MockUser {
 	}
 }
 
+func (m *MockUser) MustMockMessage(s string, user string, account string) {
+	if !m.mockMessage(s, user, account) {
+		panic(fmt.Sprintf("could not send message: %s", s))
+	}
+}
+
 func (m *MockUser) MockMessage(s string, user string, account string) {
+	m.mockMessage(s, user, account)
+}
+
+func (m *MockUser) mockMessage(s string, user string, account string) bool {
 	var sent bool
 	if account == "" {
 		for k, c := range m.consumers {
 			if strings.HasPrefix(s, k.Prefix) {
 				c <- api.Command{
-					ID:      0,
 					User:    user,
 					Content: s,
 				}
+				sent = true
 			}
 		}
 	}
-	if !sent {
-		panic(fmt.Sprintf("could not send message: %s", s))
-	}
+	return sent
 }
 
 func (m *MockUser) Send(channel api.Index, message *api.Message, trigger *api.Trigger) int {

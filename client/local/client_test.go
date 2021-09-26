@@ -60,7 +60,7 @@ func TestClient_Trades(t *testing.T) {
 				WithPersistence(func(shard string) (storage.Persistence, error) {
 					return json.NewJsonBlob("table", tt.shard, true), nil
 				})
-			trades, err := client.Trades(make(chan api.Action), api.Query{
+			trades, err := client.Trades(make(chan api.Signal), api.Query{
 				Coin: tt.coin,
 			})
 			assert.NoError(t, err)
@@ -97,7 +97,7 @@ func newMockSource(since int64) *mockSource {
 	return &mockSource{start: t}
 }
 
-func (m *mockSource) Trades(process <-chan api.Action, query api.Query) (model.TradeSource, error) {
+func (m *mockSource) Trades(process <-chan api.Signal, query api.Query) (model.TradeSource, error) {
 
 	trades := make(chan *model.Trade)
 

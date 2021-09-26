@@ -18,6 +18,13 @@ type Key struct {
 }
 
 // ToString creates a string representation of the key.
+func (k Key) Hash() string {
+	return fmt.Sprintf("%s%s%d",
+		k.Coin, delimiter,
+		int(k.Duration.Minutes()))
+}
+
+// ToString creates a string representation of the key.
 func (k Key) ToString() string {
 	return fmt.Sprintf("%s%s%d%s%s%s%d",
 		k.Coin, delimiter,

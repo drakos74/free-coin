@@ -40,7 +40,7 @@ func testOrderOrder() { //nolint
 		TxIDs: nil,
 	}
 
-	o, txids, err := exchange.OpenOrder(order)
+	o, txids, err := exchange.OpenOrder(&order)
 	if err != nil {
 		fmt.Printf("\nerr = %+v", err)
 	}

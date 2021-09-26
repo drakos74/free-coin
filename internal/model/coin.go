@@ -24,9 +24,11 @@ const (
 	DOT Coin = "DOT"
 	// XRP represents the xrp token
 	XRP Coin = "XRP"
+	// MINA defines the MINA protocol token
+	MINA Coin = "MINA"
 )
 
-// Config contains coin related configuration.
+// Coins contains coin related configuration.
 var Coins = map[string]Coin{
 	"BTC": BTC,
 	"ETH": ETH,
@@ -35,6 +37,7 @@ var Coins = map[string]Coin{
 	//"WAVES": WAVES,
 	"DOT": DOT,
 	//"XRP": XRP,
+	"MINA": MINA,
 }
 
 func KnownCoins() []string {

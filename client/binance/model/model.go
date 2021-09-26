@@ -6,6 +6,7 @@ type Converter struct {
 	Type      TypeConverter
 	OrderType OrderTypeConverter
 	Leverage  LeverageConverter
+	Time      TimeConverter
 }
 
 // NewConverter creates a new converter.
@@ -15,5 +16,6 @@ func NewConverter() Converter {
 		Type:      Type(),
 		OrderType: OrderType(),
 		Leverage:  Leverage(),
+		Time:      Time(),
 	}
 }
