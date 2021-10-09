@@ -48,6 +48,8 @@ func (e *Engine) Run() error {
 		source = output
 	}
 
+	log.Info().Int("processors", len(processors)).Msg("engine started")
+
 	// output processor
 	for trade := range output {
 		l := e.lost[trade.Coin]

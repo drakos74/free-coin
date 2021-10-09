@@ -63,6 +63,7 @@ func NewBot(idxs ...api.Index) (*Bot, error) {
 			b:  bt,
 			id: chatID,
 		}
+		log.Info().Str("index", string(idx)).Msg("bot started")
 	}
 
 	return &Bot{
