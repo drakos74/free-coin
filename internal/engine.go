@@ -48,7 +48,7 @@ func (e *Engine) Run() error {
 		source = output
 	}
 
-	log.Info().Int("processors", len(processors)).Msg("engine started")
+	log.Info().Int("processors", len(processors)-1).Msg("engine started")
 
 	// output processor
 	for trade := range output {

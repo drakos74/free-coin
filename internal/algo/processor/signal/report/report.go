@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/signal/processor"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
