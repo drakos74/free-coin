@@ -98,14 +98,8 @@ fi
 if [ $# -eq 0 ]
   then
     echo "No arguments supplied"
-    # restart server process for ui and static file access
-    restart "server"
     # restart coin process
-    restart "coin"
-    # restart backtesting process
-    restart "backtest"
-    # restart click process
-    restart "click"
+    restart "free-coin"
     # just stop and start
     restart_grafana "grafana"
     echo "ALL DONE!"
