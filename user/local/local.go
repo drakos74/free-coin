@@ -35,8 +35,7 @@ func NewUser(l string) (*User, error) {
 		}
 		logger = log.New(privateFile, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	} else {
-		logger = log.Default()
-		logger.SetOutput(os.Stdout)
+		logger = log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	}
 	return &User{
 		logger:    logger,

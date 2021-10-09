@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -113,7 +114,7 @@ func (m *MockSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeB
 	if m.index[coin] < len(files) {
 		file := files[m.index[coin]]
 
-		b, err := os.ReadFile(file)
+		b, err := ioutil.ReadFile(file)
 		if err != nil {
 			return nil, err
 		}
