@@ -30,7 +30,7 @@ func VoidShard(table string) Shard {
 type VoidRegistry struct {
 }
 
-// NewVoidStorage creates a new noop registry
+// NewVoidRegistry creates a new noop registry
 func NewVoidRegistry() *VoidRegistry {
 	return &VoidRegistry{}
 }

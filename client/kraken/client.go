@@ -124,7 +124,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	}
 	coin := c.coins[i]
 	since := c.since[coin]
-	log.Debug().
+	log.Trace().
 		Str("coin", string(coin)).
 		Int64("since", since).
 		Msg("calling trades API")

@@ -2,6 +2,7 @@ package emoji
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -97,6 +98,15 @@ func MapToSymbols(ss []string) []string {
 		emojiSlice[j] = MapToSymbol(s)
 	}
 	return emojiSlice
+}
+
+// MapLog10 maps the logarithm of the given number to the emoji as a value.
+func MapLog10(value float64) string {
+	if value < 0 {
+		value = math.Abs(value)
+		return MapValue(math.Log10(value))
+	}
+	return MapValue(4 - math.Abs(math.Log10(value)))
 }
 
 // MapValue maps the given value to an emoji

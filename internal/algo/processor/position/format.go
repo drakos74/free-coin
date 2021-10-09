@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -30,7 +31,7 @@ func (p positions) Less(i, j int) bool { return p[i].t.Before(p[j].t) }
 func (p positions) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func formatPosition(p position) string {
-	return fmt.Sprintf("[%s] %08.2f -> %08.2f = %06.2f | %08.2f (%08.4f)", p.coin, p.open, p.current, p.diff, p.value, p.ratio)
+	return fmt.Sprintf("[%s] %08.2f -> %08.2f = %06.2f | %s (%08.4f) %s", p.coin, p.open, p.current, p.diff, emoji.MapToSign(p.value), p.ratio, emoji.MapLog10(p.ratio))
 }
 
 func formatPositions(pp []position) string {
@@ -41,6 +42,6 @@ func formatPositions(pp []position) string {
 		total += p.value
 		msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
 	}
-	msgs.WriteString(fmt.Sprintf("total : %.2f", total))
+	msgs.WriteString(fmt.Sprintf("total => %.2f ( %d x %d - min )", total, trackingDuration/time.Minute, trackingSamples))
 	return msgs.String()
 }

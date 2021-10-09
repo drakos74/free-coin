@@ -3,9 +3,8 @@ package model
 import (
 	"fmt"
 
-	"github.com/drakos74/free-coin/internal/model"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
+	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -23,6 +22,7 @@ func Coin() CoinConverter {
 		model.BTC:   krakenapi.XXBTZEUR,
 		model.ETH:   krakenapi.XETHZEUR,
 		model.EOS:   krakenapi.EOSEUR,
+		model.ADA:   krakenapi.ADAEUR,
 		model.LINK:  XLINKZEUR,
 		model.WAVES: XWAVESZEUR,
 		model.DOT:   XDOTZEUR,

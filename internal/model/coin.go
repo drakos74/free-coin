@@ -16,6 +16,8 @@ const (
 	ETH Coin = "ETH"
 	// EOS represents the eos
 	EOS Coin = "EOS"
+	// ADA represents the eos
+	ADA Coin = "ADA"
 	// LINK represents link
 	LINK Coin = "LINK"
 	// WAVES represents the waves token

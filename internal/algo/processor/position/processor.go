@@ -5,6 +5,7 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
+// Processor is the position processor main routine.
 func Processor(index api.Index) func(u api.User, e api.Exchange) api.Processor {
 	return func(u api.User, e api.Exchange) api.Processor {
 		t := newTracker(index, u, e)

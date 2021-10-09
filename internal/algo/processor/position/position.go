@@ -5,15 +5,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/buffer"
-
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	trackingDuration = 1 * time.Minute
+	trackingDuration = 5 * time.Minute
 	trackingSamples  = 10
 	trackingInterval = 30
 )
@@ -55,6 +53,7 @@ func (t *tracker) track() {
 	positions, err := t.exchange.OpenPositions(context.Background())
 	if err != nil {
 		log.Error().Err(err).Msg("could not get positions")
+		return
 	}
 	pp := t.update(positions.Positions)
 	// TODO : add trigger
@@ -81,27 +80,21 @@ func (t *tracker) update(positions []model.Position) []position {
 		}
 
 		// let the position digest the stats ...
-		_, profit := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
-		// get the zeroth element as this is we are asking for in the buffer.StatsWindow call
-		cc, err := t.positions[ps.ID].Profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
-			return b.Value
-		}, time.Minute, 2)
+		_, profit, cc := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
 		c := 0.0
-		if err != nil {
-			log.Debug().Err(err).Msg("could not do polynomial fit on window")
-		} else {
+		// only print if we were able to gather previous data, otherwise nothing will have changed
+		if cc != nil {
 			c = cc[2]
+			pp = append(pp, position{
+				t:       t.positions[ps.ID].OpenTime,
+				coin:    t.positions[ps.ID].Coin,
+				open:    t.positions[ps.ID].OpenPrice,
+				current: t.positions[ps.ID].CurrentPrice,
+				value:   t.positions[ps.ID].Net,
+				diff:    profit,
+				ratio:   c,
+			})
 		}
-
-		pp = append(pp, position{
-			t:       t.positions[ps.ID].OpenTime,
-			coin:    t.positions[ps.ID].Coin,
-			open:    t.positions[ps.ID].OpenPrice,
-			current: t.positions[ps.ID].CurrentPrice,
-			value:   t.positions[ps.ID].Net,
-			diff:    profit,
-			ratio:   c,
-		})
 
 		//if len(stats) > 0 {
 		//	switch x := stats[len(stats)-1].(type) {

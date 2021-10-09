@@ -3,8 +3,9 @@ package model
 import (
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/internal/buffer"
-	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/google/uuid"
 )
 
@@ -75,7 +76,6 @@ func Track(duration time.Duration, samples int) *TrackingConfig {
 type Profit struct {
 	Config TrackingConfig       `json:"config"`
 	Window buffer.HistoryWindow `json:"-"`
-	Data   [][]float64          `json:"data"`
 }
 
 // NewProfit creates a new position tracking struct
@@ -86,7 +86,6 @@ func NewProfit(config *TrackingConfig) *Profit {
 	return &Profit{
 		Config: *config,
 		Window: buffer.NewHistoryWindow(config.Duration, config.Samples),
-		Data:   make([][]float64, 0),
 	}
 }
 
@@ -104,7 +103,7 @@ type Position struct {
 
 // Value returns the value of the position and the profit or loss percentage.
 // TODO : add processing function for past profits
-func (p *Position) Value(price *Price) (value, profit float64) {
+func (p *Position) Value(price *Price) (value, profit float64, stats []float64) {
 
 	if price != nil {
 		p.CurrentPrice = price.Value
@@ -120,14 +119,23 @@ func (p *Position) Value(price *Price) (value, profit float64) {
 	value = (net * p.Volume) - p.Fees
 	profit = 100 * value / (p.OpenPrice * p.Volume)
 
-	// add the profit to the window
-	if price != nil && p.Profit != nil {
-		if w, ok := p.Profit.Window.Push(price.Time, profit); ok {
-			p.Profit.Data = append(p.Profit.Data, []float64{w.Bucket.Values().Stats()[0].Avg(), float64(cointime.ToMilli(w.Time))})
-		}
+	if price == nil || p.Profit == nil {
+		return value, profit, nil
 	}
 
-	return value, profit
+	// try to ingest the new value to the window stats
+	if _, ok := p.Profit.Window.Push(price.Time, profit); !ok {
+		return value, profit, nil
+	}
+
+	a, err := p.Profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+		return b.Value
+	}, time.Minute, 2)
+	if err != nil {
+		log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
+		return value, profit, nil
+	}
+	return value, profit, a
 }
 
 // OpenPosition creates a position from a given order.
