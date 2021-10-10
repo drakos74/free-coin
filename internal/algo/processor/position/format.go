@@ -2,6 +2,7 @@ package position
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -40,7 +41,9 @@ func formatPositions(pp []position) string {
 	sort.Sort(positions(pp))
 	for _, p := range pp {
 		total += p.value
-		msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
+		if math.Abs(p.ratio) > 0.001 {
+			msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
+		}
 	}
 	msgs.WriteString(fmt.Sprintf("total => %.2f ( %d x %d - min )", total, trackingDuration/time.Minute, trackingSamples))
 	return msgs.String()

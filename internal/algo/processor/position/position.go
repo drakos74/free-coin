@@ -2,6 +2,7 @@ package position
 
 import (
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -55,17 +56,18 @@ func (t *tracker) track() {
 		log.Error().Err(err).Msg("could not get positions")
 		return
 	}
-	pp := t.update(positions.Positions)
+	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
-	if len(pp) > 0 {
+	if len(pp) > 0 && send {
 		t.user.Send(t.index, api.NewMessage(formatPositions(pp)), nil)
 	}
 }
 
-func (t *tracker) update(positions []model.Position) []position {
+func (t *tracker) update(positions []model.Position) ([]position, bool) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	pp := make([]position, 0)
+	hasUpdate := false
 	for _, ps := range positions {
 		if _, ok := t.positions[ps.ID]; !ok {
 			ps.Profit = model.NewProfit(model.Track(trackingDuration, trackingSamples))
@@ -85,6 +87,9 @@ func (t *tracker) update(positions []model.Position) []position {
 		// only print if we were able to gather previous data, otherwise nothing will have changed
 		if cc != nil {
 			c = cc[2]
+			if math.Abs(c) >= 0.001 {
+				hasUpdate = true
+			}
 			pp = append(pp, position{
 				t:       t.positions[ps.ID].OpenTime,
 				coin:    t.positions[ps.ID].Coin,
@@ -112,5 +117,5 @@ func (t *tracker) update(positions []model.Position) []position {
 		//	}
 		//}
 	}
-	return pp
+	return pp, hasUpdate
 }

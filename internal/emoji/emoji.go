@@ -104,7 +104,7 @@ func MapToSymbols(ss []string) []string {
 func MapLog10(value float64) string {
 	if value < 0 {
 		value = math.Abs(value)
-		return MapValue(math.Log10(value))
+		return MapValue(-1 * (5 - math.Abs(math.Log10(value))))
 	}
 	return MapValue(4 - math.Abs(math.Log10(value)))
 }
