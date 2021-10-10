@@ -45,6 +45,6 @@ func formatPositions(pp []position) string {
 			msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
 		}
 	}
-	msgs.WriteString(fmt.Sprintf("total => %.2f ( %d x %d - min )", total, trackingDuration/time.Minute, trackingSamples))
+	msgs.WriteString(fmt.Sprintf("total => %.2f %s ( %d x %d - min )", total, emoji.ConvertValue(total), trackingDuration/time.Minute, trackingSamples))
 	return msgs.String()
 }

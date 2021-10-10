@@ -92,6 +92,25 @@ func MapToSentiment(f float64) string {
 	return emo
 }
 
+// ConvertValue converts a number into a sequence of emojis.
+func ConvertValue(f float64) string {
+	emote := Recycling
+	if f < 0 {
+		f = math.Abs(f)
+		emote = Biohazard
+	}
+	d := int(math.Log10(f))
+	return timesOf(d, emote)
+}
+
+func timesOf(d int, emote string) string {
+	msgs := new(strings.Builder)
+	for i := 0; i < d; i++ {
+		msgs.WriteString(fmt.Sprintf("%s", emote))
+	}
+	return msgs.String()
+}
+
 func MapToSymbols(ss []string) []string {
 	emojiSlice := make([]string, len(ss))
 	for j, s := range ss {
@@ -104,7 +123,13 @@ func MapToSymbols(ss []string) []string {
 func MapLog10(value float64) string {
 	if value < 0 {
 		value = math.Abs(value)
-		return MapValue(-1 * (5 - math.Abs(math.Log10(value))))
+		if value < 0.0001 {
+			value = 0.0001
+		}
+		return MapValue(-1 * (4 - math.Abs(math.Log10(value))))
+	}
+	if value < 0.0001 {
+		value = 0.0001
 	}
 	return MapValue(4 - math.Abs(math.Log10(value)))
 }
