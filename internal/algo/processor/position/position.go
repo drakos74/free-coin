@@ -71,10 +71,11 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 	for _, ps := range positions {
 		if _, ok := t.positions[ps.ID]; !ok {
 			ps.Profit = model.NewProfit(model.Track(trackingDuration, trackingSamples))
-			func(ps model.Position) {
-				t.positions[ps.ID] = &ps
-			}(ps)
 		}
+		// replace the positions ...
+		func(ps model.Position) {
+			t.positions[ps.ID] = &ps
+		}(ps)
 		// TODO : inject this logic into the position creation part
 		posTime := ps.CurrentTime
 		if posTime.IsZero() {
