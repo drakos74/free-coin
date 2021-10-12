@@ -2,6 +2,7 @@ package position
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,8 +12,6 @@ import (
 )
 
 const (
-	trackingDuration = 5 * time.Minute
-	trackingSamples  = 10
 	trackingInterval = 30
 )
 
@@ -86,6 +85,7 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		if _, ok := t.positions[ps.ID]; !ok {
 			ps.Profit = make(map[time.Duration]*model.Profit)
 			for _, cfg := range trackingConfigs {
+				fmt.Printf("cfg = %+v\n", cfg)
 				ps.Profit[cfg.Duration] = model.NewProfit(&cfg)
 			}
 			// replace the positions ...
