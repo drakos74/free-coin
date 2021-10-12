@@ -2,7 +2,6 @@ package position
 
 import (
 	"context"
-	"math"
 	"sync"
 	"time"
 
@@ -16,6 +15,21 @@ const (
 	trackingSamples  = 10
 	trackingInterval = 30
 )
+
+var trackingConfigs = make([]model.TrackingConfig, 0)
+
+func init() {
+	trackingConfigs = []model.TrackingConfig{
+		{
+			Duration: 5 * time.Minute,
+			Samples:  12,
+		},
+		{
+			Duration: 15 * time.Minute,
+			Samples:  16,
+		},
+	}
+}
 
 type tracker struct {
 	index     api.Index
@@ -70,7 +84,10 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 	hasUpdate := false
 	for _, ps := range positions {
 		if _, ok := t.positions[ps.ID]; !ok {
-			ps.Profit = model.NewProfit(model.Track(trackingDuration, trackingSamples))
+			ps.Profit = make(map[time.Duration]*model.Profit)
+			for _, cfg := range trackingConfigs {
+				ps.Profit[cfg.Duration] = model.NewProfit(&cfg)
+			}
 			// replace the positions ...
 			func(ps model.Position) {
 				t.positions[ps.ID] = &ps
@@ -84,12 +101,13 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		}
 
 		// let the position digest the stats ...
-		net, profit, cc := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
-		c := 0.0
+		net, profit, aa := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
 		// only print if we were able to gather previous data, otherwise nothing will have changed
-		if cc != nil {
-			c = cc[2]
-			if math.Abs(c) >= 0.001 {
+		if aa != nil {
+			cc := make(map[time.Duration]float64)
+			for t, a := range aa {
+				cc[t] = a[2]
+				// TODO : not the best way ... but anyway ...
 				hasUpdate = true
 			}
 			pp = append(pp, position{
@@ -99,7 +117,7 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 				current: t.positions[ps.ID].CurrentPrice,
 				value:   net,
 				diff:    profit,
-				ratio:   c,
+				ratio:   cc,
 			})
 		}
 

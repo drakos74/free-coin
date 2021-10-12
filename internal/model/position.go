@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -93,17 +94,17 @@ func NewProfit(config *TrackingConfig) *Profit {
 type Position struct {
 	Data
 	MetaData
-	Coin         Coin    `json:"coin"`
-	Type         Type    `json:"type"`
-	OpenPrice    float64 `json:"open_price"`
-	CurrentPrice float64 `json:"current_price"`
-	Volume       float64 `json:"volume"`
-	Profit       *Profit `json:"profit"`
+	Coin         Coin                      `json:"coin"`
+	Type         Type                      `json:"type"`
+	OpenPrice    float64                   `json:"open_price"`
+	CurrentPrice float64                   `json:"current_price"`
+	Volume       float64                   `json:"volume"`
+	Profit       map[time.Duration]*Profit `json:"profit"`
 }
 
 // Value returns the value of the position and the profit or loss percentage.
 // TODO : add processing function for past profits
-func (p *Position) Value(price *Price) (value, profit float64, stats []float64) {
+func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Duration][]float64) {
 
 	if price != nil {
 		p.CurrentPrice = price.Value
@@ -124,22 +125,32 @@ func (p *Position) Value(price *Price) (value, profit float64, stats []float64) 
 	}
 
 	// try to ingest the new value to the window stats
-	if _, ok := p.Profit.Window.Push(price.Time, profit); !ok {
-		return value, profit, nil
+	aa := make(map[time.Duration][]float64)
+	for k, _ := range p.Profit {
+		if _, ok := p.Profit[k].Window.Push(price.Time, profit); ok {
+			a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+				return b.Value
+			}, time.Minute, 2)
+			if err != nil {
+				log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
+			} else {
+				aa[k] = a
+			}
+		}
 	}
 
-	a, err := p.Profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
-		return b.Value
-	}, time.Minute, 2)
-	if err != nil {
-		log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
-		return value, profit, nil
-	}
-	return value, profit, a
+	return value, profit, aa
 }
 
 // OpenPosition creates a position from a given order.
-func OpenPosition(order *TrackedOrder, trackingConfig *TrackingConfig) Position {
+func OpenPosition(order *TrackedOrder, trackingConfig ...*TrackingConfig) Position {
+	profit := make(map[time.Duration]*Profit)
+	for _, cfg := range trackingConfig {
+		if _, ok := profit[cfg.Duration]; ok {
+			log.Warn().Str("key", fmt.Sprintf("%.0f", cfg.Duration.Minutes())).Msg("config already present")
+		}
+		profit[cfg.Duration] = NewProfit(cfg)
+	}
 	return Position{
 		Data: Data{
 			ID:      uuid.New().String(),
@@ -152,6 +163,6 @@ func OpenPosition(order *TrackedOrder, trackingConfig *TrackingConfig) Position 
 		Type:      order.Type,
 		Volume:    order.Volume,
 		OpenPrice: order.Price,
-		Profit:    NewProfit(trackingConfig),
+		Profit:    profit,
 	}
 }
