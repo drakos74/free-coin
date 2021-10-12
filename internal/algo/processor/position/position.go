@@ -71,11 +71,12 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 	for _, ps := range positions {
 		if _, ok := t.positions[ps.ID]; !ok {
 			ps.Profit = model.NewProfit(model.Track(trackingDuration, trackingSamples))
+			// replace the positions ...
+			func(ps model.Position) {
+				t.positions[ps.ID] = &ps
+			}(ps)
 		}
-		// replace the positions ...
-		func(ps model.Position) {
-			t.positions[ps.ID] = &ps
-		}(ps)
+
 		// TODO : inject this logic into the position creation part
 		posTime := ps.CurrentTime
 		if posTime.IsZero() {
@@ -83,7 +84,7 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		}
 
 		// let the position digest the stats ...
-		_, profit, cc := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
+		net, profit, cc := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
 		c := 0.0
 		// only print if we were able to gather previous data, otherwise nothing will have changed
 		if cc != nil {
@@ -96,7 +97,7 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 				coin:    t.positions[ps.ID].Coin,
 				open:    t.positions[ps.ID].OpenPrice,
 				current: t.positions[ps.ID].CurrentPrice,
-				value:   t.positions[ps.ID].Net,
+				value:   net,
 				diff:    profit,
 				ratio:   c,
 			})
