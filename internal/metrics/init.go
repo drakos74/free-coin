@@ -28,6 +28,7 @@ func init() {
 	}
 
 	prometheus.MustRegister(Observer.prometheus.Trades)
+	prometheus.MustRegister(Observer.prometheus.Calls)
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())

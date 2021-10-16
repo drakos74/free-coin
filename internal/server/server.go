@@ -88,7 +88,7 @@ func (s *Server) Debug() {
 	s.debug = true
 }
 
-// Add adds the given routes to the server
+// AddRoute adds the given routes to the server
 func (s *Server) AddRoute(method Method, action Action, path string, exec Handler) *Server {
 	s.routes = append(s.routes, Route{
 		Action: action,
