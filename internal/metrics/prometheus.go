@@ -17,8 +17,8 @@ func newPrometheusMetrics() prometheusMetrics {
 		),
 		Calls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Namespace: "processor",
-				Name:      "call",
+				Namespace: "call",
+				Name:      "processor",
 			}, []string{"call", "process"},
 		),
 	}
