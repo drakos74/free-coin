@@ -71,7 +71,7 @@ func (t *tracker) track() {
 		log.Error().Err(err).Msg("could not get positions")
 		return
 	}
-	metrics.Observer.IncrementTrades("track", Name)
+	metrics.Observer.IncrementCalls("track", Name)
 	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
 	if len(pp) > 0 && send {
