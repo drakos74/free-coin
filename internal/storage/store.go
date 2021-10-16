@@ -21,6 +21,7 @@ const (
 )
 
 var (
+	// DefaultDir is the default storage directory
 	// TODO : leaving this for now to be able to adjust for the tests
 	DefaultDir = "file-storage"
 )

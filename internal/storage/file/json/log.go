@@ -80,6 +80,8 @@ func (l Logger) Load(k storage.Key, value interface{}) error {
 		Label: k.Label,
 	}), fmt.Sprintf(filename, k.Hash))
 
+	fmt.Printf("fileName = %+v\n", fileName)
+
 	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("could not read file '%s': %w", fileName, err)
@@ -135,12 +137,17 @@ func (e *Registry) Add(key storage.K, value interface{}) error {
 	return e.logger.Store(k, value)
 }
 
-// Get appends the values to the given slice
+// GetAll appends the values to the given slice
 // Not sure it s worth all the effort and abstraction ... but wtf
 func (e *Registry) GetAll(key storage.K, values interface{}) error {
 
 	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
 		return fmt.Errorf("only accepting slices as placeholder for the results")
+	}
+
+	s := reflect.Indirect(reflect.ValueOf(values)).Len()
+	if s == 0 {
+		return fmt.Errorf("values slice must have at least one argument")
 	}
 
 	var instance interface{}
@@ -160,6 +167,15 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 				return fmt.Errorf("non-numberic path '%s' found for hash: %w", path, err)
 			}
 			var ss string
+			// TODO : this only accounts for 2 missed level of the parent path
+			// or otherwise a linear label (not nested)
+			if key.Label == "" {
+				//  we need to find out the label
+				d := filepath.Dir(path)
+				p := filepath.Base(d)
+				key.Label = p
+			}
+
 			err = e.logger.Load(storage.Key{
 				Hash:  h,
 				Pair:  key.Pair,

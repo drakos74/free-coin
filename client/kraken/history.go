@@ -87,6 +87,7 @@ func (h *History) Get(from time.Time, to time.Time) (*model.TradeMap, error) {
 		if i > 10 {
 			return trades, nil
 		}
+
 	}
 
 }

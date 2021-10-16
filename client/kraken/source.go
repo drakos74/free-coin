@@ -173,13 +173,14 @@ func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakena
 		t = coinmodel.Sell
 	}
 	return coinmodel.Trade{
-		Coin:   r.converter.Coin.Coin(pair),
-		Price:  trade.PriceFloat,
-		Volume: trade.VolumeFloat,
-		Time:   time.Unix(trade.Time, 0),
-		Active: active,
-		Live:   live,
-		Type:   t,
+		Exchange: "kraken",
+		Coin:     r.converter.Coin.Coin(pair),
+		Price:    trade.PriceFloat,
+		Volume:   trade.VolumeFloat,
+		Time:     time.Unix(trade.Time, 0),
+		Active:   active,
+		Live:     live,
+		Type:     t,
 	}
 }
 
