@@ -140,7 +140,10 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 	})
 
 	if len(buckets) < degree+1 {
-		return nil, fmt.Errorf("not enough buckets to apply polynomial regression")
+		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
+			len(buckets),
+			degree+1,
+			degree)
 	}
 	for i, bucket := range buckets {
 		if view, ok := bucket.(TimeWindowView); ok {

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/metrics"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
@@ -69,6 +71,7 @@ func (t *tracker) track() {
 		log.Error().Err(err).Msg("could not get positions")
 		return
 	}
+	metrics.Observer.IncrementTrades("track", Name)
 	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
 	if len(pp) > 0 && send {

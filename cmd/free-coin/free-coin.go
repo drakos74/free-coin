@@ -4,10 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-
-	"github.com/drakos74/free-coin/client/history"
-
 	"github.com/drakos74/free-coin/user/telegram"
 
 	"github.com/drakos74/free-coin/client/kraken"
@@ -25,11 +21,9 @@ func init() {
 
 func main() {
 	// main engine trade input ...
-	client := history.New(
-		kraken.NewClient(model.BTC, model.ETH).
-			//Since(cointime.LastXHours(24)).
-			Interval(5 * time.Second),
-	).WithRegistry(json.NewEventRegistry("trades"))
+	client := kraken.NewClient(model.BTC, model.ETH).
+		//Since(cointime.LastXHours(24)).
+		Interval(5 * time.Second)
 	engine, err := coin.NewEngine(client)
 	if err != nil {
 		log.Fatalf("error creating engine: %s", err.Error())

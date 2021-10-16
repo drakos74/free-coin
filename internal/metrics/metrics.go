@@ -14,3 +14,7 @@ type Metrics struct {
 func (m *Metrics) IncrementTrades(labels ...string) {
 	m.prometheus.Trades.WithLabelValues(labels...).Inc()
 }
+
+func (m *Metrics) IncrementCalls(labels ...string) {
+	m.prometheus.Calls.WithLabelValues(labels...).Inc()
+}
