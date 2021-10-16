@@ -22,3 +22,13 @@ func TestMapLog10(t *testing.T) {
 	}
 
 }
+
+func TestConvertValue(t *testing.T) {
+	s := -5000.0
+	for i := 0; i < 100; i++ {
+		w := s + 100*float64(i)
+		fmt.Printf("w = %+v\n", w)
+		v := ConvertValue(w)
+		fmt.Printf("v = %+v\n", v)
+	}
+}

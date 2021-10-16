@@ -2,6 +2,7 @@ package position
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -32,6 +33,15 @@ func (p positions) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type ratio map[time.Duration]float64
 
+func (r ratio) hasValue() bool {
+	for _, v := range r {
+		if math.Abs(v) > 0.001 {
+			return true
+		}
+	}
+	return false
+}
+
 func (r ratio) String() string {
 	msgs := new(strings.Builder)
 	msgs.WriteString("(")
@@ -46,16 +56,17 @@ func formatPosition(p position) string {
 	return fmt.Sprintf("[%s] %08.2f -> %08.2f = %06.2f | %s %s", p.coin, p.open, p.current, p.diff, emoji.MapToSign(p.value), p.ratio)
 }
 
-func formatPositions(pp []position) string {
+func formatPositions(pp []position) (string, string) {
 	msgs := new(strings.Builder)
 	total := 0.0
 	sort.Sort(positions(pp))
 	for _, p := range pp {
 		total += p.value
-		if len(p.ratio) > 0 {
+		if p.ratio.hasValue() {
 			msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
 		}
 	}
+	v := emoji.ConvertValue(total)
 	msgs.WriteString(fmt.Sprintf("total => %.2f %s", total, emoji.ConvertValue(total)))
-	return msgs.String()
+	return msgs.String(), v
 }

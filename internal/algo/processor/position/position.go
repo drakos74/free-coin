@@ -2,7 +2,6 @@ package position
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -36,6 +35,7 @@ type tracker struct {
 	exchange  api.Exchange
 	positions map[string]*model.Position
 	lock      *sync.RWMutex
+	state     string
 }
 
 func newTracker(index api.Index, u api.User, e api.Exchange) *tracker {
@@ -72,7 +72,11 @@ func (t *tracker) track() {
 	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
 	if len(pp) > 0 && send {
-		t.user.Send(t.index, api.NewMessage(formatPositions(pp)), nil)
+		msg, st := formatPositions(pp)
+		if st != t.state {
+			t.state = st
+			t.user.Send(t.index, api.NewMessage(msg), nil)
+		}
 	}
 }
 
@@ -85,7 +89,6 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		if _, ok := t.positions[ps.ID]; !ok {
 			ps.Profit = make(map[time.Duration]*model.Profit)
 			for _, cfg := range trackingConfigs {
-				fmt.Printf("cfg = %+v\n", cfg)
 				ps.Profit[cfg.Duration] = model.NewProfit(&cfg)
 			}
 			// replace the positions ...
@@ -105,8 +108,8 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		// only print if we were able to gather previous data, otherwise nothing will have changed
 		if aa != nil {
 			cc := make(map[time.Duration]float64)
-			for t, a := range aa {
-				cc[t] = a[2]
+			for d, a := range aa {
+				cc[d] = a[2]
 				// TODO : not the best way ... but anyway ...
 				hasUpdate = true
 			}

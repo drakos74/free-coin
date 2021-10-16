@@ -23,9 +23,11 @@ const (
 	SunFace      = "🌞"
 	Star         = "🌟"
 
-	Zero = "🥜" //🕸
-	Down = "🐞" //🌶 // 🥀
-	Up   = "🦠" //🥦
+	Zero         = "🥜" //🕸
+	SlightlyDown = "🌶"
+	Down         = "🐞" //// 🥀
+	Up           = "🦠" //
+	SlightlyUp   = "🥦"
 
 	DotSnow  = "❄"
 	DotFire  = "🔥"
@@ -94,13 +96,39 @@ func MapToSentiment(f float64) string {
 
 // ConvertValue converts a number into a sequence of emojis.
 func ConvertValue(f float64) string {
-	emote := Recycling
-	if f < 0 {
-		f = math.Abs(f)
-		emote = Biohazard
+
+	emote := Zero
+	g := math.Abs(f)
+	t := constructDiv(1000)
+	if g >= 1000 {
+		if f < 0 {
+			emote = Biohazard
+		} else {
+			emote = Recycling
+		}
+	} else if g >= 250 {
+		if f < 0 {
+			emote = Down
+		} else {
+			emote = Up
+		}
+		t = constructDiv(250)
+	} else {
+		if f < 0 {
+			emote = SlightlyDown
+		} else {
+			emote = SlightlyUp
+		}
+		t = constructDiv(100)
 	}
-	d := int(math.Log10(f))
+	d := t(g)
 	return timesOf(d, emote)
+}
+
+func constructDiv(limit float64) func(f float64) int {
+	return func(f float64) int {
+		return int(f / limit)
+	}
 }
 
 func timesOf(d int, emote string) string {
