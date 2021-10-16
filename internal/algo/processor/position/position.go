@@ -76,6 +76,7 @@ func (t *tracker) track() {
 	// TODO : add trigger
 	if len(pp) > 0 && send {
 		msg, st := formatPositions(pp)
+		log.Info().Str("current", t.state).Str("new", st).Msg("state")
 		if st != t.state {
 			t.state = st
 			t.user.Send(t.index, api.NewMessage(msg), nil)
