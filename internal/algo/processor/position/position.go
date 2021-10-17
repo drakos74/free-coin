@@ -35,7 +35,7 @@ type tracker struct {
 	index     api.Index
 	user      api.User
 	exchange  api.Exchange
-	positions map[string]*model.Position
+	positions map[model.Coin]map[string]*model.Position
 	lock      *sync.RWMutex
 	state     string
 }
@@ -45,7 +45,7 @@ func newTracker(index api.Index, u api.User, e api.Exchange) *tracker {
 		index:     index,
 		user:      u,
 		exchange:  e,
-		positions: make(map[string]*model.Position),
+		positions: make(map[model.Coin]map[string]*model.Position),
 		lock:      new(sync.RWMutex),
 	}
 
@@ -75,29 +75,31 @@ func (t *tracker) track() {
 	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
 	if len(pp) > 0 && send {
-		msg, st := formatPositions(pp)
-		log.Info().Str("current", t.state).Str("new", st).Msg("state")
-		if st != t.state {
-			t.state = st
-			t.user.Send(t.index, api.NewMessage(msg), nil)
-		}
+		msg, st, _ := formatPositions(pp)
+		//if st != t.state || sh {
+		t.state = st
+		t.user.Send(t.index, api.NewMessage(msg), nil)
+		//}
 	}
 }
 
-func (t *tracker) update(positions []model.Position) ([]position, bool) {
+func (t *tracker) update(positions []model.Position) (map[model.Coin][]position, bool) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	pp := make([]position, 0)
+	pp := make(map[model.Coin][]position, 0)
 	hasUpdate := false
 	for _, ps := range positions {
-		if _, ok := t.positions[ps.ID]; !ok {
+		if _, ok := t.positions[ps.Coin]; !ok {
+			t.positions[ps.Coin] = make(map[string]*model.Position)
+		}
+		if _, ok := t.positions[ps.Coin][ps.ID]; !ok {
 			ps.Profit = make(map[time.Duration]*model.Profit)
 			for _, cfg := range trackingConfigs {
 				ps.Profit[cfg.Duration] = model.NewProfit(&cfg)
 			}
 			// replace the positions ...
 			func(ps model.Position) {
-				t.positions[ps.ID] = &ps
+				t.positions[ps.Coin][ps.ID] = &ps
 			}(ps)
 		}
 
@@ -108,7 +110,8 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 		}
 
 		// let the position digest the stats ...
-		net, profit, aa := t.positions[ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
+		// TODO : probbly we dont nee to redo the polynomial work for the same coins ... e.g. 'aa'
+		net, profit, aa := t.positions[ps.Coin][ps.ID].Value(model.NewPrice(ps.CurrentPrice, posTime))
 		// only print if we were able to gather previous data, otherwise nothing will have changed
 		if aa != nil {
 			cc := make(map[time.Duration]float64)
@@ -117,11 +120,14 @@ func (t *tracker) update(positions []model.Position) ([]position, bool) {
 				// TODO : not the best way ... but anyway ...
 				hasUpdate = true
 			}
-			pp = append(pp, position{
-				t:       t.positions[ps.ID].OpenTime,
-				coin:    t.positions[ps.ID].Coin,
-				open:    t.positions[ps.ID].OpenPrice,
-				current: t.positions[ps.ID].CurrentPrice,
+			if _, ok := pp[ps.Coin]; !ok {
+				pp[ps.Coin] = make([]position, 0)
+			}
+			pp[ps.Coin] = append(pp[ps.Coin], position{
+				t:       t.positions[ps.Coin][ps.ID].OpenTime,
+				coin:    t.positions[ps.Coin][ps.ID].Coin,
+				open:    t.positions[ps.Coin][ps.ID].OpenPrice,
+				current: t.positions[ps.Coin][ps.ID].CurrentPrice,
 				value:   net,
 				diff:    profit,
 				ratio:   cc,

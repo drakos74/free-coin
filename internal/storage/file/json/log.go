@@ -80,8 +80,6 @@ func (l Logger) Load(k storage.Key, value interface{}) error {
 		Label: k.Label,
 	}), fmt.Sprintf(filename, k.Hash))
 
-	fmt.Printf("fileName = %+v\n", fileName)
-
 	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("could not read file '%s': %w", fileName, err)
@@ -140,6 +138,79 @@ func (e *Registry) Add(key storage.K, value interface{}) error {
 // GetAll appends the values to the given slice
 // Not sure it s worth all the effort and abstraction ... but wtf
 func (e *Registry) GetAll(key storage.K, values interface{}) error {
+
+	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
+		return fmt.Errorf("only accepting slices as placeholder for the results")
+	}
+
+	s := reflect.Indirect(reflect.ValueOf(values)).Len()
+	if s == 0 {
+		return fmt.Errorf("values slice must have at least one argument")
+	}
+
+	var instance interface{}
+	t := reflect.Indirect(reflect.ValueOf(values)).Index(0).Type()
+	instance = reflect.New(t).Interface()
+
+	filePath := e.logger.filePath(key)
+	//pInstance := reflect.ValueOf(instance).Pointer()
+	// find our file ... which hash to choose (?)
+	elemSlice := reflect.MakeSlice(reflect.SliceOf(t), 0, 10)
+	err := filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
+			// just load it anyway
+			n := info.Name()
+			h, err := strconv.ParseInt(strings.Split(n, ".")[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("non-numberic path '%s' found for hash: %w", path, err)
+			}
+			var ss string
+			// TODO : this only accounts for 2 missed level of the parent path
+			// or otherwise a linear label (not nested)
+			if key.Label == "" {
+				//  we need to find out the label
+				d := filepath.Dir(path)
+				p := filepath.Base(d)
+				key.Label = p
+			}
+
+			err = e.logger.Load(storage.Key{
+				Hash:  h,
+				Pair:  key.Pair,
+				Label: key.Label,
+			}, &ss)
+			if err != nil {
+				return fmt.Errorf("could not load key '%+v': %w", key, err)
+			}
+			c := 0
+			for _, s := range strings.Split(ss, separator) {
+				if s == "" {
+					continue
+				}
+				err = json.Unmarshal([]byte(s), instance)
+				if err != nil {
+					return fmt.Errorf("could not decode event value '%+v': %w", s, err)
+				}
+				ev := reflect.Indirect(reflect.ValueOf(instance))
+				elemSlice = reflect.Append(elemSlice, ev)
+				c++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("could not get events: %w", err)
+	}
+
+	// do the last pointer assignment ... and ... done :)
+	vv := reflect.Indirect(reflect.ValueOf(values))
+	vv.Set(elemSlice)
+
+	return nil
+}
+
+// GetRange retrieves the values for the given range of keys
+func (e *Registry) GetRange(key storage.K, values interface{}) error {
 
 	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
 		return fmt.Errorf("only accepting slices as placeholder for the results")

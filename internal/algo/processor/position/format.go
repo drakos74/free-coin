@@ -3,7 +3,6 @@ package position
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +12,11 @@ import (
 
 func formatOpenPositions(positions map[string]*model.Position) string {
 	return fmt.Sprintf("open positions: %d", len(positions))
+}
+
+type exchangePosition struct {
+	model.Position
+	depth int
 }
 
 type position struct {
@@ -56,17 +60,37 @@ func formatPosition(p position) string {
 	return fmt.Sprintf("[%s] %08.2f -> %08.2f = %06.2f | %s %s", p.coin, p.open, p.current, p.diff, emoji.MapToSign(p.value), p.ratio)
 }
 
-func formatPositions(pp []position) (string, string) {
+func formatPositions(pp map[model.Coin][]position) (string, string, bool) {
 	msgs := new(strings.Builder)
 	total := 0.0
-	sort.Sort(positions(pp))
-	for _, p := range pp {
+	hasLines := false
+
+	coins := make([]model.Coin, 0)
+	positions := make(map[model.Coin]position, 0)
+	for c, pps := range pp {
+		coins = append(coins, c)
+		pos := position{}
+		for _, p := range pps {
+			pos.coin = p.coin
+			pos.diff += p.diff
+			pos.current = p.current
+			pos.open += p.open
+			pos.ratio = p.ratio
+			pos.value += p.value
+		}
+		pos.open = pos.open / float64(len(pps))
+		positions[c] = pos
+	}
+
+	for _, c := range coins {
+		p := positions[c]
 		total += p.value
 		if p.ratio.hasValue() {
 			msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
+			hasLines = true
 		}
 	}
 	v := emoji.ConvertValue(total)
 	msgs.WriteString(fmt.Sprintf("total => %.2f %s", total, emoji.ConvertValue(total)))
-	return msgs.String(), v
+	return msgs.String(), v, hasLines
 }
