@@ -85,10 +85,10 @@ func formatPositions(pp map[model.Coin][]position) (string, string, bool) {
 	for _, c := range coins {
 		p := positions[c]
 		total += p.value
-		if p.ratio.hasValue() {
-			msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
-			hasLines = true
-		}
+		//if p.ratio.hasValue() {
+		msgs.WriteString(fmt.Sprintf("%s%s", formatPosition(p), "\n"))
+		hasLines = true
+		//}
 	}
 	v := emoji.ConvertValue(total)
 	msgs.WriteString(fmt.Sprintf("total => %.2f %s", total, emoji.ConvertValue(total)))
