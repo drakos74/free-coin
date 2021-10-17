@@ -77,6 +77,7 @@ func formatPositions(pp map[model.Coin][]position) (string, string, bool) {
 			pos.current = p.current
 			pos.open += p.open
 			pos.ratio = p.ratio
+			pos.value += pos.value
 		}
 		pos.open = pos.open / float64(len(pps))
 		pos.diff = pos.diff / float64(len(pps))
