@@ -70,16 +70,16 @@ func formatPositions(pp map[model.Coin][]position) (string, string, bool) {
 	for c, pps := range pp {
 		coins = append(coins, c)
 		pos := position{}
+		// TODO : NOTE !!! the aggregation logic assumes all positions for the same coin being of equal size
 		for _, p := range pps {
 			pos.coin = p.coin
 			pos.diff += p.diff
 			pos.current = p.current
 			pos.open += p.open
 			pos.ratio = p.ratio
-			pos.value += p.value
 		}
 		pos.open = pos.open / float64(len(pps))
-		pos.value = pos.value / float64(len(pps))
+		pos.diff = pos.diff / float64(len(pps))
 		positions[c] = pos
 	}
 
