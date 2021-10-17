@@ -75,11 +75,11 @@ func (t *tracker) track() {
 	pp, send := t.update(positions.Positions)
 	// TODO : add trigger
 	if len(pp) > 0 && send {
-		msg, st, _ := formatPositions(pp)
-		//if st != t.state || sh {
-		t.state = st
-		t.user.Send(t.index, api.NewMessage(msg), nil)
-		//}
+		msg, st, sh := formatPositions(pp)
+		if st != t.state || sh {
+			t.state = st
+			t.user.Send(t.index, api.NewMessage(msg), nil)
+		}
 	}
 }
 
