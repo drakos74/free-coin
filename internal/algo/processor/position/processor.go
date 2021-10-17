@@ -19,6 +19,11 @@ func Processor(index api.Index) func(u api.User, e api.Exchange) api.Processor {
 
 		return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 			log.Info().Str("processor", Name).Msg("started processor")
+			defer func() {
+				log.Info().Str("processor", Name).Msg("closing processor")
+				close(out)
+			}()
+
 			for trade := range in {
 				metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 				//fmt.Printf("trade = %+v\n", trade)
