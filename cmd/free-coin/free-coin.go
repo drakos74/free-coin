@@ -48,12 +48,12 @@ func main() {
 		WithProcessor(stats.Processor(api.FreeCoin, shard, map[model.Coin]map[time.Duration]stats.Config{
 			model.BTC: {
 				//time.Minute * 2: stats.New("2-min", time.Minute*2).Add(4, 1).Notify().Build(),
-				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Notify().Build(),
+				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Build(),
 				//time.Minute * 15: stats.New("15-min", time.Minute*15).Add(2, 1).Notify().Build(),
 			},
 			model.ETH: {
 				//time.Minute * 2: stats.New("2-min", time.Minute*2).Add(4, 1).Notify().Build(),
-				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Notify().Build(),
+				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Build(),
 				//time.Minute * 15: stats.New("15-min", time.Minute*15).Add(2, 1).Notify().Build(),
 			},
 		})).Apply()
