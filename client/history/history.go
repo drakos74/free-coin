@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/api"
@@ -20,9 +21,9 @@ type History struct {
 	source   client.Source
 	batch    map[model.Coin][]*model.Trade
 	index    map[model.Coin]string
-	key      func(trade *model.Trade) string
+	key      func(t time.Time) string
 	storage  storage.Registry
-	readonly model.Coin
+	readonly *Request
 }
 
 // New creates a new history trade source implementation.
@@ -42,8 +43,8 @@ func (h *History) WithRegistry(registry storage.Registry) *History {
 	return h
 }
 
-func (h *History) Reader(coin model.Coin) *History {
-	h.readonly = coin
+func (h *History) Reader(request *Request) *History {
+	h.readonly = request
 	return h
 }
 
@@ -53,8 +54,8 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	// intercept the trades output channel
 	out := make(model.TradeSource)
 	in := make(model.TradeSource)
-	if h.readonly != "" {
-		inCh, err := newSource(h.readonly, h.storage).Trades(process)
+	if h.readonly != nil {
+		inCh, err := newSource(*h.readonly, h.storage).Trades(process)
 		if err != nil {
 			return nil, fmt.Errorf("could not creste readonly source: %w", err)
 		}
@@ -69,14 +70,15 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 
 	go func() {
 		defer func() {
+			log.Info().Str("processor", "trades-history").Msg("closing processor")
 			close(out)
 		}()
 		for trade := range in {
-			if h.readonly == "" {
+			if h.readonly == nil {
 				// store the trade
 				exchange := trade.Exchange
 				coin := trade.Coin
-				k := h.key(trade)
+				k := h.key(trade.Time)
 
 				// structure : {Exchange}_{Coin}_{time-hash}
 				key := Key{
@@ -97,11 +99,9 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 						Err(err).Msg("could not store trade")
 				}
 			}
-
 			out <- trade
 		}
 	}()
-
 	return out, nil
 }
 
@@ -116,9 +116,9 @@ func (k Key) String() string {
 	return fmt.Sprintf("%s_%s_%s", k.Exchange, k.Coin, k.Key)
 }
 
-func genericKeyingFunc(trade *model.Trade) string {
+func genericKeyingFunc(t time.Time) string {
 	// key on 4h period
-	unixSeconds := trade.Time.Unix()
+	unixSeconds := t.Unix()
 	hash := unixSeconds / (4 * secondsInAnHour)
 	return fmt.Sprintf("%d", hash)
 }

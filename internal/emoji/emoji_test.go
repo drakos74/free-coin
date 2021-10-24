@@ -23,6 +23,16 @@ func TestMapLog10(t *testing.T) {
 
 }
 
+func TestMapDeca(t *testing.T) {
+
+	for i := -1000; i < 1000; i++ {
+		x := float64(i) / 10
+		s := MapDeca(x)
+		fmt.Printf("%f | s = %+v\n", x, s)
+	}
+
+}
+
 func TestConvertValue(t *testing.T) {
 	s := -5000.0
 	for i := 0; i < 100; i++ {

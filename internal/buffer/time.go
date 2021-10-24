@@ -7,6 +7,10 @@ import (
 	"github.com/drakos74/free-coin/internal/math"
 )
 
+const (
+	interval = time.Minute
+)
+
 // TimeWindowView is a time specific but static snapshot on top of a StatsCollector.
 // It allows to retrieve buckets of Stats from a streaming data set.
 // the bucket indexing is based on the time.
@@ -18,6 +22,7 @@ type TimeWindowView struct {
 	Diff    float64   `json:"diff"`
 	Ratio   float64   `json:"ratio"`
 	StdDev  float64   `json:"std"`
+	Density int       `json:"density"`
 }
 
 // NewView creates a new time view from a time bucket.
@@ -25,6 +30,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 	avg := bucket.Values().Stats()[index].Avg()
 	ema := bucket.Values().Stats()[index].EMA()
 	diff := bucket.Values().Stats()[index].Diff()
+	count := bucket.Values().Stats()[index].Count()
 	// Note: trying to make all values relative to the price
 	// so that they have a unified meaning
 	return TimeWindowView{
@@ -35,6 +41,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 		EMADiff: 100 * (ema - avg) / avg,
 		Ratio:   diff / avg,
 		StdDev:  100 * bucket.Values().Stats()[index].StDev() / avg,
+		Density: count,
 	}
 }
 
@@ -128,7 +135,7 @@ func (h HistoryWindow) Get(transform TimeBucketTransform) []interface{} {
 // for the given polynomial degree
 // and based on the value extracted from the TimeBucket
 // scaled at the corresponding time duration.
-func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, interval time.Duration, degree int) ([]float64, error) {
+func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int) ([]float64, error) {
 	xx := make([]float64, 0)
 	yy := make([]float64, 0)
 	t0 := 0.0
@@ -171,5 +178,11 @@ func StatsWindow(dim int) TimeBucketTransform {
 			views[i] = NewView(bucket, i)
 		}
 		return views
+	}
+}
+
+func WindowDensity() TimeBucketTransform {
+	return func(bucket TimeBucket) interface{} {
+		return bucket.Values().Stats()[0].Count()
 	}
 }

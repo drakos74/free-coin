@@ -162,6 +162,24 @@ func MapLog10(value float64) string {
 	return MapValue(4 - math.Abs(math.Log10(value)))
 }
 
+// MapDeca maps the decimal order to an emoji
+func MapDeca(value float64) string {
+	sign := 1.0
+	if value < 0 {
+		sign = -1
+		value = math.Abs(value)
+	}
+
+	if value < 0.1 {
+		return HalfEclipse
+	}
+
+	value *= 10
+
+	d := math.Abs(math.Log10(value))
+	return MapValue(sign * d)
+}
+
 // MapValue maps the given value to an emoji
 // it returns valuable results for values between [-5,5]
 func MapValue(value float64) string {

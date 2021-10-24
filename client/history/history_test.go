@@ -51,15 +51,18 @@ func TestHistoryClient_Trades_Write(t *testing.T) {
 	// total trades consumed , which also caused the stop of the execution
 	assert.Equal(t, limit-1, i)
 	// BTC is first so it consumed the full batch
-	assert.Equal(t, counter[model.Coin(string(model.BTC))], 4000)
+	assert.Equal(t, 4000, counter[model.Coin(string(model.BTC))])
 	// the last batch of ETH was interrupted
-	assert.Equal(t, counter[model.Coin(string(model.ETH))], 3998)
+	assert.Equal(t, 3998, counter[model.Coin(string(model.ETH))])
 }
 
 func TestHistoryClient_Trades_Read(t *testing.T) {
 	process := make(chan api.Signal)
 
-	readHistory := New(nil).WithRegistry(json.NewEventRegistry("test")).Reader(model.BTC)
+	readHistory := New(nil).WithRegistry(json.NewEventRegistry("test")).Reader(&Request{
+		Coin: model.BTC,
+		To:   time.Now(),
+	})
 
 	readSource, err := readHistory.Trades(process)
 	assert.NoError(t, err)
@@ -81,5 +84,5 @@ func TestHistoryClient_Trades_Read(t *testing.T) {
 		process <- api.Signal{}
 	}
 	// BTC is first so it consumed the full batch
-	assert.Equal(t, readCounter[model.Coin(string(model.BTC))], 4000)
+	assert.Equal(t, 4000, readCounter[model.Coin(string(model.BTC))])
 }

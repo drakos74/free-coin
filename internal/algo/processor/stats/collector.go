@@ -14,18 +14,17 @@ import (
 
 type statsCollector struct {
 	// TODO : improve the concurrency factor. this is temporary though inefficient locking
-	registry storage.Registry
-	state    storage.Persistence
-	lock     sync.RWMutex
-	configs  map[model.Coin]map[time.Duration]processor.Config
-	windows  map[model.Key]Window
+	state   storage.Persistence
+	lock    sync.RWMutex
+	configs map[model.Coin]map[time.Duration]Config
+	windows map[model.Key]Window
 }
 
-func newStats(shard storage.Shard, registry storage.Registry, configs map[model.Coin]map[time.Duration]processor.Config) (*statsCollector, error) {
+func newStats(shard storage.Shard, configs map[model.Coin]map[time.Duration]Config) (*statsCollector, error) {
 
 	windows := make(map[model.Key]Window)
 
-	state, err := shard(ProcessorName)
+	state, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
 		state = storage.NewVoidStorage()
@@ -36,20 +35,19 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 			k := model.Key{
 				Coin:     c,
 				Duration: d,
-				Strategy: cfg.Strategy.Name,
+				Strategy: cfg.Name,
 			}
 			// TODO : check if we can load the window (?)
-			key := model.NewKey(c, d, cfg.Strategy.Name)
+			key := model.NewKey(c, d, cfg.Name)
 			windows[k] = newWindow(key, cfg, state)
 		}
 	}
 
 	stats := &statsCollector{
-		registry: registry,
-		state:    state,
-		lock:     sync.RWMutex{},
-		windows:  windows,
-		configs:  configs,
+		state:   state,
+		lock:    sync.RWMutex{},
+		windows: windows,
+		configs: configs,
 	}
 	return stats, nil
 }
@@ -62,28 +60,33 @@ func newStats(shard storage.Shard, registry storage.Registry, configs map[model.
 //	delete(s.windows, k)
 //}
 
-func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, bool) {
+func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, map[int][]float64, float64, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if _, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
-		buckets := s.windows[k].W.Get(func(bucket interface{}) interface{} {
-			// it's a history window , so we expect to have history buckets inside
-			if b, ok := bucket.(buffer.TimeBucket); ok {
-				// get the 'zerowth' stats element, as we are only assing the Price a few lines above,
-				// there is nothing more to retrieve from the bucket.
-				priceView := buffer.NewView(b, 0)
-				volumeView := buffer.NewView(b, 1)
-				return windowView{
-					price:  priceView,
-					volume: volumeView,
-				}
+	if b, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
+		poly := make(map[int][]float64)
+		poly2, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+			return b.Value
+		}, 2)
+		poly[2] = poly2
+		poly3, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+			return b.Value
+		}, 3)
+		poly[3] = poly3
+		if err != nil {
+			log.Debug().Int("degree", 2).Msg("could not fit polynomial")
+		}
+		buckets := s.windows[k].W.Get(func(bucket buffer.TimeBucket) interface{} {
+			priceView := buffer.NewView(bucket, 0)
+			volumeView := buffer.NewView(bucket, 1)
+			return windowView{
+				price:  priceView,
+				volume: volumeView,
 			}
-			// TODO : this will break things a lot if we missed something ... 😅
-			return nil
 		})
-		return buckets, ok
+		return buckets, poly, float64(b.Bucket.Values().Stats()[0].Count()), ok
 	}
-	return nil, false
+	return nil, nil, 0, false
 }
 
 // add adds the new value to the model and returns the predictions taking the current sample into account
@@ -93,7 +96,7 @@ func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.
 	defer s.lock.Unlock()
 	predictions, status := s.windows[k].C.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
 	// dont store anything for now ...until we fix the structs and pointers
-	storage.Store(s.state, processor.NewStateKey(ProcessorName, k), StaticWindow{
+	storage.Store(s.state, processor.NewStateKey(Name, k), StaticWindow{
 		W: s.windows[k].W,
 		C: *s.windows[k].C,
 	})

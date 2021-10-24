@@ -97,7 +97,8 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 		time = trade.Time
 	}
 	order.Price = price
-	position := model.OpenPosition(order, nil)
+	// TODO : use the tracking config
+	position := model.OpenPosition(order)
 	position.OpenTime = order.Time
 	trackedPosition := model.TrackedPosition{
 		Open:     time,
@@ -155,7 +156,7 @@ func (e *Exchange) Process(trade *model.Trade) {
 		e.allTrades[trade.Coin] = append(e.allTrades[trade.Coin], tr)
 	}
 	// signal to the source we are done processing this one
-	e.processed <- api.Signal{}
+	//e.processed <- api.Signal{}
 }
 
 func (e *Exchange) Gather() {
@@ -165,6 +166,30 @@ func (e *Exchange) Gather() {
 		zlog.Info().Str("coin", string(c)).Int("count", len(e.allTrades[c])).Msg("all trades")
 		zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
 	}
+
+	w := make(map[model.Coin]report)
+	for _, p := range e.positions {
+		if _, ok := w[p.Coin]; !ok {
+			w[p.Coin] = report{}
+		}
+		r := w[p.Coin]
+		switch p.Type {
+		case model.Buy:
+			r.wallet -= p.OpenPrice * p.Volume
+			r.buy++
+		case model.Sell:
+			r.wallet += p.OpenPrice * p.Volume
+			r.sell++
+		}
+		w[p.Coin] = r
+	}
+	zlog.Info().Str("value", fmt.Sprintf("%+v", w)).Msg("wallet")
+}
+
+type report struct {
+	buy    int
+	sell   int
+	wallet float64
 }
 
 // Trades returns the processed trades.

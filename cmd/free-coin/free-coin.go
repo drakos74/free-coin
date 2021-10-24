@@ -4,14 +4,15 @@ import (
 	"log"
 	"time"
 
-	"github.com/drakos74/free-coin/user/telegram"
-
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
 	"github.com/drakos74/free-coin/internal/algo/processor/position"
+	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
+	storage "github.com/drakos74/free-coin/internal/storage/file/json"
+	"github.com/drakos74/free-coin/user/telegram"
 	"github.com/rs/zerolog"
 )
 
@@ -40,6 +41,23 @@ func main() {
 		ForUser(u).
 		WithProcessor(position.Processor(api.FreeCoin)).Apply()
 	engine.AddProcessor(positionTracker)
+
+	shard := storage.BlobShard("stats")
+	statsTracker := coin.NewStrategy(stats.Name).
+		ForUser(u).
+		WithProcessor(stats.Processor(api.FreeCoin, shard, map[model.Coin]map[time.Duration]stats.Config{
+			model.BTC: {
+				//time.Minute * 2: stats.New("2-min", time.Minute*2).Add(4, 1).Notify().Build(),
+				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Notify().Build(),
+				//time.Minute * 15: stats.New("15-min", time.Minute*15).Add(2, 1).Notify().Build(),
+			},
+			model.ETH: {
+				//time.Minute * 2: stats.New("2-min", time.Minute*2).Add(4, 1).Notify().Build(),
+				time.Minute * 5: stats.New("5-min", time.Minute*5).Add(5, 1).Notify().Build(),
+				//time.Minute * 15: stats.New("15-min", time.Minute*15).Add(2, 1).Notify().Build(),
+			},
+		})).Apply()
+	engine.AddProcessor(statsTracker)
 
 	//signal processor from tradeview
 	//signalProcessor := coin.NewStrategy("signal-processor").

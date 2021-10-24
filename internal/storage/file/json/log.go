@@ -20,6 +20,8 @@ const (
 	separator = "\no\n"
 )
 
+// Logger stores events very similar to an event logger
+// TODO : create manifest file for logs
 type Logger struct {
 	path string
 }
@@ -137,6 +139,7 @@ func (e *Registry) Add(key storage.K, value interface{}) error {
 
 // GetAll appends the values to the given slice
 // Not sure it s worth all the effort and abstraction ... but wtf
+// TODO : consider very large sets, maybe better to send over a channel .. or in batches ?
 func (e *Registry) GetAll(key storage.K, values interface{}) error {
 
 	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
@@ -167,18 +170,22 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 			var ss string
 			// TODO : this only accounts for 2 missed level of the parent path
 			// or otherwise a linear label (not nested)
-			if key.Label == "" {
-				//  we need to find out the label
-				d := filepath.Dir(path)
-				p := filepath.Base(d)
-				key.Label = p
-			}
-
-			err = e.logger.Load(storage.Key{
+			k := storage.Key{
 				Hash:  h,
 				Pair:  key.Pair,
 				Label: key.Label,
-			}, &ss)
+			}
+			if key.Label == "" {
+				//  we need to find out the label
+				label := filepath.Base(filepath.Dir(path))
+				k = storage.Key{
+					Hash:  h,
+					Pair:  key.Pair,
+					Label: label,
+				}
+			}
+
+			err = e.logger.Load(k, &ss)
 			if err != nil {
 				return fmt.Errorf("could not load key '%+v': %w", key, err)
 			}

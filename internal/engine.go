@@ -37,12 +37,11 @@ func (e *Engine) Run() error {
 		return fmt.Errorf("could not start client: %w", err)
 	}
 
-	first := e.first()
-
-	processors := append([]api.Processor{first}, e.processors...)
+	processors := append([]api.Processor{e.first()}, e.processors...)
 	// stitch the pipeline together
-	output := make(chan *model.Trade)
+	var output model.TradeSource
 	for _, process := range processors {
+		output = make(model.TradeSource)
 		input := source
 		go process(input, output)
 		source = output
@@ -55,8 +54,18 @@ func (e *Engine) Run() error {
 		l := e.lost[trade.Coin]
 		atomic.AddInt64(&l, -1)
 		e.lost[trade.Coin] = l
+		// TODO : add metrics for count and lost
+		//fmt.Printf("[%s] = [ %+v , %+v ] \n", trade.Coin, e.count[trade.Coin], e.lost[trade.Coin])
 		// signal to the source we are done processing this one
 		recall <- *api.NewSignal("engine-processed").ForCoin(trade.Coin)
+	}
+
+	for coin := range e.count {
+		log.Info().
+			Str("coin", string(coin)).
+			Int64("count", e.count[coin]).
+			Int64("lost", e.lost[coin]).
+			Msg("finished processing")
 	}
 
 	return nil
@@ -64,7 +73,9 @@ func (e *Engine) Run() error {
 
 func (e *Engine) first() api.Processor {
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
+		log.Info().Str("processor", "init").Msg("started processor")
 		defer func() {
+			log.Info().Str("processor", "init").Msg("closing processor")
 			close(out)
 		}()
 		// input processor

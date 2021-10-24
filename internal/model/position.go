@@ -130,7 +130,7 @@ func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Du
 		if _, ok := p.Profit[k].Window.Push(price.Time, profit); ok {
 			a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 				return b.Value
-			}, time.Minute, 2)
+			}, 2)
 			if err != nil {
 				log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
 			} else {

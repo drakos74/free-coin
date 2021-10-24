@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/client"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -29,6 +31,7 @@ func (v VoidClient) Trades(process <-chan api.Signal) (model.TradeSource, error)
 	trades := make(chan *model.Trade)
 	go func() {
 		<-time.NewTicker(1 * time.Millisecond).C
+		log.Info().Str("processor", "local-void").Msg("closing processor")
 		close(trades)
 	}()
 	return trades, nil
