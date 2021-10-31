@@ -53,7 +53,8 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 				k := model.NewKey(trade.Coin, duration, cfg.Name)
 				// push the trade data to the stats collector window
 				if buckets, poly, d, ok := stats.push(k, trade); ok {
-					log.Info().
+					log.Debug().
+						Str("coin", string(trade.Coin)).
 						Str("2", fmt.Sprintf("%+v", poly[2])).
 						Str("3", fmt.Sprintf("%+v", poly[3])).
 						Msg("poly")
