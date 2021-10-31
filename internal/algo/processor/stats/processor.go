@@ -53,11 +53,14 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 				k := model.NewKey(trade.Coin, duration, cfg.Name)
 				// push the trade data to the stats collector window
 				if buckets, poly, d, ok := stats.push(k, trade); ok {
-					log.Debug().
-						Str("coin", string(trade.Coin)).
-						Str("2", fmt.Sprintf("%+v", poly[2])).
-						Str("3", fmt.Sprintf("%+v", poly[3])).
-						Msg("poly")
+					if len(poly[2]) > 1 && len(poly[3]) > 2 {
+						log.Debug().
+							Time("stamp", trade.Time).
+							Str("coin", string(trade.Coin)).
+							Str("2", fmt.Sprintf("%+v", poly[2][2])).
+							Str("3", fmt.Sprintf("%+v", poly[3][3])).
+							Msg("poly")
+					}
 					if len(poly[2]) > 1 && math.Abs(poly[2][2]) > 0.99 &&
 						len(poly[3]) > 2 && math.Abs(poly[3][3]) > 0.009 {
 						// assert values
