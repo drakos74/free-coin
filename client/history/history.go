@@ -2,6 +2,8 @@ package history
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/client"
@@ -22,6 +24,7 @@ type History struct {
 	batch    map[model.Coin][]*model.Trade
 	index    map[model.Coin]string
 	key      func(t time.Time) string
+	deKey    func(t string) (time.Time, error)
 	storage  storage.Registry
 	readonly *Request
 }
@@ -33,6 +36,7 @@ func New(source client.Source) *History {
 		batch:   make(map[model.Coin][]*model.Trade),
 		index:   make(map[model.Coin]string),
 		key:     genericKeyingFunc,
+		deKey:   genericDeKeyFunc,
 		storage: storage.NewVoidRegistry(),
 	}
 }
@@ -48,6 +52,19 @@ func (h *History) Reader(request *Request) *History {
 	return h
 }
 
+type report struct {
+	init     bool
+	start    time.Time
+	startGap time.Duration
+	end      time.Time
+	endGap   time.Duration
+}
+
+func (r report) String() string {
+	return fmt.Sprintf("init = %v , start = %+v | %+v , end = %+v | %+v",
+		r.init, r.start.String(), r.startGap.String(), r.end.String(), r.endGap.String())
+}
+
 // Trades will delegate the trades the call to the underlying implementation,
 // but intercepting and storing the traffic.
 func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
@@ -55,7 +72,36 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	out := make(model.TradeSource)
 	in := make(model.TradeSource)
 	if h.readonly != nil {
-		inCh, err := newSource(*h.readonly, h.storage).Trades(process)
+		audit := report{}
+		inCh, err := newSource(*h.readonly, h.storage).WithFilter(func(label string) bool {
+			// split the label
+			parts := strings.Split(label, "_")
+			if len(parts) != 3 {
+				return true
+			}
+			t := parts[2]
+
+			tt, err := h.deKey(t)
+			if err != nil {
+				log.Warn().Str("label", label).Str("time", t).Err(err).Msg("could not parse label as time")
+				return true
+			}
+			if tt.Before(h.readonly.From.Add(-1*time.Hour)) || tt.After(h.readonly.To.Add(5*time.Hour)) {
+				return false
+			}
+
+			if !audit.init {
+				audit.init = true
+				audit.start = tt
+			}
+			audit.end = tt
+			return true
+		}).Trades(process)
+		audit.startGap = audit.start.Sub(h.readonly.From)
+		audit.endGap = audit.end.Sub(h.readonly.To)
+		fmt.Printf("report = %+v\n", audit)
+		fmt.Printf("h.readOnly = %+v\n", h.readonly)
+
 		if err != nil {
 			return nil, fmt.Errorf("could not creste readonly source: %w", err)
 		}
@@ -121,4 +167,13 @@ func genericKeyingFunc(t time.Time) string {
 	unixSeconds := t.Unix()
 	hash := unixSeconds / (4 * secondsInAnHour)
 	return fmt.Sprintf("%d", hash)
+}
+
+func genericDeKeyFunc(t string) (time.Time, error) {
+	h, err := strconv.Atoi(t)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not parse number from %s: %w", t, err)
+	}
+	seconds := h * 4 * secondsInAnHour
+	return time.Unix(int64(seconds), 0), nil
 }

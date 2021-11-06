@@ -51,6 +51,10 @@ func (m *MockRegistry) GetAll(key K, value interface{}) error {
 	return nil
 }
 
+func (m *MockRegistry) GetFor(key K, value interface{}, filter func(s string) bool) error {
+	return nil
+}
+
 func (m *MockRegistry) Root() string {
 	return ""
 }

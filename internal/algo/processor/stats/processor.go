@@ -2,7 +2,6 @@ package stats
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -54,32 +53,34 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 				// push the trade data to the stats collector window
 				if buckets, poly, d, ok := stats.push(k, trade); ok {
 					if len(poly[2]) > 1 && len(poly[3]) > 2 {
-						log.Debug().
-							Time("stamp", trade.Time).
-							Str("price", fmt.Sprintf("%v", trade.Price)).
-							Str("coin", string(trade.Coin)).
-							Str("2", fmt.Sprintf("%+v", poly[2][2])).
-							Str("3", fmt.Sprintf("%+v", poly[3][3])).
-							Msg("poly")
-					}
-					if len(poly[2]) > 1 && math.Abs(poly[2][2]) > 0.99 &&
-						len(poly[3]) > 2 && math.Abs(poly[3][3]) > 0.009 {
-						// assert values
-						p := 0.0
-						//openType, closeType := assertType(poly)
-						//o, p, err := trader.CreateOrder(
-						//	fmt.Sprintf("%s_%s", cfg.Name, string(trade.Coin)),
-						//	trade.Time,
-						//	trade.Price,
-						//	time.Duration(cfg.Duration)*time.Minute,
-						//	trade.Coin,
-						//	openType, closeType,
-						//	1,
-						//)
-						if err != nil {
-							u.Send(index, api.NewMessage(formatPoly(cfg, trade, poly, d, p, err)), nil)
-						} else {
-							u.Send(index, api.NewMessage(formatPoly(cfg, trade, poly, d, p, err)), nil)
+						p := poly[2][2] * poly[3][3]
+						if p > 0 {
+							log.Debug().
+								Time("stamp", trade.Time).
+								Str("price", fmt.Sprintf("%v", trade.Price)).
+								Str("coin", string(trade.Coin)).
+								Str("2", fmt.Sprintf("%+v", poly[2][2])).
+								Str("3", fmt.Sprintf("%+v", poly[3][3])).
+								Str("p", fmt.Sprintf("%+v", poly[2][2]*poly[3][3])).
+								Msg("poly")
+							// create a trade signal
+							signal := Signal{
+								Density: d,
+								Coin:    trade.Coin,
+								Factor:  p,
+								Type:    model.SignedType(poly[2][2]),
+								Price:   trade.Price,
+								Time:    trade.Time,
+							}
+							if signal.Filter(4) {
+								u.Send(index, api.NewMessage(formatSignal(signal)), nil)
+							}
+							// TODO : enable only for testing
+							//ss, err := json.Marshal(signal)
+							//if err != nil {
+							//	log.Warn().Msg("error marshalling signal")
+							//}
+							//u.Send(index, api.NewMessage(string(ss)), nil)
 						}
 					}
 					values, indicators, last := extractFromBuckets(buckets, group(getPriceRatio, cfg.Order.Exec))

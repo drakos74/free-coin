@@ -5,6 +5,7 @@ import "github.com/prometheus/client_golang/prometheus"
 type prometheusMetrics struct {
 	Trades *prometheus.CounterVec
 	Calls  *prometheus.CounterVec
+	Errors *prometheus.CounterVec
 }
 
 func newPrometheusMetrics() prometheusMetrics {
@@ -20,6 +21,12 @@ func newPrometheusMetrics() prometheusMetrics {
 				Namespace: "call",
 				Name:      "processor",
 			}, []string{"call", "process"},
+		),
+		Errors: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: "error",
+				Name:      "processor",
+			}, []string{"coin", "process"},
 		),
 	}
 }

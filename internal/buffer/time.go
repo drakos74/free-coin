@@ -167,6 +167,8 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 		}
 	}
 
+	//log.Debug().Str("xx", fmt.Sprintf("%+v", xx)).Str("yy", fmt.Sprintf("%+v", yy)).Msg("fit")
+
 	return math.Fit(xx, yy, degree)
 }
 

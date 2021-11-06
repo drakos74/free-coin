@@ -12,21 +12,28 @@ import (
 type source struct {
 	registry storage.Registry
 	request  Request
+	filter   func(s string) bool
 }
 
 func newSource(request Request, registry storage.Registry) *source {
 	return &source{
 		registry: registry,
 		request:  request,
+		filter:   func(s string) bool { return true },
 	}
+}
+
+func (s *source) WithFilter(filter func(s string) bool) *source {
+	s.filter = filter
+	return s
 }
 
 func (s *source) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	out := make(model.TradeSource)
 	trades := []model.Trade{{}}
-	err := s.registry.GetAll(storage.K{
+	err := s.registry.GetFor(storage.K{
 		Pair: string(s.request.Coin),
-	}, &trades)
+	}, &trades, s.filter)
 	if err != nil {
 		return nil, fmt.Errorf("could not get trades from registry: %w", err)
 	}

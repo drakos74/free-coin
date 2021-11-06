@@ -96,3 +96,7 @@ func formatPoly(cfg Config, trade *model.Trade, poly map[int][]float64, density 
 		trade.Price, density, profit,
 		cfg.Name, cfg.Duration, cfg.Model.Stats)
 }
+
+func formatSignal(signal Signal) string {
+	return fmt.Sprintf("%s %s %s %.4f [%.2f]", signal.Coin, emoji.MapDeca(10000*signal.Factor), emoji.MapType(signal.Type), signal.Price, signal.Density)
+}

@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -21,6 +22,20 @@ const (
 	O10             OrderName = "O10"
 	O2              OrderName = "O2"
 )
+
+type Signal struct {
+	Coin    model.Coin `json:"coin"`
+	Factor  float64    `json:"factor"`
+	Density float64    `json:"density"`
+	Type    model.Type `json:"type"`
+	Price   float64    `json:"price"`
+	Time    time.Time  `json:"time"`
+}
+
+func (s *Signal) Filter(threshold int) bool {
+	f := math.Pow(10, float64(threshold))
+	return s.Factor*f >= 1
+}
 
 // Window defines the window stats collector
 type Window struct {

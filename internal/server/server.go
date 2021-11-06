@@ -23,11 +23,16 @@ const (
 	Api  Action = "api"
 	Test Action = "test"
 
-	GET  Method = "GET"
-	POST Method = "POST"
+	GET     Method = "GET"
+	POST    Method = "POST"
+	OPTIONS Method = "OPTIONS"
 )
 
 type Handler func(ctx context.Context, r *http.Request) ([]byte, int, error)
+
+func Accept(ctx context.Context, r *http.Request) ([]byte, int, error) {
+	return []byte(""), 200, nil
+}
 
 type Route struct {
 	Action    Action
@@ -127,6 +132,9 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 			action.WithContent(control)
 			s.block.ReAction <- action
 		}()
+		// enable cors
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// split logic by http method
 		requestMethod := Method(r.Method)
 		switch requestMethod {
 		case method:
@@ -138,6 +146,10 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 			} else {
 				s.respond(w, b)
 			}
+		case OPTIONS:
+			w.Header().Set("Access-Control-Allow-Methods", "GET,POST")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			s.respond(w, []byte{})
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
 		}

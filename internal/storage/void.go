@@ -46,3 +46,7 @@ func (v VoidRegistry) Add(key K, value interface{}) error {
 func (v VoidRegistry) GetAll(key K, value interface{}) error {
 	return nil
 }
+
+func (v VoidRegistry) GetFor(key K, value interface{}, filter func(s string) bool) error {
+	return nil
+}

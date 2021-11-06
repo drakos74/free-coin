@@ -15,6 +15,10 @@ func (m *Metrics) IncrementTrades(labels ...string) {
 	m.prometheus.Trades.WithLabelValues(labels...).Inc()
 }
 
+func (m *Metrics) IncrementErrors(labels ...string) {
+	m.prometheus.Errors.WithLabelValues(labels...).Inc()
+}
+
 func (m *Metrics) IncrementCalls(labels ...string) {
 	m.prometheus.Calls.WithLabelValues(labels...).Inc()
 }

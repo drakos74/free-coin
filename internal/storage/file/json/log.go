@@ -185,6 +185,8 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 				}
 			}
 
+			fmt.Printf("k = %+v\n", k)
+
 			err = e.logger.Load(k, &ss)
 			if err != nil {
 				return fmt.Errorf("could not load key '%+v': %w", key, err)
@@ -216,8 +218,9 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 	return nil
 }
 
-// GetRange retrieves the values for the given range of keys
-func (e *Registry) GetRange(key storage.K, values interface{}) error {
+// GetFor appends the values to the given slice
+// It copies the logic of GetAll, but allows a filter to be applied for the parent dirs
+func (e *Registry) GetFor(key storage.K, values interface{}, filter func(s string) bool) error {
 
 	if reflect.Indirect(reflect.ValueOf(values)).Kind() != reflect.Slice {
 		return fmt.Errorf("only accepting slices as placeholder for the results")
@@ -247,18 +250,26 @@ func (e *Registry) GetRange(key storage.K, values interface{}) error {
 			var ss string
 			// TODO : this only accounts for 2 missed level of the parent path
 			// or otherwise a linear label (not nested)
-			if key.Label == "" {
-				//  we need to find out the label
-				d := filepath.Dir(path)
-				p := filepath.Base(d)
-				key.Label = p
-			}
-
-			err = e.logger.Load(storage.Key{
+			k := storage.Key{
 				Hash:  h,
 				Pair:  key.Pair,
 				Label: key.Label,
-			}, &ss)
+			}
+			if key.Label == "" {
+				//  we need to find out the label
+				label := filepath.Base(filepath.Dir(path))
+				k = storage.Key{
+					Hash:  h,
+					Pair:  key.Pair,
+					Label: label,
+				}
+			}
+
+			if !filter(k.Label) {
+				return nil
+			}
+
+			err = e.logger.Load(k, &ss)
 			if err != nil {
 				return fmt.Errorf("could not load key '%+v': %w", key, err)
 			}
