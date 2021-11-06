@@ -102,5 +102,5 @@ func formatSignal(signal Signal) string {
 	if signal.Type == model.Sell {
 		factor = -1 * factor
 	}
-	return fmt.Sprintf("%s %s %s %.4f | %.2f", signal.Coin, emoji.MapType(signal.Type), emoji.MapDeca(factor), signal.Price, signal.Density)
+	return fmt.Sprintf("%s %s %s %.4f | %.2f | (%+v|%d) ", signal.Coin, emoji.MapType(signal.Type), emoji.MapDeca(factor), signal.Price, signal.Density, signal.Duration, signal.Segments)
 }

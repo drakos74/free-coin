@@ -65,12 +65,14 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 								Msg("poly")
 							// create a trade signal
 							signal := Signal{
-								Density: d,
-								Coin:    trade.Coin,
-								Factor:  p,
-								Type:    model.SignedType(poly[2][2]),
-								Price:   trade.Price,
-								Time:    trade.Time,
+								Density:  d,
+								Coin:     trade.Coin,
+								Factor:   p,
+								Type:     model.SignedType(poly[2][2]),
+								Price:    trade.Price,
+								Time:     trade.Time,
+								Duration: duration,
+								Segments: cfg.Model.Stats[0].LookAhead + cfg.Model.Stats[0].LookBack,
 							}
 							if signal.Filter(4) {
 								u.Send(index, api.NewMessage(formatSignal(signal)), nil)

@@ -24,12 +24,14 @@ const (
 )
 
 type Signal struct {
-	Coin    model.Coin `json:"coin"`
-	Factor  float64    `json:"factor"`
-	Density float64    `json:"density"`
-	Type    model.Type `json:"type"`
-	Price   float64    `json:"price"`
-	Time    time.Time  `json:"time"`
+	Coin     model.Coin    `json:"coin"`
+	Duration time.Duration `json:"duration"`
+	Segments int           `json:"segments"`
+	Factor   float64       `json:"factor"`
+	Density  float64       `json:"density"`
+	Type     model.Type    `json:"type"`
+	Price    float64       `json:"price"`
+	Time     time.Time     `json:"time"`
 }
 
 func (s *Signal) Filter(threshold int) bool {
