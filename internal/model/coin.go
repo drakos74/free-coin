@@ -28,6 +28,8 @@ const (
 	XRP Coin = "XRP"
 	// MINA defines the MINA protocol token
 	MINA Coin = "MINA"
+	// SOL defines the SOL coin
+	SOL Coin = "SOL"
 )
 
 // Coins contains coin related configuration.
