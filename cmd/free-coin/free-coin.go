@@ -22,7 +22,7 @@ func init() {
 
 func main() {
 	// main engine trade input ...
-	client := kraken.NewClient(model.BTC, model.ETH).
+	client := kraken.NewClient(model.BTC, model.ETH, model.DOT).
 		//Since(cointime.LastXHours(24)).
 		Interval(5 * time.Second)
 	engine, err := coin.NewEngine(client)
