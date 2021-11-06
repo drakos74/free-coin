@@ -2,7 +2,7 @@ package stats
 
 import (
 	"encoding/json"
-	"fmt"
+	"math"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -58,11 +58,14 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 						if p > 0 {
 							log.Debug().
 								Time("stamp", trade.Time).
-								Str("price", fmt.Sprintf("%v", trade.Price)).
+								Float64("price", trade.Price).
 								Str("coin", string(trade.Coin)).
-								Str("2", fmt.Sprintf("%+v", poly[2][2])).
-								Str("3", fmt.Sprintf("%+v", poly[3][3])).
-								Str("p", fmt.Sprintf("%+v", poly[2][2]*poly[3][3])).
+								Float64("2", poly[2][2]).
+								Float64("3", poly[3][3]).
+								Float64("p", p).
+								Float64("factor", p*math.Pow(10, float64(cfg.Threshold))).
+								Int("threshold", cfg.Threshold).
+								Int("duration", cfg.Duration).
 								Msg("poly")
 							// create a trade signal
 							signal := Signal{
