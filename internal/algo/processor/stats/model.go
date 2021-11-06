@@ -96,11 +96,12 @@ func newWindow(key model.Key, cfg Config, store storage.Persistence) Window {
 
 // Config defines the processor configuration
 type Config struct {
-	Name     string
-	Duration int
-	Model    Model
-	Order    Order
-	Notify   Notify
+	Name      string
+	Duration  int
+	Threshold int
+	Model     Model
+	Order     Order
+	Notify    Notify
 }
 
 // ConfigBuilder is a struct to help build the configuration for the stats collector
@@ -109,12 +110,13 @@ type ConfigBuilder struct {
 }
 
 // New creates a new config builder.
-func New(name string, duration time.Duration) *ConfigBuilder {
+func New(name string, duration time.Duration, threshold int) *ConfigBuilder {
 	return &ConfigBuilder{
 		config: Config{
-			Name:     name,
-			Duration: int(duration.Minutes()),
-			Order:    Parse(Order{Name: O10}),
+			Name:      name,
+			Duration:  int(duration.Minutes()),
+			Threshold: threshold,
+			Order:     Parse(Order{Name: O10}),
 		},
 	}
 }

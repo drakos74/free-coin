@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	"github.com/drakos74/free-coin/internal/buffer"
 
 	"github.com/drakos74/free-coin/client/history"
@@ -28,6 +30,10 @@ import (
 const (
 	port = 6090
 )
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
 
 func main() {
 
@@ -76,6 +82,14 @@ func run() server.Handler {
 			return []byte(err.Error()), http.StatusBadRequest, nil
 		}
 
+		if len(request.Threshold) == 0 {
+			return []byte("interval parameter missing"), http.StatusBadRequest, nil
+		}
+		threshold, err := strconv.Atoi(request.Threshold[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
 		requestCoin := model.Coin(request.Coin[0])
 		from, err := time.Parse("2006_01_02T15", request.From[0])
 		if err != nil {
@@ -107,7 +121,7 @@ func run() server.Handler {
 			WithProcessor(stats.Processor(api.FreeCoin, shard, map[model.Coin]map[time.Duration]stats.Config{
 				requestCoin: {
 					//time.Minute * 2: stats.New("2-min", time.Minute*2).Add(4, 1).Notify().Build(),
-					time.Minute * time.Duration(duration): stats.New(fmt.Sprintf("%d-min", duration), time.Minute*time.Duration(duration)).Add(prev, next).Notify().Build(),
+					time.Minute * time.Duration(duration): stats.New(fmt.Sprintf("%d-min", duration), time.Minute*time.Duration(duration), -1).Add(prev, next).Notify().Build(),
 					//time.Minute * 15: stats.New("15-min", time.Minute*15).Add(2, 1).Notify().Build(),
 				},
 			})).Apply()
@@ -183,6 +197,11 @@ func run() server.Handler {
 		}
 
 		for i := 0; i < 8; i++ {
+			if threshold > 0 {
+				if i != threshold {
+					continue
+				}
+			}
 			r := simulate(signals, i)
 			pnl := r.portfolio()
 			r.PnL = pnl

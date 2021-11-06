@@ -35,13 +35,19 @@ const Form = ({change}) => {
 
     const [coin, setCoin] = React.useState('BTC');
 
-    const [duration, setDuration] = React.useState(15)
+    const [duration, setDuration] = React.useState(5)
 
-    const [prev, setPrev] = React.useState(3)
-    const [next, setNext] = React.useState(1)
+    const [prev, setPrev] = React.useState(5)
+    const [next, setNext] = React.useState(5)
+
+    const [threshold, setThreshold] = React.useState(4)
 
     function handleSetDuration(event) {
         setDuration(event.target.value);
+    }
+
+    function handleSetThreshold(event) {
+        setThreshold(event.target.value);
     }
 
     const handleSetCoin = (event) => {
@@ -56,7 +62,13 @@ const Form = ({change}) => {
         const headers = {
             'Content-Type': 'application/json'
         }
-        fetch('http://localhost:6090/test/run?coin=' + coin + '&from=' + from_date + '&to=' + to_date + '&interval=' + duration + '&prev='+prev+'&next='+next+'',
+        fetch('http://localhost:6090/test/run?coin=' + coin +
+            '&from=' + from_date +
+            '&to=' + to_date +
+            '&interval=' + duration +
+            '&prev='+prev+
+            '&next='+next+
+            '&threshold='+threshold,
             {
                 headers: headers,
                 // mode: 'no-cors',
@@ -90,10 +102,30 @@ const Form = ({change}) => {
                 </div>
                 <div className="col m2 s12 right">
                     <FormControl sx={{m: 1, minWidth: 80}}>
-                        <InputLabel id="demo-simple-select-label">Interval</InputLabel>
+                        <InputLabel id="demo-simple-select-threshold-label">Threshold</InputLabel>
                         <Select
-                            labelId="demo-simple-select-label"
-                            id="demo-simple-select"
+                            labelId="demo-simple-select-threshold-label"
+                            id="demo-simple-select-threshold"
+                            value={threshold}
+                            label="Threshold"
+                            onChange={handleSetThreshold}
+                        >
+                            <MenuItem value={0}>0</MenuItem>
+                            <MenuItem value={1}>1</MenuItem>
+                            <MenuItem value={2}>2</MenuItem>
+                            <MenuItem value={3}>3</MenuItem>
+                            <MenuItem value={4}>4</MenuItem>
+                            <MenuItem value={5}>5</MenuItem>
+                            <MenuItem value={6}>6</MenuItem>
+                        </Select>
+                    </FormControl>
+                </div>
+                <div className="col m2 s12 right">
+                    <FormControl sx={{m: 1, minWidth: 80}}>
+                        <InputLabel id="demo-simple-select-interval-label">Interval</InputLabel>
+                        <Select
+                            labelId="demo-simple-select-interval-label"
+                            id="demo-simple-select-interval"
                             value={duration}
                             label="Interval"
                             onChange={handleSetDuration}

@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -74,15 +75,17 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 								Duration: duration,
 								Segments: cfg.Model.Stats[0].LookAhead + cfg.Model.Stats[0].LookBack,
 							}
-							if signal.Filter(4) {
-								u.Send(index, api.NewMessage(formatSignal(signal)), nil)
+							if cfg.Threshold >= 0 && signal.Filter(cfg.Threshold) {
+								u.Send(index, api.NewMessage(formatSignal(signal, cfg.Threshold)), nil)
 							}
-							// TODO : enable only for testing
-							//ss, err := json.Marshal(signal)
-							//if err != nil {
-							//	log.Warn().Msg("error marshalling signal")
-							//}
-							//u.Send(index, api.NewMessage(string(ss)), nil)
+							if cfg.Notify.Stats {
+								// TODO : enable only for testing
+								ss, err := json.Marshal(signal)
+								if err != nil {
+									log.Warn().Msg("error marshalling signal")
+								}
+								u.Send(index, api.NewMessage(string(ss)), nil)
+							}
 						}
 					}
 					values, indicators, last := extractFromBuckets(buckets, group(getPriceRatio, cfg.Order.Exec))

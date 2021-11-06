@@ -97,8 +97,8 @@ func formatPoly(cfg Config, trade *model.Trade, poly map[int][]float64, density 
 		cfg.Name, cfg.Duration, cfg.Model.Stats)
 }
 
-func formatSignal(signal Signal) string {
-	factor := 10000 * signal.Factor
+func formatSignal(signal Signal, threshold int) string {
+	factor := math.Pow(10, float64(threshold)) * signal.Factor
 	if signal.Type == model.Sell {
 		factor = -1 * factor
 	}

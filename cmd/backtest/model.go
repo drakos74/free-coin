@@ -16,6 +16,7 @@ type Request struct {
 	Processor []string `json:"processor"`
 	Prev      []string `json:"prev"`
 	Next      []string `json:"next"`
+	Threshold []string `json:"threshold"`
 }
 
 // Config defines a backtest config
