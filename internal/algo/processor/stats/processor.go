@@ -56,6 +56,7 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 					if len(poly[2]) > 1 && len(poly[3]) > 2 {
 						log.Debug().
 							Time("stamp", trade.Time).
+							Str("price", fmt.Sprintf("%v", trade.Price)).
 							Str("coin", string(trade.Coin)).
 							Str("2", fmt.Sprintf("%+v", poly[2][2])).
 							Str("3", fmt.Sprintf("%+v", poly[3][3])).
