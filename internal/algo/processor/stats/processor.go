@@ -2,6 +2,7 @@ package stats
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"time"
 
@@ -56,17 +57,8 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 					if len(poly[2]) > 1 && len(poly[3]) > 2 {
 						p := poly[2][2] * poly[3][3]
 						if p > 0 {
-							log.Debug().
-								Time("stamp", trade.Time).
-								Float64("price", trade.Price).
-								Str("coin", string(trade.Coin)).
-								Float64("2", poly[2][2]).
-								Float64("3", poly[3][3]).
-								Float64("p", p).
-								Float64("factor", p*math.Pow(10, float64(cfg.Threshold))).
-								Int("threshold", cfg.Threshold).
-								Int("duration", cfg.Duration).
-								Msg("poly")
+							f := int(-1 * math.Log10(p))
+							stats.tracker[trade.Coin][duration][f]++
 							// create a trade signal
 							signal := Signal{
 								Density:  d,
@@ -78,7 +70,22 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 								Duration: duration,
 								Segments: cfg.Model.Stats[0].LookAhead + cfg.Model.Stats[0].LookBack,
 							}
+							log.Debug().
+								Time("stamp", signal.Time).
+								Float64("price", signal.Price).
+								Str("coin", string(signal.Coin)).
+								Float64("2", poly[2][2]).
+								Float64("3", poly[3][3]).
+								Float64("p", signal.Factor).
+								Int("f", f).
+								Str("tracker", fmt.Sprintf("%+v", stats.tracker[trade.Coin][duration])).
+								Float64("factor", signal.Factor*math.Pow(10, float64(cfg.Threshold))).
+								Int("threshold", cfg.Threshold).
+								Int("duration", cfg.Duration).
+								Bool("message", signal.Filter(cfg.Threshold)).
+								Msg("poly")
 							if cfg.Threshold >= 0 && signal.Filter(cfg.Threshold) {
+								log.Info().Msg("send signal")
 								u.Send(index, api.NewMessage(formatSignal(signal, cfg.Threshold)), nil)
 							}
 							if cfg.Notify.Stats {

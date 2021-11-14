@@ -36,7 +36,7 @@ type Signal struct {
 
 func (s *Signal) Filter(threshold int) bool {
 	f := math.Pow(10, float64(threshold))
-	return s.Factor*f >= 1
+	return s.Factor*f >= 1.0
 }
 
 // Window defines the window stats collector

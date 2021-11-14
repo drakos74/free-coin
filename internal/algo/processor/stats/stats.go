@@ -2,156 +2,114 @@ package stats
 
 import (
 	"fmt"
-	"reflect"
-	"strconv"
+	"sync"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/buffer"
-	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(user api.User, stats *statsCollector) {
-	for command := range user.Listen("stats", "?n") {
-		var duration int
-		var coin string
-		var action string
-		var strategy string
-		_, err := command.Validate(
-			api.AnyUser(),
-			api.Contains("?n", "?notify"),
-			api.Any(&coin),
-			api.Int(&duration),
-			api.Any(&strategy),
-			api.OneOf(&action, "start", "stop", ""),
-		)
-		if err != nil {
-			api.Reply(api.DrCoin, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
-			continue
+type statsCollector struct {
+	// TODO : improve the concurrency factor. this is temporary though inefficient locking
+	state   storage.Persistence
+	lock    sync.RWMutex
+	configs map[model.Coin]map[time.Duration]Config
+	tracker map[model.Coin]map[time.Duration]map[int]int
+	windows map[model.Key]Window
+}
+
+func newStats(shard storage.Shard, configs map[model.Coin]map[time.Duration]Config) (*statsCollector, error) {
+
+	windows := make(map[model.Key]Window)
+
+	state, err := shard(Name)
+	if err != nil {
+		log.Error().Err(err).Msg("could not init storage")
+		state = storage.NewVoidStorage()
+	}
+
+	tracker := make(map[model.Coin]map[time.Duration]map[int]int)
+
+	for c, dConfig := range configs {
+		if _, ok := tracker[c]; !ok {
+			tracker[c] = make(map[time.Duration]map[int]int)
 		}
-		c := model.Coin(coin)
-		d := time.Duration(duration) * time.Minute
-		k := model.NewKey(c, d, strategy)
-		switch action {
-		case "":
-			if w, ok := stats.windows[k]; ok {
-				sendWindowConfig(user, k, w)
-			} else {
-				for k, w := range stats.windows {
-					sendWindowConfig(user, k, w)
-				}
+		for d, cfg := range dConfig {
+			k := model.Key{
+				Coin:     c,
+				Duration: d,
+				Strategy: cfg.Name,
 			}
-			// TODO : re-enable this functionality.
-			//case "start":
-			//	if stats.windows(timeDuration) {
-			//		api.Reply(api.DrCoin, user,
-			//			api.NewMessage(fmt.Sprintf("notify window for '%v' mins is running ... please be patient", timeDuration.Minutes())).
-			//				ReplyTo(command.ID), nil)
-			//		continue
-			//	} else {
-			//		api.Reply(api.DrCoin, user,
-			//			api.NewMessage(fmt.Sprintf("started notify window %v", command.Content)).
-			//				ReplyTo(command.ID), nil)
-			//	}
-			//case "stop":
-			//	stats.stop(timeDuration)
-			//	api.Reply(api.DrCoin, user,
-			//		api.NewMessage(fmt.Sprintf("removed notify window for '%v' mins", timeDuration.Minutes())).
-			//			ReplyTo(command.ID), nil)
+			// TODO : check if we can load the window (?)
+			key := model.NewKey(c, d, cfg.Name)
+			windows[k] = newWindow(key, cfg, state)
+			tracker[c][d] = make(map[int]int)
 		}
 	}
-}
 
-func sendWindowConfig(user api.User, k model.Key, w Window) {
-	for _, cfg := range w.C.Config {
-		api.Reply(api.DrCoin,
-			user,
-			api.NewMessage(fmt.Sprintf("%s|%v %v -> %v (%d)",
-				k.Coin,
-				k.Duration,
-				cfg.LookBack,
-				cfg.LookAhead,
-				w.C.Status.Count),
-			), nil)
+	stats := &statsCollector{
+		state:   state,
+		lock:    sync.RWMutex{},
+		windows: windows,
+		configs: configs,
+		tracker: tracker,
 	}
+	return stats, nil
 }
 
-type TradeSignal struct {
-	SignalEvent
-	Predictions    map[buffer.Sequence]buffer.Predictions
-	AggregateStats coinmath.AggregateStats
-}
-
-type SignalEvent struct {
-	ID    string    `json:"id"`
-	Key   model.Key `json:"key"`
-	Price float64   `json:"price"`
-	Time  time.Time `json:"time"`
-}
-
-type windowView struct {
-	price  buffer.TimeWindowView
-	volume buffer.TimeWindowView
-}
-
-func getPriceRatio(b windowView) float64 {
-	return b.price.Ratio
-}
-
-// extractFromBuckets extracts from the given buckets the needed values
-func extractFromBuckets(ifc interface{}, format ...func(b windowView) string) ([][]string, *coinmath.Indicators, windowView) {
-	s := reflect.ValueOf(ifc)
-	pp := make([][]string, s.Len())
-	var last windowView
-	stream := coinmath.NewIndicators()
-	l := s.Len()
-	for j, f := range format {
-		pp[j] = make([]string, l)
-		for i := 0; i < l; i++ {
-			b := s.Index(i).Interface().(windowView)
-			last = b
-			pp[j][i] = f(b)
-			stream.Add(b.price.Diff)
-		}
-	}
-	return pp, stream, last
-}
-
-func group(extract func(b windowView) float64, group func(f float64) int) func(b windowView) string {
-	return func(b windowView) string {
-		f := extract(b)
-		v := group(f)
-		// TODO :maybe we start counting values only over a limit
-		s := strconv.FormatInt(int64(v), 10)
-		return s
-	}
-}
-
-// TODO : Removing the ordering capabilities on the stats processor for now (?)
-//func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
-//	return func(command api.Command) (string, error) {
-//		// TODO: pars optionally the volume
-//		var t model.Type
-//		switch command.Content {
-//		case "buy":
-//			t = model.Buy
-//		case "sell":
-//			t = model.Sell
-//		default:
-//			return "[error]", fmt.Errorf("unknown command: %s", command.Content)
-//		}
-//		if vol, ok := defaultOpenConfig[p.Coin]; ok {
-//			group := model.NewOrder(p.Coin).
-//				WithLeverage(model.L_5).
-//				WithVolume(vol.volume).
-//				WithType(t).
-//				Market().
-//				Create()
-//			return fmt.Sprintf("opened position for %s", p.Coin), client.OpenOrder(group)
-//
-//		} else {
-//			return "could not open position", fmt.Errorf("no pre-defined volume for %s", p.Coin)
-//		}
-//	}
+// TODO : re-enable user interaction to start and stop stats collectors
+//func (s *statsCollector) stop(k model.Key) {
+//	s.lock.Lock()
+//	defer s.lock.Unlock()
+//	delete(s.configs[k.Coin], k.Duration)
+//	delete(s.windows, k)
 //}
+
+func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, map[int][]float64, float64, bool) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if b, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
+		poly := make(map[int][]float64)
+		poly2, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+			return 10000 * b.Ratio
+		}, 2)
+		if err != nil {
+			log.Debug().Int("degree", 2).Msg("could not fit polynomial")
+		}
+		poly[2] = poly2
+		poly3, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+			return 10000 * b.Ratio
+		}, 3)
+		poly[3] = poly3
+		if err != nil {
+			log.Debug().Int("degree", 3).Msg("could not fit polynomial")
+		}
+		buckets := s.windows[k].W.Get(func(bucket buffer.TimeBucket) interface{} {
+			priceView := buffer.NewView(bucket, 0)
+			volumeView := buffer.NewView(bucket, 1)
+			return windowView{
+				price:  priceView,
+				volume: volumeView,
+			}
+		})
+		return buckets, poly, float64(b.Bucket.Values().Stats()[0].Count()), ok
+	}
+	return nil, nil, 0, false
+}
+
+// add adds the new value to the model and returns the predictions taking the current sample into account
+// It will return one prediction per lookback/lookahead configuration of the HMM
+func (s *statsCollector) add(k model.Key, v string) (map[buffer.Sequence]buffer.Predictions, buffer.Status) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	predictions, status := s.windows[k].C.Add(v, fmt.Sprintf("%dm", int(k.Duration.Minutes())))
+	// dont store anything for now ...until we fix the structs and pointers
+	storage.Store(s.state, processor.NewStateKey(Name, k), StaticWindow{
+		W: s.windows[k].W,
+		C: *s.windows[k].C,
+	})
+	return predictions, status
+}
