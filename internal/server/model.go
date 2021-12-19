@@ -30,7 +30,7 @@ func NewController(s Status, t string) *Control {
 	}
 }
 
-// WithContext assigns a context to the action
+// WithCancel assigns a cancel context to the action
 func (a *Control) WithCancel(cancel context.CancelFunc) *Control {
 	a.Cancel = cancel
 	return a

@@ -25,25 +25,25 @@ type History struct {
 	index    map[model.Coin]string
 	key      func(t time.Time) string
 	deKey    func(t string) (time.Time, error)
-	storage  storage.Registry
+	registry storage.Registry
 	readonly *Request
 }
 
 // New creates a new history trade source implementation.
 func New(source client.Source) *History {
 	return &History{
-		source:  source,
-		batch:   make(map[model.Coin][]*model.Trade),
-		index:   make(map[model.Coin]string),
-		key:     genericKeyingFunc,
-		deKey:   genericDeKeyFunc,
-		storage: storage.NewVoidRegistry(),
+		source:   source,
+		batch:    make(map[model.Coin][]*model.Trade),
+		index:    make(map[model.Coin]string),
+		key:      genericKeyingFunc,
+		deKey:    genericDeKeyFunc,
+		registry: storage.NewVoidRegistry(),
 	}
 }
 
-// WithRegistry defines the registry for the storage
+// WithRegistry defines the registry for the registry
 func (h *History) WithRegistry(registry storage.Registry) *History {
-	h.storage = registry
+	h.registry = registry
 	return h
 }
 
@@ -62,7 +62,63 @@ type report struct {
 
 func (r report) String() string {
 	return fmt.Sprintf("init = %v , start = %+v | %+v , end = %+v | %+v",
-		r.init, r.start.String(), r.startGap.String(), r.end.String(), r.endGap.String())
+		r.init, r.start.String(), r.startGap.Hours()/24, r.end.String(), r.endGap.Hours()/24)
+}
+
+type Range struct {
+	Path string
+	Hash int
+	From time.Time
+	To   time.Time
+}
+
+func (h *History) Ranges(coin model.Coin, from, to time.Time) []Range {
+	paths, err := h.registry.Check(storage.K{
+		Pair: string(coin),
+	})
+	if err != nil {
+		log.Error().Err(err).Str("coin", string(coin)).Msg("could not check registry")
+	}
+
+	ranges := make([]Range, 0)
+	for i := 0; i < len(paths); i++ {
+
+		label := paths[i]
+
+		if len(label) == 0 {
+			continue
+		}
+
+		parts := strings.Split(label, "_")
+		if len(parts) != 3 {
+			log.Warn().Str("label", label).Strs("key", parts).Err(err).Msg("could not parse label as key")
+			continue
+		}
+		t := parts[2]
+
+		hash, err := strconv.Atoi(t)
+		if err != nil {
+			log.Warn().Str("label", label).Str("time", t).Err(err).Msg("could not parse label as hash")
+			continue
+		}
+
+		tt, err := h.deKey(t)
+		if err != nil {
+			log.Warn().Str("label", label).Str("time", t).Err(err).Msg("could not parse label as time")
+			continue
+		}
+
+		if tt.Before(from) || tt.After(to) {
+			continue
+		}
+
+		ranges = append(ranges, Range{
+			Path: paths[i],
+			Hash: hash,
+			From: tt,
+		})
+	}
+	return ranges
 }
 
 // Trades will delegate the trades the call to the underlying implementation,
@@ -73,30 +129,31 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	in := make(model.TradeSource)
 	if h.readonly != nil {
 		audit := report{}
-		inCh, err := newSource(*h.readonly, h.storage).WithFilter(func(label string) bool {
-			// split the label
-			parts := strings.Split(label, "_")
-			if len(parts) != 3 {
-				return true
-			}
-			t := parts[2]
+		inCh, err := newSource(*h.readonly, h.registry).
+			WithFilter(func(label string) bool {
+				// split the label
+				parts := strings.Split(label, "_")
+				if len(parts) != 3 {
+					return true
+				}
+				t := parts[2]
 
-			tt, err := h.deKey(t)
-			if err != nil {
-				log.Warn().Str("label", label).Str("time", t).Err(err).Msg("could not parse label as time")
-				return true
-			}
-			if tt.Before(h.readonly.From.Add(-1*time.Hour)) || tt.After(h.readonly.To.Add(5*time.Hour)) {
-				return false
-			}
+				tt, err := h.deKey(t)
+				if err != nil {
+					log.Warn().Str("label", label).Str("time", t).Err(err).Msg("could not parse label as time")
+					return true
+				}
+				if tt.Before(h.readonly.From.Add(-1*time.Hour)) || tt.After(h.readonly.To.Add(5*time.Hour)) {
+					return false
+				}
 
-			if !audit.init {
-				audit.init = true
-				audit.start = tt
-			}
-			audit.end = tt
-			return true
-		}).Trades(process)
+				if !audit.init {
+					audit.init = true
+					audit.start = tt
+				}
+				audit.end = tt
+				return true
+			}).Trades(process)
 		audit.startGap = audit.start.Sub(h.readonly.From)
 		audit.endGap = audit.end.Sub(h.readonly.To)
 		fmt.Printf("report = %+v\n", audit)
@@ -119,6 +176,9 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 			log.Info().Str("processor", "trades-history").Msg("closing processor")
 			close(out)
 		}()
+
+		kk := ""
+
 		for trade := range in {
 			if h.readonly == nil {
 				// store the trade
@@ -132,8 +192,14 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 					Exchange: exchange,
 					Key:      k,
 				}
+
+				if kk != k {
+					fmt.Printf("trade.Time = %+v | %+v\n", trade.Time, key)
+					kk = k
+				}
+
 				// assign trade to key cache
-				err := h.storage.Add(storage.K{
+				err := h.registry.Add(storage.K{
 					Pair:  string(coin),
 					Label: key.String(),
 				}, trade)

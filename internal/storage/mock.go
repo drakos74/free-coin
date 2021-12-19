@@ -58,3 +58,7 @@ func (m *MockRegistry) GetFor(key K, value interface{}, filter func(s string) bo
 func (m *MockRegistry) Root() string {
 	return ""
 }
+
+func (m *MockRegistry) Check(key K) ([]string, error) {
+	panic("implement me")
+}

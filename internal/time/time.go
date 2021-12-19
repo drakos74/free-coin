@@ -8,8 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const timeUnixNano = 1000000000
-
 func ToMinutes(d int) time.Duration {
 	return time.Duration(d) * time.Minute
 }
@@ -33,11 +31,11 @@ func (r Range) IsAfterStart(time time.Time) bool {
 }
 
 func FromNano(nano int64) time.Time {
-	return time.Unix(nano/timeUnixNano, 0)
+	return time.Unix(nano/time.Second.Nanoseconds(), 0)
 }
 
 func ToNano(t time.Time) int64 {
-	return t.Unix() * timeUnixNano
+	return t.Unix() * time.Second.Nanoseconds()
 }
 
 func FromMilli(milli int64) time.Time {

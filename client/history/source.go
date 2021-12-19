@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -10,21 +11,28 @@ import (
 )
 
 type source struct {
-	registry storage.Registry
-	request  Request
-	filter   func(s string) bool
+	registry  storage.Registry
+	request   Request
+	filter    func(s string) bool
+	threshold func(t time.Time) bool
 }
 
 func newSource(request Request, registry storage.Registry) *source {
 	return &source{
-		registry: registry,
-		request:  request,
-		filter:   func(s string) bool { return true },
+		registry:  registry,
+		request:   request,
+		filter:    func(s string) bool { return true },
+		threshold: func(t time.Time) bool { return false },
 	}
 }
 
 func (s *source) WithFilter(filter func(s string) bool) *source {
 	s.filter = filter
+	return s
+}
+
+func (s *source) WithThreshold(threshold func(t time.Time) bool) *source {
+	s.threshold = threshold
 	return s
 }
 

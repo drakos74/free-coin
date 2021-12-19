@@ -218,6 +218,21 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 	return nil
 }
 
+func (e *Registry) Check(key storage.K) ([]string, error) {
+	filePath := e.logger.filePath(key)
+
+	paths := make([]string, 0)
+	err := filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
+		if info != nil && info.IsDir() {
+			// just load it anyway
+			n := info.Name()
+			paths = append(paths, n)
+		}
+		return nil
+	})
+	return paths, err
+}
+
 // GetFor appends the values to the given slice
 // It copies the logic of GetAll, but allows a filter to be applied for the parent dirs
 func (e *Registry) GetFor(key storage.K, values interface{}, filter func(s string) bool) error {

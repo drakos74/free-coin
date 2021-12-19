@@ -15,6 +15,12 @@ github.com/bitly/go-simplejson
 github.com/cespare/xxhash/v2
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/drakos74/go-ex-machina v0.0.0-20211107134813-9131c4153fda
+## explicit
+github.com/drakos74/go-ex-machina/xmachina/ml
+github.com/drakos74/go-ex-machina/xmachina/net
+github.com/drakos74/go-ex-machina/xmachina/net/ff
+github.com/drakos74/go-ex-machina/xmath
 # github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 ## explicit
 github.com/go-telegram-bot-api/telegram-bot-api
@@ -24,20 +30,33 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac
+github.com/gonum/blas
+# github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9
+github.com/gonum/lapack
+# github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9
+github.com/gonum/matrix
 # github.com/google/go-cmp v0.5.4
 ## explicit
+github.com/google/go-cmp/cmp
+github.com/google/go-cmp/cmp/internal/diff
+github.com/google/go-cmp/cmp/internal/flags
+github.com/google/go-cmp/cmp/internal/function
+github.com/google/go-cmp/cmp/internal/value
 # github.com/google/uuid v1.1.1
 ## explicit
 github.com/google/uuid
 # github.com/gorilla/websocket v1.4.2
 ## explicit
 github.com/gorilla/websocket
-# github.com/kr/text v0.2.0
-## explicit
+# github.com/guptarohit/asciigraph v0.5.1
+github.com/guptarohit/asciigraph
+# github.com/mattn/go-runewidth v0.0.7
+github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
-## explicit
+# github.com/olekukonko/tablewriter v0.0.4
+github.com/olekukonko/tablewriter
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.9.0
@@ -55,18 +74,37 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rocketlaunchr/dataframe-go v0.0.0-20201007021539-67b046771f0b
+github.com/rocketlaunchr/dataframe-go
 # github.com/rs/zerolog v1.20.0
 ## explicit
 github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
+# github.com/sjwhitworth/golearn v0.0.0-20211014193759-a8b69c276cd8 => ../golearn
+## explicit
+github.com/sjwhitworth/golearn/base
+github.com/sjwhitworth/golearn/ensemble
+github.com/sjwhitworth/golearn/evaluation
+github.com/sjwhitworth/golearn/filters
+github.com/sjwhitworth/golearn/kdtree
+github.com/sjwhitworth/golearn/knn
+github.com/sjwhitworth/golearn/linear_models
+github.com/sjwhitworth/golearn/meta
+github.com/sjwhitworth/golearn/metrics/pairwise
+github.com/sjwhitworth/golearn/trees
+github.com/sjwhitworth/golearn/utilities
 # github.com/stretchr/testify v1.7.0
 ## explicit
 github.com/stretchr/testify/assert
 # github.com/technoweenie/multipartstreamer v1.0.1
 ## explicit
 github.com/technoweenie/multipartstreamer
+# golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
+golang.org/x/exp/rand
+# golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+golang.org/x/sync/errgroup
 # golang.org/x/sys v0.0.0-20210304124612-50617c2ba197
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -122,8 +160,7 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
-## explicit
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
 # github.com/beldur/kraken-go-api-client => ../kraken-go-api-client
+# github.com/sjwhitworth/golearn => ../golearn

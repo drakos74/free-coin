@@ -1,16 +1,29 @@
 import React, {useState} from 'react';
 import 'materialize-css/dist/css/materialize.min.css';
 import './App.css';
-import Form from '../Form/Form';
-import Info from '../Info/Info';
-import Bar from '../Bar/Bar';
+import Form from '../Stats/Form/Form';
+import Info from '../Stats/Info/Info';
+import Bar from '../Stats/Bar/Bar';
+import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import TabContext from '@mui/lab/TabContext';
+import TabList from '@mui/lab/TabList';
+import TabPanel from '@mui/lab/TabPanel';
 import {getData} from '../../helpers/localStorage';
+import Stats from "../Stats/stats";
+import Train from "../Train/train";
+import Load from "../Load/load";
 
 const App = () => {
     const initialState = () => getData('data') || [];
     const [state, setState] = useState(initialState);
     const [data, setData] = useState({});
 
+    const [value, setValue] = React.useState('1');
+
+    const handleTabChange = (event, newValue) => {
+        setValue(newValue);
+    };
     // useEffect(() => {
     //   storeData('data', state);
     //   const date = state.map(obj => obj.date);
@@ -83,57 +96,26 @@ const App = () => {
     };
 
     return (
-        <div className='container'>
-            <div className='row'>
-                <div className='col m12 s12'>
-                    <Form change={handleChange}/>
-                    <Bar coin={data.coin}
-                         labelData={data.time}
-                         tradeData={data.trades}
-                         priceData={data.price}
-                         buy={data.buy}
-                         sell={data.sell}
-                    />
-                    <div>
-                        <div className='row center'>
-                            <h4 className='white-text'>7 Day Data</h4>
-                        </div>
-                        <div className='data-container row'>
-                            {data.details && data.details.length > 0 ? (
-                                <>
-                                    {data.details.map(detail => (
-                                        <Info
-                                            coin={detail.coin}
-                                            duration={detail.duration}
-                                            fees={detail.result.fees}
-                                            trades={detail.result.trades}
-                                            pnl={detail.result.pnl}
-                                            value={detail.result.value}
-                                            coins={detail.result.coins}
-                                            threshold={detail.result.threshold}
-                                            prev={detail.prev}
-                                            next={detail.next}
-                                            // deleteCard={handleDelete}
-                                        />
-                                    ))}
-                                </>
-                            ) : (
-                                <div className='center white-text'>No log found</div>
-                            )}
-                        </div>
-                    </div>
-                    {getData('lastState') !== null ? (
-                        <div className='center'>
-                            <button className='calculate-btn' onClick={handleUndo}>
-                                Undo
-                            </button>
-                        </div>
-                    ) : (
-                        ''
-                    )}
-                </div>
-            </div>
-        </div>
+        <Box sx={{ width: '100%', typography: 'body1' }}>
+            <TabContext value={value}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <TabList onChange={handleTabChange} aria-label="lab API tabs example">
+                        <Tab label="Stats" value="1" />
+                        <Tab label="Train" value="2" />
+                        <Tab label="Load" value="3"/>
+                    </TabList>
+                </Box>
+                <TabPanel value="1">
+                    <Stats></Stats>
+                </TabPanel>
+                <TabPanel value="2">
+                   <Train></Train>
+                </TabPanel>
+                <TabPanel value="3">
+                    <Load></Load>
+                </TabPanel>
+            </TabContext>
+        </Box>
     );
 };
 

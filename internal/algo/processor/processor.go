@@ -48,14 +48,20 @@ func Error(name string, err error) string {
 	return fmt.Sprintf("[%s] error: %s", name, err.Error())
 }
 
-// Process is a wrapper for a processor logic
+// Process is a wrapper for a processor logic.
 func Process(name string, p func(trade *model.Trade) error) api.Processor {
+	return ProcessWithClose(name, p, func() {})
+}
+
+// ProcessWithClose is a wrapper for a processor logic with a close execution func.
+func ProcessWithClose(name string, p func(trade *model.Trade) error, shutdown func()) api.Processor {
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
 
 		log.Info().Str("processor", name).Msg("started processor")
 		defer func() {
 			log.Info().Str("processor", name).Msg("closing processor")
 			close(out)
+			shutdown()
 		}()
 
 		for trade := range in {

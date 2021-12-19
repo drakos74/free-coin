@@ -31,6 +31,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 	ema := bucket.Values().Stats()[index].EMA()
 	diff := bucket.Values().Stats()[index].Diff()
 	count := bucket.Values().Stats()[index].Count()
+	ratio := bucket.Values().Stats()[index].Ratio()
 	// Note: trying to make all values relative to the price
 	// so that they have a unified meaning
 	return TimeWindowView{
@@ -39,7 +40,7 @@ func NewView(bucket TimeBucket, index int) TimeWindowView {
 		Value:   avg,
 		Diff:    diff,
 		EMADiff: 100 * (ema - avg) / avg,
-		Ratio:   diff / avg,
+		Ratio:   ratio,
 		StdDev:  100 * bucket.Values().Stats()[index].StDev() / avg,
 		Density: count,
 	}
@@ -129,6 +130,30 @@ func (h HistoryWindow) Get(transform TimeBucketTransform) []interface{} {
 		// TODO : this will introduce a nil element into the slice ... CAREFUL !!!
 		return nil
 	})
+}
+
+// Buffer evaluates the elements of the current buffer
+func (h HistoryWindow) Buffer(index int, extract func(b TimeWindowView) float64) ([]float64, error) {
+	yy := make([]float64, 0)
+	buckets := h.buckets.Get(func(bucket interface{}) interface{} {
+		if b, ok := bucket.(TimeBucket); ok {
+			return NewView(b, index)
+		}
+		return bucket
+	})
+
+	for _, bucket := range buckets {
+		if view, ok := bucket.(TimeWindowView); ok {
+			y := extract(view)
+			yy = append(yy, y)
+		} else {
+			return nil, fmt.Errorf("window does not contain timebuckets")
+		}
+	}
+
+	//log.Debug().Str("xx", fmt.Sprintf("%+v", xx)).Str("yy", fmt.Sprintf("%+v", yy)).Msg("fit")
+
+	return yy, nil
 }
 
 // Polynomial evaluates the polynomial regression

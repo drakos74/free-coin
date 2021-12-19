@@ -52,6 +52,11 @@ func (s *Stats) Push(v float64) {
 	s.last = v
 }
 
+// Ratio returns the percentage of the diff.
+func (s Stats) Ratio() float64 {
+	return 10000 * (s.last - s.first) / s.mean
+}
+
 // Avg returns the average value of the set.
 func (s Stats) Avg() float64 {
 	return s.mean

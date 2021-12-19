@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
-	"runtime"
-	"time"
 
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/rs/zerolog/log"
@@ -52,6 +49,10 @@ func NewRoute(method Method, action Action) *Route {
 	}
 }
 
+func (r *Route) Key() string {
+	return fmt.Sprintf("%s_%s", r.Method, r.Path)
+}
+
 func (r *Route) AllowInterrupt() *Route {
 	r.Interrupt = true
 	return r
@@ -75,7 +76,7 @@ type Server struct {
 	name   string
 	port   int
 	debug  bool
-	block  api.Block
+	block  map[string]api.Block
 	routes []Route
 }
 
@@ -83,7 +84,7 @@ func NewServer(name string, port int) *Server {
 	return &Server{
 		name:   name,
 		port:   port,
-		block:  api.NewBlock(),
+		block:  make(map[string]api.Block),
 		routes: make([]Route, 0),
 	}
 }
@@ -110,35 +111,41 @@ func (s *Server) Add(route ...Route) *Server {
 	return s
 }
 
-func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handle(route Route) func(w http.ResponseWriter, r *http.Request) {
 	// we should only handle one request per time,
 	// in order to ease memory footprint.
-	name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		request := fmt.Sprintf("%s request : %s", method, name)
 		ctx, cancel := context.WithCancel(context.Background())
-		control := NewController(Start, name)
-		if interrupt {
+		control := NewController(Start, route.Key())
+		if route.Interrupt {
 			control.AllowInterrupt().WithCancel(cancel)
 		}
-		action := api.NewSignal(request).
+		action := api.NewSignal(route.Key()).
 			WithContent(control).
 			Create()
-		s.block.Action <- action
-		// wait for the go-ahead
-		<-control.Reaction
-		defer func() {
-			control.Status = Finish
-			action.WithContent(control)
-			s.block.ReAction <- action
-		}()
-		// enable cors
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		// split logic by http method
 		requestMethod := Method(r.Method)
+		// enable cors
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		switch requestMethod {
-		case method:
-			b, code, err := handler(ctx, r)
+		case route.Method:
+			select {
+			case s.block[route.Key()].Action <- action:
+			// we re going ahead
+			default:
+				s.error(w, fmt.Errorf("route %s is busy", route.Key()))
+				cancel()
+				return
+			}
+
+			defer func() {
+				control.Status = Finish
+				action.WithContent(control)
+				s.block[route.Key()].ReAction <- action
+			}()
+
+			b, code, err := route.Exec(ctx, r)
 			if err != nil {
 				s.error(w, err)
 			} else if code != http.StatusOK {
@@ -159,74 +166,37 @@ func (s *Server) handle(method Method, interrupt bool, handler Handler) func(w h
 
 // Run starts the server
 func (s *Server) Run() error {
-	go func() {
-		actions := make(map[string]api.Signal)
-		pendingActions := make([]api.Signal, 0)
-
-		var triggerNext = func() {
-			if len(actions) > 0 {
-				log.Warn().Int("pending", len(actions)).Msg("execution halted")
-				return
-			}
-			// if we have no running actions ... trigger what is pending
-			newPendingActions := make([]api.Signal, 0)
-			for i := 0; i < len(pendingActions); i++ {
-				action := pendingActions[i]
-				if i == 0 {
-					log.Debug().
-						Time("time", action.Time).
-						Str("action", action.Name).
-						Msg("started execution")
-					controller := action.Content.(*Control)
-					actions[action.ID] = action
-					controller.Reaction <- struct{}{}
-				} else {
-					newPendingActions = append(newPendingActions, action)
-				}
-			}
-			pendingActions = newPendingActions
-		}
-
-		for {
-			select {
-			case reaction := <-s.block.ReAction:
-				if act, ok := actions[reaction.ID]; ok {
-					// it s an existing action ... we probably need to close it
-					log.Debug().
-						Time("time", act.Time).
-						Float64("duration", time.Since(act.Time).Seconds()).
-						Str("reaction", act.Name).
-						Msg("completed execution")
-					delete(actions, reaction.ID)
-					triggerNext()
-					continue
-				}
-			case action := <-s.block.Action:
-				// add current action ot pending ones ...
-				pendingActions = append(pendingActions, action)
-				// check if we have running actions and need to cancel any
-				ctrl := action.Content.(*Control)
-				for _, a := range actions {
-					control := a.Content.(*Control)
-					if ctrl.Type == control.Type {
-						if control.Interrupt {
-							control.Cancel()
-							log.Warn().Str("type", control.Type).Msg("cancel execution")
-							delete(actions, a.ID)
-						}
-					}
-				}
-				triggerNext()
-			}
-		}
-	}()
 
 	for _, route := range s.routes {
+		s.block[route.Key()] = api.NewBlock()
 		if route.Path != "" {
-			http.HandleFunc(fmt.Sprintf("/%s/%s", route.Action, route.Path), s.handle(route.Method, route.Interrupt, route.Exec))
+			http.HandleFunc(fmt.Sprintf("/%s/%s", route.Action, route.Path), s.handle(route))
 		} else {
-			http.HandleFunc(fmt.Sprintf("/%s", route.Action), s.handle(route.Method, route.Interrupt, route.Exec))
+			http.HandleFunc(fmt.Sprintf("/%s", route.Action), s.handle(route))
 		}
+	}
+
+	// start the route controller
+	for _, bl := range s.block {
+		go func(block api.Block) {
+			for {
+				select {
+				case action := <-block.Action:
+					log.Debug().
+						Str("id", action.ID).
+						Str("coin", string(action.Coin)).
+						Str("action", action.Name).
+						Msg("started processing")
+					// wait for the route to return
+					reaction := <-block.ReAction
+					log.Debug().
+						Str("id", reaction.ID).
+						Str("coin", string(reaction.Coin)).
+						Str("action", reaction.Name).
+						Msg("finished processing")
+				}
+			}
+		}(bl)
 	}
 
 	log.Info().Str("server", s.name).Int("port", s.port).Msg("starting server")
@@ -237,8 +207,8 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) code(w http.ResponseWriter, b []byte, code int) {
-	s.respond(w, b)
 	w.WriteHeader(code)
+	s.respond(w, b)
 }
 
 func (s *Server) respond(w http.ResponseWriter, b []byte) {

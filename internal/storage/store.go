@@ -61,6 +61,7 @@ type Registry interface {
 	Add(key K, value interface{}) error
 	GetAll(key K, value interface{}) error
 	GetFor(key K, value interface{}, filter func(s string) bool) error
+	Check(key K) ([]string, error)
 	Root() string
 }
 

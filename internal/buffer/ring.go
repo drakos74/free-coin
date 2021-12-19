@@ -38,7 +38,7 @@ func NewRing(size int) *Ring {
 }
 
 // Push adds an element to the ring.
-func (r *Ring) Push(v interface{}) {
+func (r *Ring) Push(v interface{}) bool {
 
 	tv := reflect.TypeOf(v)
 	if r.t == nil {
@@ -52,6 +52,8 @@ func (r *Ring) Push(v interface{}) {
 	r.values[r.index] = v
 	r.index = r.next(r.index)
 	r.count++
+
+	return r.count > r.index
 }
 
 func (r *Ring) next(index int) int {

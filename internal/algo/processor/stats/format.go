@@ -102,5 +102,15 @@ func formatSignal(signal Signal, threshold int) string {
 	if signal.Type == model.Sell {
 		factor = -1 * factor
 	}
-	return fmt.Sprintf("%s:%.fm %s %s %.4f | %.2f | (%+v|%d) ", signal.Coin, signal.Duration.Minutes()*float64(signal.Segments), emoji.MapType(signal.Type), emoji.MapDeca(factor), signal.Price, signal.Density, signal.Duration, signal.Segments)
+	return fmt.Sprintf("%s:%.fm %s %s (%.4f) %.4f | %.2f | (%+v|%d) ",
+		signal.Coin,
+		signal.Duration.Minutes()*float64(signal.Segments),
+		emoji.MapType(signal.Type),
+		emoji.MapDeca(factor),
+		signal.Factor,
+		signal.Price,
+		signal.Density,
+		signal.Duration,
+		signal.Segments,
+	)
 }

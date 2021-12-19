@@ -5,10 +5,39 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/model"
 )
 
-// Request defines a backtest request
 type Request struct {
+	Coin model.Coin
+	From time.Time
+	To   time.Time
+}
+
+func NewRequest(r *RawRequest) (*Request, error) {
+	coin := model.Coin(r.Coin[0])
+
+	from, err := time.Parse("2006_01_02T15", r.From[0])
+	if err != nil {
+		return nil, fmt.Errorf("could not parse 'from' time: %w", err)
+	}
+
+	to, err := time.Parse("2006_01_02T15", r.To[0])
+	if err != nil {
+		return nil, fmt.Errorf("could not parse 'to' time: %w", err)
+	}
+
+	return &Request{
+		Coin: coin,
+		From: from,
+		To:   to,
+	}, nil
+
+}
+
+// RawRequest defines a backtest request
+type RawRequest struct {
 	Coin      []string `json:"coin"`
 	From      []string `json:"from"`
 	To        []string `json:"to"`
@@ -19,27 +48,53 @@ type Request struct {
 	Threshold []string `json:"threshold"`
 }
 
+func parseQuery(values url.Values) (*RawRequest, error) {
+	bb, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("could not parseQuery values: %w", err)
+	}
+
+	req := new(RawRequest)
+	err = json.Unmarshal(bb, req)
+	if err != nil {
+		return nil, fmt.Errorf("could not parseQuery request: %w", err)
+	}
+
+	return req, nil
+
+}
+
+// TrainRequest defines a backtest request
+type TrainRequest struct {
+	Coin  []string `json:"coin"`
+	From  []string `json:"from"`
+	To    []string `json:"to"`
+	RateW []string `json:"rate_w"`
+	RateB []string `json:"rate_b"`
+	Model []string `json:"model"`
+}
+
+func parseTrain(values url.Values) (*TrainRequest, error) {
+	bb, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("could not parseQuery values: %w", err)
+	}
+
+	req := new(TrainRequest)
+	err = json.Unmarshal(bb, req)
+	if err != nil {
+		return nil, fmt.Errorf("could not parseQuery request: %w", err)
+	}
+
+	return req, nil
+
+}
+
 // Config defines a backtest config
 type Config struct {
 	Prev     int `json:"prev"`
 	Next     int `json:"next"`
 	Interval int `json:"interval"`
-}
-
-func parse(values url.Values) (*Request, error) {
-	bb, err := json.Marshal(values)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse values: %w", err)
-	}
-
-	req := new(Request)
-	err = json.Unmarshal(bb, req)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse request: %w", err)
-	}
-
-	return req, nil
-
 }
 
 // Response defines the response structure for the backtest execution
@@ -48,6 +103,7 @@ type Response struct {
 	Time    []time.Time `json:"time"`
 	Trades  []Point     `json:"trades"`
 	Price   []Point     `json:"price"`
+	Loss    []Point     `json:"loss"`
 	Trigger Trigger     `json:"trigger"`
 }
 
