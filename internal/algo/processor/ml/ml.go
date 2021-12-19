@@ -1,6 +1,7 @@
 package ml
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
@@ -44,6 +45,7 @@ func newCollector(shard storage.Shard, _ *ff.Network, segments Config) (*collect
 				buffer: buffer.NewMultiBuffer(segment.LookBack),
 			}
 		}
+		fmt.Printf("cfg = %+v\n", cfg)
 	}
 
 	return &collector{
