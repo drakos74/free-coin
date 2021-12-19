@@ -3,6 +3,7 @@ package metrics
 import "github.com/prometheus/client_golang/prometheus"
 
 type prometheusMetrics struct {
+	Events *prometheus.CounterVec
 	Trades *prometheus.CounterVec
 	Calls  *prometheus.CounterVec
 	Errors *prometheus.CounterVec
@@ -10,6 +11,12 @@ type prometheusMetrics struct {
 
 func newPrometheusMetrics() prometheusMetrics {
 	return prometheusMetrics{
+		Events: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: "coin",
+				Name:      "events",
+			}, []string{"coin", "duration", "process"},
+		),
 		Trades: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: "coin",

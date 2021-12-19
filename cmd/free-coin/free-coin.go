@@ -66,7 +66,8 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard) api.Processor 
 	return coin.NewStrategy(ml.Name).
 		ForUser(u).
 		ForExchange(e).
-		WithProcessor(ml.Processor(api.FreeCoin, shard, nil, configML(""))).Apply()
+		WithProcessor(ml.Processor(api.FreeCoin, shard, nil, configML(""))).
+		Apply()
 }
 
 func configML(m string) ml.Config {

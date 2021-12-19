@@ -30,7 +30,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 	collector, err := newCollector(shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
-		log.Error().Err(err).Str("processor", Name).Msg("could not init stats")
+		log.Error().Err(err).Str("processor", Name).Msg("could not init processor")
 		return func(u api.User, e api.Exchange) api.Processor {
 			return processor.Void(Name)
 		}
@@ -49,6 +49,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 
 			if vec, ok := collector.push(trade); ok {
 				for d, vv := range vec {
+					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), Name)
 					if _, ok := datasets[d]; !ok {
 						datasets[d] = newDataSet(trade.Coin, d, config[trade.Coin][d], make([]vector, 0))
 					}
