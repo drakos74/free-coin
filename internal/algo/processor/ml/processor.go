@@ -46,6 +46,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 		//trader := trader.NewExchangeTrader(t, e)
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
+			signals := make(map[time.Duration]Signal)
 			if vec, ok := collector.push(trade); ok {
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
@@ -69,55 +70,24 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 							} else if prec > mlPrecisionThreshold {
 								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
 								t := datasets[d].predict()
-								// TODO : make the exchange call on the above type
-								u.Send(index, api.NewMessage(formatMessage(Signal{
+								signal := Signal{
 									Coin:      trade.Coin,
 									Time:      trade.Time,
 									Duration:  d,
 									Price:     trade.Price,
 									Type:      t,
 									Precision: prec,
-								})), nil)
+								}
+								signals[d] = signal
+								// TODO : make the exchange call on the above type
+								//u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
 							}
 						}
 					}
 				}
-
-				// gather the vectors for the training
-
-				//out := network.Predict(inp)
-				//temp := network.Train(inp, outp)
-				//
-				//fmt.Printf("inp = %+v\n", inp)
-				//fmt.Printf("outp = %+v\n", outp)
-
-				//avg := 0.0
-				//for _, o := range out {
-				//	avg += o
-				//}
-				//avg = avg / float64(len(out))
-				//
-				//for i, o := range out {
-				//	v := o - avg
-				//	if v > 0 {
-				//		fmt.Printf("i = %+v\n", i)
-				//	}
-				//}
-				//
-				//signal := Signal{
-				//	Coin: trade.Coin,
-				//	Time: trade.Time,
-				//	Loss: temp,
-				//}
-				//bb, err := json.Marshal(signal)
-				//if err != nil {
-				//	log.Warn().
-				//		Str("signal", fmt.Sprintf("%+v", signal)).
-				//		Err(err).
-				//		Msg("could not encode signal")
-				//} else {
-				//	u.Send(index, api.NewMessage(string(bb)), nil)
-				//}
+				if len(signals) > 0 {
+					u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+				}
 			}
 			return nil
 		}, func() {
