@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	cointime "github.com/drakos74/free-coin/internal/time"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
@@ -25,7 +27,7 @@ func init() {
 func main() {
 	// main engine trade input ...
 	client := kraken.NewClient(model.BTC, model.ETH, model.DOT).
-		//Since(cointime.LastXHours(24)).
+		Since(cointime.LastXHours(48)).
 		Interval(5 * time.Second)
 	engine, err := coin.NewEngine(client)
 	if err != nil {
@@ -84,7 +86,42 @@ func configML(m string) ml.Config {
 			//	Threshold: 0.5,
 			//},
 			15 * time.Minute: ml.Segments{
-				LookBack:  19,
+				LookBack:  9,
+				LookAhead: 1,
+				Threshold: 0.75,
+				Model:     "true",
+			},
+			30 * time.Minute: ml.Segments{
+				LookBack:  9,
+				LookAhead: 1,
+				Threshold: 1,
+				Model:     "true",
+			},
+			60 * time.Minute: ml.Segments{
+				LookBack:  9,
+				LookAhead: 1,
+				Threshold: 1,
+				Model:     "true",
+			},
+			//120 * time.Minute: ml.Segments{
+			//	LookBack:  4,
+			//	LookAhead: 1,
+			//	Threshold: 1,
+			//},
+		},
+		model.ETH: {
+			//2 * time.Minute: ml.Segments{
+			//	LookBack:  19,
+			//	LookAhead: 1,
+			//	Threshold: 0.5,
+			//},
+			//5 * time.Minute: ml.Segments{
+			//	LookBack:  19,
+			//	LookAhead: 1,
+			//	Threshold: 0.5,
+			//},
+			15 * time.Minute: ml.Segments{
+				LookBack:  9,
 				LookAhead: 1,
 				Threshold: 0.75,
 				Model:     "true",
