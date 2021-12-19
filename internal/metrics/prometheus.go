@@ -15,7 +15,7 @@ func newPrometheusMetrics() prometheusMetrics {
 			prometheus.CounterOpts{
 				Namespace: "coin",
 				Name:      "events",
-			}, []string{"coin", "duration", "process"},
+			}, []string{"coin", "duration", "action", "process"},
 		),
 		Trades: prometheus.NewCounterVec(
 			prometheus.CounterOpts{

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/metrics"
+
 	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
 
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -81,6 +83,7 @@ func (c *collector) push(trade *model.Trade) (states map[time.Duration]vector, h
 
 func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *model.Trade, d time.Duration) (vector, bool) {
 	if b, ok := window.Push(trade.Time, trade.Price); ok {
+		metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "window", Name)
 		p1, _ := window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 			return b.Ratio
 		}, 1)
@@ -110,6 +113,12 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 					newIn:   current,
 				}, true
 			}
+		} else {
+			log.Warn().
+				Floats64("p1", p1).
+				Floats64("p2", p2).
+				Floats64("p2", p2).
+				Msg("not enough data to ingest")
 		}
 	}
 	return vector{}, false

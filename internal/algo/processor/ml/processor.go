@@ -46,10 +46,9 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 		//trader := trader.NewExchangeTrader(t, e)
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
-
 			if vec, ok := collector.push(trade); ok {
 				for d, vv := range vec {
-					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), Name)
+					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					if _, ok := datasets[d]; !ok {
 						datasets[d] = newDataSet(trade.Coin, d, config[trade.Coin][d], make([]vector, 0))
 					}
@@ -62,6 +61,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					// do our training here ...
 					if config[trade.Coin][d].Model != "" {
 						if len(datasets[d].vectors) >= mlBufferSize {
+							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
 							prec, err := datasets[d].fit(false)
 							if err != nil {
 								log.Error().Err(err).Msg("could not train online")
