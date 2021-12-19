@@ -113,12 +113,6 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 					newIn:   current,
 				}, true
 			}
-		} else {
-			log.Warn().
-				Floats64("p1", p1).
-				Floats64("p2", p2).
-				Floats64("p2", p2).
-				Msg("not enough data to ingest")
 		}
 	}
 	return vector{}, false

@@ -60,12 +60,14 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					datasets[d] = newDataSet(trade.Coin, d, config[trade.Coin][d], newVectors)
 					// do our training here ...
 					if config[trade.Coin][d].Model != "" {
+						metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
 						if len(datasets[d].vectors) >= mlBufferSize {
-							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
+							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
 							prec, err := datasets[d].fit(false)
 							if err != nil {
 								log.Error().Err(err).Msg("could not train online")
 							} else if prec > mlPrecisionThreshold {
+								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
 								t := datasets[d].predict()
 								// TODO : make the exchange call on the above type
 								u.Send(index, api.NewMessage(formatMessage(Signal{
