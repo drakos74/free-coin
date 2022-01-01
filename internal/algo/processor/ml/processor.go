@@ -13,8 +13,6 @@ import (
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-	"github.com/drakos74/free-coin/internal/trader"
 	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
 	"github.com/rs/zerolog/log"
 )
@@ -47,11 +45,11 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 
 		datasets := make(map[time.Duration]dataset)
 
-		wallet, err := trader.SimpleTrader(string(index), json.BlobShard("trader"), make(map[model.Coin]map[time.Duration]trader.Settings), e)
-		if err != nil {
-			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
-			return processor.NoProcess(Name)
-		}
+		//wallet, err := trader.SimpleTrader(string(index), json.BlobShard("trader"), make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		//if err != nil {
+		//	log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
+		//	return processor.NoProcess(Name)
+		//}
 
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
@@ -109,32 +107,32 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					}
 				}
 				if len(signals) > 0 {
-					var signal Signal
-					var act bool
-					for _, s := range signals {
-						if signal.Type == model.NoType {
-							signal = s
-							act = true
-						} else if signal.Type != s.Type || signal.Coin != s.Coin {
-							act = false
-						}
-					}
-					// TODO : get buy or sell from combination of signals
-					if act {
-						signal.Duration = 0
-						_, ok, err := signal.submit(wallet)
-						if err != nil {
-							log.Error().Str("signal", fmt.Sprintf("%+v", signal)).Err(err).Msg("error creating order")
-							if config.Debug {
-								u.Send(index, api.ErrorMessage(encodeMessage(signal)).AddLine(err.Error()), nil)
-							}
-						} else if ok {
-							if config.Debug {
-								u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
-							}
-							u.Send(index, api.NewMessage(formatSignals(signals)), nil)
-						}
-					}
+					u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+					//if config.Debug {
+					//	var signal Signal
+					//	var act bool
+					//	for _, s := range signals {
+					//		if signal.Type == model.NoType {
+					//			signal = s
+					//			act = true
+					//		} else if signal.Type != s.Type || signal.Coin != s.Coin {
+					//			act = false
+					//		}
+					//	}
+					//	// TODO : get buy or sell from combination of signals
+					//	signal.Duration = 0
+					//	_, ok, err := signal.submit(wallet)
+					//	if err != nil {
+					//		log.Error().Str("signal", fmt.Sprintf("%+v", signal)).Err(err).Msg("error creating order")
+					//		if config.Debug {
+					//			u.Send(index, api.ErrorMessage(encodeMessage(signal)).AddLine(err.Error()), nil)
+					//		}
+					//	} else if ok {
+					//		if config.Debug {
+					//			u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
+					//		}
+					//	}
+					//}
 				}
 			}
 			return nil
