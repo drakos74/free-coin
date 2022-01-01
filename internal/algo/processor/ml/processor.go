@@ -3,6 +3,7 @@ package ml
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -99,7 +100,9 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 											u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
 										}
 										// for live trading info
-										u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
+										if math.Abs(time.Now().Sub(trade.Time).Hours()) <= 3 {
+											u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
+										}
 									}
 								}
 							}
