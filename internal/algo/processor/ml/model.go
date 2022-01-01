@@ -39,12 +39,14 @@ type Model struct {
 // LookAhead : the number of segments to be anticipated
 // Threshold : the numeric threshold for the price movement in regard to the current segment.
 type Segments struct {
-	LookBack  int
-	LookAhead int
-	Threshold float64
-	Model     string
-	MLModel   base.Classifier
-	MlDataSet *base.DenseInstances
+	LookBack   int
+	LookAhead  int
+	Threshold  float64
+	BufferSize int
+	Precision  float64
+	Model      string
+	MLModel    base.Classifier
+	MlDataSet  *base.DenseInstances
 }
 
 // Signal represents a signal from the ml processor.

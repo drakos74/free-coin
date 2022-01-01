@@ -68,11 +68,11 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard) api.Processor 
 	return coin.NewStrategy(ml.Name).
 		ForUser(u).
 		ForExchange(e).
-		WithProcessor(ml.Processor(api.FreeCoin, shard, nil, configML(""))).
+		WithProcessor(ml.Processor(api.FreeCoin, shard, nil, configML())).
 		Apply()
 }
 
-func configML(m string) ml.Config {
+func configML() ml.Config {
 	cfg := map[model.Coin]map[time.Duration]ml.Segments{
 		model.BTC: {
 			//2 * time.Minute: ml.Segments{
@@ -86,22 +86,28 @@ func configML(m string) ml.Config {
 			//	Threshold: 0.5,
 			//},
 			15 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 0.75,
-				Model:     "true",
+				LookBack:   9,
+				LookAhead:  1,
+				Threshold:  0.75,
+				BufferSize: 200,
+				Precision:  0.51,
+				Model:      "true",
 			},
 			30 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1,
-				Model:     "true",
+				LookBack:   9,
+				LookAhead:  1,
+				Threshold:  1,
+				BufferSize: 100,
+				Precision:  0.51,
+				Model:      "true",
 			},
 			60 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1,
-				Model:     "true",
+				LookBack:   9,
+				LookAhead:  1,
+				Threshold:  1,
+				BufferSize: 50,
+				Precision:  0.51,
+				Model:      "true",
 			},
 			//120 * time.Minute: ml.Segments{
 			//	LookBack:  4,
@@ -146,7 +152,17 @@ func configML(m string) ml.Config {
 		},
 	}
 
-	return cfg
+	return ml.Config{
+		Segments:  cfg,
+		Debug:     false,
+		Benchmark: true,
+		Model: ml.Model{
+			BufferSize: 50,
+			Threshold:  0.51,
+			Size:       100,
+			Features:   3,
+		},
+	}
 }
 
 func statsProcessor(u api.User, shard storage.Shard) api.Processor {
