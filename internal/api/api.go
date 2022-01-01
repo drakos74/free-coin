@@ -36,7 +36,6 @@ type Client interface {
 type Exchange interface {
 	OpenPositions(ctx context.Context) (*model.PositionBatch, error)
 	OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []string, error)
-	ClosePosition(position *model.Position) error
 	Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error)
 	Pairs(ctx context.Context) map[string]Pair
 	CurrentPrice(ctx context.Context) (map[model.Coin]model.CurrentPrice, error)

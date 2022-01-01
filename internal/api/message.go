@@ -20,6 +20,14 @@ func NewMessage(txt string) *Message {
 	}
 }
 
+// ErrorMessage creates a new error message.
+func ErrorMessage(txt string) *Message {
+	return &Message{
+		Text: fmt.Sprintf("ERROR:%s", txt),
+		Time: time.Now(),
+	}
+}
+
 // ReplyTo defines a message id that this message refers to.
 func (m *Message) ReplyTo(msgID int) *Message {
 	m.Reply = msgID

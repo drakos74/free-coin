@@ -122,6 +122,13 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	if i >= len(c.coins) {
 		i = 0
 	}
+
+	// call itself after the processing finishes
+	// TODO : test failing behaviour
+	defer time.AfterFunc(c.interval, func() {
+		c.execute(i+1, trades)
+	})
+
 	coin := c.coins[i]
 	since := c.since[coin]
 	log.Trace().
@@ -158,11 +165,6 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	//	log.Info().Time("start", start).Str("coin", string(c.coin)).Str("percent", coinmath.Format(percent)).Msg("progress")
 	//}
 	c.since[coin] = tradeResponse.Index
-
-	// call itself after the processing finishes
-	time.AfterFunc(c.interval, func() {
-		c.execute(i+1, trades)
-	})
 }
 
 func (c *Client) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {

@@ -7,75 +7,60 @@ import 'chartjs-adapter-luxon';
 
 Chart.register(zoomPlugin)
 
-const Bar = ({coin, labelData, tradeData, priceData, loss, buy, sell}) => {
+const Bar = ({coin, labelData, tradeData, priceData, ml}) => {
     const data = canvas => {
         const ctx = canvas.getContext('2d');
         const gradient = ctx.createLinearGradient(63, 81, 181, 700);
         gradient.addColorStop(0, '#929dd9');
         gradient.addColorStop(1, '#172b4d');
 
-        return {
-            // labels:labelData,
-            datasets: [
-                // {
-                //     type: "line",
-                //     label: coin + "-trades",
-                //     data: tradeData,
-                //     backgroundColor: gradient,
-                //     borderColor: '#3F51B5',
-                //     pointRadius: 1,
-                //     pointHoverRadius: 2,
-                //     pointHoverBorderColor: 'white',
-                // },
-                {
-                    type: "line",
-                    label: coin + "-price",
-                    fill: false,
-                    data: priceData,
-                    backgroundColor: gradient,
-                    borderColor: '#3F51B5',
-                    pointRadius: 1,
-                    pointHoverRadius: 2,
-                    pointHoverBorderColor: 'white',
-                },
-                {
-                    type: 'line',
-                    label: coin + "-loss",
-                    data: loss,
+        // generate the datasets
+        let datasets = [{
+            type: "line",
+            label: coin + "-price",
+            fill: false,
+            data: priceData,
+            backgroundColor: gradient,
+            borderColor: '#3F51B5',
+            pointRadius: 1,
+            pointHoverRadius: 2,
+            pointHoverBorderColor: 'white',
+        }]
+
+        if (ml) {
+            Object.keys(ml).forEach(k => {
+                datasets.push({
+                    type: "scatter",
+                    label: k + "-buy",
+                    data: ml[k].buy,
                     backgroundColor: gradient,
                     borderColor: '#3bcb5d',
-                    pointRadius: 1,
+                    pointRadius: 3,
                     pointHoverRadius: 2,
                     pointHoverBorderColor: 'white',
-                },
-                {
-                    type: 'scatter',
-                    label: coin + "-sell",
-                    data: sell,
+                })
+                datasets.push({
+                    type: "scatter",
+                    label: k + "-sell",
+                    data: ml[k].sell,
                     backgroundColor: gradient,
                     borderColor: '#cb3b3b',
                     pointRadius: 3,
                     pointHoverRadius: 2,
                     pointHoverBorderColor: 'white',
-                },
-                {
-                    type: 'scatter',
-                    label: coin + "-buy",
-                    data: buy,
-                    backgroundColor: gradient,
-                    borderColor: '#06a40e',
-                    pointRadius: 3,
-                    pointHoverRadius: 2,
-                    pointHoverBorderColor: 'white',
-                }
-            ]
+                })
+            })
+        }
+
+        return {
+            datasets :datasets
         };
     };
 
     const options = {
         responsive: true,
         scales: {
-            x : {
+            x: {
                 type: 'time',
                 distribution: "linear",
                 time: {
@@ -95,14 +80,14 @@ const Bar = ({coin, labelData, tradeData, priceData, loss, buy, sell}) => {
                         enabled: true,
                     },
                     drag: {
-                        enabled : true
+                        enabled: true
                     },
                     mode: 'x',
                 },
                 pan: {
                     enabled: true,
                 },
-                mode : 'x'
+                mode: 'x'
             }
         }
     };

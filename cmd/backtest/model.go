@@ -66,12 +66,14 @@ func parseQuery(values url.Values) (*RawRequest, error) {
 
 // TrainRequest defines a backtest request
 type TrainRequest struct {
-	Coin  []string `json:"coin"`
-	From  []string `json:"from"`
-	To    []string `json:"to"`
-	RateW []string `json:"rate_w"`
-	RateB []string `json:"rate_b"`
-	Model []string `json:"model"`
+	Coin       []string `json:"coin"`
+	From       []string `json:"from"`
+	To         []string `json:"to"`
+	Precision  []string `json:"precision"`
+	BufferSize []string `json:"buffer"`
+	Size       []string `json:"size"`
+	Features   []string `json:"features"`
+	Model      []string `json:"model"`
 }
 
 func parseTrain(values url.Values) (*TrainRequest, error) {
@@ -99,12 +101,12 @@ type Config struct {
 
 // Response defines the response structure for the backtest execution
 type Response struct {
-	Details []Details   `json:"details"`
-	Time    []time.Time `json:"time"`
-	Trades  []Point     `json:"trades"`
-	Price   []Point     `json:"price"`
-	Loss    []Point     `json:"loss"`
-	Trigger Trigger     `json:"trigger"`
+	Details []Details          `json:"details"`
+	Time    []time.Time        `json:"time"`
+	Trades  []Point            `json:"trades"`
+	Price   []Point            `json:"price"`
+	Loss    []Point            `json:"loss"`
+	Trigger map[string]Trigger `json:"trigger"`
 }
 
 type Details struct {

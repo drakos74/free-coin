@@ -1,7 +1,6 @@
 package ml
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/metrics"
@@ -25,7 +24,7 @@ type state struct {
 	buffer *buffer.MultiBuffer
 }
 
-func newCollector(shard storage.Shard, _ *ff.Network, segments Config) (*collector, error) {
+func newCollector(shard storage.Shard, _ *ff.Network, config Config) (*collector, error) {
 	store, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
@@ -35,7 +34,7 @@ func newCollector(shard storage.Shard, _ *ff.Network, segments Config) (*collect
 	windows := make(map[model.Coin]map[time.Duration]*buffer.HistoryWindow)
 	states := make(map[model.Coin]map[time.Duration]*state)
 
-	for c, cfg := range segments {
+	for c, cfg := range config.Segments {
 		if _, ok := windows[c]; !ok {
 			windows[c] = make(map[time.Duration]*buffer.HistoryWindow, 0)
 			states[c] = make(map[time.Duration]*state, 0)
@@ -47,14 +46,13 @@ func newCollector(shard storage.Shard, _ *ff.Network, segments Config) (*collect
 				buffer: buffer.NewMultiBuffer(segment.LookBack),
 			}
 		}
-		fmt.Printf("cfg = %+v\n", cfg)
 	}
 
 	return &collector{
 		store:   store,
 		windows: windows,
 		state:   states,
-		config:  segments,
+		config:  config,
 	}, nil
 }
 
@@ -97,7 +95,7 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 			prev := tracker.buffer.Last()
 			ratio := b.Values().Stats()[0].Ratio()
 			next := make([]float64, 3)
-			threshold := c.config[trade.Coin][d].Threshold
+			threshold := c.config.Segments[trade.Coin][d].Threshold
 			if ratio > threshold {
 				next[0] = 1
 			} else if ratio < -1*threshold {

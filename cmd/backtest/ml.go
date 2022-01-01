@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/trader"
+
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -68,20 +70,49 @@ func train() server.Handler {
 			return []byte(err.Error()), http.StatusBadRequest, nil
 		}
 
-		//rateW, err := strconv.ParseFloat(request.RateW[0], 64)
-		//if err != nil {
-		//	return []byte(err.Error()), http.StatusBadRequest, nil
-		//}
+		precision, err := strconv.ParseFloat(request.Precision[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		size, err := strconv.Atoi(request.Size[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		bufferSize, err := strconv.Atoi(request.BufferSize[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
 		//
 		//rateB, err := strconv.ParseFloat(request.RateB[0], 64)
 		//if err != nil {
 		//	return []byte(err.Error()), http.StatusBadRequest, nil
 		//}
 
-		mlModel := ""
-		if len(request.Model) > 0 {
-			mlModel = request.Model[0]
+		mm := make(map[model.Coin]map[time.Duration]ml.Segments)
+
+		for _, m := range request.Model {
+			p := strings.Split(m, "_")
+			fmt.Printf("p = %+v\n", p)
+			c := model.Coin(p[0])
+			d, err := time.ParseDuration(p[1])
+			if err != nil {
+				log.Error().Err(err).Msg("could not parse duration")
+				return []byte(err.Error()), http.StatusBadRequest, nil
+			}
+			if _, ok := mm[c]; !ok {
+				mm[c] = make(map[time.Duration]ml.Segments)
+			}
+			if _, ok := mm[c][d]; !ok {
+				mm[c][d] = ml.Segments{}
+			}
 		}
+
+		//mlModel := ""
+		//if len(request.Model) > 0 {
+		//	mlModel = request.Model[0]
+		//}
 
 		nn := configNN(0.1, 0.0)
 
@@ -91,6 +122,7 @@ func train() server.Handler {
 					Coin: string(requestCoin),
 				},
 			},
+			Trigger: make(map[string]Trigger),
 		}
 
 		var u *local.User
@@ -104,6 +136,7 @@ func train() server.Handler {
 						Coin: string(requestCoin),
 					},
 				},
+				Trigger: make(map[string]Trigger),
 			}
 
 			u, err = local.NewUser("user.log")
@@ -122,7 +155,12 @@ func train() server.Handler {
 
 			shard := storage.BlobShard("ml")
 
-			cfg := configML(mlModel)
+			cfg := configML(mm)
+
+			cfg.Model.Threshold = precision
+			cfg.Model.BufferSize = bufferSize
+			cfg.Model.Size = size
+			cfg.Model.Features = 3
 
 			network := coin.NewStrategy(ml.Name).
 				ForUser(u).
@@ -168,7 +206,7 @@ func train() server.Handler {
 			// gather all signals for different scenarios
 			log.Info().Int("count", len(u.Messages)).Msg("messages")
 
-			signals := make([]*ml.Signal, 0)
+			signals := make(map[string][]*ml.Signal, 0)
 			for _, m := range u.Messages {
 				signal := new(ml.Signal)
 				err := json.Unmarshal([]byte(m.Text), signal)
@@ -176,14 +214,30 @@ func train() server.Handler {
 					fmt.Printf("msg err = %+v\n", err)
 					continue
 				}
+
+				key := trader.Key{
+					Coin:     signal.Coin,
+					Duration: signal.Duration,
+				}
+
+				if _, ok := response.Trigger[key.ToString()]; !ok {
+					response.Trigger[key.ToString()] = Trigger{
+						Buy:  make([]Point, 0),
+						Sell: make([]Point, 0),
+					}
+				}
+
+				var buy = response.Trigger[key.ToString()].Buy
+				var sell = response.Trigger[key.ToString()].Sell
+
 				switch signal.Type {
 				case model.Buy:
-					response.Trigger.Buy = append(response.Trigger.Buy, Point{
+					buy = append(buy, Point{
 						X: signal.Time,
 						Y: signal.Price,
 					})
 				case model.Sell:
-					response.Trigger.Sell = append(response.Trigger.Sell, Point{
+					sell = append(sell, Point{
 						X: signal.Time,
 						Y: signal.Price,
 					})
@@ -192,7 +246,15 @@ func train() server.Handler {
 					X: signal.Time,
 					Y: float64(signal.Type),
 				})
-				signals = append(signals, signal)
+				response.Trigger[key.ToString()] = Trigger{
+					Buy:  buy,
+					Sell: sell,
+				}
+				if _, ok := signals[key.ToString()]; !ok {
+					signals[key.ToString()] = make([]*ml.Signal, 0)
+				}
+				ss := append(signals[key.ToString()], signal)
+				signals[key.ToString()] = ss
 			}
 		}
 
@@ -207,64 +269,65 @@ func train() server.Handler {
 	}
 }
 
-func configML(m string) ml.Config {
+func configML(mm map[model.Coin]map[time.Duration]ml.Segments) ml.Config {
 	cfg := map[model.Coin]map[time.Duration]ml.Segments{
 		model.BTC: {
 			2 * time.Minute: ml.Segments{
-				LookBack:  19,
+				LookBack:  9,
 				LookAhead: 1,
 				Threshold: 0.5,
+				Model:     "2",
 			},
 			5 * time.Minute: ml.Segments{
-				LookBack:  19,
+				LookBack:  9,
 				LookAhead: 1,
 				Threshold: 0.5,
+				Model:     "5",
 			},
 			15 * time.Minute: ml.Segments{
-				LookBack:  19,
+				LookBack:  9,
 				LookAhead: 1,
 				Threshold: 0.75,
+				Model:     "15",
 			},
 			30 * time.Minute: ml.Segments{
 				LookBack:  9,
 				LookAhead: 1,
 				Threshold: 1,
+				Model:     "30",
 			},
 			60 * time.Minute: ml.Segments{
 				LookBack:  9,
 				LookAhead: 1,
-				Threshold: 1,
+				Threshold: 1.5,
+				Model:     "60",
 			},
-			120 * time.Minute: ml.Segments{
-				LookBack:  4,
+			240 * time.Minute: ml.Segments{
+				LookBack:  9,
 				LookAhead: 1,
-				Threshold: 1,
+				Threshold: 2,
+				Model:     "240",
 			},
 		},
 	}
 
-	if m != "" {
-		p := strings.Split(m, "_")
-		f, _ := strconv.ParseFloat(p[2], 64)
-		t, _ := time.ParseDuration(p[1])
-		cc := ModelParser{
-			Coin:      model.Coin(p[0]),
-			Threshold: f,
-			Duration:  t,
+	if len(mm) > 0 {
+		for c, md := range mm {
+			if _, ok := cfg[c]; ok {
+				for d, _ := range md {
+					if _, ok := cfg[c][d]; ok {
+						mm[c][d] = cfg[c][d]
+					}
+				}
+			}
 		}
-
-		cfg = map[model.Coin]map[time.Duration]ml.Segments{
-			cc.Coin: {
-				cc.Duration: cfg[cc.Coin][cc.Duration],
-			},
-		}
-
-		segment := cfg[cc.Coin][cc.Duration]
-		segment.Model = m
-		cfg[cc.Coin][cc.Duration] = segment
 	}
 
-	return cfg
+	return ml.Config{
+		Segments:  mm,
+		Debug:     true,
+		Benchmark: true,
+	}
 }
 
 type ModelParser struct {

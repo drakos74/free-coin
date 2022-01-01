@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/client"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
 	zlog "github.com/rs/zerolog/log"
@@ -90,25 +92,25 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// we assume here it s always market order
-	var price float64
-	var time time.Time
-	if trade, ok := e.trades[order.Coin]; ok {
-		price = trade.Price
-		time = trade.Time
-	}
-	order.Price = price
+	//var price float64
+	//var time time.Time
+	//// re-calibrate market factors if we track this way (i.e. backtest etc...)
+	//if trade, ok := e.trades[order.Coin]; ok {
+	//	order.Price = price
+	//	order.Time = trade.Time
+	//}
 	// TODO : use the tracking config
-	position := model.OpenPosition(order)
+	position := model.OpenPosition(order, nil)
 	position.OpenTime = order.Time
 	trackedPosition := model.TrackedPosition{
-		Open:     time,
+		Open:     order.Time,
 		Position: position,
 	}
 	if _, ok := e.positions[position.ID]; ok {
 		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
 	}
 	e.positions[position.ID] = trackedPosition
-	e.log(fmt.Sprintf("open order = %+v", position))
+	e.log(fmt.Sprintf("open position = %+v", position))
 	return order, []string{order.ID}, nil
 }
 
@@ -159,7 +161,7 @@ func (e *Exchange) Process(trade *model.Trade) {
 	//e.processed <- api.Signal{}
 }
 
-func (e *Exchange) Gather() {
+func (e *Exchange) Gather() map[model.Coin]client.Report {
 	zlog.Info().Msg("processing finished")
 	for c, cc := range e.count {
 		zlog.Info().Str("coin", string(c)).Int("count", cc).Msg("trades")
@@ -167,29 +169,43 @@ func (e *Exchange) Gather() {
 		zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
 	}
 
-	w := make(map[model.Coin]report)
+	ww := make(map[model.Coin]client.Report)
 	for _, p := range e.positions {
-		if _, ok := w[p.Coin]; !ok {
-			w[p.Coin] = report{}
+		if _, ok := ww[p.Coin]; !ok {
+			ww[p.Coin] = client.Report{}
 		}
-		r := w[p.Coin]
+		r := ww[p.Coin]
 		switch p.Type {
 		case model.Buy:
-			r.wallet -= p.OpenPrice * p.Volume
-			r.buy++
+			r.Wallet -= p.OpenPrice * p.Volume
+			r.Buy++
+			r.BuyAvg += p.OpenPrice
+			r.BuyVolume += p.Volume
 		case model.Sell:
-			r.wallet += p.OpenPrice * p.Volume
-			r.sell++
+			r.Wallet += p.OpenPrice * p.Volume
+			r.Sell++
+			r.SellAvg += p.OpenPrice
+			r.SellVolume += p.Volume
 		}
-		w[p.Coin] = r
+		r.Fees += p.OpenPrice * p.Volume * 0.24 / 100
+		// get the last price for this coin
+		if tr, ok := e.trades[p.Coin]; ok {
+			r.LastPrice = tr.Price
+		}
+		ww[p.Coin] = r
 	}
-	zlog.Info().Str("value", fmt.Sprintf("%+v", w)).Msg("wallet")
-}
 
-type report struct {
-	buy    int
-	sell   int
-	wallet float64
+	// do another pass
+	for c, w := range ww {
+		w.BuyAvg = w.BuyAvg / float64(w.Buy)
+		w.SellAvg = w.SellAvg / float64(w.Sell)
+		// do the break-even calc
+		f := w.SellVolume - w.BuyVolume
+		w.Profit = w.Wallet - f*w.LastPrice
+		ww[c] = w
+	}
+	zlog.Info().Str("value", fmt.Sprintf("%+v", ww)).Msg("Wallet")
+	return ww
 }
 
 // Trades returns the processed trades.

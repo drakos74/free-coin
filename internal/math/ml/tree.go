@@ -10,8 +10,8 @@ import (
 	"github.com/sjwhitworth/golearn/filters"
 )
 
-func NewRandomForest() *ensemble.RandomForest {
-	return ensemble.NewRandomForest(100, 3)
+func NewRandomForest(size, features int) *ensemble.RandomForest {
+	return ensemble.NewRandomForest(size, features)
 }
 
 func PreProcessAttributes(iris *base.DenseInstances) (*base.LazilyFilteredInstances, error) {
@@ -28,7 +28,7 @@ func PreProcessAttributes(iris *base.DenseInstances) (*base.LazilyFilteredInstan
 	return irisf, nil
 }
 
-func RandomForestTrain(fileName string, debug bool) (base.Classifier, *base.DenseInstances, float64, error) {
+func RandomForestTrain(fileName string, size, features int, debug bool) (base.Classifier, *base.DenseInstances, float64, error) {
 
 	var tree base.Classifier
 
@@ -48,7 +48,7 @@ func RandomForestTrain(fileName string, debug bool) (base.Classifier, *base.Dens
 	// Create a 60-40 training-test split
 	trainData, testData := base.InstancesTrainTestSplit(irisf, 0.60)
 
-	tree = NewRandomForest()
+	tree = NewRandomForest(size, features)
 	err = tree.Fit(trainData)
 	if err != nil {
 		return nil, nil, 0.0, err
@@ -71,7 +71,7 @@ func RandomForestTrain(fileName string, debug bool) (base.Classifier, *base.Dens
 	return tree, iris, evaluation.GetAccuracy(cf), nil
 }
 
-func RandomForestPredict(fileName string, debug bool) (base.FixedDataGrid, error) {
+func RandomForestPredict(fileName string, size, features int, debug bool) (base.FixedDataGrid, error) {
 
 	var tree base.Classifier
 
@@ -88,7 +88,7 @@ func RandomForestPredict(fileName string, debug bool) (base.FixedDataGrid, error
 		return nil, err
 	}
 
-	tree = NewRandomForest()
+	tree = NewRandomForest(size, features)
 	err = tree.Fit(irisf)
 
 	if err != nil {

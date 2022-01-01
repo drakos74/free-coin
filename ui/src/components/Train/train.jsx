@@ -29,24 +29,22 @@ const Train = () => {
             }
         })
 
-        const loss = data.loss.map((l, _) => {
-            return {
-                x: new Date(l.x),
-                y: l.y
-            }
-        })
+        let ml = {}
 
-        const buy = data.trigger.buy.map((b, _) => {
-            return {
-                x: new Date(b.x),
-                y: b.y
-            }
-        })
-
-        const sell = data.trigger.sell.map((s, _) => {
-            return {
-                x: new Date(s.x),
-                y: s.y
+        Object.keys(data.trigger).forEach(k => {
+            ml[k] = {
+                buy : data.trigger[k].buy.map((b, _) => {
+                    return {
+                        x: new Date(b.x),
+                        y: b.y
+                    }
+                }),
+                sell : data.trigger[k].sell.map((b, _) => {
+                    return {
+                        x: new Date(b.x),
+                        y: b.y
+                    }
+                })
             }
         })
 
@@ -56,9 +54,7 @@ const Train = () => {
             time: time,
             trades: trades,
             price: price,
-            loss: loss,
-            buy:buy,
-            sell:sell,
+            ml : ml,
         };
         setData(newData);
     };
@@ -80,9 +76,7 @@ const Train = () => {
                          labelData={data.time}
                          tradeData={data.trades}
                          priceData={data.price}
-                         loss={data.loss}
-                         buy={data.buy}
-                         sell={data.sell}
+                         ml={data.ml}
                     />
                     <div>
                         <div className='row center'>

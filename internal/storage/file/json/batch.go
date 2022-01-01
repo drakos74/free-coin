@@ -39,8 +39,7 @@ func (s BlobStorage) Load(k storage.Key, value interface{}) error {
 	return Load(filepath.Join(s.path, s.table, s.shard), k.Path(), value)
 }
 
-// table has the same schema
-// shard is a logical split
+// NewJsonBlob
 func NewJsonBlob(table, shard string, debug bool) *BlobStorage {
 	return &BlobStorage{
 		table: table,
@@ -130,12 +129,12 @@ func Load(filePath string, fileName string, value interface{}) error {
 	}
 
 	if num > 1 {
-		return fmt.Errorf("multiple sources found")
+		return fmt.Errorf("multiple sources found in %s", p)
 	}
 
 	err = json.Unmarshal(data, value)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal key for '%s': '%v': %w", fileName, err, storage.CouldNotLoadErr)
+		return fmt.Errorf("could not unmarshal key for '%s': '%v': %w in %s", fileName, err, storage.CouldNotLoadErr, p)
 	}
 
 	return nil

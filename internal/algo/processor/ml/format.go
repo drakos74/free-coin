@@ -6,8 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/client"
+
 	"github.com/drakos74/free-coin/internal/emoji"
 )
+
+func formatReport(report client.Report) string {
+	return fmt.Sprintf("[ buy : %d , sell : %d ] %.2f ( %.2f | %.2f ) ",
+		report.Buy,
+		report.Sell,
+		report.Profit,
+		report.Wallet,
+		report.Fees)
+}
 
 func formatSignal(signal Signal) string {
 	return fmt.Sprintf("%s | %s:%.fm %s (%.4f) | %.2f",

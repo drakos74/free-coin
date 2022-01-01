@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/trader"
+
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -109,13 +111,10 @@ func run() server.Handler {
 					Next:     next,
 				},
 			},
-			Time:   make([]time.Time, 0),
-			Trades: make([]Point, 0),
-			Price:  make([]Point, 0),
-			Trigger: Trigger{
-				Buy:  make([]Point, 0),
-				Sell: make([]Point, 0),
-			},
+			Time:    make([]time.Time, 0),
+			Trades:  make([]Point, 0),
+			Price:   make([]Point, 0),
+			Trigger: make(map[string]Trigger),
 		}
 
 		// reduce data size for viewing purposes
@@ -188,17 +187,37 @@ func run() server.Handler {
 				continue
 			}
 
+			key := trader.Key{
+				Coin:     signal.Coin,
+				Duration: signal.Duration,
+			}
+
+			if _, ok := response.Trigger[key.ToString()]; !ok {
+				response.Trigger[key.ToString()] = Trigger{
+					Buy:  make([]Point, 0),
+					Sell: make([]Point, 0),
+				}
+			}
+
+			var buy []Point
+			var sell []Point
+
 			switch signal.Type {
 			case model.Buy:
-				response.Trigger.Buy = append(response.Trigger.Buy, Point{
+				buy = append(response.Trigger[key.ToString()].Buy, Point{
 					X: signal.Time,
 					Y: signal.Price,
 				})
 			case model.Sell:
-				response.Trigger.Sell = append(response.Trigger.Sell, Point{
+				sell = append(response.Trigger[key.ToString()].Sell, Point{
 					X: signal.Time,
 					Y: signal.Price,
 				})
+			}
+
+			response.Trigger[key.ToString()] = Trigger{
+				Buy:  buy,
+				Sell: sell,
 			}
 
 		}

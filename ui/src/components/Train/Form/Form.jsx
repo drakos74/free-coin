@@ -37,22 +37,23 @@ const Form = ({change}) => {
 
     const [coin, setCoin] = React.useState('BTC');
 
-    const [rateW, setRateW] = React.useState(0.1);
-    const [rateB, setRateB] = React.useState(0);
+    const [precision, setPrecision] = React.useState(0.51);
 
-    const [model, setModel] = React.useState("");
+    const [size, setSize] = React.useState(100);
+    const [bufferSize, setBufferSize] = React.useState(50);
+
+    const [model, setModel] = React.useState([]);
     const [models, setModels] = useState([]);
 
     useEffect(() => {
         Client("models").call({}, (data) => {
-            console.log(data)
-
             let models = data.map((model, _) => {
                 let parts = model.split("_")
                 return {
                     coin: parts[0],
                     accuracy: parseFloat(parts[3]),
                     title: model,
+                    duration: parts[1],
                 }
             })
             setModels(models)
@@ -74,7 +75,12 @@ const Form = ({change}) => {
         fetch('http://localhost:6090/test/train?coin=' + coin +
             '&from=' + from_date +
             '&to=' + to_date +
-            '&model=' + model,
+            '&'+model.map((m) => {
+                return "model=" + m
+            }).join("&") +
+            '&precision=' + precision +
+            '&size=' + size +
+            '&buffer=' + bufferSize,
             {
                 headers: headers,
                 // mode: 'no-cors',
@@ -124,47 +130,62 @@ const Form = ({change}) => {
                 <div className="col m3 s12 left">
                     <Autocomplete
                         id="grouped-demo"
+                        multiple
                         options={models.sort((a, b) => b.accuracy - a.accuracy)}
                         groupBy={(option) => option.coin}
                         getOptionLabel={(option) => option.title}
                         onChange={(_, v) => {
-                            if (v && v.title) {
-                                setModel(v.title)
-                            }
+                            setModel(v.map((vv => vv.title)))
                         }} sx={{width: 300}}
                         renderInput={(params) => <TextField {...params} label="Models"/>}
                     />
                 </div>
                 <div className="col m3 s12 right">
                     <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
-                        Bias Rate
+                        Precision Threshold
                     </Typography>
                     <Slider
-                        value={rateB}
-                        aria-label="Bias Rate"
+                        value={precision}
+                        aria-label="Precision Threshold"
                         valueLabelDisplay="auto"
                         onChange={(event) => {
-                            setRateB(event.target.value)
+                            setPrecision(event.target.value)
                         }}
                         step={0.1}
                         min={0}
-                        max={5}
+                        max={1}
                     />
                 </div>
                 <div className="col m3 s12 right">
                     <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
-                        Weight Rate
+                        Buffer Size
                     </Typography>
                     <Slider
-                        value={rateW}
-                        aria-label="Weight Rate"
+                        value={bufferSize}
+                        aria-label="Buffer Size"
                         valueLabelDisplay="auto"
                         onChange={(event) => {
-                            setRateW(event.target.value)
+                            setBufferSize(event.target.value)
                         }}
-                        step={0.1}
-                        min={0.1}
-                        max={5}
+                        step={1}
+                        min={10}
+                        max={100}
+                    />
+                </div>
+                <div className="col m6 s12 right">
+                    <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
+                        Model Size
+                    </Typography>
+                    <Slider
+                        value={size}
+                        aria-label="Model Size"
+                        valueLabelDisplay="auto"
+                        onChange={(event) => {
+                            setSize(event.target.value)
+                        }}
+                        step={1}
+                        min={10}
+                        max={1000}
                     />
                 </div>
             </div>

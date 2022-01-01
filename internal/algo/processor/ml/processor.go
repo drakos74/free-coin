@@ -7,22 +7,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/math/ml"
-
-	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
-
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+	"github.com/drakos74/free-coin/internal/trader"
+	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
 	"github.com/rs/zerolog/log"
 )
 
 const (
 	Name                 = "ml-network"
 	mlBufferSize         = 50
-	mlPrecisionThreshold = 0.5
+	mlPrecisionThreshold = 0.61
 )
 
 // Processor is the position processor main routine.
@@ -38,12 +38,21 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 
 	//network := math.NewML(net)
 
+	mlConfig := config.Model
+
+	benchmarks := newBenchmarks()
+
 	return func(u api.User, e api.Exchange) api.Processor {
 		go trackUserActions(u, collector)
 
 		datasets := make(map[time.Duration]dataset)
 
-		//trader := trader.NewExchangeTrader(t, e)
+		wallet, err := trader.SimpleTrader(string(index), json.BlobShard("trader"), make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		if err != nil {
+			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
+			return processor.NoProcess(Name)
+		}
+
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 			signals := make(map[time.Duration]Signal)
@@ -51,25 +60,25 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					if _, ok := datasets[d]; !ok {
-						datasets[d] = newDataSet(trade.Coin, d, config[trade.Coin][d], make([]vector, 0))
+						datasets[d] = newDataSet(trade.Coin, d, config.Segments[trade.Coin][d], make([]vector, 0))
 					}
 					newVectors := append(datasets[d].vectors, vv)
 					s := len(newVectors)
-					if s > mlBufferSize {
-						newVectors = newVectors[s-mlBufferSize:]
+					if s > mlConfig.BufferSize {
+						newVectors = newVectors[s-mlConfig.BufferSize:]
 					}
-					datasets[d] = newDataSet(trade.Coin, d, config[trade.Coin][d], newVectors)
+					datasets[d] = newDataSet(trade.Coin, d, config.Segments[trade.Coin][d], newVectors)
 					// do our training here ...
-					if config[trade.Coin][d].Model != "" {
+					if config.Segments[trade.Coin][d].Model != "" {
 						metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
-						if len(datasets[d].vectors) >= mlBufferSize {
+						if len(datasets[d].vectors) >= mlConfig.BufferSize {
 							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
-							prec, err := datasets[d].fit(false)
+							prec, err := datasets[d].fit(mlConfig, false)
 							if err != nil {
 								log.Error().Err(err).Msg("could not train online")
-							} else if prec > mlPrecisionThreshold {
+							} else if prec > mlConfig.Threshold {
 								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
-								t := datasets[d].predict()
+								t := datasets[d].predict(mlConfig)
 								signal := Signal{
 									Coin:      trade.Coin,
 									Time:      trade.Time,
@@ -79,21 +88,62 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 									Precision: prec,
 								}
 								signals[d] = signal
-								// TODO : make the exchange call on the above type
-								//u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
+								if config.Debug {
+									// TODO : make the exchange call on the above type
+								}
+								if config.Benchmark {
+									report, ok, err := benchmarks.add(trade, signal)
+									if err != nil {
+										log.Error().Err(err).Msg("could not submit benchmark")
+									} else if ok {
+										if config.Debug {
+											// for benchmark during backtest
+											u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
+										}
+										// for live trading info
+										u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
+									}
+								}
 							}
 						}
 					}
 				}
 				if len(signals) > 0 {
-					u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+					var signal Signal
+					var act bool
+					for _, s := range signals {
+						if signal.Type == model.NoType {
+							signal = s
+							act = true
+						} else if signal.Type != s.Type || signal.Coin != s.Coin {
+							act = false
+						}
+					}
+					// TODO : get buy or sell from combination of signals
+					if act {
+						signal.Duration = 0
+						_, ok, err := signal.submit(wallet)
+						if err != nil {
+							log.Error().Str("signal", fmt.Sprintf("%+v", signal)).Err(err).Msg("error creating order")
+							if config.Debug {
+								u.Send(index, api.ErrorMessage(encodeMessage(signal)).AddLine(err.Error()), nil)
+							}
+						} else if ok {
+							if config.Debug {
+								u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
+							}
+							u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+						}
+					}
 				}
 			}
 			return nil
 		}, func() {
-			for _, set := range datasets {
-				set.fit(true)
+			for d, set := range datasets {
+				fmt.Printf("d = %+v\n", d)
+				set.fit(mlConfig, true)
 			}
+			benchmarks.assess()
 		})
 	}
 }
@@ -117,13 +167,13 @@ func newDataSet(coin model.Coin, duration time.Duration, cfg Segments, vv []vect
 const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
-func (s dataset) predict() model.Type {
+func (s dataset) predict(cfg Model) model.Type {
 	fn, err := s.toFeatureFile(predictDataSetPath, fmt.Sprintf("forest_%s", "tmp_predict"), true)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create dataset file")
 	}
 
-	predictions, err := ml.RandomForestPredict(fn, false)
+	predictions, err := ml.RandomForestPredict(fn, cfg.Size, cfg.Features, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
 	}
@@ -134,7 +184,7 @@ func (s dataset) predict() model.Type {
 	return model.TypeFromString(lastPrediction)
 }
 
-func (s dataset) fit(debug bool) (float64, error) {
+func (s dataset) fit(cfg Model, debug bool) (float64, error) {
 	hash := "tmp_fit"
 	if debug {
 		hash = time.Now().Format(time.RFC3339)
@@ -145,7 +195,7 @@ func (s dataset) fit(debug bool) (float64, error) {
 		return 0.0, err
 	}
 
-	_, _, prec, err := ml.RandomForestTrain(fn, debug)
+	_, _, prec, err := ml.RandomForestTrain(fn, cfg.Size, cfg.Features, debug)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
 		return 0.0, err
