@@ -69,6 +69,9 @@ type TrainRequest struct {
 	Coin       []string `json:"coin"`
 	From       []string `json:"from"`
 	To         []string `json:"to"`
+	LookBack   []string `json:"look_back"`
+	LookAhead  []string `json:"look_ahead"`
+	Gap        []string `json:"gap"`
 	Precision  []string `json:"precision"`
 	BufferSize []string `json:"buffer"`
 	Size       []string `json:"size"`

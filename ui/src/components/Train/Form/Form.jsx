@@ -41,6 +41,11 @@ const Form = ({change}) => {
 
     const [size, setSize] = React.useState(100);
     const [bufferSize, setBufferSize] = React.useState(50);
+    const [features, setFeatures] = React.useState(3);
+
+    const [lookBack, setLookBack] = React.useState(9);
+    const [lookAhead, setLookAhead] = React.useState(1);
+    const [gap, setGap] = React.useState(0.75);
 
     const [model, setModel] = React.useState([]);
     const [models, setModels] = useState([]);
@@ -75,12 +80,16 @@ const Form = ({change}) => {
         fetch('http://localhost:6090/test/train?coin=' + coin +
             '&from=' + from_date +
             '&to=' + to_date +
-            '&'+model.map((m) => {
+            '&' + model.map((m) => {
                 return "model=" + m
             }).join("&") +
             '&precision=' + precision +
             '&size=' + size +
-            '&buffer=' + bufferSize,
+            '&buffer=' + bufferSize +
+            '&look_back=' + lookBack +
+            '&look_ahead=' + lookAhead +
+            '&gap=' + gap +
+            '&features=' + features,
             {
                 headers: headers,
                 // mode: 'no-cors',
@@ -172,7 +181,9 @@ const Form = ({change}) => {
                         max={100}
                     />
                 </div>
-                <div className="col m6 s12 right">
+            </div>
+            <div className="row">
+                <div className="col m3 s12 right">
                     <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
                         Model Size
                     </Typography>
@@ -186,6 +197,72 @@ const Form = ({change}) => {
                         step={1}
                         min={10}
                         max={1000}
+                    />
+                </div>
+                <div className="col m3 s12 right">
+                    <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
+                        Features
+                    </Typography>
+                    <Slider
+                        value={features}
+                        aria-label="Features"
+                        valueLabelDisplay="auto"
+                        onChange={(event) => {
+                            setFeatures(event.target.value)
+                        }}
+                        step={1}
+                        min={1}
+                        max={10}
+                    />
+                </div>
+            </div>
+            <div className="row">
+                <div className="col m3 s12 right">
+                    <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
+                        Look Back
+                    </Typography>
+                    <Slider
+                        value={lookBack}
+                        aria-label="Look Back"
+                        valueLabelDisplay="auto"
+                        onChange={(event) => {
+                            setLookBack(event.target.value)
+                        }}
+                        step={1}
+                        min={3}
+                        max={30}
+                    />
+                </div>
+                <div className="col m3 s12 right">
+                    <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
+                        Look Ahead
+                    </Typography>
+                    <Slider
+                        value={lookAhead}
+                        aria-label="Look Ahead"
+                        valueLabelDisplay="auto"
+                        onChange={(event) => {
+                            setLookAhead(event.target.value)
+                        }}
+                        step={1}
+                        min={1}
+                        max={30}
+                    />
+                </div>
+                <div className="col m3 s12 right">
+                    <Typography variant="h8" component="span" sx={{flexGrow: 1}}>
+                        Gap
+                    </Typography>
+                    <Slider
+                        value={gap}
+                        aria-label="Gap"
+                        valueLabelDisplay="auto"
+                        onChange={(event) => {
+                            setGap(event.target.value)
+                        }}
+                        step={0.05}
+                        min={0.5}
+                        max={1}
                     />
                 </div>
             </div>

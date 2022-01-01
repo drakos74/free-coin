@@ -75,80 +75,86 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard) api.Processor 
 func configML() ml.Config {
 	cfg := map[model.Coin]map[time.Duration]ml.Segments{
 		model.BTC: {
-			//2 * time.Minute: ml.Segments{
-			//	LookBack:  19,
-			//	LookAhead: 1,
-			//	Threshold: 0.5,
-			//},
-			//5 * time.Minute: ml.Segments{
-			//	LookBack:  19,
-			//	LookAhead: 1,
-			//	Threshold: 0.5,
-			//},
 			15 * time.Minute: ml.Segments{
-				LookBack:   9,
-				LookAhead:  1,
-				Threshold:  0.75,
-				BufferSize: 200,
-				Precision:  0.51,
-				Model:      "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.75,
+				},
+				Model: ml.Model{
+					BufferSize:         200,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
 			30 * time.Minute: ml.Segments{
-				LookBack:   9,
-				LookAhead:  1,
-				Threshold:  1,
-				BufferSize: 100,
-				Precision:  0.51,
-				Model:      "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       1,
+				},
+				Model: ml.Model{
+					BufferSize:         100,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
 			60 * time.Minute: ml.Segments{
-				LookBack:   9,
-				LookAhead:  1,
-				Threshold:  1,
-				BufferSize: 50,
-				Precision:  0.51,
-				Model:      "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       1,
+				},
+				Model: ml.Model{
+					BufferSize:         50,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
-			//120 * time.Minute: ml.Segments{
-			//	LookBack:  4,
-			//	LookAhead: 1,
-			//	Threshold: 1,
-			//},
 		},
 		model.ETH: {
-			//2 * time.Minute: ml.Segments{
-			//	LookBack:  19,
-			//	LookAhead: 1,
-			//	Threshold: 0.5,
-			//},
-			//5 * time.Minute: ml.Segments{
-			//	LookBack:  19,
-			//	LookAhead: 1,
-			//	Threshold: 0.5,
-			//},
 			15 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 0.75,
-				Model:     "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.75,
+				},
+				Model: ml.Model{
+					BufferSize:         200,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
 			30 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1,
-				Model:     "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       1,
+				},
+				Model: ml.Model{
+					BufferSize:         100,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
 			60 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1,
-				Model:     "true",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       1,
+				},
+				Model: ml.Model{
+					BufferSize:         50,
+					PrecisionThreshold: 0.51,
+					Size:               100,
+					Features:           3,
+				},
 			},
-			//120 * time.Minute: ml.Segments{
-			//	LookBack:  4,
-			//	LookAhead: 1,
-			//	Threshold: 1,
-			//},
 		},
 	}
 
@@ -156,12 +162,6 @@ func configML() ml.Config {
 		Segments:  cfg,
 		Debug:     false,
 		Benchmark: true,
-		Model: ml.Model{
-			BufferSize: 50,
-			Threshold:  0.51,
-			Size:       100,
-			Features:   3,
-		},
 	}
 }
 

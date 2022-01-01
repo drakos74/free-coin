@@ -5,17 +5,11 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/client"
-
-	"github.com/rs/zerolog/log"
-
 	"github.com/drakos74/free-coin/client/local"
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-
-	"github.com/drakos74/free-coin/internal/trader"
-
-	"github.com/sjwhitworth/golearn/base"
-
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+	"github.com/drakos74/free-coin/internal/trader"
+	"github.com/rs/zerolog/log"
 )
 
 // Config defines the configuration for the collector.
@@ -23,30 +17,30 @@ type Config struct {
 	Segments  map[model.Coin]map[time.Duration]Segments
 	Debug     bool
 	Benchmark bool
-	Model     Model
+}
+
+// Stats defines the statistical properties of the set
+type Stats struct {
+	LookBack  int     `json:"prev"`
+	LookAhead int     `json:"next"`
+	Gap       float64 `json:"gap"`
 }
 
 // Model defines the ml model config.
 type Model struct {
-	BufferSize int
-	Threshold  float64
-	Size       int
-	Features   int
+	BufferSize         int     `json:"buffer"`
+	PrecisionThreshold float64 `json:"precision_threshold"`
+	Size               int     `json:"size"`
+	Features           int     `json:"features"`
 }
 
 // Segments defines the look back and ahead segment number.
 // LookBack : the number of segments taken into account from the recent past
 // LookAhead : the number of segments to be anticipated
-// Threshold : the numeric threshold for the price movement in regard to the current segment.
+// Gap : the numeric threshold for the price movement in regard to the current segment.
 type Segments struct {
-	LookBack   int
-	LookAhead  int
-	Threshold  float64
-	BufferSize int
-	Precision  float64
-	Model      string
-	MLModel    base.Classifier
-	MlDataSet  *base.DenseInstances
+	Stats Stats `json:"stats"`
+	Model Model `json:"model"`
 }
 
 // Signal represents a signal from the ml processor.
@@ -79,12 +73,18 @@ func newBenchmarks() Benchmark {
 	}
 }
 
-func (b *Benchmark) assess() {
+func (b *Benchmark) assess() map[trader.Key]client.Report {
+	reports := make(map[trader.Key]client.Report)
 	for c, dd := range b.Exchange {
 		for d, wallet := range dd {
-			fmt.Printf("%s | %.0f = %+v\n", c, d.Minutes(), wallet.Gather())
+			k := trader.Key{
+				Coin:     c,
+				Duration: d,
+			}
+			reports[k] = wallet.Gather()[c]
 		}
 	}
+	return reports
 }
 
 func (b *Benchmark) add(trade *model.Trade, signal Signal) (client.Report, bool, error) {
@@ -119,7 +119,6 @@ func (b *Benchmark) add(trade *model.Trade, signal Signal) (client.Report, bool,
 	}
 	if ok {
 		report := b.Exchange[signal.Coin][signal.Duration].Gather()[signal.Coin]
-		fmt.Printf("%s : report = %+v\n", signal.Coin, report)
 		return report, ok, nil
 	}
 	return client.Report{}, false, nil

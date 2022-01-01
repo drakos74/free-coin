@@ -231,7 +231,7 @@ func run() server.Handler {
 		//		}
 		//		signal := signals[j]
 		//
-		//		if !signal.Filter(response.Details[0].Result.Threshold) {
+		//		if !signal.Filter(response.Details[0].Result.Gap) {
 		//			j++
 		//			continue
 		//		}

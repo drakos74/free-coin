@@ -40,10 +40,10 @@ func newCollector(shard storage.Shard, _ *ff.Network, config Config) (*collector
 			states[c] = make(map[time.Duration]*state, 0)
 		}
 		for d, segment := range cfg {
-			window := buffer.NewHistoryWindow(d, segment.LookBack+segment.LookAhead)
+			window := buffer.NewHistoryWindow(d, segment.Stats.LookBack+segment.Stats.LookAhead)
 			windows[c][d] = &window
 			states[c][d] = &state{
-				buffer: buffer.NewMultiBuffer(segment.LookBack),
+				buffer: buffer.NewMultiBuffer(segment.Stats.LookBack),
 			}
 		}
 	}
@@ -95,7 +95,7 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 			prev := tracker.buffer.Last()
 			ratio := b.Values().Stats()[0].Ratio()
 			next := make([]float64, 3)
-			threshold := c.config.Segments[trade.Coin][d].Threshold
+			threshold := c.config.Segments[trade.Coin][d].Stats.Gap
 			if ratio > threshold {
 				next[0] = 1
 			} else if ratio < -1*threshold {

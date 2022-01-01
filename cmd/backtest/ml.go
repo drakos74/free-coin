@@ -70,6 +70,21 @@ func train() server.Handler {
 			return []byte(err.Error()), http.StatusBadRequest, nil
 		}
 
+		lookBack, err := strconv.Atoi(request.LookBack[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		lookAhead, err := strconv.Atoi(request.LookAhead[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		gap, err := strconv.ParseFloat(request.Gap[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
 		precision, err := strconv.ParseFloat(request.Precision[0], 64)
 		if err != nil {
 			return []byte(err.Error()), http.StatusBadRequest, nil
@@ -81,6 +96,11 @@ func train() server.Handler {
 		}
 
 		bufferSize, err := strconv.Atoi(request.BufferSize[0])
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		features, err := strconv.Atoi(request.Features[0])
 		if err != nil {
 			return []byte(err.Error()), http.StatusBadRequest, nil
 		}
@@ -96,16 +116,28 @@ func train() server.Handler {
 			p := strings.Split(m, "_")
 			fmt.Printf("p = %+v\n", p)
 			c := model.Coin(p[0])
-			d, err := time.ParseDuration(p[1])
+			d, err := strconv.Atoi(p[1])
 			if err != nil {
-				log.Error().Err(err).Msg("could not parse duration")
 				return []byte(err.Error()), http.StatusBadRequest, nil
 			}
 			if _, ok := mm[c]; !ok {
 				mm[c] = make(map[time.Duration]ml.Segments)
 			}
-			if _, ok := mm[c][d]; !ok {
-				mm[c][d] = ml.Segments{}
+			duration := time.Duration(d) * time.Minute
+			if _, ok := mm[c][duration]; !ok {
+				mm[c][duration] = ml.Segments{
+					Stats: ml.Stats{
+						LookBack:  lookBack,
+						LookAhead: lookAhead,
+						Gap:       gap,
+					},
+					Model: ml.Model{
+						BufferSize:         bufferSize,
+						PrecisionThreshold: precision,
+						Size:               size,
+						Features:           features,
+					},
+				}
 			}
 		}
 
@@ -156,11 +188,6 @@ func train() server.Handler {
 			shard := storage.BlobShard("ml")
 
 			cfg := configML(mm)
-
-			cfg.Model.Threshold = precision
-			cfg.Model.BufferSize = bufferSize
-			cfg.Model.Size = size
-			cfg.Model.Features = 3
 
 			network := coin.NewStrategy(ml.Name).
 				ForUser(u).
@@ -273,58 +300,56 @@ func configML(mm map[model.Coin]map[time.Duration]ml.Segments) ml.Config {
 	cfg := map[model.Coin]map[time.Duration]ml.Segments{
 		model.BTC: {
 			2 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 0.5,
-				Model:     "2",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 			5 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 0.5,
-				Model:     "5",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 			15 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 0.75,
-				Model:     "15",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 			30 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1,
-				Model:     "30",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 			60 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 1.5,
-				Model:     "60",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 			240 * time.Minute: ml.Segments{
-				LookBack:  9,
-				LookAhead: 1,
-				Threshold: 2,
-				Model:     "240",
+				Stats: ml.Stats{
+					LookBack:  9,
+					LookAhead: 1,
+					Gap:       0.5,
+				},
 			},
 		},
 	}
 
 	if len(mm) > 0 {
-		for c, md := range mm {
-			if _, ok := cfg[c]; ok {
-				for d, _ := range md {
-					if _, ok := cfg[c][d]; ok {
-						mm[c][d] = cfg[c][d]
-					}
-				}
-			}
-		}
+		cfg = mm
 	}
 
 	return ml.Config{
-		Segments:  mm,
+		Segments:  cfg,
 		Debug:     true,
 		Benchmark: true,
 	}
