@@ -157,7 +157,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					if act {
 						strategy.signal(k, signal)
 					} else {
-						log.Debug().
+						log.Info().
 							Str("signals", fmt.Sprintf("%+v", signals)).
 							Msg("ignoring signals")
 					}
@@ -246,6 +246,8 @@ func submitTrade(index api.Index, k model.Key, s Signal, wallet *trader.Exchange
 		u.Send(index, api.NewMessage(formatSignal(s)), nil)
 	} else if config.Debug {
 		u.Send(index, api.NewMessage(encodeMessage(s)), nil)
+	} else {
+		log.Error().Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 	}
 	return ok, err
 }
