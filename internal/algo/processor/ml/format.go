@@ -6,11 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/trader"
-
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/trader"
 )
 
 func formatPosition(p model.Position) string {

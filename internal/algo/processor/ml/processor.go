@@ -175,19 +175,21 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					}
 				}
 			}
-			pp, profit := wallet.CheckPosition(model.Key{Coin: trade.Coin}, trade.Price, config.Position.TakeProfit, config.Position.StopLoss)
-			if len(pp) > 0 {
-				for k, p := range pp {
-					_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
-					if err != nil || !ok {
-						log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
-					} else if profit < 0 {
-						ok := strategy.reset(k)
-						if !ok {
-							log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+			if strategy.isLive(trade) {
+				pp, profit := wallet.CheckPosition(model.Key{Coin: trade.Coin}, trade.Price, config.Position.TakeProfit, config.Position.StopLoss)
+				if len(pp) > 0 {
+					for k, p := range pp {
+						_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
+						if err != nil || !ok {
+							log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
+						} else if profit < 0 {
+							ok := strategy.reset(k)
+							if !ok {
+								log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+							}
 						}
+						u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
 					}
-					u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
 				}
 			}
 			return nil
