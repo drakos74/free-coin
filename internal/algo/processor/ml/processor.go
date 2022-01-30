@@ -61,9 +61,6 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					configSegments := config.segments(trade.Coin, d)
 					for key, segmentConfig := range configSegments {
-						if !key.Match(trade.Coin) {
-							continue
-						}
 						if _, ok := dts[key.Coin]; !ok {
 							dts[key.Coin] = make(map[time.Duration]dataset)
 						}
@@ -133,9 +130,9 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					return nil
 				}
 				if len(signals) > 0 {
-					if !config.Debug {
-						u.Send(index, api.NewMessage(formatSignals(signals)), nil)
-					}
+					//if !config.Debug {
+					//	u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+					//}
 					// TODO : decide how to make a unified trading strategy for the real trading
 					var signal Signal
 					var act bool
@@ -175,7 +172,6 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 						log.Error().Err(err).Bool("ok", ok).Msg("could not submit trade")
 					} else {
 						// log the action
-
 					}
 				}
 			}
