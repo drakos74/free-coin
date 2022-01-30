@@ -66,9 +66,11 @@ type vector struct {
 func (c *collector) push(trade *model.Trade) (states map[time.Duration]vector, hasUpdate bool) {
 	ss := make(map[time.Duration]vector)
 	for k, window := range c.windows {
-		tracker := c.state[k]
-		if stateVector, ok := c.vector(window, tracker, trade, k); ok {
-			ss[k.Duration] = stateVector
+		if k.Match(trade.Coin) {
+			tracker := c.state[k]
+			if stateVector, ok := c.vector(window, tracker, trade, k); ok {
+				ss[k.Duration] = stateVector
+			}
 		}
 	}
 	if len(ss) > 0 {
