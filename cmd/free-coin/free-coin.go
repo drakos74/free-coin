@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -21,12 +22,23 @@ import (
 )
 
 func init() {
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
 func main() {
+	config := configML()
+
+	cc := make([]model.Coin, 0)
+	coins := make(map[model.Coin]bool)
+	for k, _ := range config.Segments {
+		if !coins[k.Coin] {
+			cc = append(cc, k.Coin)
+			coins[k.Coin] = true
+		}
+	}
+
 	// main engine trade input ...
-	client := kraken.NewClient(model.BTC, model.ETH, model.DOT).
+	client := kraken.NewClient(cc...).
 		Since(cointime.LastXHours(48)).
 		Interval(5 * time.Second)
 	engine, err := coin.NewEngine(client)
@@ -58,6 +70,7 @@ func main() {
 	//	WithProcessor(signal.New()).Apply()
 	//engine.AddProcessor(signalProcessor)
 
+	go u.Run(context.Background())
 	err = engine.Run()
 	if err != nil {
 		log.Fatalf("error running engine: %s", err.Error())
@@ -73,93 +86,148 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard) api.Processor 
 }
 
 func configML() ml.Config {
-	cfg := map[model.Coin]map[time.Duration]ml.Segments{
-		model.BTC: {
-			15 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.75,
-				},
-				Model: ml.Model{
-					BufferSize:         200,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+	cfg := map[model.Key]ml.Segments{
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 30 * time.Minute,
+			Strategy: "btc",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
 			},
-			30 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       1,
-				},
-				Model: ml.Model{
-					BufferSize:         100,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+			Model: ml.Model{
+				BufferSize:         3,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
 			},
-			60 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       1,
-				},
-				Model: ml.Model{
-					BufferSize:         50,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
 			},
 		},
-		model.ETH: {
-			15 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.75,
-				},
-				Model: ml.Model{
-					BufferSize:         200,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+		model.Key{
+			Coin:     model.DOT,
+			Duration: 30 * time.Minute,
+			Strategy: "dot",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
 			},
-			30 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       1,
-				},
-				Model: ml.Model{
-					BufferSize:         100,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+			Model: ml.Model{
+				BufferSize:         3,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
 			},
-			60 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       1,
-				},
-				Model: ml.Model{
-					BufferSize:         50,
-					PrecisionThreshold: 0.51,
-					Size:               100,
-					Features:           3,
-				},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
+			},
+		},
+		model.Key{
+			Coin:     model.ETH,
+			Duration: 15 * time.Minute,
+			Strategy: "eth",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  6,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: ml.Model{
+				BufferSize:         3,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
+			},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
+			},
+		},
+		model.Key{
+			Coin:     model.LINK,
+			Duration: 15 * time.Minute,
+			Strategy: "link",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: ml.Model{
+				BufferSize:         5,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
+			},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
+			},
+		},
+		model.Key{
+			Coin:     model.SOL,
+			Duration: 30 * time.Minute,
+			Strategy: "sol",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: ml.Model{
+				BufferSize:         5,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
+			},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
+			},
+		},
+		model.Key{
+			Coin:     model.FLOW,
+			Duration: 15 * time.Minute,
+			Strategy: "flow",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  6,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: ml.Model{
+				BufferSize:         3,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
+			},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
 			},
 		},
 	}
 
 	return ml.Config{
-		Segments:  cfg,
+		Segments: cfg,
+		Position: ml.Position{
+			OpenValue:  500,
+			StopLoss:   0.02,
+			TakeProfit: 0.02,
+		},
 		Debug:     false,
 		Benchmark: true,
 	}

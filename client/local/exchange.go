@@ -15,6 +15,8 @@ import (
 	zlog "github.com/rs/zerolog/log"
 )
 
+const fee = 0.24 / 100
+
 // Exchange is a local exchange implementation that just tracks positions virtually
 // It is used for back-testing
 type Exchange struct {
@@ -27,12 +29,37 @@ type Exchange struct {
 	mutex           *sync.Mutex
 	logger          *log.Logger
 	processed       chan<- api.Signal
+	wallet          map[model.Coin]wallet
+	fees            float64
+}
+
+type wallet struct {
+	value  float64
+	volume float64
+}
+
+const (
+	Terminal string = ""
+	VoidLog  string = "VOID"
+)
+
+type VoidLogger struct {
+}
+
+func (vl VoidLogger) Write(p []byte) (n int, err error) {
+	// nothing
+	return 0, nil
 }
 
 // NewExchange creates a new local exchange
 func NewExchange(logFile string) *Exchange {
 	var logger *log.Logger
-	if logFile != "" {
+	switch logFile {
+	case VoidLog:
+		logger = log.New(VoidLogger{}, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	case Terminal:
+	//nothing else to do
+	default:
 		file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Fatal(err)
@@ -46,6 +73,7 @@ func NewExchange(logFile string) *Exchange {
 		closedPositions: make(map[model.Coin][]model.TrackedPosition),
 		count:           make(map[model.Coin]int),
 		mutex:           new(sync.Mutex),
+		wallet:          make(map[model.Coin]wallet),
 		logger:          logger,
 	}
 }
@@ -111,6 +139,24 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 	}
 	e.positions[position.ID] = trackedPosition
 	e.log(fmt.Sprintf("open position = %+v", position))
+	value := order.Price * order.Volume
+
+	if _, ok := e.wallet[order.Coin]; !ok {
+		e.wallet[order.Coin] = wallet{}
+	}
+
+	w := e.wallet[order.Coin]
+
+	w.value -= value * fee
+	switch order.Type {
+	case model.Buy:
+		w.value -= value
+		w.volume += order.Volume
+	case model.Sell:
+		w.value += value
+		w.volume -= order.Volume
+	}
+	e.wallet[order.Coin] = w
 	return order, []string{order.ID}, nil
 }
 
@@ -161,12 +207,18 @@ func (e *Exchange) Process(trade *model.Trade) {
 	//e.processed <- api.Signal{}
 }
 
-func (e *Exchange) Gather() map[model.Coin]client.Report {
-	zlog.Info().Msg("processing finished")
-	for c, cc := range e.count {
-		zlog.Info().Str("coin", string(c)).Int("count", cc).Msg("trades")
-		zlog.Info().Str("coin", string(c)).Int("count", len(e.allTrades[c])).Msg("all trades")
-		zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
+func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
+	if print {
+		zlog.Info().Msg("processing finished")
+		for c, cc := range e.count {
+			zlog.Info().Str("coin", string(c)).Int("count", cc).Msg("trades")
+			zlog.Info().Str("coin", string(c)).Int("count", len(e.allTrades[c])).Msg("all trades")
+			zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
+			zlog.Info().Str("coin", string(c)).Float64("value", e.wallet[c].value).Msg("value")
+			zlog.Info().Str("coin", string(c)).Float64("volume", e.wallet[c].volume).Msg("volume")
+			zlog.Info().Str("coin", string(c)).Float64("price", e.trades[c].Price).Msg("price")
+			zlog.Info().Str("coin", string(c)).Float64("pnl", e.wallet[c].value+e.trades[c].Price*e.wallet[c].volume).Msg("pnl")
+		}
 	}
 
 	ww := make(map[model.Coin]client.Report)
@@ -197,14 +249,24 @@ func (e *Exchange) Gather() map[model.Coin]client.Report {
 
 	// do another pass
 	for c, w := range ww {
-		w.BuyAvg = w.BuyAvg / float64(w.Buy)
-		w.SellAvg = w.SellAvg / float64(w.Sell)
+		if w.Buy == 0 {
+			w.BuyAvg = 0
+		} else {
+			w.BuyAvg = w.BuyAvg / float64(w.Buy)
+		}
+		if w.Sell == 0 {
+			w.SellAvg = 0
+		} else {
+			w.SellAvg = w.SellAvg / float64(w.Sell)
+		}
 		// do the break-even calc
 		f := w.SellVolume - w.BuyVolume
 		w.Profit = w.Wallet - f*w.LastPrice
 		ww[c] = w
 	}
-	zlog.Info().Str("value", fmt.Sprintf("%+v", ww)).Msg("Wallet")
+	if print {
+		zlog.Info().Str("value", fmt.Sprintf("%+v", ww)).Msg("Wallet")
+	}
 	return ww
 }
 

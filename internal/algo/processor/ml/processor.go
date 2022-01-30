@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"strings"
 	"time"
+
+	coin_math "github.com/drakos74/free-coin/internal/math"
 
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -40,16 +41,17 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 
 	benchmarks := newBenchmarks()
 
+	strategy := newStrategy(config.Segments)
 	return func(u api.User, e api.Exchange) api.Processor {
-		go trackUserActions(u, collector)
+		wallet, err := trader.SimpleTrader(string(index), shard, make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		if err != nil {
+			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
+			return processor.NoProcess(Name)
+		}
 
-		datasets := make(map[model.Key]dataset)
+		go trackUserActions(index, u, collector, strategy, wallet)
 
-		//wallet, err := trader.SimpleTrader(string(index), json.BlobShard("trader"), make(map[model.Coin]map[time.Duration]trader.Settings), e)
-		//if err != nil {
-		//	log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
-		//	return processor.NoProcess(Name)
-		//}
+		dts := make(map[model.Coin]map[time.Duration]dataset)
 
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
@@ -57,55 +59,64 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 			if vec, ok := collector.push(trade); ok {
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
-					segmentConfig := config.Segments[trade.Coin][d]
-					key := model.Key{
-						Coin:     trade.Coin,
-						Duration: d,
-					}
-					if _, ok := datasets[key]; !ok {
-						datasets[key] = newDataSet(trade.Coin, d, config.Segments[trade.Coin][d], make([]vector, 0))
-					}
-					newVectors := append(datasets[key].vectors, vv)
-					s := len(newVectors)
-					if s > segmentConfig.Model.BufferSize {
-						newVectors = newVectors[s-segmentConfig.Model.BufferSize:]
-					}
-					datasets[key] = newDataSet(trade.Coin, d, config.Segments[trade.Coin][d], newVectors)
-					// do our training here ...
-					if segmentConfig.Model.Features > 0 {
-						metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
-						if len(datasets[key].vectors) >= segmentConfig.Model.BufferSize {
-							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
-							prec, err := datasets[key].fit(segmentConfig.Model, false)
-							if err != nil {
-								log.Error().Err(err).Msg("could not train online")
-							} else if prec > segmentConfig.Model.PrecisionThreshold {
-								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
-								t := datasets[key].predict(segmentConfig.Model)
-								signal := Signal{
-									Coin:      trade.Coin,
-									Time:      trade.Time,
-									Duration:  d,
-									Price:     trade.Price,
-									Type:      t,
-									Precision: prec,
-								}
-								signals[d] = signal
-								if config.Debug {
-									// TODO : make the exchange call on the above type
-								}
-								if config.Benchmark {
-									report, ok, err := benchmarks.add(trade, signal)
-									if err != nil {
-										log.Error().Err(err).Msg("could not submit benchmark")
-									} else if ok {
-										if config.Debug {
-											// for benchmark during backtest
-											u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
-										} else {
-											// for live trading info
-											if math.Abs(time.Now().Sub(trade.Time).Hours()) <= 3 {
-												u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
+					configSegments := config.segments(trade.Coin, d)
+					for key, segmentConfig := range configSegments {
+						if _, ok := dts[key.Coin]; !ok {
+							dts[key.Coin] = make(map[time.Duration]dataset)
+						}
+						if _, ok := dts[key.Coin][key.Duration]; !ok {
+							dts[key.Coin][key.Duration] = newDataSet(trade.Coin, d, segmentConfig, make([]vector, 0))
+						}
+						newVectors := append(dts[key.Coin][key.Duration].vectors, vv)
+						s := len(newVectors)
+						if s > segmentConfig.Model.BufferSize {
+							newVectors = newVectors[s-segmentConfig.Model.BufferSize:]
+						}
+						dts[key.Coin][key.Duration] = newDataSet(trade.Coin, d, segmentConfig, newVectors)
+						// do our training here ...
+						if segmentConfig.Model.Features > 0 {
+							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
+							if len(dts[key.Coin][key.Duration].vectors) >= segmentConfig.Model.BufferSize {
+								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
+								prec, err := dts[key.Coin][key.Duration].fit(segmentConfig.Model, false)
+								if err != nil {
+									log.Error().Err(err).Msg("could not train online")
+								} else if prec > segmentConfig.Model.PrecisionThreshold {
+									metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
+									t := dts[key.Coin][key.Duration].predict(segmentConfig.Model)
+									if t == model.NoType {
+										log.Debug().Str("set", fmt.Sprintf("%+v", dts[key.Coin][key.Duration])).Str("type", t.String()).Msg("no consistent prediction")
+										continue
+									}
+									signal := Signal{
+										Key:       key,
+										Coin:      trade.Coin,
+										Time:      trade.Time,
+										Duration:  d,
+										Price:     trade.Price,
+										Type:      t,
+										Precision: prec,
+										Spectrum:  coin_math.FFT(vv.yy),
+										Buffer:    vv.yy,
+									}
+									signals[d] = signal
+									if config.Debug {
+										// TODO : make the exchange call on the above type
+									}
+									if config.Benchmark {
+										report, ok, err := benchmarks.add(key, trade, signal, config)
+										if err != nil {
+											log.Error().Err(err).Msg("could not submit benchmark")
+										} else if ok {
+											strategy.report[key] = report
+											if config.Debug {
+												// for benchmark during backtest
+												//u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
+											} else {
+												// for live trading info
+												//if cointime.IsValidTime(trade.Time) {
+												//	u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
+												//}
 											}
 										}
 									}
@@ -114,37 +125,128 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 						}
 					}
 				}
-				if len(signals) > 0 && !config.Debug {
-					u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+				// NOTE : any real trading happens below this point
+				if !config.Debug && !strategy.isLive(trade) {
+					return nil
+				}
+				if len(signals) > 0 {
+					if !config.Debug {
+						u.Send(index, api.NewMessage(formatSignals(signals)), nil)
+					}
 					// TODO : decide how to make a unified trading strategy for the real trading
+					var signal Signal
+					var act bool
+					for _, s := range signals {
+						if signal.Type == model.NoType {
+							signal = s
+							act = true
+						} else if signal.Type != s.Type || signal.Coin != s.Coin {
+							act = false
+						}
+					}
+					// TODO : get buy or sell from combination of signals
+					signal.Duration = 0
+					signal.Weight = len(signals)
+					k := model.Key{
+						Coin:     signal.Coin,
+						Duration: signal.Duration,
+						Strategy: "wallet",
+					}
+					signal.Key = k
+					// if we get the go-ahead from the strategy act on it
+					if act {
+						strategy.signal(k, signal)
+					} else {
+						log.Debug().
+							Str("signals", fmt.Sprintf("%+v", signals)).
+							Msg("ignoring signals")
+					}
+				}
+				if s, k, open, ok := strategy.trade(trade); ok {
+					// TODO : fix this add-hoc number
+					//if s.Spectrum.Mean() > 100 {
+					//	open = false
+					//}
+					ok, err := submitTrade(index, k, s, wallet, u, open, config)
+					if err != nil || !ok {
+						log.Error().Err(err).Bool("ok", ok).Msg("could not submit trade")
+					} else {
+						// log the action
+
+					}
+				}
+			}
+			pp, profit := wallet.CheckPosition(model.Key{Coin: trade.Coin}, trade.Price, config.Position.TakeProfit, config.Position.StopLoss)
+			if len(pp) > 0 {
+				for k, p := range pp {
+					_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
+					if err != nil || !ok {
+						log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
+					} else if profit < 0 {
+						ok := strategy.reset(k)
+						if !ok {
+							log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+						}
+					}
+					u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
 				}
 			}
 			return nil
 		}, func() {
 			reports := benchmarks.assess()
-			for k, set := range datasets {
-				prec, err := set.fit(config.Segments[k.Coin][k.Duration].Model, true)
-				if err != nil {
-					log.Error().Err(err).
-						Str("key", fmt.Sprintf("+%v", k)).
-						Msg("could not fit dataset")
-				}
-				key := trader.Key{
-					Coin:     k.Coin,
-					Duration: k.Duration,
-				}
-				_, err = toFile(benchmarkModelPath, key, prec, BenchTest{
-					Report: reports[key],
-					Config: config.Segments[key.Coin][key.Duration],
-				})
-				if err != nil {
-					log.Error().Err(err).
-						Str("report", fmt.Sprintf("+%v", reports[key])).
-						Str("key", key.ToString()).Msg("could not save report file")
+			unix := time.Now().Unix()
+			for c, ds := range dts {
+				for d, set := range ds {
+					segments := config.segments(c, d)
+					for _, cfg := range segments {
+						prec, err := set.fit(cfg.Model, true)
+						if err != nil {
+							log.Error().Err(err).
+								Str("coin", string(c)).
+								Str("duration", fmt.Sprintf("%+v", d)).
+								Msg("could not fit dataset")
+						}
+						key := model.Key{
+							Coin:     c,
+							Duration: d,
+						}
+						_, err = toFile(benchmarkModelPath, key, prec, BenchTest{
+							Report: reports[key],
+							Config: cfg,
+						}, unix)
+						if err != nil {
+							log.Error().Err(err).
+								Str("report", fmt.Sprintf("+%v", reports[key])).
+								Str("key", key.ToString()).Msg("could not save report file")
+						}
+					}
+
 				}
 			}
+			for c, aa := range wallet.Actions() {
+				fmt.Printf("c = %+v\n", c)
+				for _, a := range aa {
+					fmt.Printf("a = %+v\n", a)
+				}
+			}
+
 		})
 	}
+}
+
+func submitTrade(index api.Index, k model.Key, s Signal, wallet *trader.ExchangeTrader, u api.User, open bool, config Config) (bool, error) {
+	_, ok, _, err := s.submit(k, wallet, open, config.Position.OpenValue)
+	if err != nil {
+		log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
+		if config.Debug {
+			u.Send(index, api.ErrorMessage(encodeMessage(s)).AddLine(err.Error()), nil)
+		}
+	} else if ok {
+		u.Send(index, api.NewMessage(formatSignal(s)), nil)
+	} else if config.Debug {
+		u.Send(index, api.NewMessage(encodeMessage(s)), nil)
+	}
+	return ok, err
 }
 
 type dataset struct {
@@ -152,6 +254,17 @@ type dataset struct {
 	duration time.Duration
 	vectors  []vector
 	config   Segments
+}
+
+type datasets map[model.Coin]map[time.Duration]dataset
+
+func (dd datasets) get(c model.Coin, d time.Duration) (dataset, bool) {
+	if dt, ok := dd[c]; ok {
+		if tt, ok := dt[d]; ok {
+			return tt, true
+		}
+	}
+	return dataset{}, false
 }
 
 func newDataSet(coin model.Coin, duration time.Duration, cfg Segments, vv []vector) dataset {
@@ -171,11 +284,13 @@ func (s dataset) predict(cfg Model) model.Type {
 	fn, err := s.toFeatureFile(predictDataSetPath, fmt.Sprintf("forest_%s", "tmp_predict"), true)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create dataset file")
+		return model.NoType
 	}
 
-	predictions, err := ml.RandomForestPredict(fn, cfg.Size, cfg.Features, false)
+	predictions, err := ml.RandomForestPredict(fn, cfg.ModelSize, cfg.Features, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
+		return model.NoType
 	}
 	_, a := predictions.Size()
 	lastPrediction := predictions.RowString(a - 1)
@@ -193,7 +308,7 @@ func (s dataset) fit(cfg Model, debug bool) (float64, error) {
 		return 0.0, err
 	}
 
-	_, _, prec, err := ml.RandomForestTrain(fn, cfg.Size, cfg.Features, debug)
+	_, _, prec, err := ml.RandomForestTrain(fn, cfg.ModelSize, cfg.Features, debug)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
 		return 0.0, err
@@ -268,8 +383,12 @@ type BenchTest struct {
 	Config Segments      `json:"config"`
 }
 
-func toFile(parentPath string, key trader.Key, precision float64, report BenchTest) (string, error) {
-	fn, err := makePath(parentPath, fmt.Sprintf("%s_%.2f_%.0f_%d", key.ToString(), precision, report.Report.Profit, time.Now().Unix()))
+func toFile(parentPath string, key model.Key, precision float64, report BenchTest, unix int64) (string, error) {
+	fn, err := makePath(parentPath, fmt.Sprintf("%s_%.2f_%.0f_%d",
+		key.ToString(),
+		precision,
+		report.Report.Profit,
+		unix))
 	if err != nil {
 		return "", err
 	}

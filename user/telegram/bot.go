@@ -96,6 +96,7 @@ func (b *Bot) Run(ctx context.Context) error {
 func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 	b.lock.Lock()
 	defer b.lock.Unlock()
+	log.Info().Str("key", key).Str("prefix", prefix).Msg("registered listener")
 	ch := make(chan api.Command)
 	b.consumers[api.ConsumerKey{
 		Key:    key,

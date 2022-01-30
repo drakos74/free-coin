@@ -16,7 +16,7 @@ const storagePath = "trader"
 
 type trader struct {
 	settings  map[model.Coin]map[time.Duration]Settings
-	positions map[Key]model.Position
+	positions map[model.Key]model.Position
 	storage   storage.Persistence
 	account   string
 	running   bool
@@ -30,7 +30,7 @@ func newTrader(id string, shard storage.Shard, settings map[model.Coin]map[time.
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
-	positions := make(map[Key]model.Position)
+	positions := make(map[model.Key]model.Position)
 	t := &trader{
 		settings:  settings,
 		positions: positions,
@@ -60,7 +60,7 @@ func (t *trader) buildState() State {
 func (t *trader) parseState(state State) {
 	t.minSize = state.MinSize
 	t.running = state.Running
-	positions := make(map[Key]model.Position)
+	positions := make(map[model.Key]model.Position)
 	for k, p := range state.Positions {
 		positions[FromString(k)] = p
 	}
@@ -77,7 +77,7 @@ func (t *trader) load() error {
 	}
 	err := t.storage.Load(stKey(t.account), &state)
 	if err != nil {
-		log.Warn().Err(err).Msg("could not load state")
+		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", stKey(t.account))).Msg("could not load state")
 		// create a new state
 	}
 	t.parseState(state)
@@ -90,13 +90,13 @@ func (t *trader) load() error {
 	return nil
 }
 
-func (t *trader) reset(coins ...model.Coin) (map[Key]model.Position, error) {
+func (t *trader) reset(coins ...model.Coin) (map[model.Key]model.Position, error) {
 	positions := t.positions
 	for _, coin := range coins {
 		if string(coin) == "" {
 			continue
 		}
-		newPositions := make(map[Key]model.Position)
+		newPositions := make(map[model.Key]model.Position)
 		for k, position := range positions {
 			if position.Coin != coin {
 				newPositions[k] = position
@@ -108,7 +108,7 @@ func (t *trader) reset(coins ...model.Coin) (map[Key]model.Position, error) {
 	return t.positions, t.save()
 }
 
-func (t *trader) getAll(ctx context.Context) ([]Key, map[Key]model.Position /*, map[model.Coin]model.CurrentPrice*/) {
+func (t *trader) getAll(ctx context.Context) ([]model.Key, map[model.Key]model.Position /*, map[model.Coin]model.CurrentPrice*/) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	//prices, err := t.client.CurrentPrice(ctx)
@@ -119,8 +119,8 @@ func (t *trader) getAll(ctx context.Context) ([]Key, map[Key]model.Position /*, 
 	//	prices = make(map[model.Coin]model.CurrentPrice)
 	//}
 
-	positions := make(map[Key]model.Position)
-	keys := make([]Key, 0)
+	positions := make(map[model.Key]model.Position)
+	keys := make([]model.Key, 0)
 	for k, p := range t.positions {
 		// check the current price
 		//if cp, ok := prices[p.Coin]; ok {
@@ -135,24 +135,24 @@ func (t *trader) getAll(ctx context.Context) ([]Key, map[Key]model.Position /*, 
 
 // check checks if we have a position for the given key
 // if not, but there are positions for the same coin, it will return them in the slice
-func (t *trader) check(key Key) (model.Position, bool, []model.Position) {
+func (t *trader) check(key model.Key) (model.Position, bool, map[model.Key]model.Position) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	if p, ok := t.positions[key]; ok {
-		return p, true, []model.Position{}
+		return p, true, map[model.Key]model.Position{}
 	}
 	// TODO : remove this at some point.
 	// We want ... for now to ... basically avoid closing with the same coin but different key
-	positions := make([]model.Position, 0)
-	for _, p := range t.positions {
+	positions := make(map[model.Key]model.Position)
+	for k, p := range t.positions {
 		if p.Coin == key.Coin {
-			positions = append(positions, p)
+			positions[k] = p
 		}
 	}
 	return model.Position{}, false, positions
 }
 
-func (t *trader) close(key Key) error {
+func (t *trader) close(key model.Key) error {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	if _, ok := t.positions[key]; !ok {
@@ -162,7 +162,7 @@ func (t *trader) close(key Key) error {
 	return t.save()
 }
 
-func (t *trader) add(key Key, order *model.TrackedOrder) error {
+func (t *trader) add(key model.Key, order *model.TrackedOrder) error {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	// we need to be careful here and add the position ...

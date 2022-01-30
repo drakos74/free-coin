@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-const Info = ({coin, duration, fees, trades, value, coins, pnl, threshold, prev,next, deleteCard}) => {
+const Info = ({coin, report}) => {
     // const handleDelete = () => {
     //   deleteCard(id);
     // };
@@ -11,15 +11,15 @@ const Info = ({coin, duration, fees, trades, value, coins, pnl, threshold, prev,
             <div className="card">
                 <div className="card-content">
           <span className="card-title" data-test="stat">
-            Value: {coin} - {duration} min ({prev}|{next})
+            Coin: {coin}
           </span>
                     <div className="card-data">
-                        <div data-test="trades">Trades: {trades}</div>
-                        <div data-test="trades">Fees: {fees}</div>
-                        <div data-test="value">Value: {value}</div>
-                        <div data-test="coins">Coins: {coins}</div>
-                        <div data-test="pnl">PnL: {pnl}</div>
-                        <div data-test="threshold">Threshold: {threshold}</div>
+                        <div data-test="trades">Buy / Sell: {report && report.buy} / {report && report.sell}</div>
+                        <div data-test="avg">Avg Buy / Sell: {report && report.buy_avg} / {report && report.sell_avg}</div>
+                        <div data-test="vol">Vol Buy / Sell: {report && report.buy_vol} / {report && report.sell_vol}</div>
+                        <div data-test="fees">Fees: {report && report.fees}</div>
+                        <div data-test="wallet">Value: {report && report.wallet}</div>
+                        <div data-test="pnl">PnL: {report && report.profit}</div>
                         {/*<span data-test="date">Date: {date}</span>*/}
                     </div>
 

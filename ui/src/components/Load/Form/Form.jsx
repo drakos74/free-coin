@@ -54,6 +54,7 @@ const Form = ({change,submit}) => {
     }
 
     const handleSetCoin = (event) => {
+        console.log(event.target.value)
         setCoin(event.target.value);
     };
 
@@ -101,6 +102,24 @@ const Form = ({change,submit}) => {
                         >
                             <MenuItem value="BTC">BTC</MenuItem>
                             <MenuItem value="ETH">ETH</MenuItem>
+                            <MenuItem value="DOT">DOT</MenuItem>
+                            <MenuItem value="LINK">LINK</MenuItem>
+                            <MenuItem value="SOL">SOL</MenuItem>
+                            <MenuItem value="KSM">KSM</MenuItem>
+                            <MenuItem value="KAVA">KAVA</MenuItem>
+                            <MenuItem value="AAVE">AAVE</MenuItem>
+                            <MenuItem value="MATIC">MATIC</MenuItem>
+                            <MenuItem value="DAI">DAI</MenuItem>
+                            <MenuItem value="TRX">TRX</MenuItem>
+                            <MenuItem value="XLM">XLM</MenuItem>
+                            <MenuItem value="FIL">FIL</MenuItem>
+                            <MenuItem value="XMR">XMR</MenuItem>
+                            <MenuItem value="XTZ">XTZ</MenuItem>
+                            <MenuItem value="FLOW">FLOW</MenuItem>
+                            <MenuItem value="DASH">DASH</MenuItem>
+                            <MenuItem value="SC">SC</MenuItem>
+                            <MenuItem value="KEEP">KEEP</MenuItem>
+                            <MenuItem value="REP">REP</MenuItem>
                         </Select>
                     </FormControl>
                 </div>

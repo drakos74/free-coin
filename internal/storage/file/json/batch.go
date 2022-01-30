@@ -39,7 +39,7 @@ func (s BlobStorage) Load(k storage.Key, value interface{}) error {
 	return Load(filepath.Join(s.path, s.table, s.shard), k.Path(), value)
 }
 
-// NewJsonBlob
+// NewJsonBlob creates a new json blob storage
 func NewJsonBlob(table, shard string, debug bool) *BlobStorage {
 	return &BlobStorage{
 		table: table,

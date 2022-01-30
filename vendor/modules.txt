@@ -55,6 +55,10 @@ github.com/guptarohit/asciigraph
 github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12
+## explicit
+github.com/mjibson/go-dsp/dsputils
+github.com/mjibson/go-dsp/fft
 # github.com/olekukonko/tablewriter v0.0.4
 github.com/olekukonko/tablewriter
 # github.com/pmezard/go-difflib v1.0.0

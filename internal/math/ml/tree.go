@@ -77,24 +77,24 @@ func RandomForestPredict(fileName string, size, features int, debug bool) (base.
 
 	rand.Seed(44111342)
 
-	// Load in the iris dataset
-	iris, err := base.ParseCSVToInstances(fileName, false)
+	// Load in the dataset
+	ds, err := base.ParseCSVToInstances(fileName, false)
 	if err != nil {
 		return nil, err
 	}
 
-	irisf, err := PreProcessAttributes(iris)
+	dsf, err := PreProcessAttributes(ds)
 	if err != nil {
 		return nil, err
 	}
 
 	tree = NewRandomForest(size, features)
-	err = tree.Fit(irisf)
+	err = tree.Fit(dsf)
 
 	if err != nil {
 		return nil, err
 	}
-	predictions, err := tree.Predict(irisf)
+	predictions, err := tree.Predict(dsf)
 	if err != nil {
 		return nil, err
 	}

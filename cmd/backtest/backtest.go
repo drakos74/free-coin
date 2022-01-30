@@ -23,7 +23,7 @@ func main() {
 		err := server.NewServer("back-test", port).
 			AddRoute(server.GET, server.Test, "train", train()).
 			AddRoute(server.GET, server.Test, "models", models()).
-			AddRoute(server.GET, server.Test, "run", run()).
+			//AddRoute(server.GET, server.Test, "run", run()).
 			AddRoute(server.GET, server.Test, "load", load()).
 			AddRoute(server.GET, server.Test, "history", hist()).
 			Run()

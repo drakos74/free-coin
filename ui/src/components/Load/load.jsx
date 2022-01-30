@@ -20,12 +20,12 @@ const Load = () => {
     const refresh = () => {
 
         let params = {
-            "coin": "BTC",
+            "coin": formData.coin,
             "from": formData.from,
             "to": formData.to,
         }
 
-        console.log(params)
+        console.log(formData)
 
         Client("history").call(params, (data) => {
             let points = data.map((p, _) => {
@@ -35,21 +35,20 @@ const Load = () => {
                 }
             })
             setData({
-                coin: "BTC",
+                coin: formData.coin,
                 time: points,
             })
         })
     }
 
     const handleChange = (data) => {
-        console.log(data)
         setFormData(data)
     }
 
     const submitChange = (data) => {
         console.log(data)
         Client("load").call({
-            "coin": "BTC",
+            "coin": formData.coin,
             "from": formData.from,
             "to": formData.to,
         }, (data) => {

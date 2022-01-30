@@ -1,6 +1,8 @@
 package math
 
-import "gonum.org/v1/gonum/mat"
+import (
+	"gonum.org/v1/gonum/mat"
+)
 
 // Fit fits the given series of x and y into a polynomial function of the given degree
 // out put is a vector with the coefficients of the corresponding powers of x

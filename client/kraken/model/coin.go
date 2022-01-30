@@ -1,8 +1,6 @@
 package model
 
 import (
-	"fmt"
-
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
@@ -13,7 +11,25 @@ const (
 	XWAVESZEUR = "WAVESEUR"
 	XDOTZEUR   = "DOTEUR"
 	XXRPZEUR   = "XXRPZEUR"
-	MINAZEUR   = "MINAEUR"
+	MINAZEUR   = "MINAZEUR"
+
+	SOLZEUR = "SOLEUR"
+	KSMZEUR = "KSMEUR"
+
+	KAVAZEUR  = "KAVAEUR"
+	AAVEZEUR  = "AAVEEUR"
+	MATICZEUR = "MATICEUR"
+
+	DAIZEUR  = "DAIEUR"
+	TRXZEUR  = "TRXEUR"
+	XLMZEUR  = "XLMEUR"
+	FILZEUR  = "FILEUR"
+	XMRZEUR  = "XMREUR"
+	XTZZEUR  = "XTZXEUR"
+	FLOWZEUR = "FLOWEUR"
+	SCZEUR   = "SCEUR"
+	KEEPZEUR = "KEEPEUR"
+	REPZEUR  = "REPEUR"
 )
 
 // Coin creates a new coin converter for kraken.
@@ -28,6 +44,21 @@ func Coin() CoinConverter {
 		model.DOT:   XDOTZEUR,
 		model.XRP:   XXRPZEUR,
 		model.MINA:  MINAZEUR,
+		model.SOL:   SOLZEUR,
+		model.KSM:   KSMZEUR,
+		model.KAVA:  KAVAZEUR,
+		model.AAVE:  AAVEZEUR,
+		model.MATIC: MATICZEUR,
+		model.DAI:   DAIZEUR,
+		model.TRX:   TRXZEUR,
+		model.XLM:   XLMZEUR,
+		model.FIL:   FILZEUR,
+		model.XMR:   XMRZEUR,
+		model.XTZ:   XTZZEUR,
+		model.FLOW:  FLOWZEUR,
+		model.SC:    SCZEUR,
+		model.KEEP:  KEEPZEUR,
+		model.REP:   REPZEUR,
 	}}
 }
 
@@ -41,7 +72,8 @@ func (c CoinConverter) Pair(p model.Coin) string {
 	if coin, ok := c.coins[p]; ok {
 		return coin
 	}
-	panic(fmt.Sprintf("unknown coin %s", p))
+	log.Debug().Str("coin", string(p)).Msg("unknown coin")
+	return ""
 }
 
 // Coin transforms the kraken coin representation to the internal coin types.
@@ -51,7 +83,8 @@ func (c CoinConverter) Coin(p string) model.Coin {
 			return coin
 		}
 	}
-	panic(fmt.Sprintf("unknown pair '%s'", p))
+	log.Debug().Str("pair", p).Msg("unknown coin")
+	return model.NoCoin
 }
 
 // Type creates a new type converter for kraken.

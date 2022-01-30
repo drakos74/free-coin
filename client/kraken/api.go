@@ -36,6 +36,10 @@ func (r *RemoteExchange) getInfo() {
 		Int("pairs", len(symbols)).
 		Str("exchange", "kraken").
 		Msg("exchange info")
+
+	for c, symbol := range symbols {
+		log.Trace().Str("symbol", fmt.Sprintf("%+v", symbol)).Msg(fmt.Sprintf("%s", r.converter.Coin.Coin(string(c))))
+	}
 }
 
 func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel.TradeMap, error) {
@@ -61,10 +65,11 @@ func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel
 // Order opens an order in kraken.
 func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
 
-	s, ok := r.info[order.Coin]
+	pair := r.converter.Coin.Pair(order.Coin)
+
+	s, ok := r.info[coinmodel.Coin(pair)]
 	if !ok {
-		log.Warn().Str("coin", string(order.Coin)).Msg("could not find exchange info")
-		//return nil, nil, fmt.Errorf("could not find exchange info for %s [%d]", order.Coin, len(r.info))
+		log.Warn().Str("pair", pair).Str("coin", string(order.Coin)).Msg("could not find exchange info")
 	}
 
 	params := make(map[string]string)

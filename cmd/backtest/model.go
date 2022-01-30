@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/drakos74/free-coin/client"
+
 	"github.com/drakos74/free-coin/internal/model"
 )
 
@@ -66,17 +68,21 @@ func parseQuery(values url.Values) (*RawRequest, error) {
 
 // TrainRequest defines a backtest request
 type TrainRequest struct {
-	Coin       []string `json:"coin"`
-	From       []string `json:"from"`
-	To         []string `json:"to"`
-	LookBack   []string `json:"look_back"`
-	LookAhead  []string `json:"look_ahead"`
-	Gap        []string `json:"gap"`
-	Precision  []string `json:"precision"`
-	BufferSize []string `json:"buffer"`
-	Size       []string `json:"size"`
-	Features   []string `json:"features"`
-	Model      []string `json:"model"`
+	Coin           []string `json:"coin"`
+	From           []string `json:"from"`
+	To             []string `json:"to"`
+	LookBack       []string `json:"look_back"`
+	LookAhead      []string `json:"look_ahead"`
+	Gap            []string `json:"gap"`
+	Precision      []string `json:"precision"`
+	BufferSize     []string `json:"buffer"`
+	Size           []string `json:"size"`
+	Features       []string `json:"features"`
+	Model          []string `json:"model"`
+	BufferTime     []string `json:"buffer_time"`
+	PriceThreshold []string `json:"price_threshold"`
+	StopLoss       []string `json:"stop_loss"`
+	TakeProfit     []string `json:"take_profit"`
 }
 
 func parseTrain(values url.Values) (*TrainRequest, error) {
@@ -104,12 +110,13 @@ type Config struct {
 
 // Response defines the response structure for the backtest execution
 type Response struct {
-	Details []Details          `json:"details"`
-	Time    []time.Time        `json:"time"`
-	Trades  []Point            `json:"trades"`
-	Price   []Point            `json:"price"`
-	Loss    []Point            `json:"loss"`
-	Trigger map[string]Trigger `json:"trigger"`
+	Details []Details                    `json:"details"`
+	Time    []time.Time                  `json:"time"`
+	Trades  []Point                      `json:"trades"`
+	Price   []Point                      `json:"price"`
+	Loss    []Point                      `json:"loss"`
+	Trigger map[string]Trigger           `json:"trigger"`
+	Report  map[model.Coin]client.Report `json:"report"`
 }
 
 type Details struct {

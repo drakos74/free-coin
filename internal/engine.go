@@ -91,7 +91,7 @@ func (e *Engine) first() api.Processor {
 			l := e.lost[trade.Coin]
 			atomic.AddInt64(&l, 1)
 			if c%10000 == 0 {
-				log.Info().
+				log.Debug().
 					Str("trade-hash", trade.SourceID).
 					Time("trade-time", trade.Time).
 					Str("coin", string(trade.Coin)).

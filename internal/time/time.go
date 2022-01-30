@@ -3,10 +3,22 @@ package time
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
+
+func IsValidTime(t time.Time) bool {
+	now := time.Now()
+	ms := t.Unix() - now.Unix()
+	d := time.Second * time.Duration(math.Abs(float64(ms)))
+	if d > time.Minute {
+		log.Trace().Time("now", now).Time("trade-time", t).Int64("seconds", ms).Float64("offset", d.Minutes()).Msg("offset time")
+		return false
+	}
+	return true
+}
 
 func ToMinutes(d int) time.Duration {
 	return time.Duration(d) * time.Minute

@@ -64,6 +64,8 @@ func (m *MockUser) mockMessage(s string, user string, account string) bool {
 				sent = true
 			}
 		}
+	} else {
+		panic("only empty index is allowed for mocking user actions")
 	}
 	return sent
 }
@@ -99,7 +101,7 @@ func Void() func(i int, message MockMessage) error {
 func Contains(ss ...string) func(i int, message MockMessage) error {
 	return func(i int, message MockMessage) error {
 		s := ss[i-1]
-		if strings.Contains(message.message.Text, s) {
+		if !strings.Contains(message.message.Text, s) {
 			return fmt.Errorf("substr '%s' not found in '%s'", s, message.message.Text)
 		}
 		return nil
@@ -118,11 +120,12 @@ func (m *MockUser) Assert(t *testing.T, message UserMessage, test Test) {
 		var i int
 		for msg := range m.Messages {
 			i++
+			fmt.Printf("msg = %+v\n", msg)
 			err := test.Assertion(i, msg)
 			assert.NoError(t, err)
 			c.Done()
 		}
 	}()
-
 	c.Wait()
+	fmt.Printf("test = %+v\n", test)
 }

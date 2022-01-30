@@ -42,7 +42,6 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 			if update.Message == nil { // ignore any non-Message Updates
 				continue
 			}
-
 			reply := update.Message.ReplyToMessage
 			if reply != nil {
 				var chatID int64
@@ -66,7 +65,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 			}
 
 			user := fmt.Sprintf("%+v", update.Message.From)
-			log.Debug().
+			log.Trace().
 				Str("from", fmt.Sprintf("%+v", update.Message.From)).
 				Str("text", update.Message.Text).
 				Int64("chat", chatID).
@@ -81,7 +80,7 @@ func (b *Bot) listenToUpdates(ctx context.Context, private api.Index, updates tg
 			for k, consumer := range b.consumers {
 				// propagate the message
 				if strings.HasPrefix(update.Message.Text, k.Prefix) {
-					log.Info().
+					log.Trace().
 						Str("from", fmt.Sprintf("%+v", update.Message.From)).
 						Str("text", update.Message.Text).
 						Str("consumer", fmt.Sprintf("%+v", k)).

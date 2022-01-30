@@ -7,12 +7,11 @@ import (
 	"io/fs"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/drakos74/free-coin/internal/trader"
 
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
@@ -36,10 +35,27 @@ func models() server.Handler {
 	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
 
 		var files []string
-
+		var pp = make(map[string]float64)
 		err := filepath.Walk("file-storage/ml/models", func(path string, info fs.FileInfo, err error) error {
 			if !info.IsDir() {
-				files = append(files, filepath.Base(path))
+				p := filepath.Base(path)
+				prefix := strings.Split(p, model.Delimiter)
+				if len(prefix) > 1 {
+					pre := fmt.Sprintf("%s-%s", prefix[0], prefix[1])
+					var prec = 0.0
+					if len(prefix) > 5 {
+						prec, err = strconv.ParseFloat(prefix[5], 64)
+					}
+					if f, ok := pp[pre]; ok {
+						if f < prec {
+							pp[pre] = prec
+							files = append(files, filepath.Base(path))
+						}
+					} else {
+						pp[pre] = prec
+						files = append(files, filepath.Base(path))
+					}
+				}
 			}
 			return nil
 		})
@@ -55,6 +71,13 @@ func models() server.Handler {
 
 func train() server.Handler {
 	return func(ctx context.Context, r *http.Request) ([]byte, int, error) {
+
+		//delete the internal positions file
+		err := os.Remove("file-storage/ml/trader/free_coin/all_0_free_coin.json")
+		if err != nil {
+			return []byte(err.Error()), http.StatusInternalServerError, nil
+		}
+
 		request, err := parseTrain(r.URL.Query())
 		if err != nil {
 			return []byte(err.Error()), http.StatusBadRequest, nil
@@ -110,34 +133,63 @@ func train() server.Handler {
 		//	return []byte(err.Error()), http.StatusBadRequest, nil
 		//}
 
-		mm := make(map[model.Coin]map[time.Duration]ml.Segments)
+		bufferTime, err := strconv.ParseFloat(request.BufferTime[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		PriceThreshold, err := strconv.ParseFloat(request.PriceThreshold[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		stopLoss, err := strconv.ParseFloat(request.StopLoss[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		takeProfit, err := strconv.ParseFloat(request.TakeProfit[0], 64)
+		if err != nil {
+			return []byte(err.Error()), http.StatusBadRequest, nil
+		}
+
+		mm := make(map[model.Key]ml.Segments)
 
 		for _, m := range request.Model {
-			p := strings.Split(m, "_")
-			fmt.Printf("p = %+v\n", p)
+			// TODO : note this needs to be the hash delimiter of the model.Key
+			p := strings.Split(m, model.Delimiter)
 			c := model.Coin(p[0])
+
+			if c != requestCoin {
+				return nil, 0, fmt.Errorf("invalid coin model")
+			}
+
 			d, err := strconv.Atoi(p[1])
 			if err != nil {
 				return []byte(err.Error()), http.StatusBadRequest, nil
 			}
-			if _, ok := mm[c]; !ok {
-				mm[c] = make(map[time.Duration]ml.Segments)
-			}
 			duration := time.Duration(d) * time.Minute
-			if _, ok := mm[c][duration]; !ok {
-				mm[c][duration] = ml.Segments{
-					Stats: ml.Stats{
-						LookBack:  lookBack,
-						LookAhead: lookAhead,
-						Gap:       gap,
-					},
-					Model: ml.Model{
-						BufferSize:         bufferSize,
-						PrecisionThreshold: precision,
-						Size:               size,
-						Features:           features,
-					},
-				}
+			k := model.Key{
+				Coin:     c,
+				Duration: duration,
+				Strategy: "ui",
+			}
+			mm[k] = ml.Segments{
+				Stats: ml.Stats{
+					LookBack:  lookBack,
+					LookAhead: lookAhead,
+					Gap:       gap,
+				},
+				Model: ml.Model{
+					BufferSize:         bufferSize,
+					PrecisionThreshold: precision,
+					ModelSize:          size,
+					Features:           features,
+				},
+				Trader: ml.Trader{
+					BufferTime:     bufferTime,
+					PriceThreshold: PriceThreshold,
+				},
 			}
 		}
 
@@ -187,7 +239,7 @@ func train() server.Handler {
 
 			shard := storage.BlobShard("ml")
 
-			cfg := configML(mm)
+			cfg := configML(mm, takeProfit, stopLoss)
 
 			network := coin.NewStrategy(ml.Name).
 				ForUser(u).
@@ -242,9 +294,12 @@ func train() server.Handler {
 					continue
 				}
 
-				key := trader.Key{
+				key := model.Key{
 					Coin:     signal.Coin,
 					Duration: signal.Duration,
+				}
+				if signal.Key.Coin != "" {
+					key = signal.Key
 				}
 
 				if _, ok := response.Trigger[key.ToString()]; !ok {
@@ -285,7 +340,8 @@ func train() server.Handler {
 			}
 		}
 
-		exchange.Gather()
+		report := exchange.Gather(true)
+		response.Report = report
 
 		bb, err := json.Marshal(response)
 		if err != nil {
@@ -296,50 +352,72 @@ func train() server.Handler {
 	}
 }
 
-func configML(mm map[model.Coin]map[time.Duration]ml.Segments) ml.Config {
-	cfg := map[model.Coin]map[time.Duration]ml.Segments{
-		model.BTC: {
-			2 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
+	cfg := map[model.Key]ml.Segments{
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 2 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
-			5 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 5 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
-			15 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 15 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
-			30 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 30 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
-			60 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 60 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
-			240 * time.Minute: ml.Segments{
-				Stats: ml.Stats{
-					LookBack:  9,
-					LookAhead: 1,
-					Gap:       0.5,
-				},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 240 * time.Minute,
+			Strategy: "default",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  9,
+				LookAhead: 1,
+				Gap:       0.5,
 			},
 		},
 	}
@@ -349,7 +427,12 @@ func configML(mm map[model.Coin]map[time.Duration]ml.Segments) ml.Config {
 	}
 
 	return ml.Config{
-		Segments:  cfg,
+		Segments: cfg,
+		Position: ml.Position{
+			OpenValue:  500,
+			StopLoss:   tp,
+			TakeProfit: sl,
+		},
 		Debug:     true,
 		Benchmark: true,
 	}

@@ -100,6 +100,7 @@ type Position struct {
 	CurrentPrice float64                   `json:"current_price"`
 	Volume       float64                   `json:"volume"`
 	Profit       map[time.Duration]*Profit `json:"profit"`
+	PnL          float64                   `json:"pnl"`
 }
 
 // Value returns the value of the position and the profit or loss percentage.

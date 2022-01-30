@@ -11,14 +11,18 @@ func Leverage() LeverageConverter {
 	return LeverageConverter{
 		l: map[model.Leverage]string{
 			model.L_5: "5:1",
+			model.L_4: "4:1",
 			model.L_3: "3:1",
 		},
 		max: map[model.Coin]model.Leverage{
-			model.BTC:  model.L_5,
-			model.ETH:  model.L_5,
-			model.DOT:  model.L_3,
-			model.LINK: model.L_3,
-			model.XRP:  model.L_5,
+			model.BTC:   model.L_5,
+			model.ETH:   model.L_5,
+			model.DOT:   model.L_3,
+			model.LINK:  model.L_3,
+			model.XRP:   model.L_5,
+			model.SOL:   model.L_4,
+			model.FLOW:  model.L_3,
+			model.MATIC: model.L_3,
 		},
 	}
 }

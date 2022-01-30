@@ -156,11 +156,8 @@ func (h HistoryWindow) Buffer(index int, extract func(b TimeWindowView) float64)
 	return yy, nil
 }
 
-// Polynomial evaluates the polynomial regression
-// for the given polynomial degree
-// and based on the value extracted from the TimeBucket
-// scaled at the corresponding time duration.
-func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int) ([]float64, error) {
+// Extract extracts the bucket values as a series
+func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64) ([]float64, []float64, error) {
 	xx := make([]float64, 0)
 	yy := make([]float64, 0)
 	t0 := 0.0
@@ -171,12 +168,6 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 		return bucket
 	})
 
-	if len(buckets) < degree+1 {
-		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
-			len(buckets),
-			degree+1,
-			degree)
-	}
 	for i, bucket := range buckets {
 		if view, ok := bucket.(TimeWindowView); ok {
 			if i == 0 {
@@ -188,12 +179,28 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 			y := extract(view)
 			yy = append(yy, y)
 		} else {
-			return nil, fmt.Errorf("window does not contain timebuckets")
+			return nil, nil, fmt.Errorf("window does not contain timebuckets")
 		}
 	}
+	return xx, yy, nil
+}
 
-	//log.Debug().Str("xx", fmt.Sprintf("%+v", xx)).Str("yy", fmt.Sprintf("%+v", yy)).Msg("fit")
+// Polynomial evaluates the polynomial regression
+// for the given polynomial degree
+// and based on the value extracted from the TimeBucket
+// scaled at the corresponding time duration.
+func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int) ([]float64, error) {
+	xx, yy, err := h.Extract(index, extract)
 
+	if err != nil {
+		return nil, fmt.Errorf("could not extarct series: %w", err)
+	}
+	if len(yy) < degree+1 {
+		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
+			len(yy),
+			degree+1,
+			degree)
+	}
 	return math.Fit(xx, yy, degree)
 }
 

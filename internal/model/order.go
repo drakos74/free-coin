@@ -36,6 +36,8 @@ const (
 	L_3
 	// L_5 defines a margin of 5 to 1
 	L_5
+	// L_4 defines a margin of 4 to 1
+	L_4
 )
 
 // String returns a humanly readable representation of the leverage type.
@@ -43,6 +45,8 @@ func (l Leverage) String() string {
 	switch l {
 	case L_3:
 		return "3:1"
+	case L_4:
+		return "4:1"
 	case L_5:
 		return "5:1"
 	default:

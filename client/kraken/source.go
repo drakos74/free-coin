@@ -35,6 +35,7 @@ type RemoteSource struct {
 	*baseSource
 	Interval time.Duration
 	public   *krakenapi.KrakenAPI
+	count    int64
 }
 
 // AssetPairs retrieves the active asset pairs with their trading details from kraken.
@@ -45,13 +46,16 @@ func (r *RemoteSource) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
 // Trades retrieves the next trades batch from kraken.
 func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeBatch, error) {
 	pair := r.converter.Coin.Pair(coin)
-	log.Trace().
+	log.Info().
 		Str("pair", pair).
-		Int64("Since", since).
+		Int64("since", since).
+		Int64("count", r.count).
+		Time("since-time", cointime.FromNano(since)).
 		Msg("calling remote")
 	// TODO : avoid the duplicate iteration on the trades
 	response, err := r.public.Trades(pair, since)
 
+	r.count += int64(len(response.Trades))
 	// storing the response for the tests ...
 	//rr, err := json.Marshal(response)
 	//err = ioutil.WriteFile(fmt.Sprintf("testdata/response-trades/%s/%d.json", string(coin), since), rr, 0644)

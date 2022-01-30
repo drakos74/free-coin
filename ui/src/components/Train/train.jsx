@@ -2,14 +2,24 @@ import React, {useEffect, useState} from "react";
 import Form from "./Form/Form";
 import Bar from "./Bar/Bar";
 import Info from "./Info/Info";
-import Client from "../../api/client"
-
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
+import {Collapse, getTableSortLabelUtilityClass} from "@mui/material";
 
 const Train = () => {
     const [data, setData] = useState({});
+    const [alert,setAlert] = useState("");
+
+    const error = (reason) => {
+        setAlert(""+reason)
+    }
 
     const handleChange = (data) => {
         console.log(data)
+
+        if (!data.time) {
+            return
+        }
 
         const time = data.time.map((v, _) => {
             return new Date(v)
@@ -50,6 +60,7 @@ const Train = () => {
 
         let newData = {
             details: data.details,
+            report:data.report,
             coin: data.details[0].coin,
             time: time,
             trades: trades,
@@ -69,9 +80,17 @@ const Train = () => {
 
     return (
         <div className='container'>
+            <Collapse in={alert.length > 0}>
+            <Alert severity="error" onClose={() => {
+                setAlert("")
+            }}>
+                <AlertTitle>Error</AlertTitle>
+                <strong>{alert}</strong>
+            </Alert>
+            </Collapse>
             <div className='row'>
                 <div className='col m12 s12'>
-                    <Form change={handleChange}/>
+                    <Form change={handleChange} error={error}/>
                     <Bar coin={data.coin}
                          labelData={data.time}
                          tradeData={data.trades}
@@ -88,15 +107,7 @@ const Train = () => {
                                     {data.details.map(detail => (
                                         <Info
                                             coin={detail.coin}
-                                            duration={detail.duration}
-                                            fees={detail.result.fees}
-                                            trades={detail.result.trades}
-                                            pnl={detail.result.pnl}
-                                            value={detail.result.value}
-                                            coins={detail.result.coins}
-                                            threshold={detail.result.threshold}
-                                            prev={detail.prev}
-                                            next={detail.next}
+                                            report={data.report[detail.coin]}
                                             // deleteCard={handleDelete}
                                         />
                                     ))}

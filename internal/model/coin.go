@@ -30,6 +30,34 @@ const (
 	MINA Coin = "MINA"
 	// SOL defines the SOL coin
 	SOL Coin = "SOL"
+	// KSM defines KSM coin
+	KSM Coin = "KSM"
+	// KAVA defines KAVA coin
+	KAVA Coin = "KAVA"
+	// AAVE defines AAVE coin
+	AAVE Coin = "AAVE"
+	// MATIC defines MATIC coin
+	MATIC Coin = "MATIC"
+	// DAI defines DAI coin
+	DAI Coin = "DAI"
+	// TRX defines TRX coin
+	TRX Coin = "TRX"
+	// XLM defines XLM coin
+	XLM Coin = "XLM"
+	// FIL defines FIL coin
+	FIL Coin = "FIL"
+	// XMR defines XMR coin
+	XMR Coin = "XMR"
+	// XTZ defines XTZ coin
+	XTZ Coin = "XTZ"
+	// FLOW defines FLOW coin
+	FLOW Coin = "FLOW"
+	// SC defines SC coin
+	SC Coin = "SC"
+	// KEEP defines KEEP coin
+	KEEP Coin = "KEEP"
+	// REP defines REP coin
+	REP Coin = "REP"
 )
 
 // Coins contains coin related configuration.
@@ -41,7 +69,22 @@ var Coins = map[string]Coin{
 	//"WAVES": WAVES,
 	"DOT": DOT,
 	//"XRP": XRP,
-	"MINA": MINA,
+	"MINA":  MINA,
+	"SOL":   SOL,
+	"KSM":   KSM,
+	"KAVA":  KAVA,
+	"AAVE":  AAVE,
+	"MATIC": MATIC,
+	"DAI":   DAI,
+	"TRX":   TRX,
+	"XLM":   XLM,
+	"FIL":   FIL,
+	"XMR":   XMR,
+	"XTZ":   XTZ,
+	"FLOW":  FLOW,
+	"SC":    SOL,
+	"KEEP":  KEEP,
+	"REP":   REP,
 }
 
 func KnownCoins() []string {

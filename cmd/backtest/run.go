@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/trader"
+	"github.com/drakos74/free-coin/internal/algo/processor/ml"
 
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
@@ -58,10 +58,10 @@ func run() server.Handler {
 		if len(request.Threshold) == 0 {
 			return []byte("interval parameter missing"), http.StatusBadRequest, nil
 		}
-		threshold, err := strconv.Atoi(request.Threshold[0])
-		if err != nil {
-			return []byte(err.Error()), http.StatusBadRequest, nil
-		}
+		//threshold, err := strconv.Atoi(request.Threshold[0])
+		//if err != nil {
+		//	return []byte(err.Error()), http.StatusBadRequest, nil
+		//}
 
 		requestCoin := model.Coin(request.Coin[0])
 		from, err := time.Parse("2006_01_02T15", request.From[0])
@@ -155,29 +155,14 @@ func run() server.Handler {
 
 		// gather all signals for different scenarios
 		log.Info().Int("count", len(u.Messages)).Msg("messages")
-		signals := make([]*stats.Signal, 0)
+		signals := make([]*ml.Signal, 0)
 		for _, m := range u.Messages {
-			signal := new(stats.Signal)
+			signal := new(ml.Signal)
 			err := json.Unmarshal([]byte(m.Text), signal)
 			if err != nil {
 				fmt.Printf("err = %+v\n m = %+v\n", err, m.Text)
 			} else {
 				signals = append(signals, signal)
-			}
-		}
-
-		for i := 0; i < 8; i++ {
-			if threshold > 0 {
-				if i != threshold {
-					continue
-				}
-			}
-			r := simulate(signals, i)
-			pnl := r.portfolio()
-			r.PnL = pnl
-			fmt.Printf("i = %+v , r = %+v , v = %+v\n", i, r, pnl)
-			if r.portfolio() > response.Details[0].Result.portfolio() || response.Details[0].Result.Trades == 0 {
-				response.Details[0].Result = r
 			}
 		}
 
@@ -187,9 +172,13 @@ func run() server.Handler {
 				continue
 			}
 
-			key := trader.Key{
+			// TODO : retrieve the key back from the signal
+			key := model.Key{
 				Coin:     signal.Coin,
 				Duration: signal.Duration,
+			}
+			if signal.Key.Coin != "" {
+				key = signal.Key
 			}
 
 			if _, ok := response.Trigger[key.ToString()]; !ok {
@@ -273,7 +262,7 @@ func run() server.Handler {
 		//	}
 		//}
 
-		exchange.Gather()
+		exchange.Gather(true)
 
 		bb, err := json.Marshal(response)
 		if err != nil {
