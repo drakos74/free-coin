@@ -61,6 +61,9 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					configSegments := config.segments(trade.Coin, d)
 					for key, segmentConfig := range configSegments {
+						if !key.Match(trade.Coin) {
+							continue
+						}
 						if _, ok := dts[key.Coin]; !ok {
 							dts[key.Coin] = make(map[time.Duration]dataset)
 						}

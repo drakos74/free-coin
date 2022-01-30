@@ -41,6 +41,7 @@ func newCollector(shard storage.Shard, _ *ff.Network, config Config) (*collector
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),
 		}
+		log.Info().Str("key", k.ToString()).Msg("init collector")
 		if err != nil {
 			log.Error().Err(err).Str("k", fmt.Sprintf("%+v", k)).Msg("could not reset collector")
 		}
