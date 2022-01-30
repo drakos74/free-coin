@@ -55,7 +55,6 @@ func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.Trad
 	// TODO : avoid the duplicate iteration on the trades
 	response, err := r.public.Trades(pair, since)
 
-	r.count += int64(len(response.Trades))
 	// storing the response for the tests ...
 	//rr, err := json.Marshal(response)
 	//err = ioutil.WriteFile(fmt.Sprintf("testdata/response-trades/%s/%d.json", string(coin), since), rr, 0644)
@@ -63,6 +62,7 @@ func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.Trad
 	if err != nil {
 		return nil, fmt.Errorf("could not get trades from kraken: %w", err)
 	}
+	r.count += int64(len(response.Trades))
 	return r.transform(pair, r.Interval, response)
 }
 
