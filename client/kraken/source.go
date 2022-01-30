@@ -46,7 +46,7 @@ func (r *RemoteSource) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
 // Trades retrieves the next trades batch from kraken.
 func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeBatch, error) {
 	pair := r.converter.Coin.Pair(coin)
-	log.Info().
+	log.Debug().
 		Str("pair", pair).
 		Int64("since", since).
 		Int64("count", r.count).
