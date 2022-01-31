@@ -20,6 +20,10 @@ const (
 	separator = "\no\n"
 )
 
+func RegistryPathPrefix() string {
+	return path.Join(storage.DefaultDir, storage.RegistryDir)
+}
+
 // Logger stores events very similar to an event logger
 // TODO : create manifest file for logs
 type Logger struct {

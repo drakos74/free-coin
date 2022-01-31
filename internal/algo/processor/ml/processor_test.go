@@ -194,7 +194,7 @@ func TestProcessor(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			proc := Processor("", json.LocalShard(), nil, tt.config)
+			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"), nil, tt.config)
 
 			u, err := local.NewUser("")
 			assert.NoError(t, err)
