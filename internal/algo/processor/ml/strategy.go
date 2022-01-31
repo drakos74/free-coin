@@ -94,9 +94,6 @@ func (str *strategy) trade(trade *model.Trade) (Signal, model.Key, bool, bool) {
 	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
 	for key, s := range str.signals {
-		fmt.Printf("trade = %+v\n", trade)
-		fmt.Printf("key = %+v\n", key)
-		fmt.Printf("str.enabled[key.Coin] = %+v\n", str.enabled[key.Coin])
 		if key.Match(trade.Coin) && str.enabled[key.Coin] {
 			str.trades[key] = *trade
 			cfg := str._key(key)
