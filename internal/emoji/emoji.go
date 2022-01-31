@@ -89,11 +89,11 @@ func MapToSign(f float64) string {
 
 // MapToAction maps the given boolean value to an action.
 func MapToAction(b bool) string {
-	emo := TakeCare
+	emo := NoGo
 	if b {
 		emo = Go
 	} else if !b {
-		emo = NoGo
+		emo = TakeCare
 	}
 	return emo
 }

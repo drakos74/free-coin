@@ -2,6 +2,7 @@ package ml
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/drakos74/free-coin/client"
 
@@ -21,6 +22,7 @@ type config struct {
 
 // strategy is responsible for making a call on weather the signal is good enough to trade on.
 type strategy struct {
+	lock    *sync.RWMutex
 	report  map[model.Key]client.Report
 	signals map[model.Key]Signal
 	trades  map[model.Key]model.Trade
@@ -44,12 +46,31 @@ func newStrategy(segments map[model.Key]Segments) *strategy {
 	}
 
 	return &strategy{
+		lock:    new(sync.RWMutex),
 		report:  make(map[model.Key]client.Report),
 		signals: make(map[model.Key]Signal),
 		trades:  make(map[model.Key]model.Trade),
 		config:  cfg,
 		live:    make(map[model.Coin]bool),
 	}
+}
+
+func (str *strategy) enable(c model.Coin, enabled bool) []bool {
+	str.lock.Lock()
+	defer str.lock.Unlock()
+	for k, cfg := range str.config {
+		if c == ("all") || k.Match(c) {
+			cfg.enabled = enabled
+			str.config[k] = cfg
+		}
+	}
+	ee := make([]bool, 0)
+	for k, cfg := range str.config {
+		if c == ("all") || k.Match(c) {
+			ee = append(ee, cfg.enabled)
+		}
+	}
+	return ee
 }
 
 func (str *strategy) isLive(trade *model.Trade) bool {
@@ -64,17 +85,15 @@ func (str *strategy) isLive(trade *model.Trade) bool {
 	return false
 }
 
-func (str *strategy) track(k model.Key, report client.Report) {
-
-}
-
 // trade assesses the current trade event and builds up the current state
 func (str *strategy) trade(trade *model.Trade) (Signal, model.Key, bool, bool) {
+	str.lock.RLock()
+	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
 	for key, s := range str.signals {
-		if key.Match(trade.Coin) {
+		if key.Match(trade.Coin) && str.config[key].enabled {
 			str.trades[key] = *trade
-			cfg := str.key(key)
+			cfg := str._key(key)
 			// if we have a signal from the past already ...
 			lag := trade.Time.Sub(s.Time).Hours()
 			if lag >= cfg.bufferTime {
@@ -141,7 +160,7 @@ func (str *strategy) reset(key model.Key) bool {
 	return false
 }
 
-func (str strategy) key(key model.Key) config {
+func (str strategy) _key(key model.Key) config {
 	if cfg, ok := str.config[key]; ok {
 		return cfg
 	}
