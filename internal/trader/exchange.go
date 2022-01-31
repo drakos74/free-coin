@@ -195,6 +195,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		Market().
 		WithType(t).
 		WithVolume(volume).
+		WithLeverage(model.L_5).
 		CreateTracked(model.Key{
 			Coin:     key.Coin,
 			Duration: key.Duration,
