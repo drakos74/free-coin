@@ -44,18 +44,19 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		switch action {
 		case "":
 			_, positions := trader.Positions()
+			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(positions), len(strategy.report)))
 			for k, report := range strategy.report {
 				if key.Coin == model.NoCoin || k.Match(key.Coin) {
 					pString := ""
 					if p, ok := positions[k]; ok {
 						pString = fmt.Sprintf("%s\n", formatPosition(p))
 					}
-					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s|%s\n(%s)%s\n",
+					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s(%s)\n%s\n%s\n",
 						k.Coin,
 						k.Duration.Minutes(),
 						emoji.MapOpen(strategy.config[k].enabled),
-						pString,
 						emoji.MapToSign(report.Profit),
+						pString,
 						formatReport(report)))
 				}
 			}
