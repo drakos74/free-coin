@@ -226,6 +226,11 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	return order, true, action, err
 }
 
+func (et *ExchangeTrader) Reset(coins ...model.Coin) error {
+	_, err := et.trader.reset(coins...)
+	return err
+}
+
 // Actions returns the exchange actions so far
 func (et *ExchangeTrader) Actions() map[model.Coin][]Action {
 	return et.log.Actions

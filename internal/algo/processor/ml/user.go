@@ -28,9 +28,9 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?ml"),
+			api.OneOf(&action, "start", "stop", "reset", "pos", ""),
 			api.Any(&coin),
 			api.Int(&duration),
-			api.OneOf(&action, "start", "stop", ""),
 		)
 		if err != nil {
 			api.Reply(index, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
@@ -65,6 +65,15 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "start":
 			bb := strategy.enable(model.Coin(coin), true)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
+		case "reset":
+			err := trader.Reset(model.Coin(coin))
+			txtBuffer.WriteString(fmt.Sprintf("%+v", err))
+		case "pos":
+			kk, positions := trader.Positions()
+			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(kk)))
+			for _, k := range kk {
+				txtBuffer.WriteString(fmt.Sprintf("%s\n", formatPosition(positions[k])))
+			}
 		}
 
 		api.Reply(index, user,
