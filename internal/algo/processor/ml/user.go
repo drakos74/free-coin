@@ -72,7 +72,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			kk, positions := trader.Positions()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(kk)))
 			for _, k := range kk {
-				txtBuffer.WriteString(fmt.Sprintf("%s\n", formatPosition(positions[k])))
+				txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n", k.Coin, k.Duration.Minutes(), formatPosition(positions[k])))
 			}
 		}
 
