@@ -56,7 +56,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s(%s)\n%s\n%s\n",
 						k.Coin,
 						k.Duration.Minutes(),
-						emoji.MapOpen(strategy.config[k].enabled),
+						emoji.MapOpen(strategy.enabled[k.Coin]),
 						emoji.MapToSign(report.Profit),
 						pString,
 						formatReport(report)))
