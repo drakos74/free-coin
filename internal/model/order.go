@@ -34,10 +34,10 @@ const (
 	NoLeverage Leverage = iota
 	// L_3 defines a margin of 3 to 1
 	L_3
-	// L_5 defines a margin of 5 to 1
-	L_5
 	// L_4 defines a margin of 4 to 1
 	L_4
+	// L_5 defines a margin of 5 to 1
+	L_5
 )
 
 // String returns a humanly readable representation of the leverage type.

@@ -40,7 +40,7 @@ func main() {
 	// main engine trade input ...
 	client := kraken.NewClient(cc...).
 		Since(cointime.LastXHours(48)).
-		Interval(5 * time.Second)
+		Interval(2 * time.Second)
 	engine, err := coin.NewEngine(client)
 	if err != nil {
 		log.Fatalf("error creating engine: %s", err.Error())
@@ -219,14 +219,36 @@ func configML() ml.Config {
 				Weight:         0,
 			},
 		},
+		model.Key{
+			Coin:     model.MATIC,
+			Duration: 15 * time.Minute,
+			Strategy: "matic",
+		}: {
+			Stats: ml.Stats{
+				LookBack:  6,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: ml.Model{
+				BufferSize:         8,
+				PrecisionThreshold: 0.5,
+				ModelSize:          10,
+				Features:           3,
+			},
+			Trader: ml.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         0,
+			},
+		},
 	}
 
 	return ml.Config{
 		Segments: cfg,
 		Position: ml.Position{
-			OpenValue:  500,
-			StopLoss:   0.02,
-			TakeProfit: 0.02,
+			OpenValue:  1000,
+			StopLoss:   0.015,
+			TakeProfit: 0.025,
 		},
 		Debug:     false,
 		Benchmark: true,

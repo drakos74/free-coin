@@ -39,7 +39,7 @@ func formatAction(action trader.Action, err error, ok bool) string {
 		action.Price,
 		emoji.MapToSign(action.Value),
 		action.Reason,
-		ok,
+		emoji.MapToAction(ok),
 		err)
 }
 
@@ -52,7 +52,7 @@ func formatSignal(signal Signal, value float64, err error, ok bool) string {
 		signal.Price,
 		emoji.MapToSign(value),
 		signal.Precision,
-		ok,
+		emoji.MapToAction(ok),
 		err)
 }
 

@@ -74,9 +74,14 @@ func train() server.Handler {
 
 		//delete the internal positions file
 		err := os.Remove("file-storage/ml/trader/free_coin/all_0_free_coin.json")
-		if err != nil {
-			return []byte(err.Error()), http.StatusInternalServerError, nil
-		}
+		//if err != nil {
+		//	return []byte(err.Error()), http.StatusInternalServerError, nil
+		//}
+
+		//err = os.WriteFile("file-storage/ml/trader/free_coin/all_0_free_coin.json", []byte("{}"), 0644)
+		//if err != nil {
+		//	return []byte(err.Error()), http.StatusInternalServerError, nil
+		//}
 
 		request, err := parseTrain(r.URL.Query())
 		if err != nil {

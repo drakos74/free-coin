@@ -38,6 +38,10 @@ const (
 
 	Error = "🚫"
 
+	Go       = "♻"
+	TakeCare = "🚧"
+	NoGo     = "🛑"
+
 	HasValue = "🏳‍🌈"
 	NoValue  = "‍☠️"
 
@@ -79,6 +83,17 @@ func MapToSign(f float64) string {
 		emo = DotFire
 	} else if f < 0 {
 		emo = DotWater
+	}
+	return emo
+}
+
+// MapToAction maps the given boolean value to an action.
+func MapToAction(b bool) string {
+	emo := TakeCare
+	if b {
+		emo = Go
+	} else if !b {
+		emo = NoGo
 	}
 	return emo
 }
