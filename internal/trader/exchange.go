@@ -1,6 +1,7 @@
 package trader
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
@@ -41,12 +42,12 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange) *ExchangeTrader {
 
 // Positions returns all currently open positions
 func (et *ExchangeTrader) Positions() ([]model.Key, map[model.Key]model.Position) {
-	return et.trader.getAll(nil)
+	return et.trader.getAll(context.Background())
 }
 
-// CheckPosition checks the position status for the given key
-func (et *ExchangeTrader) CheckPosition(key model.Key, price float64, tp, sl float64) (map[model.Key]model.Position, float64) {
-	p, ok, pp := et.trader.check(key)
+// Update updates the positions and returns the ones over the stop loss and take profit thresholds
+func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.Key]model.Position, float64) {
+	pp := et.trader.update(trade)
 
 	if tp == 0.0 {
 		tp = math.MaxFloat64
@@ -57,22 +58,11 @@ func (et *ExchangeTrader) CheckPosition(key model.Key, price float64, tp, sl flo
 
 	positions := make(map[model.Key]model.Position)
 
-	if ok {
-		pp[key] = p
-	}
-
 	allProfit := 0.0
 
 	if len(pp) > 0 {
 		for k, position := range pp {
-			profit := 0.0
-			switch position.Type {
-			case model.Buy:
-				profit = (price - position.OpenPrice) / position.OpenPrice
-			case model.Sell:
-				profit = (position.OpenPrice - price) / position.OpenPrice
-			}
-
+			profit := position.PnL / (position.OpenPrice * position.Volume)
 			lastProfit := et.profit[k]
 			if profit > 0 {
 				if profit > tp && profit < lastProfit {
@@ -226,9 +216,9 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	return order, true, action, err
 }
 
-func (et *ExchangeTrader) Reset(coins ...model.Coin) error {
-	_, err := et.trader.reset(coins...)
-	return err
+func (et *ExchangeTrader) Reset(coins ...model.Coin) (int, error) {
+	pp, err := et.trader.reset(coins...)
+	return len(pp), err
 }
 
 // Actions returns the exchange actions so far

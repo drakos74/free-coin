@@ -59,14 +59,14 @@ func (str *strategy) enable(c model.Coin, enabled bool) []bool {
 	str.lock.Lock()
 	defer str.lock.Unlock()
 	for k, cfg := range str.config {
-		if c == ("all") || k.Match(c) {
+		if c == model.AllCoins || k.Match(c) {
 			cfg.enabled = enabled
 			str.config[k] = cfg
 		}
 	}
 	ee := make([]bool, 0)
 	for k, cfg := range str.config {
-		if c == ("all") || k.Match(c) {
+		if c == model.AllCoins || k.Match(c) {
 			ee = append(ee, cfg.enabled)
 		}
 	}

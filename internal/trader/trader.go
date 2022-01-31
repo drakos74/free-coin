@@ -90,19 +90,37 @@ func (t *trader) load() error {
 	return nil
 }
 
+func (t *trader) update(trade *model.Trade) map[model.Key]model.Position {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	positions := make(map[model.Key]model.Position)
+	for k, p := range t.positions {
+		if k.Match(trade.Coin) {
+			p = p.Update(trade)
+			t.positions[k] = p
+			positions[k] = p
+		}
+	}
+	return positions
+}
+
 func (t *trader) reset(coins ...model.Coin) (map[model.Key]model.Position, error) {
 	positions := t.positions
-	for _, coin := range coins {
-		if string(coin) == "" {
-			continue
-		}
-		newPositions := make(map[model.Key]model.Position)
-		for k, position := range positions {
-			if position.Coin != coin {
-				newPositions[k] = position
+	if len(coins) == 1 && coins[0] == model.AllCoins {
+		positions = make(map[model.Key]model.Position)
+	} else {
+		for _, coin := range coins {
+			if coin == model.NoCoin {
+				continue
 			}
+			newPositions := make(map[model.Key]model.Position)
+			for k, position := range positions {
+				if position.Coin != coin {
+					newPositions[k] = position
+				}
+			}
+			positions = newPositions
 		}
-		positions = newPositions
 	}
 	t.positions = positions
 	return t.positions, t.save()

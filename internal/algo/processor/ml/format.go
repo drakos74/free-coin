@@ -13,7 +13,7 @@ import (
 )
 
 func formatPosition(p model.Position) string {
-	return fmt.Sprintf("%s : %.2f|%.2f (%.2f)",
+	return fmt.Sprintf("%s : %.2f*%.2f (%.2f)",
 		emoji.MapType(p.Type),
 		p.OpenPrice,
 		p.Volume,

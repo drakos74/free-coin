@@ -63,14 +63,14 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				}
 			}
 		case "stop":
-			bb := strategy.enable(model.Coin(coin), false)
+			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "start":
-			bb := strategy.enable(model.Coin(coin), true)
+			bb := strategy.enable(key.Coin, true)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "reset":
-			err := trader.Reset(model.Coin(coin))
-			txtBuffer.WriteString(fmt.Sprintf("%+v", err))
+			i, err := trader.Reset(key.Coin)
+			txtBuffer.WriteString(fmt.Sprintf("%d:%+v", i, err))
 		case "pos":
 			kk, positions := trader.Positions()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(kk)))

@@ -182,7 +182,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 				}
 			}
 			if strategy.isLive(trade) {
-				pp, profit := wallet.CheckPosition(model.Key{Coin: trade.Coin}, trade.Price, config.Position.TakeProfit, config.Position.StopLoss)
+				pp, profit := wallet.Update(trade, config.Position.TakeProfit, config.Position.StopLoss)
 				if len(pp) > 0 {
 					for k, p := range pp {
 						_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)

@@ -8,6 +8,8 @@ const EURO = "€"
 type Coin string
 
 const (
+	// AllCoins refers to all available coins
+	AllCoins Coin = "ALL"
 	// NoCoin is a undefined coin
 	NoCoin Coin = ""
 	// BTC represents bitcoin

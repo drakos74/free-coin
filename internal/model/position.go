@@ -103,6 +103,46 @@ type Position struct {
 	PnL          float64                   `json:"pnl"`
 }
 
+// Update updates the current status of the position and the profit or loss percentage.
+func (p *Position) Update(trade *Trade) Position {
+
+	if trade != nil {
+		p.CurrentPrice = trade.Price
+		p.CurrentTime = trade.Time
+	}
+
+	net := 0.0
+	switch p.Type {
+	case Buy:
+		net = p.CurrentPrice - p.OpenPrice
+	case Sell:
+		net = p.OpenPrice - p.CurrentPrice
+	}
+	value := (net * p.Volume) - p.Fees
+	profit := 100 * value / (p.OpenPrice * p.Volume)
+
+	p.PnL = value
+
+	if p.Profit != nil {
+		// try to ingest the new value to the window stats
+		aa := make(map[time.Duration][]float64)
+		for k, _ := range p.Profit {
+			if _, ok := p.Profit[k].Window.Push(trade.Time, profit); ok {
+				a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+					return b.Value
+				}, 2)
+				if err != nil {
+					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
+				} else {
+					aa[k] = a
+				}
+			}
+		}
+	}
+
+	return *p
+}
+
 // Value returns the value of the position and the profit or loss percentage.
 // TODO : add processing function for past profits
 func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Duration][]float64) {
