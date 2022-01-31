@@ -50,6 +50,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					pString := ""
 					if p, ok := positions[k]; ok {
 						pString = fmt.Sprintf("%s\n", formatPosition(p))
+					} else {
+						pString = "<none>"
 					}
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s(%s)\n%s\n%s\n",
 						k.Coin,
