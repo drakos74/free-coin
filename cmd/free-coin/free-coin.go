@@ -11,7 +11,6 @@ import (
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml"
-	"github.com/drakos74/free-coin/internal/algo/processor/position"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -52,11 +51,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating user: %s", err.Error())
 	}
-	positionTracker := coin.NewStrategy("position-tracker").
-		ForExchange(exchange).
-		ForUser(u).
-		WithProcessor(position.Processor(api.FreeCoin)).Apply()
-	engine.AddProcessor(positionTracker)
+	//positionTracker := coin.NewStrategy("position-tracker").
+	//	ForExchange(exchange).
+	//	ForUser(u).
+	//	WithProcessor(position.Processor(api.FreeCoin)).Apply()
+	//engine.AddProcessor(positionTracker)
 
 	shard := json_storage.BlobShard("ml")
 	registry := json_storage.EventRegistry("ml-event-registry")
