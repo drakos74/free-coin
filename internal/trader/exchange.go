@@ -13,6 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	EventRegistryPath = "events"
+)
+
 // ExchangeTrader implements the main trading logic.
 type ExchangeTrader struct {
 	exchange api.Exchange
@@ -22,21 +26,22 @@ type ExchangeTrader struct {
 }
 
 // SimpleTrader is a simple exchange trader
-func SimpleTrader(id string, shard storage.Shard, settings map[model.Coin]map[time.Duration]Settings, e api.Exchange) (*ExchangeTrader, error) {
+func SimpleTrader(id string, shard storage.Shard, registry storage.EventRegistry, settings map[model.Coin]map[time.Duration]Settings, e api.Exchange) (*ExchangeTrader, error) {
 	t, err := newTrader(id, shard, settings)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trader: %w", err)
 	}
-	return NewExchangeTrader(t, e), nil
+	eventRegistry, err := registry(EventRegistryPath)
+	return NewExchangeTrader(t, e, eventRegistry), nil
 }
 
 // NewExchangeTrader creates a new trading logic processor.
-func NewExchangeTrader(trader *trader, exchange api.Exchange) *ExchangeTrader {
+func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.Registry) *ExchangeTrader {
 	return &ExchangeTrader{
 		exchange: exchange,
 		trader:   trader,
 		profit:   make(map[model.Key]float64),
-		log:      NewEventLog(),
+		log:      NewEventLog(registry),
 	}
 }
 
@@ -88,12 +93,12 @@ func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.
 }
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64) (*model.TrackedOrder, bool, Action, error) {
+	openType model.Type, open bool, volume float64) (*model.TrackedOrder, bool, Event, error) {
 	close := ""
 	// check the positions ...
 	t := openType
 	position, ok, positions := et.trader.check(key)
-	action := Action{
+	action := Event{
 		Time:  time,
 		Type:  openType,
 		Price: price,
@@ -222,6 +227,6 @@ func (et *ExchangeTrader) Reset(coins ...model.Coin) (int, error) {
 }
 
 // Actions returns the exchange actions so far
-func (et *ExchangeTrader) Actions() map[model.Coin][]Action {
-	return et.log.Actions
+func (et *ExchangeTrader) Actions() map[model.Coin][]Event {
+	return et.log.Events
 }

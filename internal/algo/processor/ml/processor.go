@@ -27,7 +27,7 @@ const (
 )
 
 // Processor is the position processor main routine.
-func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Config) func(u api.User, e api.Exchange) api.Processor {
+func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config Config) func(u api.User, e api.Exchange) api.Processor {
 	collector, err := newCollector(shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
@@ -43,7 +43,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 
 	strategy := newStrategy(config.Segments)
 	return func(u api.User, e api.Exchange) api.Processor {
-		wallet, err := trader.SimpleTrader(string(index), shard, make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		wallet, err := trader.SimpleTrader(string(index), shard, registry, make(map[model.Coin]map[time.Duration]trader.Settings), e)
 		if err != nil {
 			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
 			return processor.NoProcess(Name)
@@ -181,7 +181,7 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 					u.Send(index, api.NewMessage(formatSignal(s, action.Value, err, ok)), nil)
 				}
 			}
-			if strategy.isLive(trade) {
+			if config.Debug || strategy.isLive(trade) {
 				pp, profit := wallet.Update(trade, config.Position.TakeProfit, config.Position.StopLoss)
 				if len(pp) > 0 {
 					for k, p := range pp {
@@ -200,36 +200,6 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 			}
 			return nil
 		}, func() {
-			reports := benchmarks.assess()
-			unix := time.Now().Unix()
-			for c, ds := range dts {
-				for d, set := range ds {
-					segments := config.segments(c, d)
-					for _, cfg := range segments {
-						prec, err := set.fit(cfg.Model, true)
-						if err != nil {
-							log.Error().Err(err).
-								Str("coin", string(c)).
-								Str("duration", fmt.Sprintf("%+v", d)).
-								Msg("could not fit dataset")
-						}
-						key := model.Key{
-							Coin:     c,
-							Duration: d,
-						}
-						_, err = toFile(benchmarkModelPath, key, prec, BenchTest{
-							Report: reports[key],
-							Config: cfg,
-						}, unix)
-						if err != nil {
-							log.Error().Err(err).
-								Str("report", fmt.Sprintf("+%v", reports[key])).
-								Str("key", key.ToString()).Msg("could not save report file")
-						}
-					}
-
-				}
-			}
 			for c, aa := range wallet.Actions() {
 				fmt.Printf("c = %+v\n", c)
 				for _, a := range aa {

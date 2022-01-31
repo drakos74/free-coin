@@ -27,11 +27,13 @@ type strategy struct {
 	signals map[model.Key]Signal
 	trades  map[model.Key]model.Trade
 	config  map[model.Key]config
+	enabled map[model.Coin]bool
 	live    map[model.Coin]bool
 }
 
 func newStrategy(segments map[model.Key]Segments) *strategy {
 	cfg := make(map[model.Key]config)
+	enabled := make(map[model.Coin]bool)
 	for k, segment := range segments {
 		cfg[k] = config{
 			bufferTime:     segment.Trader.BufferTime,
@@ -39,12 +41,13 @@ func newStrategy(segments map[model.Key]Segments) *strategy {
 			weight:         segment.Trader.Weight,
 			enabled:        true,
 		}
+		// auto-enable
+		enabled[k.Coin] = true
 		log.Info().
 			Str("key", fmt.Sprintf("%+v", k)).
 			Str("config", fmt.Sprintf("%+v", cfg[k])).
 			Msg("init strategy")
 	}
-
 	return &strategy{
 		lock:    new(sync.RWMutex),
 		report:  make(map[model.Key]client.Report),
@@ -52,22 +55,22 @@ func newStrategy(segments map[model.Key]Segments) *strategy {
 		trades:  make(map[model.Key]model.Trade),
 		config:  cfg,
 		live:    make(map[model.Coin]bool),
+		enabled: enabled,
 	}
 }
 
 func (str *strategy) enable(c model.Coin, enabled bool) []bool {
 	str.lock.Lock()
 	defer str.lock.Unlock()
-	for k, cfg := range str.config {
-		if c == model.AllCoins || k.Match(c) {
-			cfg.enabled = enabled
-			str.config[k] = cfg
+	for coin, _ := range str.enabled {
+		if c == model.AllCoins || c == coin {
+			str.enabled[coin] = enabled
 		}
 	}
 	ee := make([]bool, 0)
-	for k, cfg := range str.config {
-		if c == model.AllCoins || k.Match(c) {
-			ee = append(ee, cfg.enabled)
+	for coin, ok := range str.enabled {
+		if c == model.AllCoins || c == coin {
+			ee = append(ee, ok)
 		}
 	}
 	return ee
@@ -91,7 +94,10 @@ func (str *strategy) trade(trade *model.Trade) (Signal, model.Key, bool, bool) {
 	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
 	for key, s := range str.signals {
-		if key.Match(trade.Coin) && str.config[key].enabled {
+		fmt.Printf("trade = %+v\n", trade)
+		fmt.Printf("key = %+v\n", key)
+		fmt.Printf("str.enabled[key.Coin] = %+v\n", str.enabled[key.Coin])
+		if key.Match(trade.Coin) && str.enabled[key.Coin] {
 			str.trades[key] = *trade
 			cfg := str._key(key)
 			// if we have a signal from the past already ...
@@ -112,7 +118,7 @@ func (str *strategy) trade(trade *model.Trade) (Signal, model.Key, bool, bool) {
 					// re-validate the signal
 					str.signals[key] = s
 					// act on the signal
-					return s, key, s.Weight > 0, cfg.enabled
+					return s, key, s.Weight > 0, str.enabled[key.Coin]
 				} else {
 					log.Debug().
 						Float64("lag in hours", lag).

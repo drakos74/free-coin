@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/free-coin/internal/model"
@@ -71,8 +73,8 @@ const (
 	VoidReasonClose    Reason = "void-close"
 )
 
-// Action defines a trading action for reference and debugging.
-type Action struct {
+// Event defines a trading action for reference and debugging.
+type Event struct {
 	Key    model.Key  `json:"key"`
 	Time   time.Time  `json:"time"`
 	Type   model.Type `json:"type"`
@@ -83,18 +85,26 @@ type Action struct {
 
 // Log defines a collection of events and actions.
 type Log struct {
-	Actions map[model.Coin][]Action `json:"actions"`
+	registry storage.Registry       `json:"-"`
+	Events   map[model.Coin][]Event `json:"events"`
 }
 
 // NewEventLog create a new event and action log.
-func NewEventLog() *Log {
-	return &Log{Actions: make(map[model.Coin][]Action)}
+func NewEventLog(registry storage.Registry) *Log {
+	return &Log{
+		registry: registry,
+		Events:   make(map[model.Coin][]Event),
+	}
 }
 
-func (l *Log) append(action Action) {
-	if _, ok := l.Actions[action.Key.Coin]; !ok {
-		l.Actions[action.Key.Coin] = make([]Action, 0)
+func (l *Log) append(event Event) error {
+	if _, ok := l.Events[event.Key.Coin]; !ok {
+		l.Events[event.Key.Coin] = make([]Event, 0)
 	}
-	log.Debug().Str("action", fmt.Sprintf("%+v", action)).Msg("adding action")
-	l.Actions[action.Key.Coin] = append(l.Actions[action.Key.Coin], action)
+	log.Debug().Str("event", fmt.Sprintf("%+v", event)).Msg("adding event")
+	l.Events[event.Key.Coin] = append(l.Events[event.Key.Coin], event)
+	return l.registry.Add(storage.K{
+		Pair:  string(event.Key.Coin),
+		Label: event.Key.ToString(),
+	}, event)
 }

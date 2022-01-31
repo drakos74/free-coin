@@ -59,8 +59,8 @@ func main() {
 	engine.AddProcessor(positionTracker)
 
 	shard := json_storage.BlobShard("ml")
-
-	processor := mlProcessor(u, exchange, shard)
+	registry := json_storage.EventRegistry("ml-event-registry")
+	processor := mlProcessor(u, exchange, shard, registry)
 	engine.AddProcessor(processor)
 
 	//signal processor from tradeview
@@ -77,11 +77,11 @@ func main() {
 	}
 }
 
-func mlProcessor(u api.User, e api.Exchange, shard storage.Shard) api.Processor {
+func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry storage.EventRegistry) api.Processor {
 	return coin.NewStrategy(ml.Name).
 		ForUser(u).
 		ForExchange(e).
-		WithProcessor(ml.Processor(api.FreeCoin, shard, nil, configML())).
+		WithProcessor(ml.Processor(api.FreeCoin, shard, registry, nil, configML())).
 		Apply()
 }
 

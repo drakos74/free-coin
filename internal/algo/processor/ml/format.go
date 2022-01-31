@@ -30,7 +30,7 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Action, err error, ok bool) string {
+func formatAction(action trader.Event, err error, ok bool) string {
 	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s) | %s\n%v|%v",
 		action.Time.Format(time.Stamp),
 		action.Key.Coin,

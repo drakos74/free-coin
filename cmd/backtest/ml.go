@@ -243,13 +243,13 @@ func train() server.Handler {
 			}
 
 			shard := storage.BlobShard("ml")
-
+			registry := storage.EventRegistry("ml-trade-registry")
 			cfg := configML(mm, takeProfit, stopLoss)
 
 			network := coin.NewStrategy(ml.Name).
 				ForUser(u).
 				ForExchange(exchange).
-				WithProcessor(ml.Processor(api.FreeCoin, shard, nn, cfg)).Apply()
+				WithProcessor(ml.Processor(api.FreeCoin, shard, registry, nn, cfg)).Apply()
 
 			// reduce data size for viewing purposes
 			minutes := to.Sub(from).Minutes()
