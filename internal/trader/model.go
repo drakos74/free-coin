@@ -73,11 +73,11 @@ const (
 
 // Action defines a trading action for reference and debugging.
 type Action struct {
+	Key    model.Key  `json:"key"`
 	Time   time.Time  `json:"time"`
 	Type   model.Type `json:"type"`
 	Price  float64    `json:"price"`
 	Value  float64    `json:"value"`
-	Key    model.Key  `json:"key"`
 	Reason Reason     `json:"reason"`
 }
 

@@ -236,19 +236,18 @@ func Processor(index api.Index, shard storage.Shard, _ *ff.Network, config Confi
 }
 
 func submitTrade(index api.Index, k model.Key, s Signal, wallet *trader.ExchangeTrader, u api.User, open bool, config Config) (bool, error) {
-	_, ok, _, err := s.submit(k, wallet, open, config.Position.OpenValue)
+	_, ok, action, err := s.submit(k, wallet, open, config.Position.OpenValue)
 	if err != nil {
 		log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 		if config.Debug {
 			u.Send(index, api.ErrorMessage(encodeMessage(s)).AddLine(err.Error()), nil)
 		}
-	} else if ok {
-		u.Send(index, api.NewMessage(formatSignal(s)), nil)
-	} else if config.Debug {
+	} else if ok && config.Debug {
 		u.Send(index, api.NewMessage(encodeMessage(s)), nil)
 	} else {
 		log.Error().Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 	}
+	u.Send(index, api.NewMessage(formatSignal(s, action.Value, err, ok)), nil)
 	return ok, err
 }
 

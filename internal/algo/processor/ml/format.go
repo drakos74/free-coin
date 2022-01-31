@@ -31,17 +31,29 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Action, err error, ok bool) string {
-	return fmt.Sprintf("%s - %.2f | %s\n%v|err=%s", action.Key.ToString(), action.Value, action.Reason, ok, err)
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s) | %s\n%v|%v",
+		action.Time.Format(time.Stamp),
+		action.Key.Coin,
+		action.Key.Duration.Minutes(),
+		emoji.MapType(action.Type),
+		action.Price,
+		emoji.MapToSign(action.Value),
+		action.Reason,
+		ok,
+		err)
 }
 
-func formatSignal(signal Signal) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f) | %.2f",
+func formatSignal(signal Signal, value float64, err error, ok bool) string {
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s) | %.2f\n%v|%v",
 		signal.Time.Format(time.Stamp),
 		signal.Coin,
 		signal.Duration.Minutes(),
 		emoji.MapType(signal.Type),
 		signal.Price,
-		signal.Precision)
+		emoji.MapToSign(value),
+		signal.Precision,
+		ok,
+		err)
 }
 
 func encodeMessage(signal Signal) string {
@@ -52,7 +64,7 @@ func encodeMessage(signal Signal) string {
 func formatSignals(signals map[time.Duration]Signal) string {
 	msg := new(strings.Builder)
 	for _, signal := range signals {
-		msg.WriteString(fmt.Sprintf("%s\n", formatSignal(signal)))
+		msg.WriteString(fmt.Sprintf("%s\n", formatSignal(signal, 0, nil, true)))
 	}
 	return msg.String()
 }
