@@ -89,6 +89,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			for c, pos := range coinPositions {
 				internalSum := 0.0
 				externalSum := 0.0
+				externalCount := 0
 				for _, np := range pp {
 					if np.Coin == c {
 						ep := np.Update(&model.Trade{
@@ -96,6 +97,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 							Time:  pos[0].p.CurrentTime,
 						})
 						externalSum += ep.PnL
+						externalCount++
 					}
 				}
 				for _, ip := range pos {
@@ -105,7 +107,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				txtBuffer.WriteString(fmt.Sprintf("%.2f - %.2f = %.2f (%d:%d)\n",
 					externalSum, internalSum,
 					externalSum-internalSum,
-					len(pp),
+					externalCount,
 					len(pos),
 				))
 			}

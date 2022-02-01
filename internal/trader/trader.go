@@ -93,12 +93,18 @@ func (t *trader) update(trade *model.Trade) map[model.Key]model.Position {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	positions := make(map[model.Key]model.Position)
+	ip := 0
 	for k, p := range t.positions {
 		if k.Match(trade.Coin) {
 			p = p.Update(trade)
 			t.positions[k] = p
 			positions[k] = p
+			ip++
 		}
+	}
+	err := t.save()
+	if err != nil {
+		log.Error().Err(err).Int("num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")
 	}
 	return positions
 }
