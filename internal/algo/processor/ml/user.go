@@ -74,8 +74,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			if err != nil {
 				txtBuffer.WriteString(fmt.Sprintf("err=<%s>\n", err.Error()))
 			}
-			kk, positions := trader.CurrentPositions()
-			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(kk), len(pp)))
+			kk, positions := trader.CurrentPositions(key.Coin)
+			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(pp), len(kk)))
 			coinPositions := make(map[model.Coin][]position)
 			for _, k := range kk {
 				if _, ok := coinPositions[k.Coin]; !ok {
