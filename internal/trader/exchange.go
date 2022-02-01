@@ -77,7 +77,8 @@ func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.
 					et.profit[k] = profit
 				}
 			} else {
-				if profit < -1*sl && profit > lastProfit {
+				// We dont want trailing back for loss
+				if profit < -1*sl {
 					positions[k] = position
 					delete(et.profit, k)
 				} else {
