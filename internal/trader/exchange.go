@@ -45,9 +45,22 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 	}
 }
 
-// Positions returns all currently open positions
-func (et *ExchangeTrader) Positions() ([]model.Key, map[model.Key]model.Position) {
-	return et.trader.getAll(context.Background())
+// CurrentPositions returns all currently open positions
+func (et *ExchangeTrader) CurrentPositions(coins ...model.Coin) ([]model.Key, map[model.Key]model.Position) {
+	return et.trader.getAll(coins...)
+}
+
+// UpstreamPositions returns all currently open positions on the exchange
+func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Position, error) {
+	pp, err := et.exchange.OpenPositions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not get upstream positions: %w", err)
+	}
+	positions := make([]model.Position, 0)
+	for _, p := range pp.Positions {
+		positions = append(positions, p)
+	}
+	return positions, nil
 }
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds

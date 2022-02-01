@@ -1,7 +1,6 @@
 package trader
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"sync"
@@ -126,27 +125,19 @@ func (t *trader) reset(coins ...model.Coin) (map[model.Key]model.Position, error
 	return t.positions, t.save()
 }
 
-func (t *trader) getAll(ctx context.Context) ([]model.Key, map[model.Key]model.Position /*, map[model.Coin]model.CurrentPrice*/) {
+func (t *trader) getAll(coins ...model.Coin) ([]model.Key, map[model.Key]model.Position /*, map[model.Coin]model.CurrentPrice*/) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	//prices, err := t.client.CurrentPrice(ctx)
-	//if err != nil {
-	//	log.Error().Err(err).
-	//		Str("account", t.account).
-	//		Msg("could not get current prices")
-	//	prices = make(map[model.Coin]model.CurrentPrice)
-	//}
 
 	positions := make(map[model.Key]model.Position)
 	keys := make([]model.Key, 0)
-	for k, p := range t.positions {
-		// check the current price
-		//if cp, ok := prices[p.Coin]; ok {
-		//	p.CurrentPrice = cp.Price
-		//	p.Value(model.NewPrice(cp.Price, time.Now()))
-		//}
-		positions[k] = p
-		keys = append(keys, k)
+	for _, c := range coins {
+		for k, p := range t.positions {
+			if c == model.AllCoins || k.Match(c) {
+				positions[k] = p
+				keys = append(keys, k)
+			}
+		}
 	}
 	return keys, positions //, prices
 }
