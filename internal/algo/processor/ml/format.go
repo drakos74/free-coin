@@ -12,14 +12,25 @@ import (
 	"github.com/drakos74/free-coin/internal/trader"
 )
 
+func formatConfig(config Config) string {
+	return fmt.Sprintf("%d (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
+		len(config.Segments),
+		config.Position.OpenValue,
+		config.Position.TakeProfit,
+		config.Position.StopLoss,
+		config.Debug,
+		config.Benchmark,
+	)
+}
 func formatPosition(p model.Position) string {
-	return fmt.Sprintf("%s : %.2f %.2f%s (%.2f %s)",
+	return fmt.Sprintf("%s : %.2f %.2f%s (%.2f %s) | %s",
 		emoji.MapType(p.Type),
 		p.OpenPrice*p.Volume,
 		100*p.PnL/p.OpenPrice,
 		"%",
 		p.PnL,
 		emoji.MapToSign(p.PnL),
+		p.CurrentTime.Format(time.Stamp),
 	)
 }
 

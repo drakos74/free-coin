@@ -53,6 +53,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		dts := make(map[model.Coin]map[time.Duration]dataset)
 
+		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(config))), nil)
+
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 			signals := make(map[time.Duration]Signal)
@@ -126,7 +128,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					}
 				}
 				// NOTE : any real trading happens below this point
-				if !config.Debug && !strategy.isLive(trade) {
+				if live, _ := strategy.isLive(trade); !live && !config.Debug {
 					return nil
 				}
 				if len(signals) > 0 {
@@ -181,7 +183,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					u.Send(index, api.NewMessage(formatSignal(s, action.Value, err, ok)), nil)
 				}
 			}
-			if config.Debug || strategy.isLive(trade) {
+			if live, first := strategy.isLive(trade); live || config.Debug {
+
+				if first {
+					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
+				}
+
 				pp, profit := wallet.Update(trade, config.Position.TakeProfit, config.Position.StopLoss)
 				if len(pp) > 0 {
 					for k, p := range pp {

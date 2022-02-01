@@ -76,16 +76,16 @@ func (str *strategy) enable(c model.Coin, enabled bool) []bool {
 	return ee
 }
 
-func (str *strategy) isLive(trade *model.Trade) bool {
+func (str *strategy) isLive(trade *model.Trade) (bool, bool) {
 	if str.live[trade.Coin] {
-		return true
+		return true, false
 	}
 	if time.IsValidTime(trade.Time) {
 		log.Info().Time("stamp", trade.Time).Str("coin", string(trade.Coin)).Msg("strategy going live")
 		str.live[trade.Coin] = true
-		return true
+		return true, true
 	}
-	return false
+	return false, false
 }
 
 // trade assesses the current trade event and builds up the current state
