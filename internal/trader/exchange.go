@@ -22,27 +22,48 @@ type ExchangeTrader struct {
 	exchange api.Exchange
 	trader   *trader
 	profit   map[model.Key]float64
+	settings Settings
 	log      *Log
 }
 
 // SimpleTrader is a simple exchange trader
-func SimpleTrader(id string, shard storage.Shard, registry storage.EventRegistry, settings map[model.Coin]map[time.Duration]Settings, e api.Exchange) (*ExchangeTrader, error) {
-	t, err := newTrader(id, shard, settings)
+func SimpleTrader(id string, shard storage.Shard, registry storage.EventRegistry, settings Settings, e api.Exchange) (*ExchangeTrader, error) {
+	t, err := newTrader(id, shard)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trader: %w", err)
 	}
 	eventRegistry, err := registry(EventRegistryPath)
-	return NewExchangeTrader(t, e, eventRegistry), nil
+	return NewExchangeTrader(t, e, eventRegistry, settings), nil
 }
 
 // NewExchangeTrader creates a new trading logic processor.
-func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.Registry) *ExchangeTrader {
+func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.Registry, settings Settings) *ExchangeTrader {
 	return &ExchangeTrader{
 		exchange: exchange,
 		trader:   trader,
 		profit:   make(map[model.Key]float64),
+		settings: settings,
 		log:      NewEventLog(registry),
 	}
+}
+
+func (et *ExchangeTrader) Settings() Settings {
+	return et.settings
+}
+
+func (et *ExchangeTrader) OpenValue(openValue float64) Settings {
+	et.settings.OpenValue = openValue
+	return et.settings
+}
+
+func (et *ExchangeTrader) StopLoss(stopLoss float64) Settings {
+	et.settings.StopLoss = stopLoss
+	return et.settings
+}
+
+func (et *ExchangeTrader) TakeProfit(takeProfit float64) Settings {
+	et.settings.TakeProfit = takeProfit
+	return et.settings
 }
 
 // CurrentPositions returns all currently open positions
@@ -64,14 +85,22 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
-func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.Key]model.Position, float64) {
-	pp := et.trader.update(trade)
+func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Position, float64) {
 
-	if tp == 0.0 {
-		tp = math.MaxFloat64
+	tr := &model.Trade{
+		Coin:   trade.Coin,
+		Price:  trade.Meta.Price / float64(trade.Meta.Num),
+		Volume: trade.Meta.Volume / float64(trade.Meta.Num),
+		Time:   trade.Time,
 	}
-	if sl == 0.0 {
-		sl = math.MaxFloat64
+
+	pp := et.trader.update(tr)
+
+	if et.settings.TakeProfit == 0.0 {
+		et.settings.TakeProfit = math.MaxFloat64
+	}
+	if et.settings.StopLoss == 0.0 {
+		et.settings.StopLoss = math.MaxFloat64
 	}
 
 	positions := make(map[model.Key]model.Position)
@@ -83,7 +112,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.
 			profit := position.PnL / (position.OpenPrice * position.Volume)
 			lastProfit := et.profit[k]
 			if profit > 0 {
-				if profit > tp && profit < lastProfit {
+				if profit > et.settings.TakeProfit && profit < lastProfit {
 					positions[k] = position
 					delete(et.profit, k)
 				} else {
@@ -91,7 +120,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.
 				}
 			} else {
 				// We dont want trailing back for loss
-				if profit < -1*sl {
+				if profit < -1*et.settings.StopLoss {
 					positions[k] = position
 					delete(et.profit, k)
 				} else {
@@ -108,6 +137,11 @@ func (et *ExchangeTrader) Update(trade *model.Trade, tp, sl float64) (map[model.
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
 	openType model.Type, open bool, volume float64) (*model.TrackedOrder, bool, Event, error) {
+
+	if volume == 0 {
+		volume = et.settings.OpenValue / price
+	}
+
 	close := ""
 	// check the positions ...
 	t := openType

@@ -161,13 +161,13 @@ func TestExchangeTrader_CreateOrder(t *testing.T) {
 			exchange := local.NewExchange("")
 			trd, err := newTrader("test", json.LocalShard(), make(map[model.Coin]map[time.Duration]Settings))
 			assert.NoError(t, err)
-			trader := NewExchangeTrader(trd, exchange)
+			trader := NewExchangeTrader(trd, exchange, nil)
 
 			for _, signal := range tt.signals {
-				o, ok, err := trader.CreateOrder(Key{
+				o, ok, _, err := trader.CreateOrder(model.Key{
 					Coin:     signal.c,
 					Duration: signal.d,
-				}, time.Now(), signal.p, signal.t, 1)
+				}, time.Now(), signal.p, signal.t, true, 1)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -195,9 +195,20 @@ func TestExchangeTrader_CreateOrder(t *testing.T) {
 
 			assert.Equal(t, tt.open, len(trd.positions))
 			assert.Equal(t, tt.total, len(orders))
-			wallet := exchange.Gather()
+			wallet := exchange.Gather(true)
 			assert.Equal(t, tt.total, wallet[model.BTC].Buy+wallet[model.BTC].Sell)
 		})
 	}
+
+}
+
+// TODO: actually create this test
+func TestExchangeTrader_Update(t *testing.T) {
+
+	exchange := local.NewExchange("")
+	trd, err := newTrader("test", json.LocalShard(), make(map[model.Coin]map[time.Duration]Settings))
+	assert.NoError(t, err)
+	trader := NewExchangeTrader(trd, exchange, nil)
+	trader.Actions()
 
 }

@@ -12,6 +12,13 @@ import (
 	"github.com/drakos74/free-coin/internal/trader"
 )
 
+func formatSettings(settings trader.Settings) string {
+	return fmt.Sprintf("%.2f [take-profit = %.2f | stop-loss = %.2f]",
+		settings.OpenValue,
+		settings.TakeProfit,
+		settings.StopLoss)
+}
+
 func formatConfig(config Config) string {
 	return fmt.Sprintf("%d (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
 		len(config.Segments),

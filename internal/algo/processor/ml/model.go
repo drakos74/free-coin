@@ -106,12 +106,6 @@ func (signal *Signal) Filter(threshold int) bool {
 	return signal.Factor*f >= 1.0
 }
 
-func (signal Signal) submit(k model.Key, e *trader.ExchangeTrader, open bool, value float64) (*model.TrackedOrder, bool, trader.Event, error) {
-	// find out the volume
-	vol := value / signal.Price
-	return e.CreateOrder(k, signal.Time, signal.Price, signal.Type, open, vol)
-}
-
 // Benchmark is responsible for tracking the performance of signals
 type Benchmark struct {
 	Exchange map[model.Coin]map[time.Duration]*local.Exchange
@@ -147,7 +141,11 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 
 	if _, ok := b.Wallet[signal.Coin][signal.Duration]; !ok {
 		e := local.NewExchange(local.VoidLog)
-		tt, err := trader.SimpleTrader(key.ToString(), json.LocalShard(), json.EventRegistry("ml-tmp-registry"), make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		tt, err := trader.SimpleTrader(key.ToString(), json.LocalShard(), json.EventRegistry("ml-tmp-registry"), trader.Settings{
+			OpenValue:  config.Position.OpenValue,
+			TakeProfit: config.Position.TakeProfit,
+			StopLoss:   config.Position.StopLoss,
+		}, e)
 		if err != nil {
 			return client.Report{}, false, fmt.Errorf("could not create trader for signal: %+v: %w", signal, err)
 		}
@@ -158,7 +156,7 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 	// track the log
 	b.Exchange[signal.Coin][signal.Duration].Process(trade)
 
-	_, ok, _, err := signal.submit(key, b.Wallet[signal.Coin][signal.Duration], true, config.Position.OpenValue)
+	_, ok, _, err := b.Wallet[signal.Coin][signal.Duration].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0)
 	if err != nil {
 		log.Err(err).Msg("could not submit signal for benchmark")
 		return client.Report{}, ok, nil

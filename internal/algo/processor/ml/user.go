@@ -20,22 +20,22 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			Str("message", command.Content).
 			Str("processor", Name).
 			Msg("message received")
-		var duration int
+		var num int
 		var coin string
 		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?ml"),
-			api.OneOf(&action, "start", "stop", "reset", "pos", ""),
+			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", ""),
 			api.Any(&coin),
-			api.Int(&duration),
+			api.Int(&num),
 		)
 		if err != nil {
 			api.Reply(index, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
 			continue
 		}
 
-		key := model.TempKey(model.Coin(strings.ToUpper(coin)), time.Duration(duration)*time.Minute)
+		key := model.TempKey(model.Coin(strings.ToUpper(coin)), time.Duration(num)*time.Minute)
 
 		txtBuffer := new(strings.Builder)
 
@@ -60,6 +60,18 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						formatReport(report)))
 				}
 			}
+		case "config":
+			settings := trader.Settings()
+			txtBuffer.WriteString(formatSettings(settings))
+		case "tp":
+			settings := trader.TakeProfit(float64(num) / 100)
+			txtBuffer.WriteString(formatSettings(settings))
+		case "sl":
+			settings := trader.StopLoss(float64(num) / 100)
+			txtBuffer.WriteString(formatSettings(settings))
+		case "ov":
+			settings := trader.OpenValue(float64(num))
+			txtBuffer.WriteString(formatSettings(settings))
 		case "stop":
 			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))

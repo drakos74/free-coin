@@ -24,6 +24,9 @@ type State struct {
 }
 
 type Settings struct {
+	OpenValue  float64
+	TakeProfit float64
+	StopLoss   float64
 }
 
 type config struct {

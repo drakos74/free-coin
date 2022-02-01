@@ -43,7 +43,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 	strategy := newStrategy(config.Segments)
 	return func(u api.User, e api.Exchange) api.Processor {
-		wallet, err := trader.SimpleTrader(string(index), shard, registry, make(map[model.Coin]map[time.Duration]trader.Settings), e)
+		wallet, err := trader.SimpleTrader(string(index), shard, registry, trader.Settings{
+			OpenValue:  config.Position.OpenValue,
+			TakeProfit: config.Position.TakeProfit,
+			StopLoss:   config.Position.StopLoss,
+		}, e)
 		if err != nil {
 			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
 			return processor.NoProcess(Name)
@@ -169,7 +173,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					//if s.Spectrum.Mean() > 100 {
 					//	open = false
 					//}
-					_, ok, action, err := s.submit(k, wallet, open, config.Position.OpenValue)
+					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0)
 					if err != nil {
 						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 						if config.Debug {
@@ -189,19 +193,21 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
 
-				pp, profit := wallet.Update(trade, config.Position.TakeProfit, config.Position.StopLoss)
-				if len(pp) > 0 {
-					for k, p := range pp {
-						_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
-						if err != nil || !ok {
-							log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
-						} else if profit < 0 {
-							ok := strategy.reset(k)
-							if !ok {
-								log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+				if trade.Live {
+					pp, profit := wallet.Update(trade)
+					if len(pp) > 0 {
+						for k, p := range pp {
+							_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
+							if err != nil || !ok {
+								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
+							} else if profit < 0 {
+								ok := strategy.reset(k)
+								if !ok {
+									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+								}
 							}
+							u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
 						}
-						u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
 					}
 				}
 			}

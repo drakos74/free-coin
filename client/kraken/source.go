@@ -153,14 +153,23 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 			Index:  response.Last,
 		}, nil
 	}
-	last := cointime.FromNano(response.Last)
-	var live bool
-	if time.Since(last) < interval {
-		live = true
-	}
+	//last := cointime.FromNano(response.Last)
+	//var live bool
+	//if time.Since(last) < interval {
+	//	live = true
+	//}
 	trades := make([]coinmodel.Trade, l)
+	meta := coinmodel.Batch{}
 	for i := 0; i < l; i++ {
-		trades[i] = r.newTrade(pair, i == l-1, live, response.Trades[i])
+		live := false
+		if i == l-1 {
+			live = true
+		}
+		exchangeTrade := response.Trades[i]
+		meta.Price += exchangeTrade.PriceFloat
+		meta.Volume += exchangeTrade.VolumeFloat
+		meta.Num++
+		trades[i] = r.newTrade(pair, i == l-1, live, exchangeTrade, meta)
 	}
 	return &coinmodel.TradeBatch{
 		Trades: trades,
@@ -169,7 +178,7 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 }
 
 // newTrade creates a new trade from the kraken trade response.
-func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo) coinmodel.Trade {
+func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo, meta coinmodel.Batch) coinmodel.Trade {
 	var t coinmodel.Type
 	if trade.Buy {
 		t = coinmodel.Buy
@@ -185,6 +194,7 @@ func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakena
 		Active:   active,
 		Live:     live,
 		Type:     t,
+		Meta:     meta,
 	}
 }
 

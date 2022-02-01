@@ -31,7 +31,15 @@ type Trade struct {
 	Type     Type      `json:"Type"`
 	Active   bool      `json:"active"`
 	Live     bool      `json:"live"`
+	Meta     Batch     `json:"batch"`
 	Signals  []Signal  `json:"-"`
+}
+
+type Batch struct {
+	Duration time.Duration `json:"interval"`
+	Price    float64       `json:"price"`
+	Num      int           `json:"num"`
+	Volume   float64       `json:"volume"`
 }
 
 // TradeBatch is an indexed group of trades
