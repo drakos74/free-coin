@@ -118,6 +118,11 @@ func (p *Position) Update(trade *Trade) Position {
 	case Sell:
 		net = p.OpenPrice - p.CurrentPrice
 	}
+
+	if p.Fees == 0 {
+		p.Fees = p.OpenPrice * 0.24 / 100
+	}
+
 	value := (net * p.Volume) - p.Fees
 	profit := 100 * value / (p.OpenPrice * p.Volume)
 

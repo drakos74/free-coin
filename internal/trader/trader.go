@@ -102,10 +102,11 @@ func (t *trader) update(trade *model.Trade) map[model.Key]model.Position {
 			ip++
 		}
 	}
-	err := t.save()
-	if err != nil {
-		log.Error().Err(err).Int("num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")
-	}
+	// TODO : think if its worth to have this at every call
+	//err := t.save()
+	//if err != nil {
+	//	log.Error().Err(err).Int("num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")
+	//}
 	return positions
 }
 
