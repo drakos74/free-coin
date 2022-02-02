@@ -87,19 +87,20 @@ func (t *trader) load() error {
 }
 
 func (t *trader) update(trade *model.Trade) map[model.Key]model.Position {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	positions := make(map[model.Key]model.Position)
+	newPositions := make(map[model.Key]model.Position)
 	ip := 0
-	for k, p := range t.positions {
+	pp := t.positions
+	for k, p := range pp {
 		if k.Match(trade.Coin) {
 			p = p.Update(trade)
-			t.positions[k] = p
 			positions[k] = p
 			ip++
 		}
+		newPositions[k] = p
 	}
 	// TODO : think if its worth to have this at every call
+	t.positions = newPositions
 	//err := t.save()
 	//if err != nil {
 	//	log.Error().Err(err).Int("num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")

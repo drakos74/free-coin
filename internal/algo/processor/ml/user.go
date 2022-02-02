@@ -60,7 +60,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						formatReport(report)))
 				}
 			}
-		case "config":
+		case "cfg":
 			settings := trader.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
 		case "tp":
