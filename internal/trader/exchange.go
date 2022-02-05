@@ -166,6 +166,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 				Str("position", fmt.Sprintf("%+v", position)).
 				Msg("ignoring signal")
 			action.Reason = VoidReasonIgnore
+			action.PnL = position.PnL
 			et.log.append(action)
 			return nil, false, action, nil
 		}
@@ -201,12 +202,15 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		et.log.append(action)
 	} else if len(positions) > 0 {
 		var ignore bool
+		pnl := 0.0
 		for _, p := range positions {
 			if p.Type != openType {
 				// if it will be an opposite opening to the current position
 				log.Debug().
 					Str("positions", fmt.Sprintf("%+volume", positions)).
 					Msg("closing position")
+			} else {
+				pnl += p.PnL
 			}
 		}
 		if ignore {
@@ -214,6 +218,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 				Str("positions", fmt.Sprintf("%+volume", positions)).
 				Msg("ignoring conflicting signal")
 			action.Reason = VoidReasonConflict
+			action.PnL = pnl
 			et.log.append(action)
 			return nil, false, action, nil
 		}
