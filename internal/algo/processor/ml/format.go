@@ -29,13 +29,12 @@ func formatConfig(config Config) string {
 	)
 }
 func formatPosition(p model.Position) string {
-	return fmt.Sprintf("%s : %.2f %.2f%s (%.2f %s) | %s",
+	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s",
 		emoji.MapType(p.Type),
 		p.OpenPrice*p.Volume,
-		100*p.PnL/p.OpenPrice,
-		"%",
-		p.PnL,
 		emoji.MapToSign(p.PnL),
+		100*p.PnL,
+		"%",
 		p.CurrentTime.Format(time.Stamp),
 	)
 }
@@ -50,7 +49,7 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f|%.2f) | %s\n%v|%v",
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f%s|%.2f%s) | %s\n%v|%v",
 		action.Time.Format(time.Stamp),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -58,14 +57,16 @@ func formatAction(action trader.Event, profit float64, err error, ok bool) strin
 		action.Price,
 		emoji.MapToSign(action.Value),
 		100*profit,
+		"%",
 		100*action.PnL,
+		"%",
 		action.Reason,
 		emoji.MapToAction(ok),
 		err)
 }
 
 func formatSignal(signal Signal, value float64, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f) | %.2f\n%v|%v",
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f%s) | %.2f\n%v|%v",
 		signal.Time.Format(time.Stamp),
 		signal.Coin,
 		signal.Duration.Minutes(),
@@ -73,6 +74,7 @@ func formatSignal(signal Signal, value float64, profit float64, err error, ok bo
 		signal.Price,
 		emoji.MapToSign(value),
 		100*profit,
+		"%",
 		signal.Precision,
 		emoji.MapToAction(ok),
 		err)

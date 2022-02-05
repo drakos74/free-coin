@@ -114,7 +114,10 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				}
 				for _, ip := range pos {
 					internalSum += ip.p.PnL
-					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n", ip.k.Coin, ip.k.Duration.Minutes(), formatPosition(ip.p)))
+					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
+						ip.k.Coin,
+						ip.k.Duration.Minutes(),
+						formatPosition(ip.p)))
 				}
 				txtBuffer.WriteString(fmt.Sprintf("%.2f - %.2f = %.2f (%d:%d)\n",
 					externalSum, internalSum,
