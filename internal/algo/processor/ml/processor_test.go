@@ -86,7 +86,7 @@ func TestProcessor(t *testing.T) {
 					Buy:     1,
 					BuyAvg:  30200,
 					Sell:    2,
-					SellAvg: 30400,
+					SellAvg: 30300,
 					Profit:  5,
 				},
 				{
@@ -108,16 +108,16 @@ func TestProcessor(t *testing.T) {
 			}),
 			pnl: []client.Report{
 				{
-					Buy:     6,
+					Buy:     2,
 					BuyAvg:  29500,
-					Sell:    5,
+					Sell:    1,
 					SellAvg: 29600,
 					Profit:  5,
 				},
 				{
-					Buy:     6,
+					Buy:     3,
 					BuyAvg:  29700,
-					Sell:    5,
+					Sell:    2,
 					SellAvg: 29800,
 					Profit:  10,
 				},
@@ -130,17 +130,17 @@ func TestProcessor(t *testing.T) {
 			}),
 			pnl: []client.Report{
 				{
-					Buy:     8,
-					BuyAvg:  29800,
-					Sell:    9,
+					Buy:     2,
+					BuyAvg:  29600,
+					Sell:    3,
 					SellAvg: 30000,
 					Profit:  18,
 				},
 				{
-					Buy:     9,
+					Buy:     3,
 					BuyAvg:  30000,
-					Sell:    11,
-					SellAvg: 30150,
+					Sell:    4,
+					SellAvg: 30250,
 					Profit:  25,
 				},
 			},
@@ -272,6 +272,7 @@ func testTrades(s, t int, p func(i int) float64) func() []*model.Trade {
 				Coin:  "BTC",
 				Price: 30000.0 + p(i),
 				Time:  now.Add(time.Duration(i) * time.Duration(t) * time.Minute),
+				Live:  true,
 			})
 		}
 

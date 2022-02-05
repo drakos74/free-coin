@@ -1,7 +1,13 @@
 package ml
 
 import (
+	"fmt"
+	"io/fs"
+	"path/filepath"
 	"testing"
+
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/drakos74/free-coin/user/local"
 )
@@ -37,4 +43,24 @@ func TestTrackUserActions(t *testing.T) {
 
 		})
 	}
+}
+
+func TestRegistryReport(t *testing.T) {
+
+	registry := json.EventRegistry("ml-event-registry")
+
+	log, err := registry("events")
+	assert.NoError(t, err)
+
+	root := log.Root()
+	fmt.Printf("root = %+v\n", root)
+
+	err = filepath.Walk(filepath.Join(json.RegistryPathPrefix(), root), func(path string, info fs.FileInfo, err error) error {
+		if !info.IsDir() {
+			fmt.Printf("path = %+v\n", path)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
 }

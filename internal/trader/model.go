@@ -84,6 +84,7 @@ type Event struct {
 	Price  float64    `json:"price"`
 	Value  float64    `json:"value"`
 	Reason Reason     `json:"reason"`
+	PnL    float64    `json:"pnl"`
 }
 
 // Log defines a collection of events and actions.

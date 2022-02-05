@@ -184,7 +184,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					} else if !ok {
 						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 					}
-					u.Send(index, api.NewMessage(formatSignal(s, action.Value, err, ok)), nil)
+					u.Send(index, api.NewMessage(formatSignal(s, action.Value, action.PnL, err, ok)), nil)
 				}
 			}
 			if live, first := strategy.isLive(trade); live || config.Debug {
@@ -206,7 +206,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, err, ok)), nil)
+							u.Send(index, api.NewMessage(formatAction(action, profit, err, ok)), nil)
 						}
 					}
 				}

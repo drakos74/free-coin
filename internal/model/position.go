@@ -120,13 +120,13 @@ func (p *Position) Update(trade *Trade) Position {
 	}
 
 	if p.Fees == 0 {
-		p.Fees = p.OpenPrice * 0.24 / 100
+		p.Fees = p.OpenPrice * p.Volume * 0.24 / 100
 	}
 
 	value := (net * p.Volume) - p.Fees
-	profit := 100 * value / (p.OpenPrice * p.Volume)
+	profit := value / (p.OpenPrice * p.Volume)
 
-	p.PnL = value
+	p.PnL = profit
 
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats

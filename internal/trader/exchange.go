@@ -86,15 +86,16 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
 func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Position, float64) {
-
-	tr := &model.Trade{
-		Coin:   trade.Coin,
-		Price:  trade.Meta.Price / float64(trade.Meta.Num),
-		Volume: trade.Meta.Volume / float64(trade.Meta.Num),
-		Time:   trade.Time,
+	if trade.Meta.Num > 0 {
+		trade = &model.Trade{
+			Coin:   trade.Coin,
+			Price:  trade.Meta.Price / float64(trade.Meta.Num),
+			Volume: trade.Meta.Volume / float64(trade.Meta.Num),
+			Time:   trade.Time,
+		}
 	}
 
-	pp := et.trader.update(tr)
+	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
 		et.settings.TakeProfit = math.MaxFloat64
@@ -109,7 +110,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 
 	if len(pp) > 0 {
 		for k, position := range pp {
-			profit := position.PnL / (position.OpenPrice * position.Volume)
+			profit := position.PnL
 			lastProfit := et.profit[k]
 			if profit > 0 {
 				if profit > et.settings.TakeProfit && profit < lastProfit {
@@ -152,6 +153,10 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		Price: price,
 		Key:   key,
 	}
+	position = position.Update(&model.Trade{
+		Price: price,
+		Time:  time,
+	})
 	if ok {
 		// if we had a position already ...
 		// TODO :review this ...
@@ -192,6 +197,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			Msg("closing position")
 		action.Value = value
 		action.Reason = reason
+		action.PnL = position.PnL
 		et.log.append(action)
 	} else if len(positions) > 0 {
 		var ignore bool

@@ -3,7 +3,6 @@ package ml
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/client"
@@ -50,27 +49,30 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s) | %s\n%v|%v",
+func formatAction(action trader.Event, profit float64, err error, ok bool) string {
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f|%.2f) | %s\n%v|%v",
 		action.Time.Format(time.Stamp),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
 		emoji.MapType(action.Type),
 		action.Price,
 		emoji.MapToSign(action.Value),
+		100*profit,
+		100*action.PnL,
 		action.Reason,
 		emoji.MapToAction(ok),
 		err)
 }
 
-func formatSignal(signal Signal, value float64, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s) | %.2f\n%v|%v",
+func formatSignal(signal Signal, value float64, profit float64, err error, ok bool) string {
+	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f) | %.2f\n%v|%v",
 		signal.Time.Format(time.Stamp),
 		signal.Coin,
 		signal.Duration.Minutes(),
 		emoji.MapType(signal.Type),
 		signal.Price,
 		emoji.MapToSign(value),
+		100*profit,
 		signal.Precision,
 		emoji.MapToAction(ok),
 		err)
@@ -79,12 +81,4 @@ func formatSignal(signal Signal, value float64, err error, ok bool) string {
 func encodeMessage(signal Signal) string {
 	bb, _ := json.Marshal(signal)
 	return fmt.Sprintf("%s", string(bb))
-}
-
-func formatSignals(signals map[time.Duration]Signal) string {
-	msg := new(strings.Builder)
-	for _, signal := range signals {
-		msg.WriteString(fmt.Sprintf("%s\n", formatSignal(signal, 0, nil, true)))
-	}
-	return msg.String()
 }
