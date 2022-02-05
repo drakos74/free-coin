@@ -84,14 +84,21 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 		//coinmodel.Price.Format(order.Coin, order.Price)
 	}
 
+	oPair := r.converter.Coin.Pair(order.Coin)
+	direction := r.converter.Type.From(order.Type)
+	oType := r.converter.OrderType.From(order.OType)
+	vol := strconv.FormatFloat(order.Volume, 'f', s.PairDecimals, 64)
 	response, err := r.private.AddOrder(
-		r.converter.Coin.Pair(order.Coin),
-		r.converter.Type.From(order.Type),
-		r.converter.OrderType.From(order.OType),
-		strconv.FormatFloat(order.Volume, 'f', s.PairDecimals, 64),
+		oPair,
+		direction,
+		oType,
+		vol,
 		params)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not add order '%+v': %w", order, err)
+		return nil, nil, fmt.Errorf("could not add order '%+v' (pair=%s,direction=%s,orderType=%s,volume=%s) : %w",
+			order,
+			oPair, direction, oType, vol,
+			err)
 	}
 
 	return r.newOrder(response.Description), response.TransactionIds, nil
