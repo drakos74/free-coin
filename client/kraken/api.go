@@ -95,10 +95,10 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 		vol,
 		params)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not add order '%+v' (pair=%s,direction=%s,orderType=%s,volume=%s) : %w",
+		return nil, nil, fmt.Errorf("could not add order '%+v' - (pair=%s,direction=%s,orderType=%s,volume=%s)  : %w | %+v",
 			order,
 			oPair, direction, oType, vol,
-			err)
+			err, response)
 	}
 
 	return r.newOrder(response.Description), response.TransactionIds, nil
