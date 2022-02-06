@@ -138,7 +138,7 @@ func (p *Position) Update(trade *Trade) Position {
 	}
 
 	if p.Fees == 0 {
-		p.Fees = p.OpenPrice * p.Volume * 0.24 / 100
+		p.Fees = p.OpenPrice * p.Volume * Fees / 100
 	}
 
 	value := (net * p.Volume) - p.Fees
@@ -160,6 +160,8 @@ func (p *Position) Update(trade *Trade) Position {
 		aa := make(map[time.Duration][]float64)
 		vv := make(map[time.Duration][]float64)
 		for k, _ := range p.Profit {
+			fmt.Printf("p.Coin = %+v\n", p.Coin)
+			fmt.Printf("p.Profit[k] = %+v\n", p.Profit[k].Config)
 			if _, ok := p.Profit[k].Window.Push(trade.Time, profit); ok {
 				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
