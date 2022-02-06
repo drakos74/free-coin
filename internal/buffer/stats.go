@@ -109,6 +109,11 @@ type StatsCollector struct {
 	stats []*Stats
 }
 
+func (sc StatsCollector) String() string {
+	return fmt.Sprintf("dim = %+v , stats = %+v",
+		sc.dim, sc.stats)
+}
+
 // NewStatsCollector creates a new Stats collector.
 func NewStatsCollector(dim int) *StatsCollector {
 	stats := make([]*Stats, dim)
@@ -145,6 +150,11 @@ func (sc *StatsCollector) Size() int {
 type Bucket struct {
 	stats *StatsCollector
 	index int64
+}
+
+func (b Bucket) String() string {
+	return fmt.Sprintf("index = %+v , stats = %+v",
+		b.index, b.stats)
 }
 
 // NewBucket creates a new bucket
@@ -187,6 +197,11 @@ type Window struct {
 	size      int64
 	lastIndex int64
 	bucket    Bucket
+}
+
+func (w Window) String() string {
+	return fmt.Sprintf("size = %+v , lastIndex = %+v , bucket = %+v",
+		w.size, w.lastIndex, w.bucket)
 }
 
 // NewWindow creates a new Window of the given Window size e.g. the Index range for each bucket.

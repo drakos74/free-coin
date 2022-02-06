@@ -51,6 +51,6 @@ func (v VoidRegistry) GetFor(key K, value interface{}, filter func(s string) boo
 	return nil
 }
 
-func (v VoidRegistry) Check(key K) ([]string, error) {
+func (v VoidRegistry) Check(key K) (map[string]RegistryPath, error) {
 	panic("implement me")
 }

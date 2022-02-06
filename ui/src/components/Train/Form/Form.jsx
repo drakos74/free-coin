@@ -286,9 +286,9 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setGap(event.target.value)
                         }}
-                        step={0.005}
+                        step={0.01}
                         min={0}
-                        max={0.1}
+                        max={1}
                     />
                 </div>
             </div>
@@ -338,7 +338,7 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setTakeProfit(event.target.value)
                         }}
-                        step={0.01}
+                        step={0.05}
                         min={0}
                         max={1}
                     />
@@ -354,7 +354,7 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setStopLoss(event.target.value)
                         }}
-                        step={0.01}
+                        step={0.05}
                         min={0}
                         max={1}
                     />

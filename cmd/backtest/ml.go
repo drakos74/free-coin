@@ -292,6 +292,7 @@ func train() server.Handler {
 
 			signals := make(map[string][]*ml.Signal, 0)
 			for _, m := range u.Messages {
+				fmt.Printf("m = %+v\n", m)
 				signal := new(ml.Signal)
 				err := json.Unmarshal([]byte(m.Text), signal)
 				if err != nil {
@@ -347,6 +348,41 @@ func train() server.Handler {
 
 		report := exchange.Gather(true)
 		response.Report = report
+
+		orders := exchange.Orders()
+		for _, order := range orders {
+			fmt.Printf("time = %+v , price = %+v , type = %+v\nreason = %+v\n", order.Time.Format(time.Stamp), order.Price, order.Type, order.Reason)
+			key := model.Key{
+				Coin:  requestCoin,
+				Index: -1,
+			}
+
+			if _, ok := response.Trigger[key.ToString()]; !ok {
+				response.Trigger[key.ToString()] = Trigger{
+					Buy:  make([]Point, 0),
+					Sell: make([]Point, 0),
+				}
+			}
+
+			var buy = response.Trigger[key.ToString()].Buy
+			var sell = response.Trigger[key.ToString()].Sell
+
+			point := Point{
+				X: order.Time,
+				Y: order.Price,
+			}
+
+			switch order.Type {
+			case model.Buy:
+				buy = append(buy, point)
+			case model.Sell:
+				sell = append(sell, point)
+			}
+			response.Trigger[key.ToString()] = Trigger{
+				Buy:  buy,
+				Sell: sell,
+			}
+		}
 
 		bb, err := json.Marshal(response)
 		if err != nil {

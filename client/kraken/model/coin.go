@@ -7,6 +7,9 @@ import (
 )
 
 const (
+	XBTCZEUR = "XBTEUR"
+	XETHZEUR = "ETHEUR"
+
 	XLINKZEUR  = "LINKEUR"
 	XWAVESZEUR = "WAVESEUR"
 	XDOTZEUR   = "DOTEUR"
@@ -35,8 +38,8 @@ const (
 // Coin creates a new coin converter for kraken.
 func Coin() CoinConverter {
 	return CoinConverter{coins: map[model.Coin]string{
-		model.BTC:   krakenapi.XXBTZEUR,
-		model.ETH:   krakenapi.XETHZEUR,
+		model.BTC:   XBTCZEUR,
+		model.ETH:   XETHZEUR,
 		model.EOS:   krakenapi.EOSEUR,
 		model.ADA:   krakenapi.ADAEUR,
 		model.LINK:  XLINKZEUR,

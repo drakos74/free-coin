@@ -70,6 +70,7 @@ type TrackedOrder struct {
 	Time   time.Time `json:"time"`
 	TxIDs  []string  `json:"txIds"`
 	Audit  Audit     `json:"audit"`
+	Reason string    `json:"reason"`
 }
 
 func (to TrackedOrder) IsClosing() bool {
@@ -88,11 +89,12 @@ func (to TrackedOrder) Value() float64 {
 }
 
 // NewTrackedOrder creates a new tracked order.
-func NewTrackedOrder(key Key, time time.Time, order Order) *TrackedOrder {
+func NewTrackedOrder(key Key, time time.Time, reason string, order Order) *TrackedOrder {
 	return &TrackedOrder{
-		Order: order,
-		Key:   key,
-		Time:  time,
+		Order:  order,
+		Key:    key,
+		Time:   time,
+		Reason: reason,
 	}
 }
 
@@ -212,9 +214,9 @@ func (o *Order) Create() Order {
 }
 
 // CreateTracked creates the tracked order from the order builder.
-func (o *Order) CreateTracked(key Key, time time.Time) *TrackedOrder {
+func (o *Order) CreateTracked(key Key, time time.Time, reason string) *TrackedOrder {
 	order := o.Create()
-	return NewTrackedOrder(key, time, order)
+	return NewTrackedOrder(key, time, reason, order)
 }
 
 func (o *Order) mustBeEmpty(t int) {

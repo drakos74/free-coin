@@ -61,8 +61,14 @@ type Registry interface {
 	Add(key K, value interface{}) error
 	GetAll(key K, value interface{}) error
 	GetFor(key K, value interface{}, filter func(s string) bool) error
-	Check(key K) ([]string, error)
+	Check(key K) (map[string]RegistryPath, error)
 	Root() string
+}
+
+// RegistryPath defines a registry path with including files
+type RegistryPath struct {
+	Name  string
+	Files []string
 }
 
 // Persistence is a batch storage that offers the functionality to store and load large objects at once.

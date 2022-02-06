@@ -22,6 +22,11 @@ type Ring struct {
 	t      reflect.Type
 }
 
+func (r Ring) String() string {
+	return fmt.Sprintf("index = %+v, countr = %+v, values = %+v , type = %+v",
+		r.index, r.count, r.values, r.t)
+}
+
 // Size returns the number of non-nil elements within the ring.
 func (r *Ring) Size() int {
 	if r.count == r.index {

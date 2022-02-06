@@ -111,23 +111,31 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
-			lastProfit := et.profit[k]
-			if profit > 0 {
-				if profit > et.settings.TakeProfit && profit < lastProfit {
+			//lastProfit := et.profit[k]
+			if position.Trend.Type != model.NoType {
+				if position.Trend.Type != position.Type &&
+					((position.Type == model.Buy && math.Abs(position.PnL) > et.settings.StopLoss) ||
+						(position.Type == model.Sell && math.Abs(position.PnL) > et.settings.TakeProfit)) {
 					positions[k] = position
 					delete(et.profit, k)
-				} else {
-					et.profit[k] = profit
-				}
-			} else {
-				// We dont want trailing back for loss
-				if profit < -1*et.settings.StopLoss {
-					positions[k] = position
-					delete(et.profit, k)
-				} else {
-					et.profit[k] = profit
 				}
 			}
+			//else if position.PnL > 0 {
+			//	if profit > et.settings.TakeProfit {
+			//		positions[k] = position
+			//		delete(et.profit, k)
+			//	} else {
+			//		et.profit[k] = profit
+			//	}
+			//} else {
+			//	// We dont want trailing back for loss
+			//	if profit < -1*et.settings.StopLoss {
+			//		positions[k] = position
+			//		delete(et.profit, k)
+			//	} else {
+			//		et.profit[k] = profit
+			//	}
+			//}
 			allProfit += profit
 		}
 	}
@@ -153,10 +161,6 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		Price: price,
 		Key:   key,
 	}
-	position = position.Update(&model.Trade{
-		Price: price,
-		Time:  time,
-	})
 	if ok {
 		// if we had a position already ...
 		// TODO :review this ...
@@ -254,7 +258,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			Coin:     key.Coin,
 			Duration: key.Duration,
 			Strategy: key.ToString(),
-		}, time)
+		}, time, fmt.Sprintf("%+v", action))
 	order.RefID = close
 	order.Price = price
 	order, _, err := et.exchange.OpenOrder(order)

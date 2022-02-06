@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/drakos74/free-coin/client"
 
@@ -20,17 +19,16 @@ const fee = 0.24 / 100
 // Exchange is a local exchange implementation that just tracks positions virtually
 // It is used for back-testing
 type Exchange struct {
-	oneOfEvery      int
-	trades          map[model.Coin]model.Trade
-	positions       map[string]model.TrackedPosition
-	allTrades       map[model.Coin][]model.Trade
-	closedPositions map[model.Coin][]model.TrackedPosition
-	count           map[model.Coin]int
-	mutex           *sync.Mutex
-	logger          *log.Logger
-	processed       chan<- api.Signal
-	wallet          map[model.Coin]wallet
-	fees            float64
+	oneOfEvery int
+	trades     map[model.Coin]model.Trade
+	orders     []model.TrackedOrder
+	allTrades  map[model.Coin][]model.Trade
+	count      map[model.Coin]int
+	mutex      *sync.Mutex
+	logger     *log.Logger
+	processed  chan<- api.Signal
+	wallet     map[model.Coin]wallet
+	fees       float64
 }
 
 type wallet struct {
@@ -67,14 +65,13 @@ func NewExchange(logFile string) *Exchange {
 		logger = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	}
 	return &Exchange{
-		trades:          make(map[model.Coin]model.Trade),
-		positions:       make(map[string]model.TrackedPosition),
-		allTrades:       make(map[model.Coin][]model.Trade),
-		closedPositions: make(map[model.Coin][]model.TrackedPosition),
-		count:           make(map[model.Coin]int),
-		mutex:           new(sync.Mutex),
-		wallet:          make(map[model.Coin]wallet),
-		logger:          logger,
+		trades:    make(map[model.Coin]model.Trade),
+		orders:    make([]model.TrackedOrder, 0),
+		allTrades: make(map[model.Coin][]model.Trade),
+		count:     make(map[model.Coin]int),
+		mutex:     new(sync.Mutex),
+		wallet:    make(map[model.Coin]wallet),
+		logger:    logger,
 	}
 }
 
@@ -95,17 +92,7 @@ func (e *Exchange) CurrentPrice(ctx context.Context) (map[model.Coin]model.Curre
 }
 
 func (e *Exchange) OpenPositions(ctx context.Context) (*model.PositionBatch, error) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	positions := make([]model.Position, len(e.positions))
-	i := 0
-	for _, pos := range e.positions {
-		positions[i] = pos.Position
-		i++
-	}
-	return &model.PositionBatch{
-		Positions: positions,
-	}, nil
+	return &model.PositionBatch{}, nil
 }
 
 func (e *Exchange) log(msg string) {
@@ -128,17 +115,8 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 	//	order.Time = trade.Time
 	//}
 	// TODO : use the tracking config
-	position := model.OpenPosition(order, nil)
-	position.OpenTime = order.Time
-	trackedPosition := model.TrackedPosition{
-		Open:     order.Time,
-		Position: position,
-	}
-	if _, ok := e.positions[position.ID]; ok {
-		zlog.Error().Str("id", position.ID).Msg("duplicate position found")
-	}
-	e.positions[position.ID] = trackedPosition
-	e.log(fmt.Sprintf("open position = %+v", position))
+	e.orders = append(e.orders, *order)
+	e.log(fmt.Sprintf("submit order = %+v", order))
 	value := order.Price * order.Volume
 
 	if _, ok := e.wallet[order.Coin]; !ok {
@@ -158,33 +136,6 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 	}
 	e.wallet[order.Coin] = w
 	return order, []string{order.ID}, nil
-}
-
-func (e *Exchange) ClosePosition(position *model.Position) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	fmt.Printf("e = %+v\n", e)
-	var price float64
-	var time time.Time
-	if trade, ok := e.trades[position.Coin]; ok {
-		price = trade.Price
-		time = trade.Time
-	}
-	position.CurrentPrice = price
-	if pos, ok := e.positions[position.ID]; ok {
-		pos.Close = time
-		pos.Position.CurrentPrice = price
-		e.positions[position.ID] = pos
-	} else {
-		return fmt.Errorf("position not found: %s", position.ID)
-	}
-	if _, ok := e.closedPositions[position.Coin]; !ok {
-		e.closedPositions[position.Coin] = make([]model.TrackedPosition, 0)
-	}
-	e.closedPositions[position.Coin] = append(e.closedPositions[position.Coin], e.positions[position.ID])
-	delete(e.positions, position.ID)
-	e.log(fmt.Sprintf("close position %+v", e.positions[position.ID]))
-	return nil
 }
 
 func (e *Exchange) Process(trade *model.Trade) {
@@ -213,7 +164,7 @@ func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
 		for c, cc := range e.count {
 			zlog.Info().Str("coin", string(c)).Int("count", cc).Msg("trades")
 			zlog.Info().Str("coin", string(c)).Int("count", len(e.allTrades[c])).Msg("all trades")
-			zlog.Info().Str("coin", string(c)).Int("count", len(e.closedPositions[c])).Msg("closed positions")
+			zlog.Info().Str("coin", string(c)).Int("count", len(e.orders)).Msg("all orders")
 			zlog.Info().Str("coin", string(c)).Float64("value", e.wallet[c].value).Msg("value")
 			zlog.Info().Str("coin", string(c)).Float64("volume", e.wallet[c].volume).Msg("volume")
 			zlog.Info().Str("coin", string(c)).Float64("price", e.trades[c].Price).Msg("price")
@@ -222,29 +173,29 @@ func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
 	}
 
 	ww := make(map[model.Coin]client.Report)
-	for _, p := range e.positions {
-		if _, ok := ww[p.Coin]; !ok {
-			ww[p.Coin] = client.Report{}
+	for _, o := range e.orders {
+		if _, ok := ww[o.Coin]; !ok {
+			ww[o.Coin] = client.Report{}
 		}
-		r := ww[p.Coin]
-		switch p.Type {
+		r := ww[o.Coin]
+		switch o.Type {
 		case model.Buy:
-			r.Wallet -= p.OpenPrice * p.Volume
+			r.Wallet -= o.Price * o.Volume
 			r.Buy++
-			r.BuyAvg += p.OpenPrice
-			r.BuyVolume += p.Volume
+			r.BuyAvg += o.Price
+			r.BuyVolume += o.Volume
 		case model.Sell:
-			r.Wallet += p.OpenPrice * p.Volume
+			r.Wallet += o.Price * o.Volume
 			r.Sell++
-			r.SellAvg += p.OpenPrice
-			r.SellVolume += p.Volume
+			r.SellAvg += o.Price
+			r.SellVolume += o.Volume
 		}
-		r.Fees += p.OpenPrice * p.Volume * 0.24 / 100
+		r.Fees += o.Price * o.Volume * model.Fees / 100
 		// get the last price for this coin
-		if tr, ok := e.trades[p.Coin]; ok {
+		if tr, ok := e.trades[o.Coin]; ok {
 			r.LastPrice = tr.Price
 		}
-		ww[p.Coin] = r
+		ww[o.Coin] = r
 	}
 
 	// do another pass
@@ -275,12 +226,8 @@ func (e *Exchange) Trades(coin model.Coin) []model.Trade {
 	return e.allTrades[coin]
 }
 
-func (e *Exchange) Orders() (positions map[string]model.TrackedPosition) {
-	return e.positions
-}
-
-func (e *Exchange) Positions(coin model.Coin) (positions []model.TrackedPosition) {
-	return e.closedPositions[coin]
+func (e *Exchange) Orders() (orders []model.TrackedOrder) {
+	return e.orders
 }
 
 func (e *Exchange) Balance(ctx context.Context, priceMap map[model.Coin]model.CurrentPrice) (map[model.Coin]model.Balance, error) {

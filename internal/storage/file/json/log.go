@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/internal/storage"
 )
 
@@ -222,15 +224,32 @@ func (e *Registry) GetAll(key storage.K, values interface{}) error {
 	return nil
 }
 
-func (e *Registry) Check(key storage.K) ([]string, error) {
+func (e *Registry) Check(key storage.K) (map[string]storage.RegistryPath, error) {
 	filePath := e.logger.filePath(key)
 
-	paths := make([]string, 0)
+	paths := make(map[string]storage.RegistryPath)
+	parent := ""
 	err := filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			// just load it anyway
 			n := info.Name()
-			paths = append(paths, n)
+			parent = n
+			if _, ok := paths[n]; !ok {
+				paths[n] = storage.RegistryPath{
+					Name:  n,
+					Files: make([]string, 0),
+				}
+			}
+		} else {
+			if _, ok := paths[parent]; ok {
+				files := append(paths[parent].Files, path)
+				paths[parent] = storage.RegistryPath{
+					Name:  parent,
+					Files: files,
+				}
+			} else {
+				log.Warn().Str("parent", parent).Msg("no parent path present")
+			}
 		}
 		return nil
 	})

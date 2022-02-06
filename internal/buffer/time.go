@@ -59,6 +59,10 @@ type TimeWindow struct {
 	window   *Window `json:"-"`
 }
 
+func (tw TimeWindow) String() string {
+	return fmt.Sprintf("index = %+v , duration = %+v , window = %+v", tw.Index, tw.Duration, tw.window)
+}
+
 // NewTimeWindow creates a new TimeWindow with the given Duration.
 func NewTimeWindow(duration time.Duration) TimeWindow {
 	d := int64(duration.Seconds())
@@ -99,6 +103,10 @@ func (tw *TimeWindow) Next(iterations int64) time.Time {
 type HistoryWindow struct {
 	Window  TimeWindow `json:"Window"`
 	buckets *Ring      `json:"-"`
+}
+
+func (h HistoryWindow) String() string {
+	return fmt.Sprintf("window = %+v\nbuckets = %+v", h.Window, h.buckets)
 }
 
 // NewHistoryWindow creates a new history Window.
@@ -202,6 +210,25 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 			degree)
 	}
 	return math.Fit(xx, yy, degree)
+}
+
+// Values returns the values of the time window in a slice
+func (h HistoryWindow) Values(index int, extract func(b TimeWindowView) float64) ([]float64, error) {
+	_, yy, err := h.Extract(index, extract)
+	if err != nil {
+		return nil, fmt.Errorf("could not extarct series: %w", err)
+	}
+	return yy, nil
+}
+
+// Rat returns the avg value
+func Rat(b TimeWindowView) float64 {
+	return b.Ratio
+}
+
+// Avg returns the avg value
+func Avg(b TimeWindowView) float64 {
+	return b.Value
 }
 
 // StatsWindow is a predefined TimeBucketTransform function that will gather the stats for the given dimensions.

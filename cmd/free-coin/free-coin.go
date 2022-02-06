@@ -88,19 +88,19 @@ func configML() ml.Config {
 	cfg := map[model.Key]ml.Segments{
 		model.Key{
 			Coin:     model.BTC,
-			Duration: 30 * time.Minute,
+			Duration: 15 * time.Minute,
 			Strategy: "btc",
 		}: {
 			Stats: ml.Stats{
 				LookBack:  5,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -110,19 +110,19 @@ func configML() ml.Config {
 		},
 		model.Key{
 			Coin:     model.DOT,
-			Duration: 30 * time.Minute,
+			Duration: 15 * time.Minute,
 			Strategy: "dot",
 		}: {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -138,13 +138,13 @@ func configML() ml.Config {
 			Stats: ml.Stats{
 				LookBack:  6,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -160,13 +160,13 @@ func configML() ml.Config {
 			Stats: ml.Stats{
 				LookBack:  5,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -176,19 +176,19 @@ func configML() ml.Config {
 		},
 		model.Key{
 			Coin:     model.SOL,
-			Duration: 30 * time.Minute,
+			Duration: 15 * time.Minute,
 			Strategy: "sol",
 		}: {
 			Stats: ml.Stats{
 				LookBack:  5,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -204,13 +204,13 @@ func configML() ml.Config {
 			Stats: ml.Stats{
 				LookBack:  6,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -226,13 +226,13 @@ func configML() ml.Config {
 			Stats: ml.Stats{
 				LookBack:  6,
 				LookAhead: 1,
-				Gap:       0.05,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         8,
 				PrecisionThreshold: 0.5,
 				ModelSize:          10,
-				Features:           3,
+				Features:           4,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,

@@ -92,6 +92,8 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 		inp, err := fit(xx, yy, 0, 1, 2)
 		prev := tracker.buffer.Last()
 		ratio := b.Values().Stats()[0].Ratio()
+		count := b.Values().Stats()[0].Count()
+		inp = append(inp, float64(count))
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {
@@ -116,6 +118,8 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 
 func fit(xx, yy []float64, degree ...int) ([]float64, error) {
 	p := make([]float64, len(degree))
+	//fmt.Printf("xx = %+v\n", xx)
+	//fmt.Printf("yy = %+v\n", yy)
 	for i, d := range degree {
 		if len(yy) < d+1 {
 			return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
@@ -130,6 +134,10 @@ func fit(xx, yy []float64, degree ...int) ([]float64, error) {
 		if len(f) <= 0 {
 			return nil, fmt.Errorf("could not fit for degree '%d': %v", d, f)
 		}
+		// round to reasonable number
+		//fmt.Printf("i = %+v\n", i)
+		//fmt.Printf("f = %+v\n", f)
+		//fmt.Printf("f[d] = %+v\n", f[d])
 		p[i] = f[d]
 	}
 	return p, nil

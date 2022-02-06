@@ -2,7 +2,10 @@ package model
 
 import "strings"
 
-const EURO = "€"
+const (
+	Fees = 0.20
+	EURO = "€"
+)
 
 // Coin defines a custom coin type
 type Coin string

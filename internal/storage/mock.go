@@ -59,6 +59,6 @@ func (m *MockRegistry) Root() string {
 	return ""
 }
 
-func (m *MockRegistry) Check(key K) ([]string, error) {
+func (m *MockRegistry) Check(key K) (map[string]RegistryPath, error) {
 	panic("implement me")
 }

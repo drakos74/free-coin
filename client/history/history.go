@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -81,9 +82,9 @@ func (h *History) Ranges(coin model.Coin, from, to time.Time) []Range {
 	}
 
 	ranges := make([]Range, 0)
-	for i := 0; i < len(paths); i++ {
+	for name, path := range paths {
 
-		label := paths[i]
+		label := name
 
 		if len(label) == 0 {
 			continue
@@ -112,8 +113,21 @@ func (h *History) Ranges(coin model.Coin, from, to time.Time) []Range {
 			continue
 		}
 
+		// removing the duplicate files ... while we re at it
+		if len(path.Files) > 1 {
+			for i := 1; i < len(path.Files); i++ {
+				file := path.Files[i]
+				err := os.Remove(file)
+				if err != nil {
+					log.Error().Err(err).Str("parent", name).Int("index", i).Int("duplicates", len(path.Files)).Msg("could not remove duplicate")
+				} else {
+					log.Info().Str("parent", name).Int("index", i).Int("duplicates", len(path.Files)).Msg("removed duplicates")
+				}
+			}
+		}
+
 		ranges = append(ranges, Range{
-			Path: paths[i],
+			Path: label,
 			Hash: hash,
 			From: tt,
 		})

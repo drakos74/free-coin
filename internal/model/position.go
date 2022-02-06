@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -44,6 +45,7 @@ func FullBatch(positions ...Position) *PositionBatch {
 	}
 }
 
+// Data contains position data and relevant keys
 type Data struct {
 	ID      string `json:"id"`
 	TxID    string `json:"txId"`
@@ -51,12 +53,27 @@ type Data struct {
 	CID     string `json:"cid"`
 }
 
+// MetaData contains position related metadata
 type MetaData struct {
 	OpenTime    time.Time `json:"open_time"`
 	CurrentTime time.Time `json:"current_time"`
 	Fees        float64   `json:"fees"`
 	Cost        float64   `json:"cost"`
 	Net         float64   `json:"net"`
+}
+
+// Stats contains position stats, these are calculated by processors on the fly
+type Stats struct {
+	Trend  Trend                     `json:"-"`
+	Profit map[time.Duration]*Profit `json:"profit"`
+	PnL    float64                   `json:"pnl"`
+}
+
+// Trend defines the position profit trend
+type Trend struct {
+	LastValue    float64
+	CurrentValue float64
+	Type         Type
 }
 
 // TrackingConfig defines the configuration for tracking position profit
@@ -94,14 +111,15 @@ func NewProfit(config *TrackingConfig) *Profit {
 type Position struct {
 	Data
 	MetaData
-	Coin         Coin                      `json:"coin"`
-	Type         Type                      `json:"type"`
-	OpenPrice    float64                   `json:"open_price"`
-	CurrentPrice float64                   `json:"current_price"`
-	Volume       float64                   `json:"volume"`
-	Profit       map[time.Duration]*Profit `json:"profit"`
-	PnL          float64                   `json:"pnl"`
+	Stats
+	Coin         Coin    `json:"coin"`
+	Type         Type    `json:"type"`
+	OpenPrice    float64 `json:"open_price"`
+	CurrentPrice float64 `json:"current_price"`
+	Volume       float64 `json:"volume"`
 }
+
+const timeDuration = time.Minute
 
 // Update updates the current status of the position and the profit or loss percentage.
 func (p *Position) Update(trade *Trade) Position {
@@ -128,19 +146,46 @@ func (p *Position) Update(trade *Trade) Position {
 
 	p.PnL = profit
 
+	if p.Profit == nil || len(p.Profit) == 0 {
+		p.Profit = map[time.Duration]*Profit{
+			timeDuration: NewProfit(&TrackingConfig{
+				Duration: timeDuration,
+				Samples:  5,
+			}),
+		}
+	}
+
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats
 		aa := make(map[time.Duration][]float64)
+		vv := make(map[time.Duration][]float64)
 		for k, _ := range p.Profit {
 			if _, ok := p.Profit[k].Window.Push(trade.Time, profit); ok {
-				a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
-					return b.Value
-				}, 2)
+				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
 				} else {
 					aa[k] = a
 				}
+				v, err := p.Profit[k].Window.Values(0, buffer.Avg)
+				if err != nil {
+					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not extract values")
+				} else {
+					vv[k] = v
+				}
+			}
+		}
+		if a, ok := aa[timeDuration]; ok {
+			if len(a) > 2 {
+				p.Trend.CurrentValue = a[2]
+				p.Trend.Type = NoType
+				if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
+					//  we have a switch of direction
+					if math.Abs(p.Trend.CurrentValue) > 0.0001 {
+						p.Trend.Type = SignedType(p.Trend.CurrentValue)
+					}
+				}
+				p.Trend.LastValue = a[2]
 			}
 		}
 	}
@@ -208,10 +253,12 @@ func OpenPosition(order *TrackedOrder, trackingConfig []*TrackingConfig) Positio
 		MetaData: MetaData{
 			OpenTime: order.Time,
 		},
+		Stats: Stats{
+			Profit: profit,
+		},
 		Coin:      order.Coin,
 		Type:      order.Type,
 		Volume:    order.Volume,
 		OpenPrice: order.Price,
-		Profit:    profit,
 	}
 }

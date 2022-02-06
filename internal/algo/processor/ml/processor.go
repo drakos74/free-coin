@@ -62,6 +62,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 			signals := make(map[time.Duration]Signal)
+			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
@@ -192,10 +193,9 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				if first {
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
-
-				if trade.Live {
+				if trade.Live || config.Debug {
 					pp, profit := wallet.Update(trade)
-					if len(pp) > 0 {
+					if !orderSubmitted && len(pp) > 0 {
 						for k, p := range pp {
 							_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
 							if err != nil || !ok {
