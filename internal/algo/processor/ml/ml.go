@@ -80,7 +80,7 @@ func (c *collector) push(trade *model.Trade) (states map[time.Duration]vector, h
 }
 
 func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *model.Trade, key model.Key) (vector, bool) {
-	if b, ok := window.Push(trade.Time, trade.Price); ok {
+	if b, ok := window.Push(trade.Time, trade.Price, trade.Volume); ok {
 		metrics.Observer.IncrementEvents(string(trade.Coin), key.Hash(), "window", Name)
 		xx, yy, err := window.Extract(0, func(b buffer.TimeWindowView) float64 {
 			return 100 * b.Ratio
@@ -93,7 +93,8 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 		prev := tracker.buffer.Last()
 		ratio := b.Values().Stats()[0].Ratio()
 		count := b.Values().Stats()[0].Count()
-		inp = append(inp, float64(count))
+		value := b.Values().Stats()[0].Avg() * b.Values().Stats()[1].Avg()
+		inp = append(inp, float64(count), value)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {
