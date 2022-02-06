@@ -65,7 +65,7 @@ type MetaData struct {
 // Stats contains position stats, these are calculated by processors on the fly
 type Stats struct {
 	Trend  Trend                     `json:"-"`
-	Profit map[time.Duration]*Profit `json:"profit"`
+	Profit map[time.Duration]*Profit `json:"-"`
 	PnL    float64                   `json:"pnl"`
 }
 
@@ -160,8 +160,6 @@ func (p *Position) Update(trade *Trade) Position {
 		aa := make(map[time.Duration][]float64)
 		vv := make(map[time.Duration][]float64)
 		for k, _ := range p.Profit {
-			fmt.Printf("p.Coin = %+v\n", p.Coin)
-			fmt.Printf("p.Profit[k] = %+v\n", p.Profit[k].Config)
 			if _, ok := p.Profit[k].Window.Push(trade.Time, profit); ok {
 				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
