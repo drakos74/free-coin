@@ -254,7 +254,7 @@ func OpenPosition(order *TrackedOrder, trackingConfig []*TrackingConfig) Positio
 			OpenTime: order.Time,
 		},
 		Stats: Stats{
-			Profit: profit,
+			Profit: nil,
 		},
 		Coin:      order.Coin,
 		Type:      order.Type,
