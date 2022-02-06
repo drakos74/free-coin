@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -167,7 +168,11 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 				}
 				audit.end = tt
 				return true
-			}).Trades(process)
+			}).
+			WithThreshold(func(t time.Time) bool {
+				return math.Abs(time.Now().Sub(t).Minutes()) < 240
+			}).
+			Trades(process)
 		audit.startGap = audit.start.Sub(h.readonly.From)
 		audit.endGap = audit.end.Sub(h.readonly.To)
 		fmt.Printf("report = %+v\n", audit)

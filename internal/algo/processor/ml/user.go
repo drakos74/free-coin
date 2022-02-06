@@ -79,6 +79,28 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			bb := strategy.enable(key.Coin, true)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "reset":
+			pp, err := trader.UpstreamPositions(context.Background())
+			if err != nil {
+				txtBuffer.WriteString(fmt.Sprintf("err=<%s>\n", err.Error()))
+			} else {
+				kk, positions := trader.CurrentPositions(key.Coin)
+				for _, k := range kk {
+					position := positions[k]
+					for _, p := range pp {
+						if k.Match(p.Coin) {
+							if position.Type == p.Type {
+								// the least we can check here ...
+								_, ok, _, err := trader.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume)
+								if err != nil || !ok {
+									txtBuffer.WriteString(fmt.Sprintf("%v|err=<%s>\n", ok, err.Error()))
+								} else {
+									break
+								}
+							}
+						}
+					}
+				}
+			}
 			i, err := trader.Reset(key.Coin)
 			txtBuffer.WriteString(fmt.Sprintf("%d:%+v", i, err))
 		case "pos":

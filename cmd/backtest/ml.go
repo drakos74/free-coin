@@ -470,7 +470,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 	return ml.Config{
 		Segments: cfg,
 		Position: ml.Position{
-			OpenValue:  500,
+			OpenValue:  1000,
 			StopLoss:   tp,
 			TakeProfit: sl,
 		},

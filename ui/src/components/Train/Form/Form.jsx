@@ -204,7 +204,7 @@ const Form = ({change, error}) => {
                         }}
                         step={1}
                         min={3}
-                        max={100}
+                        max={1000}
                     />
                 </div>
             </div>
@@ -338,7 +338,7 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setTakeProfit(event.target.value)
                         }}
-                        step={0.05}
+                        step={0.01}
                         min={0}
                         max={1}
                     />
@@ -354,7 +354,7 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setStopLoss(event.target.value)
                         }}
-                        step={0.05}
+                        step={0.01}
                         min={0}
                         max={1}
                     />

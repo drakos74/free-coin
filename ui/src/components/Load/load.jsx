@@ -4,7 +4,7 @@ import Info from "./Info/Info";
 import Bar from "./Bar/Bar";
 import Client from "../../api/client"
 import RefreshIcon from '@mui/icons-material/Refresh';
-import {Button} from "@mui/material";
+import {Button, Collapse, LinearProgress} from "@mui/material";
 
 
 const Load = () => {
@@ -12,6 +12,8 @@ const Load = () => {
     const [formData, setFormData] = useState({})
 
     const [lock, setLock] = useState(true)
+
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         refresh()
@@ -27,6 +29,8 @@ const Load = () => {
 
         console.log(formData)
 
+        setLoading(true)
+
         Client("history").call(params, (data) => {
             let points = data.map((p, _) => {
                 return {
@@ -38,6 +42,7 @@ const Load = () => {
                 coin: formData.coin,
                 time: points,
             })
+            setLoading(false)
         })
     }
 
@@ -66,6 +71,9 @@ const Load = () => {
 
     return (
         <div className='container'>
+            <Collapse in={loading}>
+                <LinearProgress/>
+            </Collapse>
             <div className='row'>
                 <div className='col m12 s12'>
                     <Button onClick={refresh}>

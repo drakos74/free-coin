@@ -92,9 +92,9 @@ func configML() ml.Config {
 			Strategy: "btc",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  5,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -116,7 +116,7 @@ func configML() ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -136,9 +136,9 @@ func configML() ml.Config {
 			Strategy: "eth",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  6,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -158,9 +158,9 @@ func configML() ml.Config {
 			Strategy: "link",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  5,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
@@ -180,9 +180,9 @@ func configML() ml.Config {
 			Strategy: "sol",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  5,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
@@ -202,9 +202,9 @@ func configML() ml.Config {
 			Strategy: "flow",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  6,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -224,9 +224,9 @@ func configML() ml.Config {
 			Strategy: "matic",
 		}: {
 			Stats: ml.Stats{
-				LookBack:  6,
+				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.11,
 			},
 			Model: ml.Model{
 				BufferSize:         8,
