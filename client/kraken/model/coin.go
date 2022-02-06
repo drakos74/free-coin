@@ -38,8 +38,8 @@ const (
 // Coin creates a new coin converter for kraken.
 func Coin() CoinConverter {
 	return CoinConverter{coins: map[model.Coin]string{
-		model.BTC:   XBTCZEUR,
-		model.ETH:   XETHZEUR,
+		model.BTC:   krakenapi.XXBTZEUR,
+		model.ETH:   krakenapi.XETHZEUR,
 		model.EOS:   krakenapi.EOSEUR,
 		model.ADA:   krakenapi.ADAEUR,
 		model.LINK:  XLINKZEUR,

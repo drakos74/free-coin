@@ -67,6 +67,7 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 
 	pair := r.converter.Coin.Pair(order.Coin)
 
+	// TODO : probably need another mapping here
 	s, ok := r.info[coinmodel.Coin(pair)]
 	if !ok {
 		log.Warn().Str("pair", pair).Str("coin", string(order.Coin)).Msg("could not find exchange info")
@@ -87,6 +88,10 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 	oPair := r.converter.Coin.Pair(order.Coin)
 	direction := r.converter.Type.From(order.Type)
 	oType := r.converter.OrderType.From(order.OType)
+	if s.PairDecimals == 0 {
+		log.Error().Str("coin", string(order.Coin)).Str("pair", pair).Msg("canno find pair decimals")
+		s.PairDecimals = 4
+	}
 	vol := strconv.FormatFloat(order.Volume, 'f', s.PairDecimals, 64)
 	response, err := r.private.AddOrder(
 		oPair,
