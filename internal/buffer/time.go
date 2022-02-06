@@ -66,6 +66,7 @@ func (tw TimeWindow) String() string {
 // NewTimeWindow creates a new TimeWindow with the given Duration.
 func NewTimeWindow(duration time.Duration) TimeWindow {
 	d := int64(duration.Seconds())
+	fmt.Printf("d = %+v\n", d)
 	return TimeWindow{
 		Duration: d,
 		window:   NewWindow(1),
