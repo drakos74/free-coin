@@ -236,7 +236,7 @@ func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Du
 // OpenPosition creates a position from a given order.
 func OpenPosition(order *TrackedOrder, trackingConfig []*TrackingConfig) Position {
 	profit := make(map[time.Duration]*Profit)
-	if trackingConfig == nil && len(trackingConfig) > 0 {
+	if trackingConfig != nil && len(trackingConfig) > 0 {
 		// if we are given a tracking config , apply the history to the order
 		for _, cfg := range trackingConfig {
 			if _, ok := profit[cfg.Duration]; ok {
