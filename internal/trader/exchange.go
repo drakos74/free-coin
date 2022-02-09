@@ -113,9 +113,14 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			profit := position.PnL
 			//lastProfit := et.profit[k]
 			if position.Trend.Type != model.NoType {
-				if position.Trend.Type != position.Type &&
-					((position.Type == model.Buy && math.Abs(position.PnL) > et.settings.StopLoss) ||
-						(position.Type == model.Sell && math.Abs(position.PnL) > et.settings.TakeProfit)) {
+				if position.Trend.Type != position.Type {
+					positions[k] = position
+					delete(et.profit, k)
+				}
+			} else if position.Trend.Shift != model.NoType {
+				if position.Trend.Shift != position.Type &&
+					((position.PnL < -1*et.settings.StopLoss) ||
+						(position.PnL > et.settings.TakeProfit)) {
 					positions[k] = position
 					delete(et.profit, k)
 				}

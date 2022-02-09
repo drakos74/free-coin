@@ -74,6 +74,7 @@ type Trend struct {
 	LastValue    float64
 	CurrentValue float64
 	Type         Type
+	Shift        Type
 }
 
 // TrackingConfig defines the configuration for tracking position profit
@@ -179,9 +180,11 @@ func (p *Position) Update(trade *Trade) Position {
 			if len(a) > 2 {
 				p.Trend.CurrentValue = a[2]
 				p.Trend.Type = NoType
-				if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
-					//  we have a switch of direction
-					if math.Abs(p.Trend.CurrentValue) > 0.0001 {
+				p.Trend.Shift = NoType
+				if math.Abs(p.Trend.CurrentValue) > 0.0001 {
+					p.Trend.Shift = SignedType(p.Trend.CurrentValue)
+					if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
+						//  we have a switch of direction
 						p.Trend.Type = SignedType(p.Trend.CurrentValue)
 					}
 				}
@@ -189,7 +192,6 @@ func (p *Position) Update(trade *Trade) Position {
 			}
 		}
 	}
-
 	return *p
 }
 
