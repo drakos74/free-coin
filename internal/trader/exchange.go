@@ -111,36 +111,27 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
-			//lastProfit := et.profit[k]
-			if position.Trend.Type != model.NoType {
-				if position.Trend.Type != position.Type {
-					positions[k] = position
-					delete(et.profit, k)
-				}
-			} else if position.Trend.Shift != model.NoType {
-				if position.Trend.Shift != position.Type &&
-					((position.PnL < -1*et.settings.StopLoss) ||
-						(position.PnL > et.settings.TakeProfit)) {
+			stopLossActivated := position.PnL < -1*et.settings.StopLoss
+			takeProfitActivated := position.PnL > et.settings.TakeProfit
+			shift := position.Trend.Shift != model.NoType
+			validShift := position.Trend.Shift != model.NoType
+			trend := position.Trend.Type != model.NoType
+			validTrend := position.Trend.Type != position.Type
+			if stopLossActivated {
+				// if we pass the stop-loss threshold
+				positions[k] = position
+				delete(et.profit, k)
+			} else if shift && validShift {
+				// if there is a shift in the opposite direction of the position
+				positions[k] = position
+				delete(et.profit, k)
+			} else if trend && validTrend {
+				// if there is a trend in the opposite direction
+				if stopLossActivated || takeProfitActivated {
 					positions[k] = position
 					delete(et.profit, k)
 				}
 			}
-			//else if position.PnL > 0 {
-			//	if profit > et.settings.TakeProfit {
-			//		positions[k] = position
-			//		delete(et.profit, k)
-			//	} else {
-			//		et.profit[k] = profit
-			//	}
-			//} else {
-			//	// We dont want trailing back for loss
-			//	if profit < -1*et.settings.StopLoss {
-			//		positions[k] = position
-			//		delete(et.profit, k)
-			//	} else {
-			//		et.profit[k] = profit
-			//	}
-			//}
 			allProfit += profit
 		}
 	}

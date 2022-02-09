@@ -182,10 +182,10 @@ func (p *Position) Update(trade *Trade) Position {
 				p.Trend.Type = NoType
 				p.Trend.Shift = NoType
 				if math.Abs(p.Trend.CurrentValue) > 0.0001 {
-					p.Trend.Shift = SignedType(p.Trend.CurrentValue)
+					p.Trend.Type = SignedType(p.Trend.CurrentValue)
 					if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
 						//  we have a switch of direction
-						p.Trend.Type = SignedType(p.Trend.CurrentValue)
+						p.Trend.Shift = SignedType(p.Trend.CurrentValue)
 					}
 				}
 				p.Trend.LastValue = a[2]
