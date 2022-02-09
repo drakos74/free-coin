@@ -114,7 +114,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			stopLossActivated := position.PnL < -1*et.settings.StopLoss
 			takeProfitActivated := position.PnL > et.settings.TakeProfit
 			shift := position.Trend.Shift != model.NoType
-			validShift := position.Trend.Shift != model.NoType
+			validShift := position.Trend.Shift != position.Type
 			trend := position.Trend.Type != model.NoType
 			validTrend := position.Trend.Type != position.Type
 			if stopLossActivated {
