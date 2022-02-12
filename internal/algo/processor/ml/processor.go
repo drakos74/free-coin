@@ -216,9 +216,9 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					} else if ok && config.Debug {
 						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
 					} else if !ok {
-						log.Error().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
+						log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 					}
-					u.Send(index, api.NewMessage(formatSignal(s, action.Value, action.PnL, err, ok)), nil)
+					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 				}
 			}
 			if live, first := strategy.isLive(trade); live || config.Debug {
@@ -226,7 +226,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
 				if trade.Live || config.Debug {
-
 					pp, profit := wallet.Update(trade)
 					if !orderSubmitted && len(pp) > 0 {
 						for k, p := range pp {
@@ -256,6 +255,14 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			//	fmt.Printf("c = %+v\n", c)
 			//	for _, a := range aa {
 			//		fmt.Printf("a = %+v\n", a)
+			//	}
+			//}
+			//pp := make([][]client.Report, 0)
+			//for c, dd := range benchmarks.assess() {
+			//	fmt.Printf("c = %+v\n", c)
+			//	for d, tt := range dd {
+			//		fmt.Printf("d = %+v\n", d)
+			//		pp = append(pp, tt)
 			//	}
 			//}
 		})
