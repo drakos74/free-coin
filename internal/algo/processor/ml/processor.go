@@ -138,7 +138,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					return nil
 				}
 				if len(signals) > 0 {
-					fmt.Printf("signals = %+v\n", signals)
 					//if !config.Debug {
 					//	u.Send(index, api.NewMessage(formatSignals(signals)), nil)
 					//}
@@ -168,7 +167,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					signal.Key = k
 					// if we get the go-ahead from the strategy act on it
 					if act {
-						fmt.Printf("signal = %+v\n", signal)
 						strategy.signal(k, signal)
 					} else {
 						log.Info().
