@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, trader *trader.ExchangeTrader, config *Config) {
+func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, config *Config) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -41,7 +41,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 
 		switch action {
 		case "":
-			_, positions := trader.CurrentPositions()
+			_, positions := wallet.CurrentPositions()
 			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(positions), len(strategy.report)))
 			for k, report := range strategy.report {
 				if key.Coin == model.NoCoin || k.Match(key.Coin) {
@@ -61,16 +61,16 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				}
 			}
 		case "cfg":
-			settings := trader.Settings()
+			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
 		case "tp":
-			settings := trader.TakeProfit(float64(num) / 100)
+			settings := wallet.TakeProfit(float64(num) / 100)
 			txtBuffer.WriteString(formatSettings(settings))
 		case "sl":
-			settings := trader.StopLoss(float64(num) / 100)
+			settings := wallet.StopLoss(float64(num) / 100)
 			txtBuffer.WriteString(formatSettings(settings))
 		case "ov":
-			settings := trader.OpenValue(float64(num))
+			settings := wallet.OpenValue(float64(num))
 			txtBuffer.WriteString(formatSettings(settings))
 		case "stop":
 			bb := strategy.enable(key.Coin, false)
@@ -79,18 +79,18 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			bb := strategy.enable(key.Coin, true)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "reset":
-			pp, err := trader.UpstreamPositions(context.Background())
+			pp, err := wallet.UpstreamPositions(context.Background())
 			if err != nil {
 				txtBuffer.WriteString(fmt.Sprintf("err=<%s>\n", err.Error()))
 			} else {
-				kk, positions := trader.CurrentPositions(key.Coin)
+				kk, positions := wallet.CurrentPositions(key.Coin)
 				for _, k := range kk {
 					position := positions[k]
 					for _, p := range pp {
 						if k.Match(p.Coin) {
 							if position.Type == p.Type {
 								// the least we can check here ...
-								_, ok, _, err := trader.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume)
+								_, ok, _, err := wallet.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume, trader.ForceResetReason)
 								if err != nil || !ok {
 									txtBuffer.WriteString(fmt.Sprintf("%v|err=<%s>\n", ok, err.Error()))
 								} else {
@@ -101,14 +101,14 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					}
 				}
 			}
-			i, err := trader.Reset(key.Coin)
+			i, err := wallet.Reset(key.Coin)
 			txtBuffer.WriteString(fmt.Sprintf("%d:%+v", i, err))
 		case "pos":
-			pp, err := trader.UpstreamPositions(context.Background())
+			pp, err := wallet.UpstreamPositions(context.Background())
 			if err != nil {
 				txtBuffer.WriteString(fmt.Sprintf("err=<%s>\n", err.Error()))
 			}
-			kk, positions := trader.CurrentPositions(key.Coin)
+			kk, positions := wallet.CurrentPositions(key.Coin)
 			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(pp), len(kk)))
 			coinPositions := make(map[model.Coin][]position)
 			for _, k := range kk {

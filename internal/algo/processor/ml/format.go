@@ -49,25 +49,26 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Event, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s %.2f%s|%.2f%s) | %s\n%v|%v",
+func formatAction(action trader.Event, profit []float64, err error, ok bool) string {
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s%.2f) | %s\n%v|%v",
 		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
 		emoji.MapType(action.Type),
 		action.Price,
 		emoji.MapToSign(action.Value),
-		100*profit,
+		action.Value,
 		"%",
 		100*action.PnL,
 		"%",
+		profit,
 		action.Reason,
 		emoji.MapToAction(ok),
 		err)
 }
 
 func formatSignal(signal Signal, value float64, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s %.2f%s) | %.2f\n%v|%v",
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s %.2f%s) | %s\n%v|%v",
 		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Coin,
 		signal.Duration.Minutes(),
@@ -76,7 +77,7 @@ func formatSignal(signal Signal, value float64, profit float64, err error, ok bo
 		emoji.MapToSign(value),
 		100*profit,
 		"%",
-		signal.Precision,
+		trader.SignalReason,
 		emoji.MapToAction(ok),
 		err)
 }

@@ -85,7 +85,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
-func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Position, float64) {
+func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Position, []float64) {
 	if trade.Meta.Num > 0 {
 		trade = &model.Trade{
 			Coin:   trade.Coin,
@@ -106,13 +106,13 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 
 	positions := make(map[model.Key]model.Position)
 
-	allProfit := 0.0
+	allProfit := make([]float64, 0)
 
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
-			stopLossActivated := position.PnL < -1*et.settings.StopLoss
-			takeProfitActivated := position.PnL > et.settings.TakeProfit
+			stopLossActivated := position.PnL <= -1*et.settings.StopLoss
+			takeProfitActivated := position.PnL >= et.settings.TakeProfit
 			shift := position.Trend.Shift != model.NoType
 			validShift := position.Trend.Shift != position.Type
 			trend := position.Trend.Type != model.NoType
@@ -132,7 +132,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 					delete(et.profit, k)
 				}
 			}
-			allProfit += profit
+			allProfit = append(allProfit, profit)
 		}
 	}
 
@@ -141,7 +141,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 }
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64) (*model.TrackedOrder, bool, Event, error) {
+	openType model.Type, open bool, volume float64, reason Reason) (*model.TrackedOrder, bool, Event, error) {
 
 	if volume == 0 {
 		volume = et.settings.OpenValue / price
@@ -152,10 +152,11 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	t := openType
 	position, ok, positions := et.trader.check(key)
 	action := Event{
-		Time:  time,
-		Type:  openType,
-		Price: price,
-		Key:   key,
+		Time:   time,
+		Type:   openType,
+		Price:  price,
+		Key:    key,
+		Reason: reason,
 	}
 	if ok {
 		// if we had a position already ...
@@ -165,7 +166,6 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			log.Debug().
 				Str("position", fmt.Sprintf("%+v", position)).
 				Msg("ignoring signal")
-			action.Reason = VoidReasonIgnore
 			action.PnL = position.PnL
 			et.log.append(action)
 			return nil, false, action, nil
@@ -176,7 +176,6 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		// allows us to close and open a new one directly
 		volume = position.Volume
 		value := 0.0
-		reason := SignalReason
 		// find out how much profit we re making
 		switch position.Type {
 		case model.Buy:
@@ -184,20 +183,12 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		case model.Sell:
 			value = (position.OpenPrice - price) / position.OpenPrice
 		}
-		if !open {
-			if value > 0 {
-				reason = TakeProfitReason
-			} else {
-				reason = StopLossReason
-			}
-		}
 		log.Debug().
 			Str("position", fmt.Sprintf("%+volume", position)).
 			Str("type", t.String()).
 			Float64("volume", volume).
 			Msg("closing position")
 		action.Value = value
-		action.Reason = reason
 		action.PnL = position.PnL
 		et.log.append(action)
 	} else if len(positions) > 0 {
@@ -217,7 +208,6 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			log.Debug().
 				Str("positions", fmt.Sprintf("%+volume", positions)).
 				Msg("ignoring conflicting signal")
-			action.Reason = VoidReasonConflict
 			action.PnL = pnl
 			et.log.append(action)
 			return nil, false, action, nil
@@ -230,18 +220,15 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			Msg("opening position")
 	}
 	if t == 0 {
-		action.Reason = VoidReasonType
 		et.log.append(action)
 		return nil, false, action, fmt.Errorf("no clean type [%s %s:%v]", openType.String(), position.Type.String(), ok)
 	}
 	if close == "" {
 		if !open {
-			action.Reason = VoidReasonClose
 			et.log.append(action)
 			// we intended to close the position , but we dont have anything to close
 			return nil, false, action, fmt.Errorf("ignoring close signal '%s' no open position for '%v'", openType.String(), key)
 		} else {
-			action.Reason = SignalReason
 			et.log.append(action)
 		}
 	}

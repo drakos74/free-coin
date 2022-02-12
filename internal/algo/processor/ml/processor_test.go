@@ -339,9 +339,7 @@ func TestMultiStrategyProcessor(t *testing.T) {
 		},
 		"sine-high-vol-15+": {
 			config: testMultiVaryingML(3, 5, 3, 0.5, 15, 20, 25, 30, 35),
-			trades: testTrades(100, 5, func(i int) float64 {
-				return 100 * coin_math.SineEvolve(i, 0.1)
-			}),
+			trades: testTrades(1000, 5, coin_math.VaryingSine(30000, 5000, 0.3)),
 			pnl: []client.Report{
 				{
 					Buy:     2,
@@ -432,7 +430,7 @@ func TestMultiStrategyProcessor(t *testing.T) {
 	}
 }
 
-func testTrades(s, t int, p func(i int) float64) func() []*model.Trade {
+func testTrades(s, t int, g coin_math.Generator) func() []*model.Trade {
 	return func() []*model.Trade {
 		trades := make([]*model.Trade, 0)
 
@@ -440,7 +438,7 @@ func testTrades(s, t int, p func(i int) float64) func() []*model.Trade {
 		for i := 0; i < s; i++ {
 			trades = append(trades, &model.Trade{
 				Coin:  "BTC",
-				Price: 30000.0 + p(i),
+				Price: g(i),
 				Time:  now.Add(time.Duration(i) * time.Duration(t) * time.Minute),
 				Live:  true,
 			})

@@ -120,7 +120,7 @@ type Position struct {
 	Volume       float64 `json:"volume"`
 }
 
-const timeDuration = time.Minute
+const timeDuration = 5 * time.Minute
 
 // Update updates the current status of the position and the profit or loss percentage.
 func (p *Position) Update(trade *Trade) Position {
@@ -138,7 +138,7 @@ func (p *Position) Update(trade *Trade) Position {
 		p.Profit = map[time.Duration]*Profit{
 			timeDuration: NewProfit(&TrackingConfig{
 				Duration: timeDuration,
-				Samples:  5,
+				Samples:  6,
 			}),
 		}
 	}
@@ -168,7 +168,7 @@ func (p *Position) Update(trade *Trade) Position {
 				p.Trend.CurrentValue = a[2]
 				p.Trend.Type = NoType
 				p.Trend.Shift = NoType
-				if math.Abs(p.Trend.CurrentValue) > 0.0001 {
+				if math.Abs(p.Trend.CurrentValue) > 0.00002 {
 					p.Trend.Type = SignedType(p.Trend.CurrentValue)
 					if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
 						//  we have a switch of direction
@@ -177,6 +177,8 @@ func (p *Position) Update(trade *Trade) Position {
 				}
 				p.Trend.LastValue = a[2]
 			}
+		} else {
+			p.Trend = Trend{}
 		}
 	}
 	return *p

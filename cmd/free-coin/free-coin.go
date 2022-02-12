@@ -94,7 +94,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -116,7 +116,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -138,7 +138,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -160,7 +160,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
@@ -182,7 +182,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         5,
@@ -204,7 +204,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         3,
@@ -226,7 +226,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.11,
+				Gap:       0.15,
 			},
 			Model: ml.Model{
 				BufferSize:         8,
@@ -246,7 +246,7 @@ func configML() *ml.Config {
 		Segments: cfg,
 		Position: ml.Position{
 			OpenValue:  500,
-			StopLoss:   0.02,
+			StopLoss:   0.015,
 			TakeProfit: 0.02,
 		},
 		Debug:     false,

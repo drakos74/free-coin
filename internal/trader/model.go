@@ -74,6 +74,7 @@ const (
 	VoidReasonConflict Reason = "void-conflict"
 	VoidReasonType     Reason = "void-type"
 	VoidReasonClose    Reason = "void-close"
+	ForceResetReason   Reason = "reset"
 )
 
 // Event defines a trading action for reference and debugging.

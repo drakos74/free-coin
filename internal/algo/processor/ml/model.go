@@ -218,7 +218,7 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 	// track the log
 	b.Exchange[signal.Coin][signal.Duration].Process(trade)
 
-	_, ok, _, err := b.Wallet[signal.Coin][signal.Duration].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0)
+	_, ok, _, err := b.Wallet[signal.Coin][signal.Duration].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason)
 	if err != nil {
 		log.Err(err).Msg("could not submit signal for benchmark")
 		return client.Report{}, ok, nil

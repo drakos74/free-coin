@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	coin_math "github.com/drakos74/free-coin/internal/math"
-
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/buffer"
+	coin_math "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
@@ -20,6 +20,7 @@ import (
 	"github.com/drakos74/free-coin/internal/trader"
 	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
 	"github.com/rs/zerolog/log"
+	"gonum.org/v1/gonum/floats"
 )
 
 const (
@@ -59,8 +60,29 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
+		tradesWindow := make(map[model.Coin]buffer.HistoryWindow)
+
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
+			if _, ok := tradesWindow[trade.Coin]; !ok {
+				tradesWindow[trade.Coin] = buffer.NewHistoryWindow(time.Minute, 1)
+			}
+			var aggregate bool
+			if bucket, ok := tradesWindow[trade.Coin].Push(trade.Time, trade.Price, trade.Volume); ok {
+				t := model.SignedType(bucket.Values().Stats()[0].Ratio())
+				trade = &model.Trade{
+					Coin:   trade.Coin,
+					Price:  bucket.Values().Stats()[0].Avg(),
+					Type:   t,
+					Volume: bucket.Values().Stats()[1].Avg(),
+					Active: true,
+					Time:   trade.Time,
+				}
+				aggregate = true
+			}
+			if !aggregate {
+				return nil
+			}
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {
@@ -112,6 +134,9 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										// TODO : make the exchange call on the above type
 									}
 									if config.Benchmark {
+										if trade.Time.Unix()%int64((4*time.Hour).Seconds()) == 0 {
+											fmt.Printf("trade = %+v\n", trade.Time)
+										}
 										report, ok, err := benchmarks.add(key, trade, signal, config)
 										if err != nil {
 											log.Error().Err(err).Msg("could not submit benchmark")
@@ -143,19 +168,21 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					//}
 					// TODO : decide how to make a unified trading strategy for the real trading
 					var signal Signal
-					var act bool
+					var act = true
 					strategyBuffer := new(strings.Builder)
+					trend := make(map[model.Type][]time.Duration)
 					for _, s := range signals {
-						if s.Weight > 0 {
-							if signal.Type == model.NoType {
-								signal = s
-								act = true
-								strategyBuffer.WriteString(fmt.Sprintf("%s-", signal.Key.ToString()))
-							} else if signal.Type != s.Type || signal.Coin != s.Coin {
-								act = false
-							}
+						if _, ok := trend[s.Type]; !ok {
+							trend[s.Type] = make([]time.Duration, 0)
 						}
+						trend[s.Type] = append(trend[s.Type], s.Duration)
 					}
+					if len(trend[model.Buy]) > 0 && len(trend[model.Sell]) == 0 {
+						signal.Type = model.Buy
+					} else if len(trend[model.Sell]) > 0 && len(trend[model.Buy]) == 0 {
+						signal.Type = model.Sell
+					}
+					signal.Coin = trade.Coin
 					// TODO : get buy or sell from combination of signals
 					signal.Duration = 0
 					signal.Weight = len(signals)
@@ -179,7 +206,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					//if s.Spectrum.Mean() > 100 {
 					//	open = false
 					//}
-					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0)
+					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
 					if err != nil {
 						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 						if config.Debug {
@@ -194,18 +221,24 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				}
 			}
 			if live, first := strategy.isLive(trade); live || config.Debug {
-
 				if first {
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
 				if trade.Live || config.Debug {
+
 					pp, profit := wallet.Update(trade)
 					if !orderSubmitted && len(pp) > 0 {
 						for k, p := range pp {
-							_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume)
+							reason := trader.VoidReasonClose
+							if p.PnL > 0 {
+								reason = trader.TakeProfitReason
+							} else if p.PnL < 0 {
+								reason = trader.StopLossReason
+							}
+							_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume, reason)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
-							} else if profit < 0 {
+							} else if floats.Sum(profit) < 0 {
 								ok := strategy.reset(k)
 								if !ok {
 									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
@@ -218,13 +251,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			}
 			return nil
 		}, func() {
-			for c, aa := range wallet.Actions() {
-				fmt.Printf("c = %+v\n", c)
-				for _, a := range aa {
-					fmt.Printf("a = %+v\n", a)
-				}
-			}
-
+			//for c, aa := range wallet.Actions() {
+			//	fmt.Printf("c = %+v\n", c)
+			//	for _, a := range aa {
+			//		fmt.Printf("a = %+v\n", a)
+			//	}
+			//}
 		})
 	}
 }
