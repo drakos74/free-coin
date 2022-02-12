@@ -3,6 +3,7 @@ package ml
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/client"
@@ -29,7 +30,7 @@ type Position struct {
 }
 
 // segments returns the segments that match the given parameters.
-func (c Config) segments(coin model.Coin, duration time.Duration) map[model.Key]Segments {
+func (c *Config) segments(coin model.Coin, duration time.Duration) map[model.Key]Segments {
 	ss := make(map[model.Key]Segments)
 	for k, s := range c.Segments {
 		if k.Coin == coin && k.Duration == duration {
@@ -101,25 +102,64 @@ func (signal Signal) ToString() string {
 	return fmt.Sprintf("%v : %f - %s", signal.Time, signal.Price, signal.Type.String())
 }
 
+func (signal Signal) String() string {
+	return fmt.Sprintf("%s - %v : %f - %s", signal.Key.ToString(), signal.Time, signal.Price, signal.Type.String())
+}
+
 func (signal *Signal) Filter(threshold int) bool {
 	f := math.Pow(10, float64(threshold))
 	return signal.Factor*f >= 1.0
 }
 
+// Action defines an action of a type
+type Action struct {
+	Key      model.Key
+	Type     model.Type
+	Price    float64
+	Time     time.Time
+	Duration time.Duration
+	PnL      float64
+}
+
+func (a Action) eval(time time.Time, price float64) Action {
+	value, _ := model.PnL(a.Type, 1, a.Price, price)
+	a.PnL = value
+	a.Duration = time.Sub(a.Time)
+	return a
+}
+
 // Benchmark is responsible for tracking the performance of signals
 type Benchmark struct {
+	lock     *sync.RWMutex
 	Exchange map[model.Coin]map[time.Duration]*local.Exchange
 	Wallet   map[model.Coin]map[time.Duration]*trader.ExchangeTrader
+	Actions  map[model.Coin]map[time.Duration][]Action
 }
 
 func newBenchmarks() *Benchmark {
 	return &Benchmark{
+		lock:     new(sync.RWMutex),
 		Exchange: make(map[model.Coin]map[time.Duration]*local.Exchange),
 		Wallet:   make(map[model.Coin]map[time.Duration]*trader.ExchangeTrader),
+		Actions:  make(map[model.Coin]map[time.Duration][]Action, 0),
+	}
+}
+
+func (b *Benchmark) reset(coin model.Coin, duration time.Duration) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	if _, ok := b.Wallet[coin]; ok {
+		if _, ok := b.Wallet[coin][duration]; ok {
+			delete(b.Wallet[coin], duration)
+			delete(b.Exchange[coin], duration)
+			delete(b.Actions[coin], duration)
+		}
 	}
 }
 
 func (b *Benchmark) assess() map[model.Key]client.Report {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
 	reports := make(map[model.Key]client.Report)
 	for c, dd := range b.Exchange {
 		for d, wallet := range dd {
@@ -133,10 +173,14 @@ func (b *Benchmark) assess() map[model.Key]client.Report {
 	return reports
 }
 
-func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config Config) (client.Report, bool, error) {
+func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config *Config) (client.Report, bool, error) {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
 	if _, ok := b.Wallet[signal.Coin]; !ok {
 		b.Wallet[signal.Coin] = make(map[time.Duration]*trader.ExchangeTrader)
 		b.Exchange[signal.Coin] = make(map[time.Duration]*local.Exchange)
+		b.Actions[signal.Coin] = make(map[time.Duration][]Action)
 	}
 
 	if _, ok := b.Wallet[signal.Coin][signal.Duration]; !ok {
@@ -151,7 +195,25 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 		}
 		b.Wallet[signal.Coin][signal.Duration] = tt
 		b.Exchange[signal.Coin][signal.Duration] = e
+		b.Actions[signal.Coin][signal.Duration] = make([]Action, 0)
 	}
+
+	// update the action
+	action := Action{
+		Key:   key,
+		Type:  signal.Type,
+		Price: trade.Price,
+		Time:  trade.Time,
+	}
+
+	actions := b.Actions[signal.Coin][signal.Duration]
+	// get last action and evaluate
+	if len(actions) > 0 {
+		actions[len(actions)-1] = actions[len(actions)-1].eval(action.Time, action.Price)
+	}
+	// add the new action
+	actions = append(actions, action)
+	b.Actions[signal.Coin][signal.Duration] = actions
 
 	// track the log
 	b.Exchange[signal.Coin][signal.Duration].Process(trade)

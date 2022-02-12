@@ -84,7 +84,7 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		Apply()
 }
 
-func configML() ml.Config {
+func configML() *ml.Config {
 	cfg := map[model.Key]ml.Segments{
 		model.Key{
 			Coin:     model.BTC,
@@ -105,7 +105,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -127,7 +127,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -149,7 +149,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -171,7 +171,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -193,7 +193,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -215,7 +215,7 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 		model.Key{
@@ -237,12 +237,12 @@ func configML() ml.Config {
 			Trader: ml.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
-				Weight:         0,
+				Weight:         1,
 			},
 		},
 	}
 
-	return ml.Config{
+	return &ml.Config{
 		Segments: cfg,
 		Position: ml.Position{
 			OpenValue:  500,

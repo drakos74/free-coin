@@ -23,7 +23,7 @@ func init() {
 func TestProcessor(t *testing.T) {
 
 	type test struct {
-		config Config
+		config *Config
 		trades func() []*model.Trade
 		pnl    []client.Report
 	}
@@ -262,6 +262,176 @@ func TestProcessor(t *testing.T) {
 	}
 }
 
+func TestMultiStrategyProcessor(t *testing.T) {
+
+	type test struct {
+		config *Config
+		trades func() []*model.Trade
+		pnl    []client.Report
+	}
+
+	tests := map[string]test{
+		"increasing": {
+			config: testMultiML(5, 10, 3, 0.5),
+			trades: testTrades(100, 5, func(i int) float64 {
+				return 10.0 * float64(i)
+			}),
+			pnl: []client.Report{
+				{
+					Buy:     1,
+					BuyAvg:  30300,
+					Sell:    0,
+					SellAvg: 0,
+					Profit:  10,
+				},
+				{
+					Buy:     1,
+					BuyAvg:  30500,
+					Sell:    0,
+					SellAvg: 0,
+					Profit:  15,
+				},
+			},
+		},
+		"sine-high-vol-15": {
+			config: testMultiVaryingML(3, 5, 3, 0.5, 15, 20, 30),
+			trades: testTrades(100, 5, func(i int) float64 {
+				return 100 * coin_math.SineEvolve(i, 0.1)
+			}),
+			pnl: []client.Report{
+				{
+					Buy:     2,
+					BuyAvg:  29900,
+					Sell:    1,
+					SellAvg: 29900,
+					Profit:  -4,
+				},
+				{
+					Buy:     2,
+					BuyAvg:  30100,
+					Sell:    1,
+					SellAvg: 30100,
+					Profit:  0,
+				},
+			},
+		},
+		"sine-high-vol-30": {
+			config: testMultiVaryingML(3, 5, 3, 0.5, 30, 20, 15),
+			trades: testTrades(100, 5, func(i int) float64 {
+				return 100 * coin_math.SineEvolve(i, 0.1)
+			}),
+			pnl: []client.Report{
+				{
+					Buy:     2,
+					BuyAvg:  29900,
+					Sell:    1,
+					SellAvg: 29900,
+					Profit:  -6,
+				},
+				{
+					Buy:     2,
+					BuyAvg:  30100,
+					Sell:    1,
+					SellAvg: 30100,
+					Profit:  0,
+				},
+			},
+		},
+		"sine-high-vol-15+": {
+			config: testMultiVaryingML(3, 5, 3, 0.5, 15, 20, 25, 30, 35),
+			trades: testTrades(100, 5, func(i int) float64 {
+				return 100 * coin_math.SineEvolve(i, 0.1)
+			}),
+			pnl: []client.Report{
+				{
+					Buy:     2,
+					BuyAvg:  29900,
+					Sell:    1,
+					SellAvg: 29900,
+					Profit:  -6,
+				},
+				{
+					Buy:     2,
+					BuyAvg:  30100,
+					Sell:    1,
+					SellAvg: 30100,
+					Profit:  0,
+				},
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"), nil, tt.config)
+
+			u, err := local.NewUser("")
+			assert.NoError(t, err)
+
+			e := localExchange.NewExchange("")
+			exec := proc(u, e)
+
+			chIn := make(chan *model.Trade)
+			chOut := make(chan *model.Trade)
+
+			go exec(chIn, chOut)
+
+			start := time.Now().AddDate(1, 0, 0)
+			end := time.Now().AddDate(-1, 0, 0)
+
+			pp := make([]float64, 0)
+			go func() {
+				trades := tt.trades()
+				for _, trade := range trades {
+					if start.After(trade.Time) {
+						start = trade.Time
+					}
+					if trade.Time.After(end) {
+						end = trade.Time
+					}
+					pp = append(pp, trade.Price)
+					chIn <- trade
+				}
+				close(chIn)
+			}()
+
+			// consume the output
+			for trade := range chOut {
+				fmt.Printf("%v:%v - %+v\n", trade.Time.Hour(), trade.Time.Minute(), trade.Price)
+				e.Process(trade)
+			}
+
+			report := e.Gather(true)
+
+			pnl := report[model.BTC]
+
+			assert.True(t, pnl.Buy >= tt.pnl[0].Buy, fmt.Sprintf("Buy min %d >= %d", pnl.Buy, tt.pnl[0].Buy))
+			assert.True(t, pnl.Buy <= tt.pnl[1].Buy, fmt.Sprintf("Buy max %d <= %d", pnl.Buy, tt.pnl[1].Buy))
+
+			assert.True(t, pnl.BuyAvg >= tt.pnl[0].BuyAvg, fmt.Sprintf("BuyAvg min %f >= %f", pnl.BuyAvg, tt.pnl[0].BuyAvg))
+			assert.True(t, pnl.BuyAvg <= tt.pnl[1].BuyAvg, fmt.Sprintf("BuyAvg max %f <= %f", pnl.BuyAvg, tt.pnl[1].BuyAvg))
+
+			assert.True(t, pnl.Sell >= tt.pnl[0].Sell, fmt.Sprintf("Sell min %d >= %d", pnl.Sell, tt.pnl[0].Sell))
+			assert.True(t, pnl.Sell <= tt.pnl[1].Sell, fmt.Sprintf("Sell max %d <= %d", pnl.Sell, tt.pnl[1].Sell))
+
+			assert.True(t, pnl.SellAvg >= tt.pnl[0].SellAvg, fmt.Sprintf("SellAvg min %f >= %f", pnl.SellAvg, tt.pnl[0].SellAvg))
+			assert.True(t, pnl.SellAvg <= tt.pnl[1].SellAvg, fmt.Sprintf("SellAvg max %f <= %f", pnl.SellAvg, tt.pnl[1].SellAvg))
+
+			assert.True(t, pnl.Profit >= tt.pnl[0].Profit, fmt.Sprintf("Profit min %f >= %f", pnl.Profit, tt.pnl[0].Profit))
+			assert.True(t, pnl.Profit <= tt.pnl[1].Profit, fmt.Sprintf("Profit max %f <= %f", pnl.Profit, tt.pnl[1].Profit))
+
+			fmt.Printf("pnl = %+v\n", pnl)
+
+			fmt.Printf("start = %+v\n", start)
+			fmt.Printf("end = %+v\n", end)
+
+			coin_math.FFT(pp)
+
+		})
+	}
+}
+
 func testTrades(s, t int, p func(i int) float64) func() []*model.Trade {
 	return func() []*model.Trade {
 		trades := make([]*model.Trade, 0)
@@ -280,7 +450,7 @@ func testTrades(s, t int, p func(i int) float64) func() []*model.Trade {
 	}
 }
 
-func testUniformML(bufferSize, modelSize, features int, precisionThreshold float64) Config {
+func testUniformML(bufferSize, modelSize, features int, precisionThreshold float64) *Config {
 	cfg := map[model.Key]Segments{
 		model.Key{
 			Coin:     model.BTC,
@@ -301,7 +471,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 		},
 	}
 
-	return Config{
+	return &Config{
 		Segments: cfg,
 		Position: Position{
 			OpenValue:  500,
@@ -313,7 +483,77 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 	}
 }
 
-func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64) Config {
+func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64) *Config {
+	cfg := map[model.Key]Segments{
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 15 * time.Minute,
+			Strategy: "15",
+		}: {
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+			Trader: Trader{Weight: 1},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 20 * time.Minute,
+			Strategy: "20",
+		}: {
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+			Trader: Trader{Weight: 0},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 30 * time.Minute,
+			Strategy: "30",
+		}: {
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+			Trader: Trader{Weight: 0},
+		},
+	}
+
+	return &Config{
+		Segments: cfg,
+		Position: Position{
+			OpenValue:  500,
+			StopLoss:   0.01,
+			TakeProfit: 0.01,
+		},
+		Debug:     true,
+		Benchmark: false,
+	}
+}
+
+func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64) *Config {
 	cfg := map[model.Key]Segments{
 		model.Key{
 			Coin:     model.BTC,
@@ -334,7 +574,50 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 		},
 	}
 
-	return Config{
+	return &Config{
+		Segments: cfg,
+		Position: Position{
+			OpenValue:  500,
+			StopLoss:   0.01,
+			TakeProfit: 0.01,
+		},
+		Debug:     true,
+		Benchmark: false,
+	}
+}
+
+func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold float64, duration ...int) *Config {
+	cfg := make(map[model.Key]Segments)
+	w := true
+	for _, d := range duration {
+		key := model.Key{
+			Coin:     model.BTC,
+			Duration: time.Duration(d) * time.Minute,
+			Strategy: fmt.Sprintf("%d", d),
+		}
+		segment := Segments{
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+		}
+		if w {
+			segment.Trader = Trader{
+				Weight: 1,
+			}
+			w = false
+		}
+		cfg[key] = segment
+	}
+
+	return &Config{
 		Segments: cfg,
 		Position: Position{
 			OpenValue:  500,

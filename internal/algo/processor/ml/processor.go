@@ -27,7 +27,7 @@ const (
 )
 
 // Processor is the position processor main routine.
-func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config Config) func(u api.User, e api.Exchange) api.Processor {
+func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
 	collector, err := newCollector(shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
@@ -53,11 +53,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			return processor.NoProcess(Name)
 		}
 
-		go trackUserActions(index, u, collector, strategy, wallet)
+		go trackUserActions(index, u, collector, strategy, wallet, config)
 
 		dts := make(map[model.Coin]map[time.Duration]dataset)
 
-		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(config))), nil)
+		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
@@ -105,6 +105,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										Precision: prec,
 										Spectrum:  coin_math.FFT(vv.yy),
 										Buffer:    vv.yy,
+										Weight:    segmentConfig.Trader.Weight,
 									}
 									signals[d] = signal
 									if config.Debug {
@@ -137,18 +138,23 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					return nil
 				}
 				if len(signals) > 0 {
+					fmt.Printf("signals = %+v\n", signals)
 					//if !config.Debug {
 					//	u.Send(index, api.NewMessage(formatSignals(signals)), nil)
 					//}
 					// TODO : decide how to make a unified trading strategy for the real trading
 					var signal Signal
 					var act bool
+					strategyBuffer := new(strings.Builder)
 					for _, s := range signals {
-						if signal.Type == model.NoType {
-							signal = s
-							act = true
-						} else if signal.Type != s.Type || signal.Coin != s.Coin {
-							act = false
+						if s.Weight > 0 {
+							if signal.Type == model.NoType {
+								signal = s
+								act = true
+								strategyBuffer.WriteString(fmt.Sprintf("%s-", signal.Key.ToString()))
+							} else if signal.Type != s.Type || signal.Coin != s.Coin {
+								act = false
+							}
 						}
 					}
 					// TODO : get buy or sell from combination of signals
@@ -157,11 +163,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					k := model.Key{
 						Coin:     signal.Coin,
 						Duration: signal.Duration,
-						Strategy: "wallet",
+						Strategy: strategyBuffer.String(),
 					}
 					signal.Key = k
 					// if we get the go-ahead from the strategy act on it
 					if act {
+						fmt.Printf("signal = %+v\n", signal)
 						strategy.signal(k, signal)
 					} else {
 						log.Info().

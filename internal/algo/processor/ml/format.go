@@ -8,6 +8,7 @@ import (
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
+	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/drakos74/free-coin/internal/trader"
 )
 
@@ -29,13 +30,13 @@ func formatConfig(config Config) string {
 	)
 }
 func formatPosition(p model.Position) string {
-	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s",
+	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s (%.0f)",
 		emoji.MapType(p.Type),
 		p.OpenPrice*p.Volume,
 		emoji.MapToSign(p.PnL),
 		100*p.PnL,
 		"%",
-		p.CurrentTime.Format(time.Stamp),
+		p.CurrentTime.Format(time.Stamp), cointime.ToNow(p.CurrentTime),
 	)
 }
 
@@ -49,8 +50,8 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f%s|%.2f%s) | %s\n%v|%v",
-		action.Time.Format(time.Stamp),
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s %.2f%s|%.2f%s) | %s\n%v|%v",
+		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
 		emoji.MapType(action.Type),
@@ -66,8 +67,8 @@ func formatAction(action trader.Event, profit float64, err error, ok bool) strin
 }
 
 func formatSignal(signal Signal, value float64, profit float64, err error, ok bool) string {
-	return fmt.Sprintf("%s | %s:%.fm %s (%.4f|%s %.2f%s) | %.2f\n%v|%v",
-		signal.Time.Format(time.Stamp),
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s %.2f%s) | %.2f\n%v|%v",
+		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Coin,
 		signal.Duration.Minutes(),
 		emoji.MapType(signal.Type),

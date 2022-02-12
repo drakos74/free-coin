@@ -130,22 +130,9 @@ func (p *Position) Update(trade *Trade) Position {
 		p.CurrentTime = trade.Time
 	}
 
-	net := 0.0
-	switch p.Type {
-	case Buy:
-		net = p.CurrentPrice - p.OpenPrice
-	case Sell:
-		net = p.OpenPrice - p.CurrentPrice
-	}
-
-	if p.Fees == 0 {
-		p.Fees = p.OpenPrice * p.Volume * Fees / 100
-	}
-
-	value := (net * p.Volume) - p.Fees
-	profit := value / (p.OpenPrice * p.Volume)
-
-	p.PnL = profit
+	pnl, fees := PnL(p.Type, p.Volume, p.OpenPrice, p.CurrentPrice)
+	p.PnL = pnl
+	p.Fees = fees
 
 	if p.Profit == nil || len(p.Profit) == 0 {
 		p.Profit = map[time.Duration]*Profit{
@@ -161,7 +148,7 @@ func (p *Position) Update(trade *Trade) Position {
 		aa := make(map[time.Duration][]float64)
 		vv := make(map[time.Duration][]float64)
 		for k, _ := range p.Profit {
-			if _, ok := p.Profit[k].Window.Push(trade.Time, profit); ok {
+			if _, ok := p.Profit[k].Window.Push(trade.Time, p.PnL); ok {
 				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")

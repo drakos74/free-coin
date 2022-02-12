@@ -9,6 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func ToNow(t time.Time) float64 {
+	return time.Now().Sub(t).Seconds()
+}
+
 func IsValidTime(t time.Time) bool {
 	now := time.Now()
 	ms := t.Unix() - now.Unix()

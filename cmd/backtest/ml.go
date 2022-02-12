@@ -194,6 +194,7 @@ func train() server.Handler {
 				Trader: ml.Trader{
 					BufferTime:     bufferTime,
 					PriceThreshold: PriceThreshold,
+					Weight:         1,
 				},
 			}
 		}
@@ -249,7 +250,7 @@ func train() server.Handler {
 			network := coin.NewStrategy(ml.Name).
 				ForUser(u).
 				ForExchange(exchange).
-				WithProcessor(ml.Processor(api.FreeCoin, shard, registry, nn, cfg)).Apply()
+				WithProcessor(ml.Processor(api.FreeCoin, shard, registry, nn, &cfg)).Apply()
 
 			// reduce data size for viewing purposes
 			minutes := to.Sub(from).Minutes()

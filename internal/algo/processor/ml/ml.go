@@ -18,14 +18,14 @@ type collector struct {
 	store   storage.Persistence
 	windows map[model.Key]*buffer.HistoryWindow
 	state   map[model.Key]*state
-	config  Config
+	config  *Config
 }
 
 type state struct {
 	buffer *buffer.MultiBuffer
 }
 
-func newCollector(shard storage.Shard, _ *ff.Network, config Config) (*collector, error) {
+func newCollector(shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
 	store, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
