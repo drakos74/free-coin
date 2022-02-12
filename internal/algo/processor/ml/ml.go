@@ -94,7 +94,8 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 		ratio := b.Values().Stats()[0].Ratio()
 		count := b.Values().Stats()[0].Count()
 		value := b.Values().Stats()[0].Avg() * b.Values().Stats()[1].Avg()
-		inp = append(inp, float64(count), value)
+		std := b.Values().Stats()[0].StDev()
+		inp = append(inp, float64(count), value, std)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {

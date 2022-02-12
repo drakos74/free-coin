@@ -97,10 +97,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         3,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -119,10 +119,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         3,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -141,10 +141,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         3,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -163,10 +163,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         5,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -185,10 +185,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         5,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -207,10 +207,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         3,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -229,10 +229,10 @@ func configML() *ml.Config {
 				Gap:       0.15,
 			},
 			Model: ml.Model{
-				BufferSize:         8,
+				BufferSize:         24,
 				PrecisionThreshold: 0.5,
-				ModelSize:          10,
-				Features:           4,
+				ModelSize:          120,
+				Features:           6,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,

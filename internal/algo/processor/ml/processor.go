@@ -96,6 +96,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						if _, ok := dts[key.Coin][key.Duration]; !ok {
 							dts[key.Coin][key.Duration] = newDataSet(trade.Coin, d, segmentConfig, make([]vector, 0))
 						}
+						// keep only the last vectors based on the buffer size
 						newVectors := append(dts[key.Coin][key.Duration].vectors, vv)
 						s := len(newVectors)
 						if s > segmentConfig.Model.BufferSize {
@@ -215,7 +216,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					} else if ok && config.Debug {
 						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
 					} else if !ok {
-						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
+						log.Error().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 					}
 					u.Send(index, api.NewMessage(formatSignal(s, action.Value, action.PnL, err, ok)), nil)
 				}
