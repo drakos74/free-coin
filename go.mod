@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/adshao/go-binance/v2 v2.2.1
+	github.com/aopoltorzhicky/go_kraken/websocket v0.1.8
 	github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
 	github.com/drakos74/go-ex-machina v0.0.0-20211107134813-9131c4153fda
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible

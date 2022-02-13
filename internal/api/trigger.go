@@ -43,7 +43,7 @@ func (t *Trigger) WithID(id string) *Trigger {
 	return t
 }
 
-// WithID allows to specify a custom ID for the trigger.
+// WithDescription allows to specify a custom description for the trigger.
 func (t *Trigger) WithDescription(desc string) *Trigger {
 	t.Description = desc
 	return t

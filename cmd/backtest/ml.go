@@ -302,8 +302,8 @@ func train() server.Handler {
 				}
 
 				key := model.Key{
-					Coin:     signal.Coin,
-					Duration: signal.Duration,
+					Coin:     signal.Key.Coin,
+					Duration: signal.Key.Duration,
 				}
 				if signal.Key.Coin != "" {
 					key = signal.Key
@@ -352,7 +352,7 @@ func train() server.Handler {
 
 		orders := exchange.Orders()
 		for _, order := range orders {
-			fmt.Printf("time = %+v , price = %+v , type = %+v\nreason = %+v\n", order.Time.Format(time.Stamp), order.Price, order.Type, order.Reason)
+			//fmt.Printf("time = %+v , price = %+v , type = %+v\nreason = %+v\n", order.Time.Format(time.Stamp), order.Price, order.Type, order.Reason)
 			key := model.Key{
 				Coin:  requestCoin,
 				Index: -1,

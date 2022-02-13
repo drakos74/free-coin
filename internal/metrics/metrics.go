@@ -19,6 +19,10 @@ func (m *Metrics) IncrementTrades(labels ...string) {
 	m.prometheus.Trades.WithLabelValues(labels...).Inc()
 }
 
+func (m *Metrics) NoteLag(f float64, labels ...string) {
+	m.prometheus.Lag.WithLabelValues(labels...).Set(f)
+}
+
 func (m *Metrics) IncrementErrors(labels ...string) {
 	m.prometheus.Errors.WithLabelValues(labels...).Inc()
 }

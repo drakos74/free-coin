@@ -1,18 +1,13 @@
 package ml
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
+	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	coin_math "github.com/drakos74/free-coin/internal/math"
-	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -53,16 +48,16 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			return processor.NoProcess(Name)
 		}
 
-		go trackUserActions(index, u, collector, strategy, wallet, config)
-
-		dts := make(map[model.Coin]map[time.Duration]dataset)
+		go trackUserActions(index, u, collector, strategy, wallet, benchmarks, config)
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		buffer := processor.NewBuffer(time.Minute)
-
+		ds := newDataSets()
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
+			f, _ := strconv.ParseFloat(trade.Time.Format("0102.1504"), 64)
+			metrics.Observer.NoteLag(f, string(trade.Coin), Name)
 			if bucket, ok := buffer.Push(trade); ok {
 				trade = bucket
 			} else {
@@ -76,119 +71,34 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					configSegments := config.segments(trade.Coin, d)
 					for key, segmentConfig := range configSegments {
-						if _, ok := dts[key.Coin]; !ok {
-							dts[key.Coin] = make(map[time.Duration]dataset)
-						}
-						if _, ok := dts[key.Coin][key.Duration]; !ok {
-							dts[key.Coin][key.Duration] = newDataSet(trade.Coin, d, segmentConfig, make([]vector, 0))
-						}
-						// keep only the last vectors based on the buffer size
-						newVectors := append(dts[key.Coin][key.Duration].vectors, vv)
-						s := len(newVectors)
-						if s > segmentConfig.Model.BufferSize {
-							newVectors = newVectors[s-segmentConfig.Model.BufferSize:]
-						}
-						dts[key.Coin][key.Duration] = newDataSet(trade.Coin, d, segmentConfig, newVectors)
 						// do our training here ...
 						if segmentConfig.Model.Features > 0 {
 							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
-							if len(dts[key.Coin][key.Duration].vectors) >= segmentConfig.Model.BufferSize {
+							if set, ok := ds.push(key, vv, segmentConfig); ok {
 								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
-								prec, err := dts[key.Coin][key.Duration].fit(segmentConfig.Model, false)
-								if err != nil {
-									log.Error().Err(err).Msg("could not train online")
-								} else if prec > segmentConfig.Model.PrecisionThreshold {
-									metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_threshold", Name)
-									t := dts[key.Coin][key.Duration].predict(segmentConfig.Model)
-									if t == model.NoType {
-										log.Debug().Str("set", fmt.Sprintf("%+v", dts[key.Coin][key.Duration])).Str("type", t.String()).Msg("no consistent prediction")
-										continue
-									}
+								if t, ok := set.train(segmentConfig.Model); ok {
 									signal := Signal{
-										Key:       key,
-										Coin:      trade.Coin,
-										Time:      trade.Time,
-										Duration:  d,
-										Price:     trade.Price,
-										Type:      t,
-										Precision: prec,
-										Spectrum:  coin_math.FFT(vv.yy),
-										Buffer:    vv.yy,
-										Weight:    segmentConfig.Trader.Weight,
+										Key:      key,
+										Time:     trade.Time,
+										Price:    trade.Price,
+										Type:     t,
+										Spectrum: coin_math.FFT(vv.yy),
+										Buffer:   vv.yy,
+										Weight:   segmentConfig.Trader.Weight,
 									}
 									signals[d] = signal
 									if config.Debug {
 										// TODO : make the exchange call on the above type
 									}
 									if config.Benchmark {
-										if trade.Time.Unix()%int64((4*time.Hour).Seconds()) == 0 {
-											fmt.Printf("trade = %+v\n", trade.Time)
-										}
-										report, ok, err := benchmarks.add(key, trade, signal, config)
-										if err != nil {
-											log.Error().Err(err).Msg("could not submit benchmark")
-										} else if ok {
-											strategy.report[key] = report
-											if config.Debug {
-												// for benchmark during backtest
-												//u.Send(index, api.NewMessage(encodeMessage(signal)), nil)
-											} else {
-												// for live trading info
-												//if cointime.IsValidTime(trade.Time) {
-												//	u.Send(index, api.NewMessage(formatSignal(signal)).AddLine(formatReport(report)), nil)
-												//}
-											}
-										}
+										benchmarks.add(key, trade, signal, config)
 									}
 								}
 							}
 						}
 					}
 				}
-				// NOTE : any real trading happens below this point
-				if live, _ := strategy.isLive(trade); !live && !config.Debug {
-					return nil
-				}
-				if len(signals) > 0 {
-					//if !config.Debug {
-					//	u.Send(index, api.NewMessage(formatSignals(signals)), nil)
-					//}
-					// TODO : decide how to make a unified trading strategy for the real trading
-					var signal Signal
-					var act = true
-					strategyBuffer := new(strings.Builder)
-					trend := make(map[model.Type][]time.Duration)
-					for _, s := range signals {
-						if _, ok := trend[s.Type]; !ok {
-							trend[s.Type] = make([]time.Duration, 0)
-						}
-						trend[s.Type] = append(trend[s.Type], s.Duration)
-					}
-					if len(trend[model.Buy]) > 0 && len(trend[model.Sell]) == 0 {
-						signal.Type = model.Buy
-					} else if len(trend[model.Sell]) > 0 && len(trend[model.Buy]) == 0 {
-						signal.Type = model.Sell
-					}
-					signal.Coin = trade.Coin
-					// TODO : get buy or sell from combination of signals
-					signal.Duration = 0
-					signal.Weight = len(signals)
-					k := model.Key{
-						Coin:     signal.Coin,
-						Duration: signal.Duration,
-						Strategy: strategyBuffer.String(),
-					}
-					signal.Key = k
-					// if we get the go-ahead from the strategy act on it
-					if act {
-						strategy.signal(k, signal)
-					} else {
-						log.Info().
-							Str("signals", fmt.Sprintf("%+v", signals)).
-							Msg("ignoring signals")
-					}
-				}
-				if s, k, open, ok := strategy.trade(trade); ok {
+				if s, k, open, ok := strategy.eval(trade, signals, config); ok {
 					// TODO : fix this add-hoc number
 					//if s.Spectrum.Mean() > 100 {
 					//	open = false
@@ -253,168 +163,4 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			//}
 		})
 	}
-}
-
-type dataset struct {
-	coin     model.Coin
-	duration time.Duration
-	vectors  []vector
-	config   Segments
-}
-
-type datasets map[model.Coin]map[time.Duration]dataset
-
-func (dd datasets) get(c model.Coin, d time.Duration) (dataset, bool) {
-	if dt, ok := dd[c]; ok {
-		if tt, ok := dt[d]; ok {
-			return tt, true
-		}
-	}
-	return dataset{}, false
-}
-
-func newDataSet(coin model.Coin, duration time.Duration, cfg Segments, vv []vector) dataset {
-	return dataset{
-		coin:     coin,
-		duration: duration,
-		vectors:  vv,
-		config:   cfg,
-	}
-}
-
-const benchmarkModelPath = "file-storage/ml/models"
-const trainDataSetPath = "file-storage/ml/datasets"
-const predictDataSetPath = "file-storage/ml/tmp"
-
-func (s dataset) predict(cfg Model) model.Type {
-	fn, err := s.toFeatureFile(predictDataSetPath, fmt.Sprintf("forest_%s", "tmp_predict"), true)
-	if err != nil {
-		log.Error().Err(err).Msg("could not create dataset file")
-		return model.NoType
-	}
-
-	predictions, err := ml.RandomForestPredict(fn, cfg.ModelSize, cfg.Features, false)
-	if err != nil {
-		log.Error().Err(err).Msg("could not train with isolation forest")
-		return model.NoType
-	}
-	_, a := predictions.Size()
-	lastPrediction := predictions.RowString(a - 1)
-	return model.TypeFromString(lastPrediction)
-}
-
-func (s dataset) fit(cfg Model, debug bool) (float64, error) {
-	hash := "tmp_fit"
-	if debug {
-		hash = time.Now().Format(time.RFC3339)
-	}
-	fn, err := s.toFeatureFile(trainDataSetPath, fmt.Sprintf("forest_%s", hash), false)
-	if err != nil {
-		log.Error().Err(err).Msg("could not create dataset file")
-		return 0.0, err
-	}
-
-	_, _, prec, err := ml.RandomForestTrain(fn, cfg.ModelSize, cfg.Features, debug)
-	if err != nil {
-		log.Error().Err(err).Msg("could not train with isolation forest")
-		return 0.0, err
-	}
-	return prec, nil
-}
-
-func (s dataset) getDescription(postfix string) string {
-	return fmt.Sprintf("%s_%s_%.2f_%s", s.coin, s.duration, s.config.Model.PrecisionThreshold, postfix)
-}
-
-func (s dataset) toFeatureFile(parentPath string, postfix string, predict bool) (string, error) {
-
-	fn, err := makePath(parentPath, fmt.Sprintf("%s.csv", s.getDescription(postfix)))
-	if err != nil {
-		return "", err
-	}
-	file, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-	defer file.Close()
-
-	if err != nil {
-		return "", fmt.Errorf("could not open file: %w", err)
-	}
-
-	writer := bufio.NewWriter(file)
-	defer writer.Flush()
-
-	// take only the last n samples
-	for _, vector := range s.vectors {
-		lw := new(strings.Builder)
-		for _, in := range vector.prevIn {
-			lw.WriteString(fmt.Sprintf("%f,", in))
-		}
-		if vector.prevOut[0] == 1.0 {
-			lw.WriteString(fmt.Sprintf("%s", model.Buy.String()))
-		} else if vector.prevOut[2] == 1.0 {
-			lw.WriteString(fmt.Sprintf("%s", model.Sell.String()))
-		} else {
-			lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
-		}
-		_, _ = writer.WriteString(lw.String() + "\n")
-	}
-	if predict {
-		// for the last one add also the new value ...
-		lastVector := s.vectors[len(s.vectors)-1]
-		pw := new(strings.Builder)
-		for _, in := range lastVector.newIn {
-			pw.WriteString(fmt.Sprintf("%f,", in))
-		}
-		pw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
-		_, _ = writer.WriteString(pw.String() + "\n")
-	}
-	return fn, nil
-}
-
-func makePath(parentDir string, fileName string) (string, error) {
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		err := os.MkdirAll(parentDir, 0700) // Create your file
-		if err != nil {
-			return "", err
-		}
-	}
-	fileName = fmt.Sprintf("%s/%s", parentDir, fileName)
-	//file, _ := os.Create(fileName)
-	//defer file.Close()
-	return fileName, nil
-}
-
-// BenchTest defines the benchmark backtest outcome
-type BenchTest struct {
-	Report client.Report `json:"report"`
-	Config Segments      `json:"config"`
-}
-
-func toFile(parentPath string, key model.Key, precision float64, report BenchTest, unix int64) (string, error) {
-	fn, err := makePath(parentPath, fmt.Sprintf("%s_%.2f_%.0f_%d",
-		key.ToString(),
-		precision,
-		report.Report.Profit,
-		unix))
-	if err != nil {
-		return "", err
-	}
-	file, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-	defer file.Close()
-
-	if err != nil {
-		return "", fmt.Errorf("could not open file: %w", err)
-	}
-
-	writer := bufio.NewWriter(file)
-	defer writer.Flush()
-
-	bb, err := json.MarshalIndent(report, "", "\t")
-	if err != nil {
-		return "", fmt.Errorf("could not marshall value: %w", err)
-	}
-	_, err = writer.WriteString(string(bb))
-	if err != nil {
-		return "", fmt.Errorf("could not write file: %w", err)
-	}
-	return fn, nil
 }

@@ -94,7 +94,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -116,7 +116,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -138,7 +138,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -160,7 +160,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -182,7 +182,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -204,7 +204,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,
@@ -226,7 +226,7 @@ func configML() *ml.Config {
 			Stats: ml.Stats{
 				LookBack:  3,
 				LookAhead: 1,
-				Gap:       0.15,
+				Gap:       0.1,
 			},
 			Model: ml.Model{
 				BufferSize:         24,

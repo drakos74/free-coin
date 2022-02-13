@@ -86,15 +86,6 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
 func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Position, []float64) {
-	if trade.Meta.Num > 0 {
-		trade = &model.Trade{
-			Coin:   trade.Coin,
-			Price:  trade.Meta.Price / float64(trade.Meta.Num),
-			Volume: trade.Meta.Volume / float64(trade.Meta.Num),
-			Time:   trade.Time,
-		}
-	}
-
 	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
@@ -117,11 +108,12 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			validShift := position.Trend.Shift != position.Type
 			trend := position.Trend.Type != model.NoType
 			validTrend := position.Trend.Type != position.Type
-			if stopLossActivated {
-				// if we pass the stop-loss threshold
-				positions[k] = position
-				delete(et.profit, k)
-			} else if shift && validShift {
+			//if stopLossActivated {
+			//	// if we pass the stop-loss threshold
+			//	positions[k] = position
+			//	delete(et.profit, k)
+			//} else
+			if shift && validShift {
 				// if there is a shift in the opposite direction of the position
 				positions[k] = position
 				delete(et.profit, k)

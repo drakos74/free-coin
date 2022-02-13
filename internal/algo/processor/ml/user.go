@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, config *Config) {
+func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *Benchmark, config *Config) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -42,22 +42,23 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		switch action {
 		case "":
 			_, positions := wallet.CurrentPositions()
-			txtBuffer.WriteString(fmt.Sprintf("%d:%d\n", len(positions), len(strategy.report)))
-			for k, report := range strategy.report {
-				if key.Coin == model.NoCoin || k.Match(key.Coin) {
-					pString := ""
-					if p, ok := positions[k]; ok {
-						pString = fmt.Sprintf("%s\n", formatPosition(p))
-					} else {
-						pString = "<none>"
+			for k, bench := range benchmarks.Profit {
+				if key.Coin == model.NoCoin || key.Match(k.Coin) {
+					for _, report := range bench {
+						pString := ""
+						if p, ok := positions[k]; ok {
+							pString = fmt.Sprintf("%s\n", formatPosition(p))
+						} else {
+							pString = "<none>"
+						}
+						txtBuffer.WriteString(fmt.Sprintf("%s|%s %s(%s)\n%s\n%s\n",
+							report.Stamp.Format(time.Stamp),
+							k.ToString(),
+							emoji.MapOpen(strategy.enabled[k.Coin]),
+							emoji.MapToSign(report.Profit),
+							pString,
+							formatReport(report)))
 					}
-					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s(%s)\n%s\n%s\n",
-						k.Coin,
-						k.Duration.Minutes(),
-						emoji.MapOpen(strategy.enabled[k.Coin]),
-						emoji.MapToSign(report.Profit),
-						pString,
-						formatReport(report)))
 				}
 			}
 		case "cfg":

@@ -29,7 +29,7 @@ func NewBlock() Block {
 }
 
 // Signal is a generic struct used to trigger actions on other processes.
-// it can hold several metadata information , but for now we leave it empty.
+// it can hold metadata information , but for now we leave it empty.
 type Signal struct {
 	Name    string
 	ID      string

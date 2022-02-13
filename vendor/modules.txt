@@ -4,6 +4,11 @@ github.com/adshao/go-binance/v2
 github.com/adshao/go-binance/v2/common
 github.com/adshao/go-binance/v2/delivery
 github.com/adshao/go-binance/v2/futures
+# github.com/aopoltorzhicky/go_kraken/rest v0.0.3
+github.com/aopoltorzhicky/go_kraken/rest
+# github.com/aopoltorzhicky/go_kraken/websocket v0.1.8
+## explicit
+github.com/aopoltorzhicky/go_kraken/websocket
 # github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a => ../kraken-go-api-client
 ## explicit
 github.com/beldur/kraken-go-api-client
@@ -61,6 +66,8 @@ github.com/mjibson/go-dsp/dsputils
 github.com/mjibson/go-dsp/fft
 # github.com/olekukonko/tablewriter v0.0.4
 github.com/olekukonko/tablewriter
+# github.com/pkg/errors v0.9.1
+github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.9.0
@@ -86,6 +93,8 @@ github.com/rs/zerolog
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
 github.com/rs/zerolog/log
+# github.com/sirupsen/logrus v1.8.1
+github.com/sirupsen/logrus
 # github.com/sjwhitworth/golearn v0.0.0-20211014193759-a8b69c276cd8 => ../golearn
 ## explicit
 github.com/sjwhitworth/golearn/base

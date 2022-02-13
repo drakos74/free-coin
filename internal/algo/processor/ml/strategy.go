@@ -2,15 +2,13 @@ package ml
 
 import (
 	"fmt"
+	"strings"
 	"sync"
-
-	"github.com/drakos74/free-coin/client"
-
-	"github.com/drakos74/free-coin/internal/time"
-
-	"github.com/rs/zerolog/log"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/model"
+	cointime "github.com/drakos74/free-coin/internal/time"
+	"github.com/rs/zerolog/log"
 )
 
 type config struct {
@@ -23,7 +21,6 @@ type config struct {
 // strategy is responsible for making a call on weather the signal is good enough to trade on.
 type strategy struct {
 	lock    *sync.RWMutex
-	report  map[model.Key]client.Report
 	signals map[model.Key]Signal
 	trades  map[model.Key]model.Trade
 	config  map[model.Key]config
@@ -50,7 +47,6 @@ func newStrategy(segments map[model.Key]Segments) *strategy {
 	}
 	return &strategy{
 		lock:    new(sync.RWMutex),
-		report:  make(map[model.Key]client.Report),
 		signals: make(map[model.Key]Signal),
 		trades:  make(map[model.Key]model.Trade),
 		config:  cfg,
@@ -80,12 +76,56 @@ func (str *strategy) isLive(trade *model.Trade) (bool, bool) {
 	if str.live[trade.Coin] {
 		return true, false
 	}
-	if time.IsValidTime(trade.Time) {
+	if cointime.IsValidTime(trade.Time) {
 		log.Info().Time("stamp", trade.Time).Str("coin", string(trade.Coin)).Msg("strategy going live")
 		str.live[trade.Coin] = true
 		return true, true
 	}
 	return false, false
+}
+
+func (str *strategy) eval(trade *model.Trade, signals map[time.Duration]Signal, config *Config) (Signal, model.Key, bool, bool) {
+	// strategy is not live yet ... trade is past one
+	if live, _ := str.isLive(trade); !live && !config.Debug {
+		return Signal{}, model.Key{}, false, false
+	}
+	if len(signals) > 0 {
+		// TODO : decide how to make a unified trading strategy for the real trading
+		var signal Signal
+		var act = true
+		strategyBuffer := new(strings.Builder)
+		trend := make(map[model.Type][]time.Duration)
+		for _, s := range signals {
+			if _, ok := trend[s.Type]; !ok {
+				trend[s.Type] = make([]time.Duration, 0)
+			}
+			trend[s.Type] = append(trend[s.Type], s.Key.Duration)
+		}
+		if len(trend[model.Buy]) > 0 && len(trend[model.Sell]) == 0 {
+			signal.Type = model.Buy
+		} else if len(trend[model.Sell]) > 0 && len(trend[model.Buy]) == 0 {
+			signal.Type = model.Sell
+		}
+		signal.Key.Coin = trade.Coin
+		// TODO : get buy or sell from combination of signals
+		signal.Key.Duration = 0
+		signal.Weight = len(signals)
+		k := model.Key{
+			Coin:     signal.Key.Coin,
+			Duration: signal.Key.Duration,
+			Strategy: strategyBuffer.String(),
+		}
+		signal.Key = k
+		// if we get the go-ahead from the strategy act on it
+		if act {
+			str.signal(k, signal)
+		} else {
+			log.Info().
+				Str("signals", fmt.Sprintf("%+v", signals)).
+				Msg("ignoring signals")
+		}
+	}
+	return str.trade(trade)
 }
 
 // trade assesses the current trade event and builds up the current state

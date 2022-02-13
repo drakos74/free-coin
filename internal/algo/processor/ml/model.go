@@ -86,9 +86,7 @@ type Segments struct {
 // Signal represents a signal from the ml processor.
 type Signal struct {
 	Key       model.Key           `json:"key"`
-	Coin      model.Coin          `json:"coin"`
 	Time      time.Time           `json:"time"`
-	Duration  time.Duration       `json:"duration"`
 	Price     float64             `json:"price"`
 	Type      model.Type          `json:"type"`
 	Precision float64             `json:"precision"`
@@ -99,11 +97,11 @@ type Signal struct {
 }
 
 func (signal Signal) ToString() string {
-	return fmt.Sprintf("%v : %f - %s", signal.Time, signal.Price, signal.Type.String())
+	return fmt.Sprintf("%s | %v : %f - %s", signal.Key.ToString(), signal.Time, signal.Price, signal.Type.String())
 }
 
 func (signal Signal) String() string {
-	return fmt.Sprintf("%s - %v : %f - %s", signal.Key.ToString(), signal.Time, signal.Price, signal.Type.String())
+	return signal.ToString()
 }
 
 func (signal *Signal) Filter(threshold int) bool {
@@ -131,59 +129,45 @@ func (a Action) eval(time time.Time, price float64) Action {
 // Benchmark is responsible for tracking the performance of signals
 type Benchmark struct {
 	lock     *sync.RWMutex
-	Exchange map[model.Coin]map[time.Duration]*local.Exchange
-	Wallet   map[model.Coin]map[time.Duration]*trader.ExchangeTrader
-	Actions  map[model.Coin]map[time.Duration][]Action
+	Exchange map[model.Key]*local.Exchange
+	Wallet   map[model.Key]*trader.ExchangeTrader
+	Actions  map[model.Key][]Action
+	Profit   map[model.Key][]client.Report
+	Timer    map[model.Coin]int64
 }
 
 func newBenchmarks() *Benchmark {
 	return &Benchmark{
 		lock:     new(sync.RWMutex),
-		Exchange: make(map[model.Coin]map[time.Duration]*local.Exchange),
-		Wallet:   make(map[model.Coin]map[time.Duration]*trader.ExchangeTrader),
-		Actions:  make(map[model.Coin]map[time.Duration][]Action, 0),
+		Exchange: make(map[model.Key]*local.Exchange),
+		Wallet:   make(map[model.Key]*trader.ExchangeTrader),
+		Actions:  make(map[model.Key][]Action, 0),
+		Profit:   make(map[model.Key][]client.Report),
+		Timer:    make(map[model.Coin]int64),
 	}
 }
 
-func (b *Benchmark) reset(coin model.Coin, duration time.Duration) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-	if _, ok := b.Wallet[coin]; ok {
-		if _, ok := b.Wallet[coin][duration]; ok {
-			delete(b.Wallet[coin], duration)
-			delete(b.Exchange[coin], duration)
-			delete(b.Actions[coin], duration)
+func (b *Benchmark) reset(coin model.Coin) {
+	for k, _ := range b.Wallet {
+		if k.Match(coin) {
+			delete(b.Wallet, k)
+			delete(b.Exchange, k)
+			delete(b.Actions, k)
 		}
 	}
 }
 
-func (b *Benchmark) assess() map[model.Key]client.Report {
+func (b *Benchmark) assess() map[model.Key][]client.Report {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	reports := make(map[model.Key]client.Report)
-	for c, dd := range b.Exchange {
-		for d, wallet := range dd {
-			k := model.Key{
-				Coin:     c,
-				Duration: d,
-			}
-			reports[k] = wallet.Gather(true)[c]
-		}
-	}
-	return reports
+	return b.Profit
 }
 
 func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config *Config) (client.Report, bool, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	if _, ok := b.Wallet[signal.Coin]; !ok {
-		b.Wallet[signal.Coin] = make(map[time.Duration]*trader.ExchangeTrader)
-		b.Exchange[signal.Coin] = make(map[time.Duration]*local.Exchange)
-		b.Actions[signal.Coin] = make(map[time.Duration][]Action)
-	}
-
-	if _, ok := b.Wallet[signal.Coin][signal.Duration]; !ok {
+	if _, ok := b.Wallet[key]; !ok {
 		e := local.NewExchange(local.VoidLog)
 		tt, err := trader.SimpleTrader(key.ToString(), json.LocalShard(), json.EventRegistry("ml-tmp-registry"), trader.Settings{
 			OpenValue:  config.Position.OpenValue,
@@ -193,9 +177,12 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 		if err != nil {
 			return client.Report{}, false, fmt.Errorf("could not create trader for signal: %+v: %w", signal, err)
 		}
-		b.Wallet[signal.Coin][signal.Duration] = tt
-		b.Exchange[signal.Coin][signal.Duration] = e
-		b.Actions[signal.Coin][signal.Duration] = make([]Action, 0)
+		b.Wallet[key] = tt
+		b.Exchange[key] = e
+		b.Actions[key] = make([]Action, 0)
+	}
+	if _, ok := b.Profit[key]; !ok {
+		b.Profit[key] = make([]client.Report, 0)
 	}
 
 	// update the action
@@ -206,26 +193,43 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 		Time:  trade.Time,
 	}
 
-	actions := b.Actions[signal.Coin][signal.Duration]
+	actions := b.Actions[key]
 	// get last action and evaluate
 	if len(actions) > 0 {
 		actions[len(actions)-1] = actions[len(actions)-1].eval(action.Time, action.Price)
 	}
 	// add the new action
 	actions = append(actions, action)
-	b.Actions[signal.Coin][signal.Duration] = actions
+	b.Actions[key] = actions
 
 	// track the log
-	b.Exchange[signal.Coin][signal.Duration].Process(trade)
+	b.Exchange[key].Process(trade)
 
-	_, ok, _, err := b.Wallet[signal.Coin][signal.Duration].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason)
+	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason)
 	if err != nil {
 		log.Err(err).Msg("could not submit signal for benchmark")
 		return client.Report{}, ok, nil
 	}
 	if ok {
-		report := b.Exchange[signal.Coin][signal.Duration].Gather(false)[signal.Coin]
+		report := b.Exchange[key].Gather(false)[key.Coin]
+		sec := trade.Time.Unix()
+		g := sec / int64(4*time.Hour.Seconds())
+		if g != b.Timer[key.Coin] {
+			b.Timer[key.Coin] = g
+			report.Stamp = trade.Time
+			b.Profit[key] = addReport(b.Profit[key], report, 3)
+			b.reset(key.Coin)
+		}
 		return report, ok, nil
 	}
 	return client.Report{}, false, nil
+}
+
+func addReport(ss []client.Report, s client.Report, size int) []client.Report {
+	newVectors := append(ss, s)
+	l := len(newVectors)
+	if l > size {
+		newVectors = newVectors[l-size:]
+	}
+	return newVectors
 }

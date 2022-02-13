@@ -174,8 +174,8 @@ func run() server.Handler {
 
 			// TODO : retrieve the key back from the signal
 			key := model.Key{
-				Coin:     signal.Coin,
-				Duration: signal.Duration,
+				Coin:     signal.Key.Coin,
+				Duration: signal.Key.Duration,
 			}
 			if signal.Key.Coin != "" {
 				key = signal.Key

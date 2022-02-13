@@ -89,7 +89,7 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 	direction := r.converter.Type.From(order.Type)
 	oType := r.converter.OrderType.From(order.OType)
 	if s.PairDecimals == 0 {
-		log.Error().Str("coin", string(order.Coin)).Str("pair", pair).Msg("canno find pair decimals")
+		log.Error().Str("coin", string(order.Coin)).Str("pair", pair).Msg("cannot find pair decimals")
 		s.PairDecimals = 4
 	}
 	vol := strconv.FormatFloat(order.Volume, 'f', s.PairDecimals, 64)
@@ -100,9 +100,9 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 		vol,
 		params)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not add order '%+v' - (pair=%s,direction=%s,orderType=%s,volume=%s)  : %w | %+v",
+		return nil, nil, fmt.Errorf("could not add order '%+v' - (pair=%s,direction=%s,orderType=%s,volume=%s,decimals=%d)  : %w | %+v",
 			order,
-			oPair, direction, oType, vol,
+			oPair, direction, oType, vol, s.PairDecimals,
 			err, response)
 	}
 
