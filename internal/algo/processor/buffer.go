@@ -38,7 +38,7 @@ func (tb *TradesBuffer) Push(trade *model.Trade) (*model.Trade, bool) {
 			Volume: bucket.Values().Stats()[1].Avg(),
 			Active: true,
 			Live:   true,
-			Time:   bucket.Time,
+			Time:   trade.Time,
 		}
 		return trade, true
 	}
