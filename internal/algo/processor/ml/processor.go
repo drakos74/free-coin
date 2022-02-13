@@ -11,7 +11,6 @@ import (
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
-	"github.com/drakos74/free-coin/internal/buffer"
 	coin_math "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/metrics"
@@ -60,29 +59,16 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
-		tradesWindow := make(map[model.Coin]buffer.HistoryWindow)
+		buffer := processor.NewBuffer(time.Minute)
 
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
-			if _, ok := tradesWindow[trade.Coin]; !ok {
-				tradesWindow[trade.Coin] = buffer.NewHistoryWindow(time.Minute, 1)
-			}
-			var aggregate bool
-			if bucket, ok := tradesWindow[trade.Coin].Push(trade.Time, trade.Price, trade.Volume); ok {
-				t := model.SignedType(bucket.Values().Stats()[0].Ratio())
-				trade = &model.Trade{
-					Coin:   trade.Coin,
-					Price:  bucket.Values().Stats()[0].Avg(),
-					Type:   t,
-					Volume: bucket.Values().Stats()[1].Avg(),
-					Active: true,
-					Time:   trade.Time,
-				}
-				aggregate = true
-			}
-			if !aggregate {
+			if bucket, ok := buffer.Push(trade); ok {
+				trade = bucket
+			} else {
 				return nil
 			}
+			metrics.Observer.IncrementTrades(fmt.Sprintf("%s_%s", string(trade.Coin), "buffer"), Name)
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {
