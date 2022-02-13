@@ -28,7 +28,7 @@ type ExchangeTrader struct {
 
 // SimpleTrader is a simple exchange trader
 func SimpleTrader(id string, shard storage.Shard, registry storage.EventRegistry, settings Settings, e api.Exchange) (*ExchangeTrader, error) {
-	t, err := newTrader(id, shard)
+	t, err := newTrader(id, shard, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trader: %w", err)
 	}

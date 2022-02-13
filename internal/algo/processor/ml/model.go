@@ -24,9 +24,10 @@ type Config struct {
 }
 
 type Position struct {
-	OpenValue  float64
-	StopLoss   float64
-	TakeProfit float64
+	OpenValue      float64
+	StopLoss       float64
+	TakeProfit     float64
+	TrackingConfig []*model.TrackingConfig
 }
 
 // segments returns the segments that match the given parameters.

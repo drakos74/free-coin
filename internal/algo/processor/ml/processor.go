@@ -87,9 +87,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										Weight:   segmentConfig.Trader.Weight,
 									}
 									signals[d] = signal
-									if config.Debug {
-										// TODO : make the exchange call on the above type
-									}
 									if config.Benchmark {
 										benchmarks.add(key, trade, signal, config)
 									}
@@ -99,10 +96,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					}
 				}
 				if s, k, open, ok := strategy.eval(trade, signals, config); ok {
-					// TODO : fix this add-hoc number
-					//if s.Spectrum.Mean() > 100 {
-					//	open = false
-					//}
 					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
 					if err != nil {
 						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")

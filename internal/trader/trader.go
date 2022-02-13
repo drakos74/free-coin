@@ -18,11 +18,11 @@ type trader struct {
 	account   string
 	running   bool
 	minSize   int
-	config    map[model.Coin]config
+	config    []*model.TrackingConfig
 	lock      *sync.RWMutex
 }
 
-func newTrader(id string, shard storage.Shard) (*trader, error) {
+func newTrader(id string, shard storage.Shard, config []*model.TrackingConfig) (*trader, error) {
 	st, err := shard(path.Join(storagePath, id))
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
@@ -34,7 +34,7 @@ func newTrader(id string, shard storage.Shard) (*trader, error) {
 		account:   id,
 		running:   true,
 		minSize:   minSize,
-		config:    make(map[model.Coin]config),
+		config:    config,
 		lock:      new(sync.RWMutex),
 	}
 	err = t.load()
@@ -180,7 +180,7 @@ func (t *trader) add(key model.Key, order *model.TrackedOrder) error {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	// we need to be careful here and add the position ...
-	position := model.OpenPosition(order, nil)
+	position := model.OpenPosition(order, t.config)
 	if p, ok := t.positions[key]; ok {
 		if position.Coin != p.Coin {
 			return fmt.Errorf("different coin found for key: %s [%s vs %s]", key, p.Coin, position.Coin)
@@ -198,14 +198,6 @@ func (t *trader) add(key model.Key, order *model.TrackedOrder) error {
 	}
 	t.positions[key] = position
 	return t.save()
-}
-
-func (t *trader) parseConfig(c model.Coin, b float64) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	if _, ok := t.config[c]; !ok {
-		t.config[c] = newConfig(b)
-	}
 }
 
 func stKey(account string) storage.Key {

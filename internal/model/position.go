@@ -79,8 +79,9 @@ type Trend struct {
 
 // TrackingConfig defines the configuration for tracking position profit
 type TrackingConfig struct {
-	Duration time.Duration
-	Samples  int
+	Duration  time.Duration
+	Samples   int
+	Threshold float64
 }
 
 // Track creates a new tracking config.
@@ -138,7 +139,7 @@ func (p *Position) Update(trade *Trade) Position {
 		p.Profit = map[time.Duration]*Profit{
 			timeDuration: NewProfit(&TrackingConfig{
 				Duration: timeDuration,
-				Samples:  6,
+				Samples:  5,
 			}),
 		}
 	}
@@ -168,7 +169,7 @@ func (p *Position) Update(trade *Trade) Position {
 				p.Trend.CurrentValue = a[2]
 				p.Trend.Type = NoType
 				p.Trend.Shift = NoType
-				if math.Abs(p.Trend.CurrentValue) > 0.00002 {
+				if math.Abs(p.Trend.CurrentValue) > 0.000015 {
 					p.Trend.Type = SignedType(p.Trend.CurrentValue)
 					if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
 						//  we have a switch of direction
