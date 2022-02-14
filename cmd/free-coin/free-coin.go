@@ -246,8 +246,8 @@ func configML() *ml.Config {
 		Segments: cfg,
 		Position: ml.Position{
 			OpenValue:  500,
-			StopLoss:   0.015,
-			TakeProfit: 0.02,
+			StopLoss:   0.01,
+			TakeProfit: 0.01,
 		},
 		Debug:     false,
 		Benchmark: true,

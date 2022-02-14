@@ -106,7 +106,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			takeProfitActivated := position.PnL >= et.settings.TakeProfit
 			shift := position.Trend.Shift != model.NoType
 			validShift := position.Trend.Shift != position.Type
-			trend := position.Trend.Type != model.NoType
+			//trend := position.Trend.Type != model.NoType
 			validTrend := position.Trend.Type != position.Type
 			//if stopLossActivated {
 			//	// if we pass the stop-loss threshold
@@ -117,7 +117,7 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 				// if there is a shift in the opposite direction of the position
 				positions[k] = position
 				delete(et.profit, k)
-			} else if trend && validTrend {
+			} else if validTrend {
 				// if there is a trend in the opposite direction
 				if stopLossActivated || takeProfitActivated {
 					positions[k] = position
