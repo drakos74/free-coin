@@ -13,7 +13,7 @@ import (
 )
 
 func formatSettings(settings trader.Settings) string {
-	return fmt.Sprintf("%.2f [take-profit = %.2f | stop-loss = %.2f]",
+	return fmt.Sprintf("%.2f [take-profit = %.3f | stop-loss = %.3f]",
 		settings.OpenValue,
 		settings.TakeProfit,
 		settings.StopLoss)

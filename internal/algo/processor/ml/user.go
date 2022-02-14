@@ -20,7 +20,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			Str("message", command.Content).
 			Str("processor", Name).
 			Msg("message received")
-		var num int
+		var num float64
 		var coin string
 		var action string
 		_, err := command.Validate(
@@ -28,7 +28,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			api.Contains("?ml"),
 			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", ""),
 			api.Any(&coin),
-			api.Int(&num),
+			api.Float(&num),
 		)
 		if err != nil {
 			api.Reply(index, user, api.NewMessage("[cmd error]").ReplyTo(command.ID), err)
@@ -65,13 +65,13 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
 		case "tp":
-			settings := wallet.TakeProfit(float64(num) / 100)
+			settings := wallet.TakeProfit(num / 100)
 			txtBuffer.WriteString(formatSettings(settings))
 		case "sl":
-			settings := wallet.StopLoss(float64(num) / 100)
+			settings := wallet.StopLoss(num / 100)
 			txtBuffer.WriteString(formatSettings(settings))
 		case "ov":
-			settings := wallet.OpenValue(float64(num))
+			settings := wallet.OpenValue(num)
 			txtBuffer.WriteString(formatSettings(settings))
 		case "stop":
 			bb := strategy.enable(key.Coin, false)

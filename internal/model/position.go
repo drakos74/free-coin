@@ -121,7 +121,7 @@ type Position struct {
 	Volume       float64 `json:"volume"`
 }
 
-const timeDuration = 5 * time.Minute
+const timeDuration = 3 * time.Minute
 
 // Update updates the current status of the position and the profit or loss percentage.
 func (p *Position) Update(trade *Trade) Position {

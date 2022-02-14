@@ -338,9 +338,9 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setTakeProfit(event.target.value)
                         }}
-                        step={0.01}
+                        step={0.005}
                         min={0}
-                        max={1}
+                        max={0.1}
                     />
                 </div>
                 <div className="col m3 s12 right">
@@ -354,9 +354,9 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setStopLoss(event.target.value)
                         }}
-                        step={0.01}
+                        step={0.005}
                         min={0}
-                        max={1}
+                        max={0.1}
                     />
                 </div>
             </div>
