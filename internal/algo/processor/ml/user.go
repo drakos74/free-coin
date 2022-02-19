@@ -61,9 +61,17 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					}
 				}
 			}
-		case "cfg":
+		case "wallet":
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
+		case "config":
+			txtBuffer.WriteString(formatConfig(*config))
+		case "gap":
+			c := config.SetGap(key.Coin, num)
+			txtBuffer.WriteString(formatConfig(*c))
+		case "precision":
+			c := config.SetPrecisionThreshold(key.Coin, num)
+			txtBuffer.WriteString(formatConfig(*c))
 		case "tp":
 			settings := wallet.TakeProfit(num / 100)
 			txtBuffer.WriteString(formatSettings(settings))

@@ -104,8 +104,8 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			profit := position.PnL
 			stopLossActivated := position.PnL <= -1*et.settings.StopLoss
 			takeProfitActivated := position.PnL >= et.settings.TakeProfit
-			shift := position.Trend.Shift != model.NoType
-			validShift := position.Trend.Shift != position.Type
+			//shift := position.Trend.Shift != model.NoType
+			//validShift := position.Trend.Shift != position.Type
 			trend := position.Trend.Type != model.NoType
 			validTrend := position.Trend.Type != position.Type
 			//if stopLossActivated {
@@ -113,11 +113,12 @@ func (et *ExchangeTrader) Update(trade *model.Trade) (map[model.Key]model.Positi
 			//	positions[k] = position
 			//	delete(et.profit, k)
 			//} else
-			if shift && validShift {
-				// if there is a shift in the opposite direction of the position
-				positions[k] = position
-				delete(et.profit, k)
-			} else if trend && validTrend {
+			//if shift && validShift {
+			//	// if there is a shift in the opposite direction of the position
+			//	positions[k] = position
+			//	delete(et.profit, k)
+			//} else
+			if trend && validTrend {
 				// if there is a trend in the opposite direction
 				if stopLossActivated || takeProfitActivated {
 					positions[k] = position
@@ -156,9 +157,9 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		// find out how much profit we re making
 		switch position.Type {
 		case model.Buy:
-			value = (price - position.OpenPrice) / position.OpenPrice
+			value = (price - position.OpenPrice) * position.Volume
 		case model.Sell:
-			value = (position.OpenPrice - price) / position.OpenPrice
+			value = (position.OpenPrice - price) * position.Volume
 		}
 		action.Value = value
 		action.PnL = position.PnL
@@ -196,9 +197,9 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 				pnl += p.PnL
 				switch p.Type {
 				case model.Buy:
-					value += (price - position.OpenPrice) / position.OpenPrice
+					value += (price - position.OpenPrice) * position.Volume
 				case model.Sell:
-					value += (position.OpenPrice - price) / position.OpenPrice
+					value += (position.OpenPrice - price) * position.Volume
 				}
 			}
 		}

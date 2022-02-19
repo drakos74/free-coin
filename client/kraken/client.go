@@ -6,6 +6,7 @@ import (
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/metrics"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -19,6 +20,7 @@ type Client struct {
 	current       int
 	interval      time.Duration
 	Source        Source
+	timer         map[coinmodel.Coin]time.Time
 }
 
 // NewClient creates a new client.
@@ -119,10 +121,17 @@ func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.
 }
 
 func (c *Client) execute(i int, trades coinmodel.TradeSource) {
+
 	if i >= len(c.coins) {
 		i = 0
 	}
 
+	// track how often we make the call for each coin
+	now := time.Now()
+	last := c.timer[c.coins[i]]
+	duration := now.Sub(last).Seconds()
+	metrics.Observer.TrackDuration(duration, string(c.coins[i]), "kraken", "execute")
+	c.timer[c.coins[i]] = now
 	// call itself after the processing finishes
 	// TODO : test failing behaviour
 	defer time.AfterFunc(c.interval, func() {
@@ -146,6 +155,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 		return
 	}
 	batchSize := len(tradeResponse.Trades)
+	metrics.Observer.AddTrades(float64(batchSize), string(coin), "kraken")
 	for i, trade := range tradeResponse.Trades {
 		var active bool
 		if i >= batchSize-1 {

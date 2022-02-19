@@ -10,7 +10,7 @@ import (
 )
 
 func ToNow(t time.Time) float64 {
-	return time.Now().Sub(t).Seconds()
+	return t.Sub(time.Now()).Seconds()
 }
 
 func IsValidTime(t time.Time) bool {

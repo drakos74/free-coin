@@ -86,7 +86,7 @@ func (str *strategy) isLive(trade *model.Trade) (bool, bool) {
 
 func (str *strategy) eval(trade *model.Trade, signals map[time.Duration]Signal, config *Config) (Signal, model.Key, bool, bool) {
 	// strategy is not live yet ... trade is past one
-	if live, _ := str.isLive(trade); !live && !config.Debug {
+	if live, _ := str.isLive(trade); !live && !config.Option.Debug {
 		return Signal{}, model.Key{}, false, false
 	}
 	if len(signals) > 0 {
@@ -95,11 +95,16 @@ func (str *strategy) eval(trade *model.Trade, signals map[time.Duration]Signal, 
 		var act = true
 		strategyBuffer := new(strings.Builder)
 		trend := make(map[model.Type][]time.Duration)
+		var price float64
+		var precision float64
 		for _, s := range signals {
 			if _, ok := trend[s.Type]; !ok {
 				trend[s.Type] = make([]time.Duration, 0)
 			}
 			trend[s.Type] = append(trend[s.Type], s.Key.Duration)
+			// all signals here are expected to have the same price
+			price = s.Price
+			precision += s.Precision
 		}
 		if len(trend[model.Buy]) > 0 && len(trend[model.Sell]) == 0 {
 			signal.Type = model.Buy
@@ -107,6 +112,8 @@ func (str *strategy) eval(trade *model.Trade, signals map[time.Duration]Signal, 
 			signal.Type = model.Sell
 		}
 		signal.Key.Coin = trade.Coin
+		signal.Price = price
+		signal.Precision = precision / float64(len(signals))
 		// TODO : get buy or sell from combination of signals
 		signal.Key.Duration = 0
 		signal.Weight = len(signals)
@@ -145,9 +152,9 @@ func (str *strategy) trade(trade *model.Trade) (Signal, model.Key, bool, bool) {
 				var act bool
 				switch s.Type {
 				case model.Buy:
-					act = diff > cfg.priceThreshold
+					act = diff >= cfg.priceThreshold
 				case model.Sell:
-					act = diff < -1*cfg.priceThreshold
+					act = diff <= -1*cfg.priceThreshold
 				}
 				if act {
 					s.Time = trade.Time

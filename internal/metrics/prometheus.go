@@ -3,11 +3,12 @@ package metrics
 import "github.com/prometheus/client_golang/prometheus"
 
 type prometheusMetrics struct {
-	Events *prometheus.CounterVec
-	Trades *prometheus.CounterVec
-	Lag    *prometheus.GaugeVec
-	Calls  *prometheus.CounterVec
-	Errors *prometheus.CounterVec
+	Events   *prometheus.CounterVec
+	Trades   *prometheus.CounterVec
+	Lag      *prometheus.GaugeVec
+	Duration *prometheus.HistogramVec
+	Calls    *prometheus.CounterVec
+	Errors   *prometheus.CounterVec
 }
 
 func newPrometheusMetrics() prometheusMetrics {
@@ -29,6 +30,12 @@ func newPrometheusMetrics() prometheusMetrics {
 				Namespace: "coin",
 				Name:      "lag",
 			}, []string{"coin", "process"}),
+		Duration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: "coin",
+				Name:      "duration",
+				Buckets:   []float64{.05, .1, .5, 1, 5, 10, 15, 30, 60},
+			}, []string{"coin", "process", "routine"}),
 		Calls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: "call",

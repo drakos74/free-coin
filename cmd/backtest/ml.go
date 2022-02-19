@@ -475,8 +475,10 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			StopLoss:   tp,
 			TakeProfit: sl,
 		},
-		Debug:     true,
-		Benchmark: true,
+		Option: ml.Option{
+			Debug:     true,
+			Benchmark: true,
+		},
 	}
 }
 

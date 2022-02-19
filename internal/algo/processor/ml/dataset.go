@@ -66,17 +66,17 @@ const benchmarkModelPath = "file-storage/ml/models"
 const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
-func (s dataset) train(cfg Model) (model.Type, bool) {
-	prec, err := s.fit(cfg, false)
+func (s dataset) train(cfg Model, debug bool) (model.Type, float64, bool) {
+	acc, err := s.fit(cfg, debug)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train online")
-	} else if prec > cfg.PrecisionThreshold {
+	} else if acc > cfg.PrecisionThreshold {
 		t := s.predict(cfg)
 		if t != model.NoType {
-			return t, true
+			return t, acc, true
 		}
 	}
-	return model.NoType, false
+	return model.NoType, 0, false
 }
 
 func (s dataset) predict(cfg Model) model.Type {

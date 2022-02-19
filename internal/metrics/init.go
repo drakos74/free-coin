@@ -30,6 +30,7 @@ func init() {
 	prometheus.MustRegister(Observer.prometheus.Events)
 	prometheus.MustRegister(Observer.prometheus.Trades)
 	prometheus.MustRegister(Observer.prometheus.Lag)
+	prometheus.MustRegister(Observer.prometheus.Duration)
 	prometheus.MustRegister(Observer.prometheus.Calls)
 	prometheus.MustRegister(Observer.prometheus.Errors)
 

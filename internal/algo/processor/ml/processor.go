@@ -63,10 +63,13 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			} else {
 				return nil
 			}
+			start := time.Now()
+			metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "process"), Name)
 			metrics.Observer.IncrementTrades(fmt.Sprintf("%s_%s", string(trade.Coin), "buffer"), Name)
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {
+				startCollector := time.Now()
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
 					configSegments := config.segments(trade.Coin, d)
@@ -76,18 +79,19 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
 							if set, ok := ds.push(key, vv, segmentConfig); ok {
 								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
-								if t, ok := set.train(segmentConfig.Model); ok {
+								if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
 									signal := Signal{
-										Key:      key,
-										Time:     trade.Time,
-										Price:    trade.Price,
-										Type:     t,
-										Spectrum: coin_math.FFT(vv.yy),
-										Buffer:   vv.yy,
-										Weight:   segmentConfig.Trader.Weight,
+										Key:       key,
+										Time:      trade.Time,
+										Price:     trade.Price,
+										Type:      t,
+										Spectrum:  coin_math.FFT(vv.yy),
+										Buffer:    vv.yy,
+										Precision: acc,
+										Weight:    segmentConfig.Trader.Weight,
 									}
 									signals[d] = signal
-									if config.Benchmark {
+									if config.Option.Benchmark {
 										benchmarks.add(key, trade, signal, config)
 									}
 								}
@@ -99,23 +103,24 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
 					if err != nil {
 						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
-						if config.Debug {
-							u.Send(index, api.ErrorMessage(encodeMessage(s)).AddLine(err.Error()), nil)
-						}
-					} else if ok && config.Debug {
+					} else if ok && config.Option.Debug {
+						// track the raw signals for debug purposes
 						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
 					} else if !ok {
 						log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 					}
 					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 				}
+				collectorDuration := time.Now().Sub(startCollector).Seconds()
+				metrics.Observer.TrackDuration(collectorDuration, string(trade.Coin), Name, "collector")
 			}
-			if live, first := strategy.isLive(trade); live || config.Debug {
+			if live, first := strategy.isLive(trade); live || config.Option.Debug {
+				startStrategy := time.Now()
 				if first {
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
-				if trade.Live || config.Debug {
-					metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "update"), Name)
+				if trade.Live || config.Option.Debug {
+					metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "trade"), Name)
 					pp, profit := wallet.Update(trade)
 					if !orderSubmitted && len(pp) > 0 {
 						for k, p := range pp {
@@ -138,7 +143,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						}
 					}
 				}
+				strategyDuration := time.Now().Sub(startStrategy).Seconds()
+				metrics.Observer.TrackDuration(strategyDuration, string(trade.Coin), Name, "strategy")
 			}
+			duration := time.Now().Sub(start).Seconds()
+			metrics.Observer.TrackDuration(duration, string(trade.Coin), Name, "process")
 			return nil
 		}, func() {
 			//for c, aa := range wallet.Actions() {

@@ -37,7 +37,7 @@ func TestTrackUserActions(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			user := local.NewMockUser()
-			go trackUserActions("index", user, nil, nil, nil, nil)
+			go trackUserActions("index", user, nil, nil, nil, nil, nil)
 
 			user.Assert(t, local.NewUserMessage(tt.msg), tt.assertion)
 

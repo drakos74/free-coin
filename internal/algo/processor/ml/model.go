@@ -17,10 +17,39 @@ import (
 
 // Config defines the configuration for the collector.
 type Config struct {
-	Segments  map[model.Key]Segments
-	Position  Position
+	Segments map[model.Key]Segments
+	Position Position
+	Option   Option
+}
+
+func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
+	newSegments := make(map[model.Key]Segments)
+	for k, segment := range c.Segments {
+		if coin == model.NoCoin || coin == k.Coin {
+			segment.Stats.Gap = gap
+		}
+		newSegments[k] = segment
+	}
+	c.Segments = newSegments
+	return c
+}
+
+func (c *Config) SetPrecisionThreshold(coin model.Coin, precision float64) *Config {
+	newSegments := make(map[model.Key]Segments)
+	for k, segment := range c.Segments {
+		if coin == model.NoCoin || coin == k.Coin {
+			segment.Model.PrecisionThreshold = precision
+		}
+		newSegments[k] = segment
+	}
+	c.Segments = newSegments
+	return c
+}
+
+type Option struct {
 	Debug     bool
 	Benchmark bool
+	Test      bool
 }
 
 type Position struct {

@@ -117,6 +117,8 @@ func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 	}
 }
 
+// TODO : make this a channel in order to time the bucket correctly
+
 // Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
 func (h HistoryWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {

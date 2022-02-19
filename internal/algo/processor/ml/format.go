@@ -3,6 +3,7 @@ package ml
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/drakos74/free-coin/client"
@@ -20,13 +21,22 @@ func formatSettings(settings trader.Settings) string {
 }
 
 func formatConfig(config Config) string {
-	return fmt.Sprintf("%d (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
+
+	buffer := new(strings.Builder)
+
+	for k, segment := range config.Segments {
+		buffer.WriteString(fmt.Sprintf("%+v - %+v\n", k, segment))
+	}
+
+	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v,test=%v]",
 		len(config.Segments),
+		buffer.String(),
 		config.Position.OpenValue,
 		config.Position.TakeProfit,
 		config.Position.StopLoss,
-		config.Debug,
-		config.Benchmark,
+		config.Option.Debug,
+		config.Option.Benchmark,
+		config.Option.Test,
 	)
 }
 func formatPosition(p model.Position) string {
@@ -50,7 +60,7 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, profit []float64, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f %.2f%s%.2f) | %s\n%v|%v",
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s%.2f) | %s\n%v|%v",
 		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -58,6 +68,7 @@ func formatAction(action trader.Event, profit []float64, err error, ok bool) str
 		action.Price,
 		emoji.MapToSign(action.Value),
 		action.Value,
+		model.EURO,
 		100*action.PnL,
 		"%",
 		profit,
@@ -67,7 +78,7 @@ func formatAction(action trader.Event, profit []float64, err error, ok bool) str
 }
 
 func formatSignal(signal Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f %.2f%s) | %s\n%v|%v",
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s) | %s (%.2f)\n%v|%v",
 		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
@@ -75,9 +86,11 @@ func formatSignal(signal Signal, action trader.Event, err error, ok bool) string
 		signal.Price,
 		emoji.MapToSign(action.Value),
 		action.Value,
+		model.EURO,
 		100*action.PnL,
 		"%",
 		action.Reason,
+		signal.Precision,
 		emoji.MapToAction(ok),
 		err)
 }

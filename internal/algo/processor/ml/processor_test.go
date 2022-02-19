@@ -54,7 +54,7 @@ func TestProcessor(t *testing.T) {
 		"decreasing": {
 			config: testUniformML(5, 10, 3, 0.5),
 			trades: testTrades(100, 5, func(i int) float64 {
-				return -10.0 * float64(i)
+				return 30000 - 10.0*float64(i)
 			}),
 			pnl: []client.Report{
 				{

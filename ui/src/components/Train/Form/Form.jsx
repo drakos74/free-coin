@@ -186,8 +186,8 @@ const Form = ({change, error}) => {
                         onChange={(event) => {
                             setPrecision(event.target.value)
                         }}
-                        step={0.1}
-                        min={0}
+                        step={0.01}
+                        min={0.4}
                         max={1}
                     />
                 </div>

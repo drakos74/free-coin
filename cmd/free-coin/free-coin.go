@@ -97,7 +97,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -119,7 +119,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -141,7 +141,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -163,7 +163,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -185,7 +185,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -207,7 +207,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -229,7 +229,7 @@ func configML() *ml.Config {
 				Gap:       0.1,
 			},
 			Model: ml.Model{
-				BufferSize:         24,
+				BufferSize:         42,
 				PrecisionThreshold: 0.5,
 				ModelSize:          120,
 				Features:           6,
@@ -249,8 +249,10 @@ func configML() *ml.Config {
 			StopLoss:   0.01,
 			TakeProfit: 0.008,
 		},
-		Debug:     false,
-		Benchmark: true,
+		Option: ml.Option{
+			Debug:     false,
+			Benchmark: true,
+		},
 	}
 }
 

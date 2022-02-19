@@ -3,6 +3,7 @@ package ml
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/sjwhitworth/golearn/base"
 	"github.com/sjwhitworth/golearn/ensemble"
@@ -32,7 +33,7 @@ func RandomForestTrain(fileName string, size, features int, debug bool) (base.Cl
 
 	var tree base.Classifier
 
-	rand.Seed(44111342)
+	rand.Seed(time.Now().Unix())
 
 	// Load in the iris dataset
 	iris, err := base.ParseCSVToInstances(fileName, false)

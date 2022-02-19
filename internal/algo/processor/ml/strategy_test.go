@@ -144,11 +144,13 @@ func TestStrategy(t *testing.T) {
 
 func mockSignal(t time.Time, p float64, tt model.Type) Signal {
 	return Signal{
-		Coin:     model.BTC,
-		Time:     t,
-		Duration: 0,
-		Price:    p,
-		Type:     tt,
+		Key: model.Key{
+			Coin:     model.BTC,
+			Duration: 0,
+		},
+		Time:  t,
+		Price: p,
+		Type:  tt,
 	}
 }
 
