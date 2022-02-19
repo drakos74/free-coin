@@ -26,7 +26,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?ml"),
-			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", ""),
+			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", "wallet", "gap", "prec", ""),
 			api.Any(&coin),
 			api.Float(&num),
 		)
@@ -64,12 +64,12 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "wallet":
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
-		case "config":
+		case "cfg":
 			txtBuffer.WriteString(formatConfig(*config))
 		case "gap":
 			c := config.SetGap(key.Coin, num)
 			txtBuffer.WriteString(formatConfig(*c))
-		case "precision":
+		case "prec":
 			c := config.SetPrecisionThreshold(key.Coin, num)
 			txtBuffer.WriteString(formatConfig(*c))
 		case "tp":
