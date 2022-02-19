@@ -40,6 +40,7 @@ func NewClient(coin ...coinmodel.Coin) *Client {
 			Interval:   interval,
 			public:     krakenapi.New("KEY", "SECRET"),
 		},
+		timer: make(map[coinmodel.Coin]time.Time),
 	}
 	return client
 }
