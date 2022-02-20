@@ -56,7 +56,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		ds := newDataSets()
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			f, _ := strconv.ParseFloat(trade.Time.Format("0102.1504"), 64)
-			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "processor")
+			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "source")
 			if bucket, ok := buffer.Push(trade); ok {
 				trade = bucket
 			} else {
