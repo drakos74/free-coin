@@ -170,7 +170,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 		return
 	}
 	batchSize := len(tradeResponse.Trades)
-	metrics.Observer.AddTrades(float64(batchSize), string(coin), sourceProcessor)
+	metrics.Observer.AddTrades(float64(batchSize), string(coin), krakenProcessor, sourceProcessor)
 	for i, trade := range tradeResponse.Trades {
 		var active bool
 		if i >= batchSize-1 {
