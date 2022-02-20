@@ -150,6 +150,8 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	// call itself after the processing finishes
 	// TODO : test failing behaviour
 	defer time.AfterFunc(c.interval, func() {
+		interval := time.Now().Sub(now).Seconds()
+		metrics.Observer.TrackDuration(interval, "ANY", krakenProcessor, sourceProcessor)
 		c.execute(i+1, trades)
 	})
 
