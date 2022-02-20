@@ -47,7 +47,7 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 		//trader := trader.NewExchangeTrader(t, e)
 
 		return processor.Process(Name, func(trade *model.Trade) error {
-			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
+			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "input")
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
 			for duration, cfg := range stats.configs[trade.Coin] {

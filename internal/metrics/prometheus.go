@@ -23,7 +23,7 @@ func newPrometheusMetrics() prometheusMetrics {
 			prometheus.CounterOpts{
 				Namespace: "coin",
 				Name:      "trades",
-			}, []string{"coin", "process"},
+			}, []string{"coin", "process", "step"},
 		),
 		Lag: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{

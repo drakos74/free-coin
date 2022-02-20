@@ -55,9 +55,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		buffer := processor.NewBuffer(time.Minute)
 		ds := newDataSets()
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
-			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 			f, _ := strconv.ParseFloat(trade.Time.Format("0102.1504"), 64)
-			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "input")
+			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "processor")
 			if bucket, ok := buffer.Push(trade); ok {
 				trade = bucket
 			} else {
@@ -65,7 +64,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			}
 			start := time.Now()
 			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "batch")
-			metrics.Observer.IncrementTrades(fmt.Sprintf("%s_%s", string(trade.Coin), "buffer"), Name)
+			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "batch")
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {

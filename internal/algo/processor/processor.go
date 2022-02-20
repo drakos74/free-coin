@@ -65,7 +65,7 @@ func ProcessWithClose(name string, p func(trade *model.Trade) error, shutdown fu
 		}()
 
 		for trade := range in {
-			metrics.Observer.IncrementTrades(string(trade.Coin), name)
+			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "processor")
 			err := p(trade)
 			if err != nil {
 				log.Error().Str("processor", name).Err(err).Msg("error during processing")

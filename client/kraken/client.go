@@ -104,7 +104,7 @@ func (c *Client) Trades(process <-chan api.Signal) (coinmodel.TradeSource, error
 }
 
 const (
-	controllerProcessor = "source-controller"
+	controllerProcessor = "controller"
 )
 
 func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.Trade, process <-chan api.Signal) {
@@ -113,7 +113,7 @@ func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.
 		close(output)
 	}()
 	for trade := range input {
-		metrics.Observer.IncrementTrades(string(trade.Coin), controllerProcessor)
+		metrics.Observer.IncrementTrades(string(trade.Coin), controllerProcessor, "check")
 		c.current++
 		if c.stopExecution(trade, c.current) {
 			log.Info().Int("current", c.current).Msg("shutting down execution pipeline")
