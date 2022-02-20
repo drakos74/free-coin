@@ -148,13 +148,13 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	metrics.Observer.TrackDuration(duration, string(c.coins[i]), krakenProcessor, sourceProcessor)
 	c.timer[c.coins[i]] = now
 	// call itself after the processing finishes
-	// TODO : test failing behaviour
 	defer time.AfterFunc(c.interval, func() {
 		interval := time.Now().Sub(now).Seconds()
 		metrics.Observer.TrackDuration(interval, "ANY", krakenProcessor, sourceProcessor)
 		c.execute(i+1, trades)
 	})
 
+	// do the execution logic for this cycle
 	coin := c.coins[i]
 	since := c.since[coin]
 	log.Trace().

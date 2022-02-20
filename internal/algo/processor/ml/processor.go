@@ -68,6 +68,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
 			if vec, ok := collector.push(trade); ok {
+				metrics.Observer.NoteLag(f, string(trade.Coin), Name, "processor")
+				metrics.Observer.IncrementTrades(string(trade.Coin), Name, "processor")
 				startCollector := time.Now()
 				for d, vv := range vec {
 					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)

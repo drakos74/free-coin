@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Name = " void"
+	Name = "void"
 )
 
 // NewStateKey creates a stats internal state key for the registry storage
@@ -56,16 +56,14 @@ func Process(name string, p func(trade *model.Trade) error) api.Processor {
 // ProcessWithClose is a wrapper for a processor logic with a close execution func.
 func ProcessWithClose(name string, p func(trade *model.Trade) error, shutdown func()) api.Processor {
 	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
-
 		log.Info().Str("processor", name).Msg("started processor")
 		defer func() {
 			log.Info().Str("processor", name).Msg("closing processor")
 			close(out)
 			shutdown()
 		}()
-
 		for trade := range in {
-			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "processor")
+			metrics.Observer.IncrementTrades(string(trade.Coin), name, "source")
 			err := p(trade)
 			if err != nil {
 				log.Error().Str("processor", name).Err(err).Msg("error during processing")

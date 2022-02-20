@@ -72,10 +72,6 @@ func (t *trader) load() error {
 		Positions: make(map[string]model.Position),
 	}
 	err := t.storage.Load(stKey(t.account), &state)
-	if err != nil {
-		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", stKey(t.account))).Msg("could not load state")
-		// create a new state
-	}
 	t.parseState(state)
 	log.Info().Err(err).
 		Str("account", t.account).
