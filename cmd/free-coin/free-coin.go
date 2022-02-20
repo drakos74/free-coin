@@ -98,7 +98,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -120,7 +120,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -142,7 +142,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -164,7 +164,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -186,7 +186,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -208,7 +208,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},
@@ -230,7 +230,7 @@ func configML() *ml.Config {
 			},
 			Model: ml.Model{
 				BufferSize:         42,
-				PrecisionThreshold: 0.5,
+				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           6,
 			},

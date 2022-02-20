@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/math"
-
 	"github.com/drakos74/free-coin/internal/buffer"
+	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -129,7 +128,7 @@ func fit(xx, yy []float64, degree ...int) ([]float64, error) {
 				d+1,
 				d)
 		}
-		f, err := math.Fit(xx, yy, d)
+		f, err := coinmath.Fit(xx, yy, d)
 		if err != nil {
 			return nil, fmt.Errorf("could not fit for degree '%d': %w", d, err)
 		}

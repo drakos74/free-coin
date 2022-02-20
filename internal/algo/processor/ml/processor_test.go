@@ -476,8 +476,11 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 		},
-		Debug:     true,
-		Benchmark: false,
+		Option: Option{
+			Debug:     true,
+			Benchmark: false,
+			Test:      true,
+		},
 	}
 }
 
@@ -546,8 +549,11 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 		},
-		Debug:     true,
-		Benchmark: false,
+		Option: Option{
+			Debug:     true,
+			Benchmark: false,
+			Test:      true,
+		},
 	}
 }
 
@@ -579,8 +585,11 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 		},
-		Debug:     true,
-		Benchmark: false,
+		Option: Option{
+			Debug:     true,
+			Benchmark: false,
+			Test:      true,
+		},
 	}
 }
 
@@ -622,8 +631,11 @@ func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold 
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 		},
-		Debug:     true,
-		Benchmark: false,
+		Option: Option{
+			Debug:     true,
+			Benchmark: false,
+			Test:      true,
+		},
 	}
 }
 

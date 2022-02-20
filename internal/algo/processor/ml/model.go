@@ -25,7 +25,7 @@ type Config struct {
 func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
 	newSegments := make(map[model.Key]Segments)
 	for k, segment := range c.Segments {
-		if coin == model.NoCoin || coin == k.Coin {
+		if coin == model.AllCoins || coin == k.Coin {
 			segment.Stats.Gap = gap
 		}
 		newSegments[k] = segment
@@ -37,7 +37,7 @@ func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
 func (c *Config) SetPrecisionThreshold(coin model.Coin, precision float64) *Config {
 	newSegments := make(map[model.Key]Segments)
 	for k, segment := range c.Segments {
-		if coin == model.NoCoin || coin == k.Coin {
+		if coin == model.AllCoins || coin == k.Coin {
 			segment.Model.PrecisionThreshold = precision
 		}
 		newSegments[k] = segment
