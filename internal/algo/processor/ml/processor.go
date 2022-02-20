@@ -57,14 +57,14 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
 			metrics.Observer.IncrementTrades(string(trade.Coin), Name)
 			f, _ := strconv.ParseFloat(trade.Time.Format("0102.1504"), 64)
-			metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "input"), Name)
+			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "input")
 			if bucket, ok := buffer.Push(trade); ok {
 				trade = bucket
 			} else {
 				return nil
 			}
 			start := time.Now()
-			metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "process"), Name)
+			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "batch")
 			metrics.Observer.IncrementTrades(fmt.Sprintf("%s_%s", string(trade.Coin), "buffer"), Name)
 			signals := make(map[time.Duration]Signal)
 			var orderSubmitted bool
@@ -120,7 +120,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
 				}
 				if trade.Live || config.Option.Debug {
-					metrics.Observer.NoteLag(f, fmt.Sprintf("%s_%s", string(trade.Coin), "trade"), Name)
+					metrics.Observer.NoteLag(f, string(trade.Coin), Name, "process")
 					pp, profit := wallet.Update(trade)
 					if !orderSubmitted && len(pp) > 0 {
 						for k, p := range pp {

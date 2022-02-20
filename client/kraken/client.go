@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
@@ -86,19 +87,25 @@ func (c *Client) Trades(process <-chan api.Signal) (coinmodel.TradeSource, error
 		c.since[coin] = c.init
 	}
 
+	// expose the trades to the outside world
 	out := make(chan *coinmodel.Trade)
 
 	// receive and delegate tick events To the output
 	trades := make(chan *coinmodel.Trade)
 
+	// pull the next batch of trades
+	go c.execute(0, trades)
+
 	// controller decides To delegate trade for processing, or stop execution
 	go c.controller(trades, out, process)
-
-	go c.execute(0, trades)
 
 	return out, nil
 
 }
+
+const (
+	controllerProcessor = "source-controller"
+)
 
 func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.Trade, process <-chan api.Signal) {
 	defer func() {
@@ -106,6 +113,7 @@ func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.
 		close(output)
 	}()
 	for trade := range input {
+		metrics.Observer.IncrementTrades(string(trade.Coin), controllerProcessor)
 		c.current++
 		if c.stopExecution(trade, c.current) {
 			log.Info().Int("current", c.current).Msg("shutting down execution pipeline")
@@ -121,8 +129,12 @@ func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.
 	}
 }
 
-func (c *Client) execute(i int, trades coinmodel.TradeSource) {
+const (
+	sourceProcessor = "source"
+	krakenProcessor = "kraken"
+)
 
+func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	if i >= len(c.coins) {
 		i = 0
 	}
@@ -131,7 +143,9 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	now := time.Now()
 	last := c.timer[c.coins[i]]
 	duration := now.Sub(last).Seconds()
-	metrics.Observer.TrackDuration(duration, string(c.coins[i]), "kraken", "execute")
+	f, _ := strconv.ParseFloat(now.Format("0102.1504"), 64)
+	metrics.Observer.NoteLag(f, string(c.coins[i]), krakenProcessor, sourceProcessor)
+	metrics.Observer.TrackDuration(duration, string(c.coins[i]), krakenProcessor, sourceProcessor)
 	c.timer[c.coins[i]] = now
 	// call itself after the processing finishes
 	// TODO : test failing behaviour
@@ -156,7 +170,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 		return
 	}
 	batchSize := len(tradeResponse.Trades)
-	metrics.Observer.AddTrades(float64(batchSize), string(coin), "kraken")
+	metrics.Observer.AddTrades(float64(batchSize), string(coin), sourceProcessor)
 	for i, trade := range tradeResponse.Trades {
 		var active bool
 		if i >= batchSize-1 {

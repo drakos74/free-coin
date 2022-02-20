@@ -29,12 +29,12 @@ func newPrometheusMetrics() prometheusMetrics {
 			prometheus.GaugeOpts{
 				Namespace: "coin",
 				Name:      "lag",
-			}, []string{"coin", "process"}),
+			}, []string{"coin", "process", "step"}),
 		Duration: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Namespace: "coin",
 				Name:      "duration",
-				Buckets:   []float64{.05, .1, .5, 1, 5, 10, 15, 30, 60},
+				Buckets:   []float64{.05, .1, .5, 1, 5, 10, 15, 30, 60, 120},
 			}, []string{"coin", "process", "routine"}),
 		Calls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
