@@ -27,12 +27,13 @@ func (r *RemoteExchange) getInfo() {
 	for c, pair := range *pairs {
 		coin := coinmodel.Coin(c)
 		symbols[coin] = pair
-		if len(pair.LeverageBuy) > 0 && len(pair.LeverageSell) > 0 &&
-			pair.Quote == "ZEUR" {
-			if p, ok := r.converter.Coin.Alt(pair.Altname); ok {
-				fmt.Printf("%v = %+v\n", p, pair)
-			}
-		}
+		// TODO : what did we want to check here ?
+		//if len(pair.LeverageBuy) > 0 && len(pair.LeverageSell) > 0 &&
+		//	pair.Quote == "ZEUR" {
+		//	if p, ok := r.converter.Coin.Alt(pair.Altname); !ok {
+		//		fmt.Printf("%v = %+v\n", p, pair)
+		//	}
+		//}
 	}
 
 	r.info = symbols
