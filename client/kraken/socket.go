@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/drakos74/free-coin/internal/metrics"
 
 	"github.com/drakos74/free-coin/internal/buffer"
 
@@ -137,6 +140,9 @@ func (s *Socket) connect(out chan *model.TradeSignal) (cErr error) {
 				spread[coin] = buffer.NewWindow(2)
 				s.signals[coin] = signal
 				if signal.Tick.Active {
+					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
+					metrics.Observer.NoteLag(f, string(coin), "socket", "ticker")
+					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
 					out <- &signal
 				}
 			default:
