@@ -72,7 +72,7 @@ func (e *Engine) Run() error {
 }
 
 func (e *Engine) first() api.Processor {
-	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
+	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
 		log.Info().Str("processor", "init").Msg("started processor")
 		defer func() {
 			log.Info().Str("processor", "init").Msg("closing processor")
@@ -92,8 +92,7 @@ func (e *Engine) first() api.Processor {
 			atomic.AddInt64(&l, 1)
 			if c%10000 == 0 {
 				log.Debug().
-					Str("trade-hash", trade.SourceID).
-					Time("trade-time", trade.Time).
+					Time("trade-time", trade.Meta.Time).
 					Str("coin", string(trade.Coin)).
 					Int64("count", c).
 					Msg("processed trades")

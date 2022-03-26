@@ -20,9 +20,9 @@ const fee = 0.24 / 100
 // It is used for back-testing
 type Exchange struct {
 	oneOfEvery int
-	trades     map[model.Coin]model.Trade
+	trades     map[model.Coin]model.TradeSignal
 	orders     []model.TrackedOrder
-	allTrades  map[model.Coin][]model.Trade
+	allTrades  map[model.Coin][]model.TradeSignal
 	count      map[model.Coin]int
 	mutex      *sync.Mutex
 	logger     *log.Logger
@@ -65,9 +65,9 @@ func NewExchange(logFile string) *Exchange {
 		logger = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	}
 	return &Exchange{
-		trades:    make(map[model.Coin]model.Trade),
+		trades:    make(map[model.Coin]model.TradeSignal),
 		orders:    make([]model.TrackedOrder, 0),
-		allTrades: make(map[model.Coin][]model.Trade),
+		allTrades: make(map[model.Coin][]model.TradeSignal),
 		count:     make(map[model.Coin]int),
 		mutex:     new(sync.Mutex),
 		wallet:    make(map[model.Coin]wallet),
@@ -138,7 +138,7 @@ func (e *Exchange) OpenOrder(order *model.TrackedOrder) (*model.TrackedOrder, []
 	return order, []string{order.ID}, nil
 }
 
-func (e *Exchange) Process(trade *model.Trade) {
+func (e *Exchange) Process(trade *model.TradeSignal) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	// TODO : check why and when we are getting nil trades.
@@ -146,7 +146,7 @@ func (e *Exchange) Process(trade *model.Trade) {
 		return
 	}
 	if _, ok := e.allTrades[trade.Coin]; !ok {
-		e.allTrades[trade.Coin] = make([]model.Trade, 0)
+		e.allTrades[trade.Coin] = make([]model.TradeSignal, 0)
 	}
 	tr := *trade
 	e.trades[trade.Coin] = tr
@@ -167,8 +167,8 @@ func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
 			zlog.Info().Str("coin", string(c)).Int("count", len(e.orders)).Msg("all orders")
 			zlog.Info().Str("coin", string(c)).Float64("value", e.wallet[c].value).Msg("value")
 			zlog.Info().Str("coin", string(c)).Float64("volume", e.wallet[c].volume).Msg("volume")
-			zlog.Info().Str("coin", string(c)).Float64("price", e.trades[c].Price).Msg("price")
-			zlog.Info().Str("coin", string(c)).Float64("pnl", e.wallet[c].value+e.trades[c].Price*e.wallet[c].volume).Msg("pnl")
+			zlog.Info().Str("coin", string(c)).Float64("price", e.trades[c].Tick.Price).Msg("price")
+			zlog.Info().Str("coin", string(c)).Float64("pnl", e.wallet[c].value+e.trades[c].Tick.Price*e.wallet[c].volume).Msg("pnl")
 		}
 	}
 
@@ -193,7 +193,7 @@ func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
 		r.Fees += o.Price * o.Volume * model.Fees / 100
 		// get the last price for this coin
 		if tr, ok := e.trades[o.Coin]; ok {
-			r.LastPrice = tr.Price
+			r.LastPrice = tr.Tick.Price
 		}
 		ww[o.Coin] = r
 	}
@@ -222,7 +222,7 @@ func (e *Exchange) Gather(print bool) map[model.Coin]client.Report {
 }
 
 // Trades returns the processed trades.
-func (e *Exchange) Trades(coin model.Coin) []model.Trade {
+func (e *Exchange) Trades(coin model.Coin) []model.TradeSignal {
 	return e.allTrades[coin]
 }
 

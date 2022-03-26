@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/math"
@@ -248,4 +249,127 @@ func WindowDensity() TimeBucketTransform {
 	return func(bucket TimeBucket) interface{} {
 		return bucket.Values().Stats()[0].Count()
 	}
+}
+
+// StatsMessage defines a stats instance
+type StatsMessage struct {
+	OK       bool          `json:"ok"`
+	Time     time.Time     `json:"Time"`
+	Duration time.Duration `json:"Duration"`
+	Dim      int64         `json:"Dimensions"`
+	Stats    []Stats       `json:"-"`
+}
+
+type IntervalWindow struct {
+	Time     time.Time         `json:"Time"`
+	Duration time.Duration     `json:"Duration"`
+	Dim      int64             `json:"Dimensions"`
+	window   *Window           `json:"-"`
+	stats    chan StatsMessage `json:"-"`
+	lock     *sync.Mutex       `json:"-"`
+}
+
+// NewIntervalWindow creates a new IntervalWindow with the given Duration.
+func NewIntervalWindow(dim int64, duration time.Duration) (*IntervalWindow, <-chan StatsMessage) {
+	stats := make(chan StatsMessage)
+
+	iw := &IntervalWindow{
+		Duration: duration,
+		Dim:      dim,
+		stats:    stats,
+		lock:     new(sync.Mutex),
+	}
+
+	iw.exec()
+
+	return iw, stats
+}
+
+// Push adds an element to the interval Window.
+func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
+	iw.lock.Lock()
+	defer iw.lock.Unlock()
+	if iw.window == nil {
+		iw.window = NewWindow(iw.Dim)
+		iw.Time = t
+	}
+	iw.window.Push(1, v...)
+}
+
+// Flush flushes the current bucket contents
+func (iw *IntervalWindow) Flush() {
+	iw.lock.Lock()
+	defer iw.lock.Unlock()
+
+	// if we did not have any event
+	if iw.window == nil {
+		iw.stats <- StatsMessage{}
+		return
+	}
+
+	stats := iw.window.bucket.Flush()
+	iw.window = nil
+	iw.stats <- StatsMessage{
+		OK:       true,
+		Time:     iw.Time,
+		Duration: iw.Duration,
+		Dim:      iw.Dim,
+		Stats:    stats,
+	}
+}
+
+// exec initiates the execution
+func (iw *IntervalWindow) exec() {
+	time.AfterFunc(iw.Duration, func() {
+		iw.Flush()
+		iw.exec()
+	})
+}
+
+// Close closes the channel
+func (iw *IntervalWindow) Close() error {
+	close(iw.stats)
+	return nil
+}
+
+type BatchWindow struct {
+	Window  *IntervalWindow `json:"Window"`
+	buckets *Ring           `json:"-"`
+}
+
+// NewBatchWindow creates a new batch Window.
+func NewBatchWindow(dim int64, duration time.Duration, size int) (BatchWindow, <-chan []StatsMessage) {
+	stats := make(chan []StatsMessage)
+	iw, stat := NewIntervalWindow(dim, duration)
+	bw := BatchWindow{
+		Window:  iw,
+		buckets: NewRing(size),
+	}
+
+	ss := make([]StatsMessage, 0)
+	go func() {
+		for s := range stat {
+			if len(ss) >= size {
+				ss = ss[1:]
+			}
+			ss = append(ss, s)
+			stats <- ss
+		}
+		close(stats)
+	}()
+
+	return bw, stats
+}
+
+// TODO : make this a channel in order to time the bucket correctly
+
+// Push adds an element to the given time Index.
+// It will return true, if there was a new bucket completed at the last operation
+func (bw BatchWindow) Push(t time.Time, v ...float64) {
+	bw.Window.Push(t, v...)
+}
+
+// Close closes the channel
+func (bw BatchWindow) Close() error {
+	return bw.Window.Close()
 }

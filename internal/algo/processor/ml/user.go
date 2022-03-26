@@ -137,9 +137,11 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				externalCount := 0
 				for _, np := range pp {
 					if np.Coin == c {
-						ep := np.Update(&model.Trade{
-							Price: pos[0].p.CurrentPrice,
-							Time:  pos[0].p.CurrentTime,
+						ep := np.Update(model.Tick{
+							Level: model.Level{
+								Price: pos[0].p.CurrentPrice,
+							},
+							Time: pos[0].p.CurrentTime,
 						})
 						externalValue += ep.Cost
 						externalSum += ep.PnL

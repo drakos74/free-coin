@@ -23,7 +23,7 @@ const (
 // before forwarding them.
 type History struct {
 	source   client.Source
-	batch    map[model.Coin][]*model.Trade
+	batch    map[model.Coin][]*model.TradeSignal
 	index    map[model.Coin]string
 	key      func(t time.Time) string
 	deKey    func(t string) (time.Time, error)
@@ -35,7 +35,7 @@ type History struct {
 func New(source client.Source) *History {
 	return &History{
 		source:   source,
-		batch:    make(map[model.Coin][]*model.Trade),
+		batch:    make(map[model.Coin][]*model.TradeSignal),
 		index:    make(map[model.Coin]string),
 		key:      genericKeyingFunc,
 		deKey:    genericDeKeyFunc,

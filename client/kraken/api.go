@@ -3,10 +3,8 @@ package kraken
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	krakenapi "github.com/beldur/kraken-go-api-client"
-	"github.com/drakos74/free-coin/client/kraken/model"
 	coinmodel "github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -29,10 +27,16 @@ func (r *RemoteExchange) getInfo() {
 	for c, pair := range *pairs {
 		coin := coinmodel.Coin(c)
 		symbols[coin] = pair
+		if len(pair.LeverageBuy) > 0 && len(pair.LeverageSell) > 0 &&
+			pair.Quote == "ZEUR" {
+			if p, ok := r.converter.Coin.Alt(pair.Altname); ok {
+				fmt.Printf("%v = %+v\n", p, pair)
+			}
+		}
 	}
 
 	r.info = symbols
-	log.Info().
+	log.Trace().
 		Int("pairs", len(symbols)).
 		Str("exchange", "kraken").
 		Msg("exchange info")
@@ -42,35 +46,18 @@ func (r *RemoteExchange) getInfo() {
 	}
 }
 
-func (r *RemoteExchange) TradesHistory(from time.Time, to time.Time) (*coinmodel.TradeMap, error) {
-	response, err := r.private.TradesHistory(from.Unix(), to.Unix(), map[string]string{
-		"trades": "true",
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("could not get trade history from kraken: %w", err)
-	}
-
-	if response.Count == 0 {
-		return coinmodel.NewTradeMap(), nil
-	}
-
-	trades := make([]coinmodel.Trade, 0)
-	for k, trade := range response.Trades {
-		trades = append(trades, model.NewHistoryTrade(k, trade))
-	}
-	return coinmodel.NewTradeMap(trades...), nil
-}
-
 // Order opens an order in kraken.
 func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []string, error) {
 
-	pair := r.converter.Coin.Pair(order.Coin)
+	pair, ok := r.converter.Coin.Pair(order.Coin)
+	if !ok {
+		return nil, nil, fmt.Errorf("could not find pair: %s", order.Coin)
+	}
 
 	// TODO : probably need another mapping here
-	s, ok := r.info[coinmodel.Coin(pair)]
+	s, ok := r.info[coinmodel.Coin(pair.Rest)]
 	if !ok {
-		log.Warn().Str("pair", pair).Str("coin", string(order.Coin)).Msg("could not find exchange info")
+		log.Warn().Str("pair", pair.Rest).Str("coin", string(order.Coin)).Msg("could not find exchange info")
 	}
 
 	params := make(map[string]string)
@@ -80,18 +67,16 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 	}
 
 	if order.Price > 0 {
-		// TODO : make poer coin as for binance
+		// TODO : make per coin as for binance
 		params["price"] = strconv.FormatFloat(order.Price, 'f', 2, 64)
-		//coinmodel.Price.Format(order.Coin, order.Price)
 	}
 
-	oPair := r.converter.Coin.Pair(order.Coin)
 	direction := r.converter.Type.From(order.Type)
 	oType := r.converter.OrderType.From(order.OType)
 
 	vol := strconv.FormatFloat(order.Volume, 'f', s.LotDecimals, 64)
 	response, err := r.private.AddOrder(
-		oPair,
+		pair.Rest,
 		direction,
 		oType,
 		vol,
@@ -99,7 +84,7 @@ func (r *RemoteExchange) Order(order coinmodel.Order) (*coinmodel.Order, []strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not add order '%+v' - (pair=%s,direction=%s,orderType=%s,volume=%s,decimals=%d)  : %w | %+v",
 			order,
-			oPair, direction, oType, vol, s.LotDecimals,
+			pair, direction, oType, vol, s.LotDecimals,
 			err, response)
 	}
 

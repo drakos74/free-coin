@@ -15,25 +15,73 @@ type Signal struct {
 var VoidSignal = Signal{}
 
 // TradeSource is a channel for receiving and sending trades.
-type TradeSource chan *Trade
+type TradeSource chan *TradeSignal
 
-// Trade represents a trade object with all necessary details.
-type Trade struct {
-	SourceID string    `json:"-"`
-	Exchange string    `json:"exchange"`
-	ID       string    `json:"id"`
-	RefID    string    `json:"refId"`
-	Net      float64   `json:"net"`
-	Coin     Coin      `json:"coin"`
-	Price    float64   `json:"Value"`
-	Volume   float64   `json:"Volume"`
-	Time     time.Time `json:"time"`
-	Type     Type      `json:"Type"`
-	Active   bool      `json:"active"`
-	Live     bool      `json:"live"`
-	Meta     Batch     `json:"batch"`
-	Signals  []Signal  `json:"-"`
+// SignalSource is a channel for receiving and sending trade signals.
+type SignalSource chan *TradeSignal
+
+// Level defines a trading level.
+type Level struct {
+	Price  float64
+	Volume float64
 }
+
+// Tick defines a tick in the price
+type Tick struct {
+	Level
+	Type   Type
+	Time   time.Time
+	Active bool
+}
+
+// Spread defines the current spread
+type Spread struct {
+	Bid   Level
+	Ask   Level
+	Trade bool
+	Time  time.Time
+}
+
+type Meta struct {
+	ID       string    `json:"id"`
+	Time     time.Time `json:"time"`
+	Live     bool      `json:"live"`
+	Exchange string    `json:"exchange"`
+}
+
+type Book struct {
+	Count int
+	Mean  float64
+	Ratio float64
+	Std   float64
+}
+
+// TradeSignal defines a generic trade signal
+type TradeSignal struct {
+	Coin   Coin   `json:"coin"`
+	Meta   Meta   `json:"meta"`
+	Tick   Tick   `json:"tick"`
+	Book   Book   `json:"stats"`
+	Spread Spread `json:"spread"`
+}
+
+//// Trade represents a trade object with all necessary details.
+//type Trade struct {
+//	SourceID string    `json:"-"`
+//	Exchange string    `json:"exchange"`
+//	ID       string    `json:"id"`
+//	RefID    string    `json:"refId"`
+//	Net      float64   `json:"net"`
+//	Coin     Coin      `json:"coin"`
+//	Price    float64   `json:"Value"`
+//	Volume   float64   `json:"Volume"`
+//	Time     time.Time `json:"time"`
+//	Type     Type      `json:"Type"`
+//	Active   bool      `json:"active"`
+//	Live     bool      `json:"live"`
+//	Meta     Batch     `json:"batch"`
+//	Signals  []Signal  `json:"-"`
+//}
 
 type Batch struct {
 	Duration time.Duration `json:"interval"`
@@ -44,36 +92,36 @@ type Batch struct {
 
 // TradeBatch is an indexed group of trades
 type TradeBatch struct {
-	Trades []Trade
+	Trades []TradeSignal
 	Index  int64
 }
 
 // TradeMap defines a generic grouping of trades
 type TradeMap struct {
-	Trades map[string]Trade
+	Trades map[string]TradeSignal
 	From   time.Time
 	To     time.Time
 	Order  []string
 }
 
 // NewTradeMap creates a new trade map from the given trades.
-func NewTradeMap(trades ...Trade) *TradeMap {
-	m := make(map[string]Trade, len(trades))
+func NewTradeMap(trades ...TradeSignal) *TradeMap {
+	m := make(map[string]TradeSignal, len(trades))
 
 	// Sort by age, keeping original order or equal elements.
 	sort.SliceStable(trades, func(i, j int) bool {
-		return trades[i].Time.Before(trades[j].Time)
+		return trades[i].Meta.Time.Before(trades[j].Meta.Time)
 	})
 	var from time.Time
 	var to time.Time
 	order := make([]string, len(trades))
 	for i, trade := range trades {
-		order[i] = trade.ID
-		m[trade.ID] = trade
+		order[i] = trade.Meta.ID
+		m[trade.Meta.ID] = trade
 		if i == 0 {
-			from = trade.Time
+			from = trade.Meta.Time
 		}
-		to = trade.Time
+		to = trade.Meta.Time
 	}
 	return &TradeMap{
 		Trades: m,

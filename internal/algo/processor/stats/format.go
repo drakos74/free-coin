@@ -11,7 +11,7 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-func formatΗΜΜMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[buffer.Sequence]buffer.Predictions, status buffer.Status, p *model.Trade, cfg Config) string {
+func formatΗΜΜMessage(last windowView, values [][]string, aggregateStats coinmath.AggregateStats, predictions map[buffer.Sequence]buffer.Predictions, status buffer.Status, p *model.TradeSignal, cfg Config) string {
 	// TODO : make the trigger arguments more specific to current stats statsCollector
 
 	// format the PredictionList.
@@ -55,7 +55,7 @@ func formatΗΜΜMessage(last windowView, values [][]string, aggregateStats coin
 	move := emoji.MapToSentiment(last.price.Ratio)
 	mp := fmt.Sprintf("%s %s€ ratio:%.2f stdv:%.2f ema:%.2f",
 		move,
-		coinmath.Format(p.Price),
+		coinmath.Format(p.Tick.Price),
 		last.price.Ratio*100,
 		last.price.StdDev,
 		last.price.EMADiff)
@@ -88,12 +88,12 @@ func formatΗΜΜMessage(last windowView, values [][]string, aggregateStats coin
 
 }
 
-func formatPoly(cfg Config, trade *model.Trade, poly map[int][]float64, density float64, profit float64, err error) string {
+func formatPoly(cfg Config, trade *model.TradeSignal, poly map[int][]float64, density float64, profit float64, err error) string {
 	return fmt.Sprintf("%s | %s %s (%.2f %.2f) | %.2f | %.2f (%.2f) \n%v %v %v",
 		trade.Coin,
 		emoji.MapDeca(poly[2][2]), emoji.MapDeca(100*poly[3][3]),
 		poly[2][2], poly[3][3],
-		trade.Price, density, profit,
+		trade.Tick.Price, density, profit,
 		cfg.Name, cfg.Duration, cfg.Model.Stats)
 }
 

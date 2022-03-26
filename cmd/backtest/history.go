@@ -37,7 +37,7 @@ func load() server.Handler {
 		upstream := kraken.NewClient(params.Coin).
 			Since(cointime.ToNano(params.From)).
 			Interval(10 * time.Second).
-			Stop(func(trade *model.Trade, numberOfTrades int) bool {
+			Stop(func(trade *model.TradeSignal, numberOfTrades int) bool {
 				if trade.Time.After(params.To) {
 					return true
 				}
@@ -66,7 +66,7 @@ func load() server.Handler {
 		tradeTracker := coin.NewStrategy("Trades").
 			ForUser(u).
 			WithProcessor(func(u api.User, e api.Exchange) api.Processor {
-				return processor.Process("Trades", func(trade *model.Trade) error {
+				return processor.Process("Trades", func(trade *model.TradeSignal) error {
 					if c == 0 {
 						startTime = trade.Time
 					}

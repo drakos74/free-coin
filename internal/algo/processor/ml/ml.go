@@ -15,8 +15,9 @@ import (
 
 type collector struct {
 	store   storage.Persistence
-	windows map[model.Key]*buffer.HistoryWindow
+	windows map[model.Key]buffer.BatchWindow
 	state   map[model.Key]*state
+	vectors chan vector
 	config  *Config
 }
 
@@ -24,37 +25,46 @@ type state struct {
 	buffer *buffer.MultiBuffer
 }
 
-func newCollector(shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
+func newCollector(dim int64, shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
 	store, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
 		store = storage.NewVoidStorage()
 	}
 
-	windows := make(map[model.Key]*buffer.HistoryWindow)
+	windows := make(map[model.Key]buffer.BatchWindow)
 	states := make(map[model.Key]*state)
 
+	col := &collector{
+		store:   store,
+		config:  config,
+		vectors: make(chan vector),
+	}
+
 	for k, cfg := range config.Segments {
-		window := buffer.NewHistoryWindow(k.Duration, cfg.Stats.LookBack+cfg.Stats.LookAhead)
-		windows[k] = &window
+		bw, trades := buffer.NewBatchWindow(dim, k.Duration, cfg.Stats.LookBack+cfg.Stats.LookAhead)
+		windows[k] = bw
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),
 		}
 		log.Info().Str("key", k.ToString()).Msg("init collector")
-		if err != nil {
-			log.Error().Err(err).Str("k", fmt.Sprintf("%+v", k)).Msg("could not reset collector")
-		}
+		go col.process(k, trades)
 	}
 
-	return &collector{
-		store:   store,
-		windows: windows,
-		state:   states,
-		config:  config,
-	}, nil
+	col.windows = windows
+	col.state = states
+
+	return col, nil
+}
+
+type meta struct {
+	coin     model.Coin
+	duration time.Duration
+	tick     model.Tick
 }
 
 type vector struct {
+	meta    meta
 	prevIn  []float64
 	prevOut []float64
 	newIn   []float64
@@ -62,38 +72,40 @@ type vector struct {
 	yy      []float64
 }
 
-func (c *collector) push(trade *model.Trade) (states map[time.Duration]vector, hasUpdate bool) {
-	ss := make(map[time.Duration]vector)
-	for k, window := range c.windows {
-		if k.Match(trade.Coin) {
-			tracker := c.state[k]
-			if stateVector, ok := c.vector(window, tracker, trade, k); ok {
-				ss[k.Duration] = stateVector
+func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
+	metrics.Observer.IncrementEvents(string(key.Coin), key.Hash(), "window", Name)
+	for messages := range batch {
+		xx := make([]float64, 0)
+		yy := make([]float64, 0)
+		t0 := 0.0
+		last := messages[len(messages)-1]
+		for i, bucket := range messages {
+			if i == 0 {
+				t0 = float64(bucket.Time.Unix()) / bucket.Duration.Seconds()
 			}
-		}
-	}
-	if len(ss) > 0 {
-		return ss, true
-	}
-	return nil, false
-}
+			x := float64(bucket.Time.Unix())/bucket.Duration.Seconds() - t0
+			xx = append(xx, x)
 
-func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *model.Trade, key model.Key) (vector, bool) {
-	if b, ok := window.Push(trade.Time, trade.Price, trade.Volume); ok {
-		metrics.Observer.IncrementEvents(string(trade.Coin), key.Hash(), "window", Name)
-		xx, yy, err := window.Extract(0, func(b buffer.TimeWindowView) float64 {
-			return 100 * b.Ratio
-		})
-		if err != nil {
-			// TODO : log at debug maybe ?
-			return vector{}, false
+			y := 100 * bucket.Stats[0].Ratio()
+			yy = append(yy, y)
 		}
 		inp, err := fit(xx, yy, 0, 1, 2)
+		if err != nil {
+			log.Warn().Err(err).
+				Str("key", fmt.Sprintf("%+v", key)).
+				Str("x", fmt.Sprintf("%+v", xx)).
+				Str("y", fmt.Sprintf("%+v", yy)).
+				Msg("could not fit")
+			continue
+		}
+		tracker := c.state[key]
 		prev := tracker.buffer.Last()
-		ratio := b.Values().Stats()[0].Ratio()
-		count := b.Values().Stats()[0].Count()
-		value := b.Values().Stats()[0].Avg() * b.Values().Stats()[1].Avg()
-		std := b.Values().Stats()[0].StDev()
+		ratio := last.Stats[0].Ratio()
+		count := last.Stats[0].Count()
+		price := last.Stats[0].Avg()
+		volume := last.Stats[1].Avg()
+		value := price * volume
+		std := last.Stats[0].StDev()
 		inp = append(inp, float64(count), value, std)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
@@ -105,16 +117,35 @@ func (c *collector) vector(window *buffer.HistoryWindow, tracker *state, trade *
 			next[1] = 1
 		}
 		if _, ok := tracker.buffer.Push(inp); ok {
-			return vector{
+			v := vector{
+				meta: meta{
+					coin:     key.Coin,
+					duration: key.Duration,
+					tick: model.Tick{
+						Level: model.Level{
+							Price:  price,
+							Volume: volume,
+						},
+						Time: last.Time.Add(last.Duration),
+					},
+				},
 				prevIn:  prev,
 				prevOut: next,
 				newIn:   inp,
 				yy:      yy,
 				xx:      xx,
-			}, true
+			}
+			c.vectors <- v
 		}
 	}
-	return vector{}, false
+}
+
+func (c *collector) push(trade *model.TradeSignal) {
+	for k, window := range c.windows {
+		if k.Match(trade.Coin) {
+			window.Push(trade.Meta.Time, trade.Tick.Price, trade.Tick.Volume)
+		}
+	}
 }
 
 func fit(xx, yy []float64, degree ...int) ([]float64, error) {

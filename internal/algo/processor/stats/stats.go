@@ -68,9 +68,10 @@ func newStats(shard storage.Shard, configs map[model.Coin]map[time.Duration]Conf
 //	delete(s.windows, k)
 //}
 
-func (s *statsCollector) push(k model.Key, trade *model.Trade) ([]interface{}, map[int][]float64, float64, bool) {
+func (s *statsCollector) push(k model.Key, signal *model.TradeSignal) ([]interface{}, map[int][]float64, float64, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	trade := signal.Tick
 	if b, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
 		poly := make(map[int][]float64)
 		poly2, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {

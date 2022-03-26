@@ -124,9 +124,9 @@ type Position struct {
 const timeDuration = 3 * time.Minute
 
 // Update updates the current status of the position and the profit or loss percentage.
-func (p *Position) Update(trade *Trade) Position {
+func (p *Position) Update(trade Tick) Position {
 
-	if trade != nil {
+	if trade.Active {
 		p.CurrentPrice = trade.Price
 		p.CurrentTime = trade.Time
 	}

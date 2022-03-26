@@ -22,6 +22,8 @@ type Client struct {
 	interval      time.Duration
 	Source        Source
 	timer         map[coinmodel.Coin]time.Time
+	socket        *Socket
+	live          bool
 }
 
 // NewClient creates a new client.
@@ -41,7 +43,8 @@ func NewClient(coin ...coinmodel.Coin) *Client {
 			Interval:   interval,
 			public:     krakenapi.New("KEY", "SECRET"),
 		},
-		timer: make(map[coinmodel.Coin]time.Time),
+		timer:  make(map[coinmodel.Coin]time.Time),
+		socket: NewSocket(coin...),
 	}
 	return client
 }
@@ -71,6 +74,12 @@ func (c *Client) WithRemote(source Source) *Client {
 	return c
 }
 
+// Live defines the trade pull strategy for the client
+func (c *Client) Live(live bool) *Client {
+	c.live = live
+	return c
+}
+
 // Close closes the client.
 func (c *Client) Close() error {
 	return c.Source.Close()
@@ -80,7 +89,7 @@ func (c *Client) Close() error {
 // pair is the coin pair to retrieve the trades for.
 // stopExecution defines the stop strategy for the execution.
 // returns a channel for consumers to read the trades from.
-func (c *Client) Trades(process <-chan api.Signal) (coinmodel.TradeSource, error) {
+func (c *Client) Trades(process <-chan api.Signal) (out coinmodel.TradeSource, err error) {
 
 	// this is our first run ... so lets make sure we pass in the right since parameter
 	for _, coin := range c.coins {
@@ -88,18 +97,22 @@ func (c *Client) Trades(process <-chan api.Signal) (coinmodel.TradeSource, error
 	}
 
 	// expose the trades to the outside world
-	out := make(chan *coinmodel.Trade)
+	out = make(chan *coinmodel.TradeSignal)
 
-	// receive and delegate tick events To the output
-	trades := make(chan *coinmodel.Trade)
+	if c.live {
+		out, err = c.socket.Run()
+	} else {
+		// receive and delegate tick events To the output
+		trades := make(chan *coinmodel.TradeSignal)
 
-	// pull the next batch of trades
-	go c.execute(0, trades)
+		// pull the next batch of trades
+		go c.execute(0, trades)
 
-	// controller decides To delegate trade for processing, or stop execution
-	go c.controller(trades, out, process)
+		// controller decides To delegate trade for processing, or stop execution
+		go c.controller(trades, out, process)
+	}
 
-	return out, nil
+	return out, err
 
 }
 
@@ -107,7 +120,7 @@ const (
 	controllerProcessor = "controller"
 )
 
-func (c *Client) controller(input chan *coinmodel.Trade, output chan *coinmodel.Trade, process <-chan api.Signal) {
+func (c *Client) controller(input coinmodel.TradeSource, output coinmodel.TradeSource, process <-chan api.Signal) {
 	defer func() {
 		log.Info().Msg("closing trade controller")
 		close(output)
@@ -179,8 +192,15 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 			active = true
 		}
 		// signal the end of the trades batch
-		trade.Active = active
-		trades <- &trade //public.OpenTrade(coin, trade, active)
+		trade.Tick.Active = active
+		trades <- &coinmodel.TradeSignal{
+			Coin: trade.Coin,
+			Meta: coinmodel.Meta{
+				Time:     trade.Meta.Time,
+				Exchange: trade.Meta.Exchange,
+			},
+			Tick: trade.Tick,
+		} //public.OpenTrade(coin, trade, active)
 	}
 	//status := cointime.FromNano(tradeResponse.Index)
 	// calculate percentage ...

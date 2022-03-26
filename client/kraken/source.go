@@ -45,15 +45,18 @@ func (r *RemoteSource) AssetPairs() (*krakenapi.AssetPairsResponse, error) {
 
 // Trades retrieves the next trades batch from kraken.
 func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeBatch, error) {
-	pair := r.converter.Coin.Pair(coin)
+	pair, ok := r.converter.Coin.Pair(coin)
+	if !ok {
+		return nil, fmt.Errorf("could not find pair: %s", coin)
+	}
 	log.Debug().
-		Str("pair", pair).
+		Str("pair", pair.Rest).
 		Int64("since", since).
 		Int64("count", r.count).
 		Time("since-time", cointime.FromNano(since)).
 		Msg("calling remote")
 	// TODO : avoid the duplicate iteration on the trades
-	response, err := r.public.Trades(pair, since)
+	response, err := r.public.Trades(pair.Rest, since)
 
 	// storing the response for the tests ...
 	//rr, err := json.Marshal(response)
@@ -63,7 +66,7 @@ func (r *RemoteSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.Trad
 		return nil, fmt.Errorf("could not get trades from kraken: %w", err)
 	}
 	r.count += int64(len(response.Trades))
-	return r.transform(pair, r.Interval, response)
+	return r.transform(pair.Rest, r.Interval, response)
 }
 
 // Close closes the kraken client.
@@ -110,7 +113,10 @@ func (m *MockSource) Close() error {
 }
 
 func (m *MockSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeBatch, error) {
-	pair := m.converter.Coin.Pair(coin)
+	pair, ok := m.converter.Coin.Pair(coin)
+	if !ok {
+		return nil, fmt.Errorf("could not find pair: %s", coin)
+	}
 	files := m.files[string(coin)]
 	if _, ok := m.index[coin]; !ok {
 		m.index[coin] = 0
@@ -129,7 +135,7 @@ func (m *MockSource) Trades(coin coinmodel.Coin, since int64) (*coinmodel.TradeB
 		}
 
 		m.index[coin] = m.index[coin] + 1
-		return m.transform(pair, time.Second, response)
+		return m.transform(pair.Rest, time.Second, response)
 
 	} else {
 		return nil, errors.New("no trades found")
@@ -149,7 +155,7 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 	l := len(response.Trades)
 	if l == 0 {
 		return &coinmodel.TradeBatch{
-			Trades: []coinmodel.Trade{},
+			Trades: []coinmodel.TradeSignal{},
 			Index:  response.Last,
 		}, nil
 	}
@@ -158,7 +164,7 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 	//if time.Since(last) < interval {
 	//	live = true
 	//}
-	trades := make([]coinmodel.Trade, l)
+	trades := make([]coinmodel.TradeSignal, l)
 	meta := coinmodel.Batch{}
 	for i := 0; i < l; i++ {
 		live := false
@@ -178,23 +184,29 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 }
 
 // newTrade creates a new trade from the kraken trade response.
-func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo, meta coinmodel.Batch) coinmodel.Trade {
+func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakenapi.TradeInfo, _ coinmodel.Batch) coinmodel.TradeSignal {
 	var t coinmodel.Type
 	if trade.Buy {
 		t = coinmodel.Buy
 	} else if trade.Sell {
 		t = coinmodel.Sell
 	}
-	return coinmodel.Trade{
-		Exchange: "kraken",
-		Coin:     r.converter.Coin.Coin(pair),
-		Price:    trade.PriceFloat,
-		Volume:   trade.VolumeFloat,
-		Time:     time.Unix(trade.Time, 0),
-		Active:   active,
-		Live:     live,
-		Type:     t,
-		Meta:     meta,
+	return coinmodel.TradeSignal{
+		Coin: r.converter.Coin.Coin(pair),
+		Tick: coinmodel.Tick{
+			Level: coinmodel.Level{
+				Price:  trade.PriceFloat,
+				Volume: trade.VolumeFloat,
+			},
+			Type:   t,
+			Time:   time.Unix(trade.Time, 0),
+			Active: active,
+		},
+		Meta: coinmodel.Meta{
+			Time:     time.Unix(trade.Time, 0),
+			Live:     live,
+			Exchange: "kraken",
+		},
 	}
 }
 

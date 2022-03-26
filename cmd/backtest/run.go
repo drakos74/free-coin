@@ -125,13 +125,13 @@ func run() server.Handler {
 		tradeTracker := coin.NewStrategy("Trades").
 			ForUser(u).
 			WithProcessor(func(u api.User, e api.Exchange) api.Processor {
-				return processor.Process("Trades", func(trade *model.Trade) error {
-					if b, ok := window.Push(trade.Time, trade.Price); ok {
+				return processor.Process("Trades", func(trade *model.TradeSignal) error {
+					if b, ok := window.Push(trade.Time, trade.Tick.Price); ok {
 						price := b.Bucket.Values().Stats()[0].Avg()
-						func(trade model.Trade, price float64) {
+						func(trade model.TradeSignal, price float64) {
 							response.Trades = append(response.Trades, Point{
 								X: trade.Time,
-								Y: trade.Price,
+								Y: trade.Tick.Price,
 							})
 							response.Time = append(response.Time, trade.Time)
 							response.Price = append(response.Price, Point{

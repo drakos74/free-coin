@@ -38,7 +38,7 @@ func (s *source) WithThreshold(threshold func(t time.Time) bool) *source {
 
 func (s *source) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	out := make(model.TradeSource)
-	trades := []model.Trade{{}}
+	trades := []model.TradeSignal{{}}
 	err := s.registry.GetFor(storage.K{
 		Pair: string(s.request.Coin),
 	}, &trades, s.filter)

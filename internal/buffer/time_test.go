@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -48,4 +49,51 @@ func TestHistoryWindow_Push(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIntervalWindow_Flush(t *testing.T) {
+
+	iw, stats := NewIntervalWindow(3, time.Second)
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			f := float64(i)
+			iw.Push(time.Now(), f, 10*f, f/5)
+			time.Sleep(10 * time.Millisecond)
+		}
+		iw.Close()
+	}()
+
+	c := 0
+	for stat := range stats {
+		fmt.Printf("stat-message = %+v\n", stat)
+		c++
+	}
+
+	fmt.Printf("c = %+v\n", c)
+	assert.True(t, 11 <= c && c <= 12)
+
+}
+
+func TestBatchWindow_Push(t *testing.T) {
+
+	bw, stats := NewBatchWindow(1, time.Second, 5)
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			f := float64(i)
+			bw.Push(time.Now(), f)
+			time.Sleep(10 * time.Millisecond)
+		}
+		bw.Close()
+	}()
+
+	c := 0
+	for stat := range stats {
+		fmt.Printf("stat-message = %+v\n", stat)
+		c++
+	}
+
+	fmt.Printf("c = %+v\n", c)
+	assert.True(t, 11 <= c && c <= 12)
 }

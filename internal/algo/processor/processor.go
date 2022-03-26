@@ -2,6 +2,8 @@ package processor
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/metrics"
 
@@ -27,7 +29,7 @@ func NewStateKey(processor string, key model.Key) storage.Key {
 // Void is a pass-through processor that only propagates trades to the next one.
 func Void(name string) api.Processor {
 	processorName := fmt.Sprintf("%s-%s", name, Name)
-	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
+	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
 		defer func() {
 			log.Info().Str("processor", processorName).Msg("closing processor")
 			close(out)
@@ -49,13 +51,13 @@ func Error(name string, err error) string {
 }
 
 // Process is a wrapper for a processor logic.
-func Process(name string, p func(trade *model.Trade) error) api.Processor {
+func Process(name string, p func(trade *model.TradeSignal) error) api.Processor {
 	return ProcessWithClose(name, p, func() {})
 }
 
 // ProcessWithClose is a wrapper for a processor logic with a close execution func.
-func ProcessWithClose(name string, p func(trade *model.Trade) error, shutdown func()) api.Processor {
-	return func(in <-chan *model.Trade, out chan<- *model.Trade) {
+func ProcessWithClose(name string, p func(trade *model.TradeSignal) error, shutdown func()) api.Processor {
+	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
 		log.Info().Str("processor", name).Msg("started processor")
 		defer func() {
 			log.Info().Str("processor", name).Msg("closing processor")
@@ -73,9 +75,41 @@ func ProcessWithClose(name string, p func(trade *model.Trade) error, shutdown fu
 	}
 }
 
+// ProcessBufferedWithClose is a wrapper for a processor logic with a close execution func and buffering logic.
+func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade *model.TradeSignal) error, shutdown func()) api.Processor {
+
+	signalBuffer, signals := NewSignalBuffer(duration)
+
+	go func() {
+		for signal := range signals {
+			coin := string(signal.Coin)
+			f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
+			metrics.Observer.NoteLag(f, coin, Name, "source")
+			err := p(signal)
+			if err != nil {
+				log.Error().Err(err).Msg("error during trade signal processing")
+			}
+		}
+	}()
+
+	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
+		log.Info().Str("processor", name).Msg("started processor")
+		defer func() {
+			log.Info().Str("processor", name).Msg("closing processor")
+			close(out)
+			shutdown()
+		}()
+		for trade := range in {
+			metrics.Observer.IncrementTrades(string(trade.Coin), name, "source")
+			signalBuffer.Push(trade)
+			out <- trade
+		}
+	}
+}
+
 // NoProcess is a wrapper for no processor logic
 func NoProcess(name string) api.Processor {
-	return Process(name, func(trade *model.Trade) error {
+	return Process(name, func(trade *model.TradeSignal) error {
 		return nil
 	})
 }

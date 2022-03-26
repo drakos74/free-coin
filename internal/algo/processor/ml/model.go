@@ -193,7 +193,7 @@ func (b *Benchmark) assess() map[model.Key][]client.Report {
 	return b.Profit
 }
 
-func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config *Config) (client.Report, bool, error) {
+func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *Config) (client.Report, bool, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -233,7 +233,10 @@ func (b *Benchmark) add(key model.Key, trade *model.Trade, signal Signal, config
 	b.Actions[key] = actions
 
 	// track the log
-	b.Exchange[key].Process(trade)
+	b.Exchange[key].Process(&model.TradeSignal{
+		Coin: key.Coin,
+		Tick: trade,
+	})
 
 	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason)
 	if err != nil {

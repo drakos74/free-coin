@@ -192,6 +192,16 @@ func (b Bucket) Index() int64 {
 	return b.index
 }
 
+// Flush flushes the current stats of the bucket.
+func (b Bucket) Flush() []Stats {
+	l := len(b.stats.Stats())
+	ss := make([]Stats, l)
+	for i := 0; i < l; i++ {
+		ss[i] = *b.stats.stats[i]
+	}
+	return ss
+}
+
 // Window is a helper struct allowing grouping together Buckets of StatsCollectors for the given Index.
 type Window struct {
 	size      int64

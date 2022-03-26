@@ -23,7 +23,7 @@ const (
 
 // Processor is the position processor main routine.
 func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
-	collector, err := newCollector(shard, nil, config)
+	collector, err := newCollector(2, shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
 		log.Error().Err(err).Str("processor", Name).Msg("could not init processor")
@@ -52,78 +52,74 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
-		buffer := processor.NewBuffer(time.Minute)
 		ds := newDataSets()
-		return processor.ProcessWithClose(Name, func(trade *model.Trade) error {
-			f, _ := strconv.ParseFloat(trade.Time.Format("0102.1504"), 64)
-			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "source")
-			if bucket, ok := buffer.Push(trade); ok {
-				trade = bucket
-			} else {
-				return nil
-			}
-			start := time.Now()
-			metrics.Observer.NoteLag(f, string(trade.Coin), Name, "batch")
-			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "batch")
-			signals := make(map[time.Duration]Signal)
-			var orderSubmitted bool
-			if vec, ok := collector.push(trade); ok {
-				metrics.Observer.NoteLag(f, string(trade.Coin), Name, "processor")
-				metrics.Observer.IncrementTrades(string(trade.Coin), Name, "processor")
-				startCollector := time.Now()
-				for d, vv := range vec {
-					metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "poly", Name)
-					configSegments := config.segments(trade.Coin, d)
-					for key, segmentConfig := range configSegments {
-						// do our training here ...
-						if segmentConfig.Model.Features > 0 {
-							metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train", Name)
-							if set, ok := ds.push(key, vv, segmentConfig); ok {
-								metrics.Observer.IncrementEvents(string(trade.Coin), d.String(), "train_buffer", Name)
-								if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
-									signal := Signal{
-										Key:       key,
-										Time:      trade.Time,
-										Price:     trade.Price,
-										Type:      t,
-										Spectrum:  coin_math.FFT(vv.yy),
-										Buffer:    vv.yy,
-										Precision: acc,
-										Weight:    segmentConfig.Trader.Weight,
-									}
-									signals[d] = signal
-									if config.Option.Benchmark {
-										benchmarks.add(key, trade, signal, config)
-									}
-								}
+		// process the collector vectors
+		for vv := range collector.vectors {
+			metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "poly", Name)
+			configSegments := config.segments(vv.meta.coin, vv.meta.duration)
+			signal := Signal{}
+			for key, segmentConfig := range configSegments {
+				// do our training here ...
+				if segmentConfig.Model.Features > 0 {
+					metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train", Name)
+					if set, ok := ds.push(key, vv, segmentConfig); ok {
+						metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train_buffer", Name)
+						if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
+							signal = Signal{
+								Key:       key,
+								Time:      vv.meta.tick.Time,
+								Price:     vv.meta.tick.Price,
+								Type:      t,
+								Spectrum:  coin_math.FFT(vv.yy),
+								Buffer:    vv.yy,
+								Precision: acc,
+								Weight:    segmentConfig.Trader.Weight,
+							}
+							if config.Option.Benchmark {
+								benchmarks.add(key, vv.meta.tick, signal, config)
 							}
 						}
 					}
 				}
-				if s, k, open, ok := strategy.eval(trade, signals, config); ok {
-					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
-					if err != nil {
-						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
-					} else if ok && config.Option.Debug {
-						// track the raw signals for debug purposes
-						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
-					} else if !ok {
-						log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
-					}
-					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
-				}
-				collectorDuration := time.Now().Sub(startCollector).Seconds()
-				metrics.Observer.TrackDuration(collectorDuration, string(trade.Coin), Name, "collector")
 			}
-			if live, first := strategy.isLive(trade); live || config.Option.Debug {
+			if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
+				if config.Option.Test {
+					u.Send(index,
+						api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
+							AddLine("test"),
+						nil)
+					continue
+				}
+				_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
+				if err != nil {
+					log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
+				} else if ok && config.Option.Debug {
+					// track the raw signals for debug purposes
+					u.Send(index, api.NewMessage(encodeMessage(s)), nil)
+				} else if !ok {
+					log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
+				}
+				u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
+			}
+		}
+
+		return processor.ProcessBufferedWithClose(Name, time.Minute, func(tradeSignal *model.TradeSignal) error {
+			coin := string(tradeSignal.Coin)
+			f, _ := strconv.ParseFloat(tradeSignal.Meta.Time.Format("0102.1504"), 64)
+			start := time.Now()
+			metrics.Observer.NoteLag(f, coin, Name, "batch")
+			metrics.Observer.IncrementTrades(coin, Name, "batch")
+			collector.push(tradeSignal)
+			if live, first := strategy.isLive(tradeSignal.Coin, tradeSignal.Tick); live || config.Option.Debug {
 				startStrategy := time.Now()
 				if first {
-					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s", trade.Time.Format(time.Stamp), trade.Coin)), nil)
+					u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s",
+						tradeSignal.Meta.Time.Format(time.Stamp), tradeSignal.Coin)), nil)
 				}
-				if trade.Live || config.Option.Debug {
-					metrics.Observer.NoteLag(f, string(trade.Coin), Name, "process")
-					pp, profit := wallet.Update(trade)
-					if !orderSubmitted && len(pp) > 0 {
+				if tradeSignal.Meta.Live || config.Option.Debug {
+					metrics.Observer.NoteLag(f, coin, Name, "process")
+					pp, profit := wallet.Update(tradeSignal)
+					if len(pp) > 0 {
 						for k, p := range pp {
 							reason := trader.VoidReasonClose
 							if p.PnL > 0 {
@@ -131,7 +127,14 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if p.PnL < 0 {
 								reason = trader.StopLossReason
 							}
-							_, ok, action, err := wallet.CreateOrder(k, trade.Time, trade.Price, p.Type.Inv(), false, p.Volume, reason)
+							if config.Option.Test {
+								u.Send(index,
+									api.NewMessage(formatAction(trader.Event{}, profit, err, false)).
+										AddLine("test"),
+									nil)
+								continue
+							}
+							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
 							} else if floats.Sum(profit) < 0 {
@@ -145,10 +148,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					}
 				}
 				strategyDuration := time.Now().Sub(startStrategy).Seconds()
-				metrics.Observer.TrackDuration(strategyDuration, string(trade.Coin), Name, "strategy")
+				metrics.Observer.TrackDuration(strategyDuration, coin, Name, "strategy")
 			}
 			duration := time.Now().Sub(start).Seconds()
-			metrics.Observer.TrackDuration(duration, string(trade.Coin), Name, "process")
+			metrics.Observer.TrackDuration(duration, coin, Name, "process")
 			return nil
 		}, func() {
 			//for c, aa := range wallet.Actions() {

@@ -46,23 +46,25 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 
 		//trader := trader.NewExchangeTrader(t, e)
 
-		return processor.Process(Name, func(trade *model.Trade) error {
-			metrics.Observer.IncrementTrades(string(trade.Coin), Name, "input")
+		return processor.Process(Name, func(tradeSignal *model.TradeSignal) error {
+			metrics.Observer.IncrementTrades(string(tradeSignal.Coin), Name, "input")
+			trade := tradeSignal.Tick
+			signals := make([]model.Signal, 0)
 			// set up the config for the coin if it s not there.
 			// use "" as default ... if its missing i guess we ll fail hard at some point ...
-			for duration, cfg := range stats.configs[trade.Coin] {
-				k := model.NewKey(trade.Coin, duration, cfg.Name)
+			for duration, cfg := range stats.configs[tradeSignal.Coin] {
+				k := model.NewKey(tradeSignal.Coin, duration, cfg.Name)
 				// push the trade data to the stats collector window
-				if buckets, poly, d, ok := stats.push(k, trade); ok {
+				if buckets, poly, d, ok := stats.push(k, tradeSignal); ok {
 					if len(poly[2]) > 1 && len(poly[3]) > 2 {
 						p := poly[2][2] * poly[3][3]
 						if p > 0 {
 							f := int(-1 * math.Log10(p))
-							stats.tracker[trade.Coin][duration][f]++
+							stats.tracker[tradeSignal.Coin][duration][f]++
 							// create a trade signal
 							signal := Signal{
 								Density:  d,
-								Coin:     trade.Coin,
+								Coin:     tradeSignal.Coin,
 								Factor:   p,
 								Type:     model.SignedType(poly[2][2]),
 								Price:    trade.Price,
@@ -78,7 +80,7 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 								Float64("3", poly[3][3]).
 								Float64("p", signal.Factor).
 								Int("f", f).
-								Str("tracker", fmt.Sprintf("%+v", stats.tracker[trade.Coin][duration])).
+								Str("tracker", fmt.Sprintf("%+v", stats.tracker[tradeSignal.Coin][duration])).
 								Float64("factor", signal.Factor*math.Pow(10, float64(cfg.Threshold))).
 								Int("threshold", cfg.Threshold).
 								Int("duration", cfg.Duration).
@@ -103,13 +105,11 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 					// TODO : give more weight to the more recent values that come in
 					// TODO : old values might destroy our statistics and be irrelevant
 					predictions, status := stats.add(k, values[0][len(values[0])-1])
-					if trade.Live {
-						if trade.Signals == nil {
-							trade.Signals = make([]model.Signal, 0)
-						}
+					if tradeSignal.Meta.Live {
 						aggregateStats := coinmath.NewAggregateStats(indicators)
 						// Note there is one trade signal per key (coin,duration) pair
-						trade.Signals = append(trade.Signals, model.Signal{
+						// TODO : what to do with the signals ?
+						signals = append(signals, model.Signal{
 							Type: "TradeSignal",
 							Value: TradeSignal{
 								SignalEvent: SignalEvent{
@@ -125,7 +125,7 @@ func Processor(index api.Index, shard storage.Shard, configs map[model.Coin]map[
 						if u != nil && cfg.Notify.Stats {
 							// TODO : add tests for this
 							u.Send(index,
-								api.NewMessage(formatΗΜΜMessage(last, values, aggregateStats, predictions, status, trade, cfg)).
+								api.NewMessage(formatΗΜΜMessage(last, values, aggregateStats, predictions, status, tradeSignal, cfg)).
 									ReferenceTime(trade.Time), nil)
 						}
 						// TODO : expose in metrics

@@ -28,7 +28,7 @@ func Void() api.Client {
 
 func (v VoidClient) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 	// dont send anything ... actually even better , close the channel
-	trades := make(chan *model.Trade)
+	trades := make(chan *model.TradeSignal)
 	go func() {
 		<-time.NewTicker(1 * time.Millisecond).C
 		log.Info().Str("processor", "local-void").Msg("closing processor")
