@@ -89,8 +89,8 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 						Active: bucket.OK,
 					},
 					Meta: model.Meta{
+						Time: bucket.Time,
 						Live: bucket.OK,
-						Time: trade.Meta.Time,
 					},
 				}
 				if bucket.OK {
