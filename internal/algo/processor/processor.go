@@ -83,7 +83,7 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 	go func(trades <-chan *model.TradeSignal) {
 		for signal := range trades {
 			coin := string(signal.Coin)
-			f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
+			f, _ := strconv.ParseFloat(signal.Tick.Time.Format("0102.1504"), 64)
 			metrics.Observer.NoteLag(f, coin, Name, "source")
 			err := p(signal)
 			if err != nil {
