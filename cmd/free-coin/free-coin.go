@@ -107,138 +107,138 @@ func configML() *ml.Config {
 				Weight:         1,
 			},
 		},
-		model.Key{
-			Coin:     model.DOT,
-			Duration: 15 * time.Minute,
-			Strategy: "dot",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
-		model.Key{
-			Coin:     model.ETH,
-			Duration: 15 * time.Minute,
-			Strategy: "eth",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
-		model.Key{
-			Coin:     model.LINK,
-			Duration: 15 * time.Minute,
-			Strategy: "link",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
-		model.Key{
-			Coin:     model.SOL,
-			Duration: 15 * time.Minute,
-			Strategy: "sol",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
-		model.Key{
-			Coin:     model.FLOW,
-			Duration: 15 * time.Minute,
-			Strategy: "flow",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
-		model.Key{
-			Coin:     model.MATIC,
-			Duration: 15 * time.Minute,
-			Strategy: "matic",
-		}: {
-			Stats: ml.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: ml.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           6,
-			},
-			Trader: ml.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
-		},
+		//model.Key{
+		//	Coin:     model.DOT,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "dot",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
+		//model.Key{
+		//	Coin:     model.ETH,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "eth",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
+		//model.Key{
+		//	Coin:     model.LINK,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "link",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
+		//model.Key{
+		//	Coin:     model.SOL,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "sol",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
+		//model.Key{
+		//	Coin:     model.FLOW,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "flow",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
+		//model.Key{
+		//	Coin:     model.MATIC,
+		//	Duration: 15 * time.Minute,
+		//	Strategy: "matic",
+		//}: {
+		//	Stats: ml.Stats{
+		//		LookBack:  3,
+		//		LookAhead: 1,
+		//		Gap:       0.1,
+		//	},
+		//	Model: ml.Model{
+		//		BufferSize:         42,
+		//		PrecisionThreshold: 0.55,
+		//		ModelSize:          120,
+		//		Features:           6,
+		//	},
+		//	Trader: ml.Trader{
+		//		BufferTime:     0,
+		//		PriceThreshold: 0,
+		//		Weight:         1,
+		//	},
+		//},
 	}
 
 	return &ml.Config{

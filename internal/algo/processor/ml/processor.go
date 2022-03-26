@@ -23,7 +23,7 @@ const (
 
 // Processor is the position processor main routine.
 func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
-	collector, err := newCollector(2, shard, nil, config)
+	col, err := newCollector(2, shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
 		log.Error().Err(err).Str("processor", Name).Msg("could not init processor")
@@ -48,14 +48,14 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			return processor.NoProcess(Name)
 		}
 
-		go trackUserActions(index, u, collector, strategy, wallet, benchmarks, config)
+		go trackUserActions(index, u, col, strategy, wallet, benchmarks, config)
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		// process the collector vectors
-		go func() {
+		go func(col *collector) {
 			ds := newDataSets()
-			for vv := range collector.vectors {
+			for vv := range col.vectors {
 				metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "poly", Name)
 				configSegments := config.segments(vv.meta.coin, vv.meta.duration)
 				signal := Signal{}
@@ -103,7 +103,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 				}
 			}
-		}()
+		}(col)
 
 		return processor.ProcessBufferedWithClose(Name, time.Minute, func(tradeSignal *model.TradeSignal) error {
 			coin := string(tradeSignal.Coin)
@@ -111,7 +111,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			start := time.Now()
 			metrics.Observer.NoteLag(f, coin, Name, "batch")
 			metrics.Observer.IncrementTrades(coin, Name, "batch")
-			collector.push(tradeSignal)
+			col.push(tradeSignal)
 			if live, first := strategy.isLive(tradeSignal.Coin, tradeSignal.Tick); live || config.Option.Debug {
 				startStrategy := time.Now()
 				if first {

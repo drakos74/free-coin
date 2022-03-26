@@ -1,12 +1,12 @@
 package processor
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/rs/zerolog/log"
 )
 
 // TradesBuffer is a buffer for trades for the given time range.
@@ -67,26 +67,24 @@ func NewSignalBuffer(duration time.Duration) (*SignalBuffer, <-chan *model.Trade
 	sb := &SignalBuffer{
 		windows:  make(map[string]*buffer.IntervalWindow),
 		duration: duration,
+		trades:   trades,
 	}
-
 	return sb, trades
 }
 
 // Push adds an element ot the buffer.
 func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
-	if _, ok := sb.windows[string(trade.Coin)]; !ok {
-		bf, trades := buffer.NewIntervalWindow(2, sb.duration)
-		sb.windows[string(trade.Coin)] = bf
-
-		go func() {
+	coin := string(trade.Coin)
+	if _, ok := sb.windows[coin]; !ok {
+		bf, trades := buffer.NewIntervalWindow(coin, 2, sb.duration)
+		sb.windows[coin] = bf
+		// start consuming for the new created window
+		go func(coin model.Coin, signals chan<- *model.TradeSignal) {
 			for bucket := range trades {
-				sb.trades <- &model.TradeSignal{
-					Coin: trade.Coin,
+				fmt.Printf("bucket = %+v - %+v\n", coin, bucket.Time)
+				signal := &model.TradeSignal{
+					Coin: coin,
 					Tick: model.Tick{
-						Level: model.Level{
-							Price:  bucket.Stats[0].Avg(),
-							Volume: bucket.Stats[1].Avg(),
-						},
 						Time:   bucket.Time.Add(bucket.Duration),
 						Active: bucket.OK,
 					},
@@ -95,11 +93,17 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 						Time: trade.Meta.Time,
 					},
 				}
+				if bucket.OK {
+					signal.Tick.Level = model.Level{
+						Price:  bucket.Stats[0].Avg(),
+						Volume: bucket.Stats[1].Avg(),
+					}
+				}
+				signals <- signal
 			}
-		}()
-
+		}(trade.Coin, sb.trades)
 	}
-	sb.windows[string(trade.Coin)].Push(trade.Meta.Time, trade.Tick.Price, trade.Tick.Volume)
+	sb.windows[coin].Push(trade.Meta.Time, trade.Tick.Price, trade.Tick.Volume)
 }
 
 func (sb *SignalBuffer) Close() {

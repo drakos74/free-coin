@@ -261,23 +261,25 @@ type StatsMessage struct {
 }
 
 type IntervalWindow struct {
+	ID       string
 	Time     time.Time         `json:"Time"`
 	Duration time.Duration     `json:"Duration"`
 	Dim      int64             `json:"Dimensions"`
 	window   *Window           `json:"-"`
 	stats    chan StatsMessage `json:"-"`
-	lock     *sync.Mutex       `json:"-"`
+	lock     *sync.RWMutex     `json:"-"`
 }
 
 // NewIntervalWindow creates a new IntervalWindow with the given Duration.
-func NewIntervalWindow(dim int64, duration time.Duration) (*IntervalWindow, <-chan StatsMessage) {
+func NewIntervalWindow(id string, dim int64, duration time.Duration) (*IntervalWindow, <-chan StatsMessage) {
 	stats := make(chan StatsMessage)
 
 	iw := &IntervalWindow{
+		ID:       id,
 		Duration: duration,
 		Dim:      dim,
 		stats:    stats,
-		lock:     new(sync.Mutex),
+		lock:     new(sync.RWMutex),
 	}
 
 	iw.exec()
@@ -287,8 +289,8 @@ func NewIntervalWindow(dim int64, duration time.Duration) (*IntervalWindow, <-ch
 
 // Push adds an element to the interval Window.
 func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
-	iw.lock.Lock()
-	defer iw.lock.Unlock()
+	iw.lock.RLock()
+	defer iw.lock.RUnlock()
 	if iw.window == nil {
 		iw.window = NewWindow(iw.Dim)
 		iw.Time = t
@@ -298,8 +300,8 @@ func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
 
 // Flush flushes the current bucket contents
 func (iw *IntervalWindow) Flush() {
-	iw.lock.Lock()
-	defer iw.lock.Unlock()
+	iw.lock.RLock()
+	defer iw.lock.RUnlock()
 
 	// if we did not have any event
 	if iw.window == nil {
@@ -338,16 +340,16 @@ type BatchWindow struct {
 }
 
 // NewBatchWindow creates a new batch Window.
-func NewBatchWindow(dim int64, duration time.Duration, size int) (BatchWindow, <-chan []StatsMessage) {
+func NewBatchWindow(id string, dim int64, duration time.Duration, size int) (*BatchWindow, <-chan []StatsMessage) {
 	stats := make(chan []StatsMessage)
-	iw, stat := NewIntervalWindow(dim, duration)
+	iw, stat := NewIntervalWindow(id, dim, duration)
 	bw := BatchWindow{
 		Window:  iw,
 		buckets: NewRing(size),
 	}
 
-	ss := make([]StatsMessage, 0)
-	go func() {
+	go func(stats chan<- []StatsMessage, stat <-chan StatsMessage) {
+		ss := make([]StatsMessage, 0)
 		for s := range stat {
 			if len(ss) >= size {
 				ss = ss[1:]
@@ -356,20 +358,20 @@ func NewBatchWindow(dim int64, duration time.Duration, size int) (BatchWindow, <
 			stats <- ss
 		}
 		close(stats)
-	}()
+	}(stats, stat)
 
-	return bw, stats
+	return &bw, stats
 }
 
 // TODO : make this a channel in order to time the bucket correctly
 
 // Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
-func (bw BatchWindow) Push(t time.Time, v ...float64) {
+func (bw *BatchWindow) Push(t time.Time, v ...float64) {
 	bw.Window.Push(t, v...)
 }
 
 // Close closes the channel
-func (bw BatchWindow) Close() error {
+func (bw *BatchWindow) Close() error {
 	return bw.Window.Close()
 }

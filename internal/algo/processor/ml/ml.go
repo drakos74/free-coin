@@ -15,7 +15,7 @@ import (
 
 type collector struct {
 	store   storage.Persistence
-	windows map[model.Key]buffer.BatchWindow
+	windows map[model.Key]*buffer.BatchWindow
 	state   map[model.Key]*state
 	vectors chan vector
 	config  *Config
@@ -32,7 +32,7 @@ func newCollector(dim int64, shard storage.Shard, _ *ff.Network, config *Config)
 		store = storage.NewVoidStorage()
 	}
 
-	windows := make(map[model.Key]buffer.BatchWindow)
+	windows := make(map[model.Key]*buffer.BatchWindow)
 	states := make(map[model.Key]*state)
 
 	col := &collector{
@@ -42,7 +42,7 @@ func newCollector(dim int64, shard storage.Shard, _ *ff.Network, config *Config)
 	}
 
 	for k, cfg := range config.Segments {
-		bw, trades := buffer.NewBatchWindow(dim, k.Duration, cfg.Stats.LookBack+cfg.Stats.LookAhead)
+		bw, trades := buffer.NewBatchWindow(string(k.Coin), dim, k.Duration, cfg.Stats.LookBack+cfg.Stats.LookAhead)
 		windows[k] = bw
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),
@@ -80,14 +80,16 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		t0 := 0.0
 		last := messages[len(messages)-1]
 		for i, bucket := range messages {
-			if i == 0 {
-				t0 = float64(bucket.Time.Unix()) / bucket.Duration.Seconds()
-			}
-			x := float64(bucket.Time.Unix())/bucket.Duration.Seconds() - t0
-			xx = append(xx, x)
+			if bucket.OK {
+				if i == 0 {
+					t0 = float64(bucket.Time.Unix()) / bucket.Duration.Seconds()
+				}
+				x := float64(bucket.Time.Unix())/bucket.Duration.Seconds() - t0
+				xx = append(xx, x)
 
-			y := 100 * bucket.Stats[0].Ratio()
-			yy = append(yy, y)
+				y := 100 * bucket.Stats[0].Ratio()
+				yy = append(yy, y)
+			}
 		}
 		inp, err := fit(xx, yy, 0, 1, 2)
 		if err != nil {

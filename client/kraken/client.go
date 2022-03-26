@@ -99,7 +99,7 @@ func (c *Client) Trades(process <-chan api.Signal) (out coinmodel.TradeSource, e
 	out = make(chan *coinmodel.TradeSignal)
 
 	if c.live {
-		out, err = c.socket.Run()
+		out, err = c.socket.Run(process)
 	} else {
 		// receive and delegate tick events To the output
 		trades := make(chan *coinmodel.TradeSignal)

@@ -24,7 +24,7 @@ func TestProcessor(t *testing.T) {
 
 	type test struct {
 		config *Config
-		trades func() []*model.Trade
+		trades func() []*model.TradeSignal
 		pnl    []client.Report
 	}
 
@@ -202,8 +202,8 @@ func TestProcessor(t *testing.T) {
 			e := localExchange.NewExchange("")
 			exec := proc(u, e)
 
-			chIn := make(chan *model.Trade)
-			chOut := make(chan *model.Trade)
+			chIn := make(chan *model.TradeSignal)
+			chOut := make(chan *model.TradeSignal)
 
 			go exec(chIn, chOut)
 
@@ -214,21 +214,22 @@ func TestProcessor(t *testing.T) {
 			go func() {
 				trades := tt.trades()
 				for _, trade := range trades {
-					if start.After(trade.Time) {
-						start = trade.Time
+					if start.After(trade.Tick.Time) {
+						start = trade.Tick.Time
 					}
-					if trade.Time.After(end) {
-						end = trade.Time
+					if trade.Tick.Time.After(end) {
+						end = trade.Tick.Time
 					}
-					pp = append(pp, trade.Price)
+					pp = append(pp, trade.Tick.Price)
 					chIn <- trade
+					time.Sleep(300 * time.Millisecond)
 				}
 				close(chIn)
 			}()
 
 			// consume the output
 			for trade := range chOut {
-				fmt.Printf("%v:%v - %+v\n", trade.Time.Hour(), trade.Time.Minute(), trade.Price)
+				fmt.Printf("%v:%v - %+v\n", trade.Tick.Time.Hour(), trade.Tick.Time.Minute(), trade.Tick.Price)
 				e.Process(trade)
 			}
 
@@ -266,7 +267,7 @@ func TestMultiStrategyProcessor(t *testing.T) {
 
 	type test struct {
 		config *Config
-		trades func() []*model.Trade
+		trades func() []*model.TradeSignal
 		pnl    []client.Report
 	}
 
@@ -370,8 +371,8 @@ func TestMultiStrategyProcessor(t *testing.T) {
 			e := localExchange.NewExchange("")
 			exec := proc(u, e)
 
-			chIn := make(chan *model.Trade)
-			chOut := make(chan *model.Trade)
+			chIn := make(chan *model.TradeSignal)
+			chOut := make(chan *model.TradeSignal)
 
 			go exec(chIn, chOut)
 
@@ -382,13 +383,13 @@ func TestMultiStrategyProcessor(t *testing.T) {
 			go func() {
 				trades := tt.trades()
 				for _, trade := range trades {
-					if start.After(trade.Time) {
-						start = trade.Time
+					if start.After(trade.Tick.Time) {
+						start = trade.Tick.Time
 					}
-					if trade.Time.After(end) {
-						end = trade.Time
+					if trade.Tick.Time.After(end) {
+						end = trade.Tick.Time
 					}
-					pp = append(pp, trade.Price)
+					pp = append(pp, trade.Tick.Price)
 					chIn <- trade
 				}
 				close(chIn)
@@ -396,7 +397,7 @@ func TestMultiStrategyProcessor(t *testing.T) {
 
 			// consume the output
 			for trade := range chOut {
-				fmt.Printf("%v:%v - %+v\n", trade.Time.Hour(), trade.Time.Minute(), trade.Price)
+				fmt.Printf("%v:%v - %+v\n", trade.Tick.Time.Hour(), trade.Tick.Time.Minute(), trade.Tick.Price)
 				e.Process(trade)
 			}
 
@@ -430,17 +431,21 @@ func TestMultiStrategyProcessor(t *testing.T) {
 	}
 }
 
-func testTrades(s, t int, g coin_math.Generator) func() []*model.Trade {
-	return func() []*model.Trade {
-		trades := make([]*model.Trade, 0)
+func testTrades(s, t int, g coin_math.Generator) func() []*model.TradeSignal {
+	return func() []*model.TradeSignal {
+		trades := make([]*model.TradeSignal, 0)
 
 		now := time.Now()
 		for i := 0; i < s; i++ {
-			trades = append(trades, &model.Trade{
-				Coin:  "BTC",
-				Price: g(i),
-				Time:  now.Add(time.Duration(i) * time.Duration(t) * time.Minute),
-				Live:  true,
+			trades = append(trades, &model.TradeSignal{
+				Coin: "BTC",
+				Tick: model.Tick{
+					Level: model.Level{
+						Price: g(i),
+					},
+					Time:   now.Add(time.Duration(i) * time.Duration(t) * time.Minute),
+					Active: true,
+				},
 			})
 		}
 

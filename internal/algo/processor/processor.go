@@ -78,10 +78,10 @@ func ProcessWithClose(name string, p func(trade *model.TradeSignal) error, shutd
 // ProcessBufferedWithClose is a wrapper for a processor logic with a close execution func and buffering logic.
 func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade *model.TradeSignal) error, shutdown func()) api.Processor {
 
-	signalBuffer, signals := NewSignalBuffer(duration)
+	signalBuffer, trades := NewSignalBuffer(duration)
 
-	go func() {
-		for signal := range signals {
+	go func(trades <-chan *model.TradeSignal) {
+		for signal := range trades {
 			coin := string(signal.Coin)
 			f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
 			metrics.Observer.NoteLag(f, coin, Name, "source")
@@ -90,12 +90,13 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 				log.Error().Err(err).Msg("error during trade signal processing")
 			}
 		}
-	}()
+	}(trades)
 
 	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
 		log.Info().Str("processor", name).Msg("started processor")
 		defer func() {
 			log.Info().Str("processor", name).Msg("closing processor")
+			signalBuffer.Close()
 			close(out)
 			shutdown()
 		}()

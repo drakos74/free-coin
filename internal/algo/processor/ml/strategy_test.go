@@ -21,7 +21,7 @@ func TestStrategy(t *testing.T) {
 
 	type test struct {
 		signals map[int]Signal
-		trades  map[int]*model.Trade
+		trades  map[int]*model.TradeSignal
 		action  []bool
 	}
 
@@ -30,7 +30,7 @@ func TestStrategy(t *testing.T) {
 			signals: map[int]Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				1: mockTrade(now.Add(halfBufferTime*time.Hour), 1100),
 			},
 			action: []bool{false, false},
@@ -39,7 +39,7 @@ func TestStrategy(t *testing.T) {
 			signals: map[int]Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				1: mockTrade(now.Add(bufferTime*time.Hour), 900),
 			},
 			action: []bool{false, false},
@@ -48,7 +48,7 @@ func TestStrategy(t *testing.T) {
 			signals: map[int]Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				1: mockTrade(now.Add(bufferTime*time.Hour), 1100),
 				2: mockTrade(now.Add((bufferTime+halfBufferTime)*time.Hour), 1100),
 			},
@@ -58,7 +58,7 @@ func TestStrategy(t *testing.T) {
 			signals: map[int]Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				1: mockTrade(now.Add((bufferTime)*time.Hour), 1100),
 				2: mockTrade(now.Add((bufferTime+bufferTime)*time.Hour), 1100),
 			},
@@ -68,7 +68,7 @@ func TestStrategy(t *testing.T) {
 			signals: map[int]Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				1: mockTrade(now.Add(bufferTime*time.Hour), 1100),
 				2: mockTrade(now.Add((bufferTime+bufferTime)*time.Hour), 1200),
 			},
@@ -79,7 +79,7 @@ func TestStrategy(t *testing.T) {
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(halfBufferTime*time.Hour), 1000, model.Buy),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				2: mockTrade(now.Add(bufferTime*time.Hour), 1100),
 			},
 			action: []bool{false, false, true},
@@ -89,7 +89,7 @@ func TestStrategy(t *testing.T) {
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(1*time.Hour), 1000, model.Sell),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				2: mockTrade(now.Add(bufferTime*time.Hour), 1100),
 				3: mockTrade(now.Add((bufferTime+halfBufferTime)*time.Hour), 1100),
 			},
@@ -100,7 +100,7 @@ func TestStrategy(t *testing.T) {
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(halfBufferTime*time.Hour), 1000, model.Sell),
 			},
-			trades: map[int]*model.Trade{
+			trades: map[int]*model.TradeSignal{
 				2: mockTrade(now.Add((bufferTime+halfBufferTime)*time.Hour), 900),
 			},
 			action: []bool{false, false, true},
@@ -131,7 +131,7 @@ func TestStrategy(t *testing.T) {
 				}
 				if tr, ok := tt.trades[i]; ok {
 					tradeCount++
-					_, _, _, act := strategy.trade(tr)
+					_, _, _, act := strategy.trade(k, tr.Tick)
 					assert.Equal(t, b, act, fmt.Sprintf("unexpected action at %d", i))
 				}
 			}
@@ -154,10 +154,16 @@ func mockSignal(t time.Time, p float64, tt model.Type) Signal {
 	}
 }
 
-func mockTrade(t time.Time, p float64) *model.Trade {
-	return &model.Trade{
-		Coin:  model.BTC,
-		Price: p,
-		Time:  t,
+func mockTrade(t time.Time, p float64) *model.TradeSignal {
+	return &model.TradeSignal{
+		Coin: model.BTC,
+		Tick: model.Tick{
+			Level: model.Level{
+				Price: p,
+			},
+			Type:   0,
+			Time:   t,
+			Active: false,
+		},
 	}
 }

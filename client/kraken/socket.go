@@ -10,12 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/metrics"
-
-	"github.com/drakos74/free-coin/internal/buffer"
-
 	ws "github.com/aopoltorzhicky/go_kraken/websocket"
 	kraken_model "github.com/drakos74/free-coin/client/kraken/model"
+	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/buffer"
+	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/google/uuid"
 	logger "github.com/rs/zerolog/log"
@@ -44,11 +43,11 @@ func NewSocket(coins ...model.Coin) *Socket {
 	}
 }
 
-func (s *Socket) Run() (chan *model.TradeSignal, error) {
+func (s *Socket) Run(process <-chan api.Signal) (chan *model.TradeSignal, error) {
 	out := make(chan *model.TradeSignal)
 
 	go func() {
-		err := s.connect(out)
+		err := s.connect(out, process)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to connect to socket")
 		}
@@ -57,11 +56,11 @@ func (s *Socket) Run() (chan *model.TradeSignal, error) {
 	return out, nil
 }
 
-func (s *Socket) connect(out chan *model.TradeSignal) (cErr error) {
+func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal) (cErr error) {
 	defer func() {
 		logger.Error().Err(cErr).Msg("error during connect, reconnecting ... ")
 		time.AfterFunc(5*time.Second, func() {
-			s.connect(out)
+			s.connect(out, process)
 		})
 	}()
 
@@ -97,8 +96,9 @@ func (s *Socket) connect(out chan *model.TradeSignal) (cErr error) {
 		select {
 		case <-signals:
 			if err := kraken.Close(); err != nil {
-				cErr = fmt.Errorf("could not close kraken socker connection: %w", err)
+				cErr = fmt.Errorf("could not close kraken socket connection: %w", err)
 			}
+			close(out)
 			return
 		case update := <-kraken.Listen():
 			coin := s.converter.Coin(update.Pair)
@@ -149,6 +149,7 @@ func (s *Socket) connect(out chan *model.TradeSignal) (cErr error) {
 					metrics.Observer.NoteLag(f, string(coin), "socket", "ticker")
 					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
 					out <- &signal
+					<-process
 				}
 			default:
 				fmt.Printf("data = %+v\n %s\n", data, reflect.TypeOf(data))
