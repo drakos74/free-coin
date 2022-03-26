@@ -47,14 +47,19 @@ func NewSocket(coins ...model.Coin) *Socket {
 func (s *Socket) Run() (chan *model.TradeSignal, error) {
 	out := make(chan *model.TradeSignal)
 
-	go s.connect(out)
+	go func() {
+		err := s.connect(out)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to connect to socket")
+		}
+	}()
 
 	return out, nil
 }
 
 func (s *Socket) connect(out chan *model.TradeSignal) (cErr error) {
 	defer func() {
-		logger.Err(cErr).Msg("error during connect, reconnecting ... ")
+		logger.Error().Err(cErr).Msg("error during connect, reconnecting ... ")
 		time.AfterFunc(5*time.Second, func() {
 			s.connect(out)
 		})

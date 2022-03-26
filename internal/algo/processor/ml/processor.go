@@ -52,56 +52,58 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
-		ds := newDataSets()
 		// process the collector vectors
-		for vv := range collector.vectors {
-			metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "poly", Name)
-			configSegments := config.segments(vv.meta.coin, vv.meta.duration)
-			signal := Signal{}
-			for key, segmentConfig := range configSegments {
-				// do our training here ...
-				if segmentConfig.Model.Features > 0 {
-					metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train", Name)
-					if set, ok := ds.push(key, vv, segmentConfig); ok {
-						metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train_buffer", Name)
-						if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
-							signal = Signal{
-								Key:       key,
-								Time:      vv.meta.tick.Time,
-								Price:     vv.meta.tick.Price,
-								Type:      t,
-								Spectrum:  coin_math.FFT(vv.yy),
-								Buffer:    vv.yy,
-								Precision: acc,
-								Weight:    segmentConfig.Trader.Weight,
-							}
-							if config.Option.Benchmark {
-								benchmarks.add(key, vv.meta.tick, signal, config)
+		go func() {
+			ds := newDataSets()
+			for vv := range collector.vectors {
+				metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "poly", Name)
+				configSegments := config.segments(vv.meta.coin, vv.meta.duration)
+				signal := Signal{}
+				for key, segmentConfig := range configSegments {
+					// do our training here ...
+					if segmentConfig.Model.Features > 0 {
+						metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train", Name)
+						if set, ok := ds.push(key, vv, segmentConfig); ok {
+							metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train_buffer", Name)
+							if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
+								signal = Signal{
+									Key:       key,
+									Time:      vv.meta.tick.Time,
+									Price:     vv.meta.tick.Price,
+									Type:      t,
+									Spectrum:  coin_math.FFT(vv.yy),
+									Buffer:    vv.yy,
+									Precision: acc,
+									Weight:    segmentConfig.Trader.Weight,
+								}
+								if config.Option.Benchmark {
+									benchmarks.add(key, vv.meta.tick, signal, config)
+								}
 							}
 						}
 					}
 				}
-			}
-			if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
-				if config.Option.Test {
-					u.Send(index,
-						api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
-							AddLine("test"),
-						nil)
-					continue
+				if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
+					if config.Option.Test {
+						u.Send(index,
+							api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
+								AddLine("test"),
+							nil)
+						continue
+					}
+					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
+					if err != nil {
+						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
+					} else if ok && config.Option.Debug {
+						// track the raw signals for debug purposes
+						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
+					} else if !ok {
+						log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
+					}
+					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 				}
-				_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
-				if err != nil {
-					log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
-				} else if ok && config.Option.Debug {
-					// track the raw signals for debug purposes
-					u.Send(index, api.NewMessage(encodeMessage(s)), nil)
-				} else if !ok {
-					log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
-				}
-				u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 			}
-		}
+		}()
 
 		return processor.ProcessBufferedWithClose(Name, time.Minute, func(tradeSignal *model.TradeSignal) error {
 			coin := string(tradeSignal.Coin)

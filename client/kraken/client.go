@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -91,6 +92,7 @@ func (c *Client) Close() error {
 // returns a channel for consumers to read the trades from.
 func (c *Client) Trades(process <-chan api.Signal) (out coinmodel.TradeSource, err error) {
 
+	fmt.Printf("process = %+v\n", process)
 	// this is our first run ... so lets make sure we pass in the right since parameter
 	for _, coin := range c.coins {
 		c.since[coin] = c.init

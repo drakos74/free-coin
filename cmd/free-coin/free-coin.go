@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	cointime "github.com/drakos74/free-coin/internal/time"
-
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
@@ -38,8 +36,9 @@ func main() {
 
 	// main engine trade input ...
 	client := kraken.NewClient(cc...).
-		Since(cointime.LastXHours(48)).
-		Interval(2 * time.Second)
+		//Since(cointime.LastXHours(48)).
+		//Interval(2 * time.Second).
+		Live(true)
 	engine, err := coin.NewEngine(client)
 	if err != nil {
 		log.Fatalf("error creating engine: %s", err.Error())
@@ -252,6 +251,7 @@ func configML() *ml.Config {
 		Option: ml.Option{
 			Debug:     false,
 			Benchmark: true,
+			Test:      true,
 		},
 	}
 }
