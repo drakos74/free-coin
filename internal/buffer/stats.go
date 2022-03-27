@@ -54,6 +54,9 @@ func (s *Stats) Push(v float64) {
 
 // Ratio returns the percentage of the diff.
 func (s Stats) Ratio() float64 {
+	if s.mean == 0 {
+		return 0
+	}
 	return 100 * (s.last - s.first) / s.mean
 }
 

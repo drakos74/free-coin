@@ -98,6 +98,7 @@ func (c *Client) Trades(process <-chan api.Signal) (out coinmodel.TradeSource, e
 	// expose the trades to the outside world
 	out = make(chan *coinmodel.TradeSignal)
 
+	// TODO : load past trades to train the model and then switch to socket ...
 	if c.live {
 		out, err = c.socket.Run(process)
 	} else {

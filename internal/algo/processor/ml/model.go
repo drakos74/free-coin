@@ -20,6 +20,7 @@ type Config struct {
 	Segments map[model.Key]Segments
 	Position Position
 	Option   Option
+	Buffer   Buffer
 }
 
 func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
@@ -50,6 +51,10 @@ type Option struct {
 	Debug     bool
 	Benchmark bool
 	Test      bool
+}
+
+type Buffer struct {
+	Interval time.Duration
 }
 
 type Position struct {

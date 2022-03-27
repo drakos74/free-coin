@@ -2,7 +2,6 @@ package ml
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -58,9 +57,8 @@ func newCollector(dim int64, shard storage.Shard, _ *ff.Network, config *Config)
 }
 
 type meta struct {
-	coin     model.Coin
-	duration time.Duration
-	tick     model.Tick
+	key  model.Key
+	tick model.Tick
 }
 
 type vector struct {
@@ -121,8 +119,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		if _, ok := tracker.buffer.Push(inp); ok {
 			v := vector{
 				meta: meta{
-					coin:     key.Coin,
-					duration: key.Duration,
+					key: key,
 					tick: model.Tick{
 						Level: model.Level{
 							Price:  price,
@@ -145,7 +142,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 func (c *collector) push(trade *model.TradeSignal) {
 	for k, window := range c.windows {
 		if k.Match(trade.Coin) {
-			window.Push(trade.Meta.Time, trade.Tick.Price, trade.Tick.Volume)
+			window.Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume)
 		}
 	}
 }

@@ -31,7 +31,7 @@ func TestProcessor(t *testing.T) {
 	tests := map[string]test{
 		"increasing": {
 			config: testUniformML(5, 10, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
+			trades: testTrades(500, 5, func(i int) float64 {
 				return 10.0 * float64(i)
 			}),
 			pnl: []client.Report{
@@ -222,7 +222,7 @@ func TestProcessor(t *testing.T) {
 					}
 					pp = append(pp, trade.Tick.Price)
 					chIn <- trade
-					time.Sleep(300 * time.Millisecond)
+					time.Sleep(500 * time.Millisecond)
 				}
 				close(chIn)
 			}()
@@ -437,13 +437,15 @@ func testTrades(s, t int, g coin_math.Generator) func() []*model.TradeSignal {
 
 		now := time.Now()
 		for i := 0; i < s; i++ {
+			tt := now.Add(time.Duration(i) * time.Duration(t) * time.Minute)
 			trades = append(trades, &model.TradeSignal{
 				Coin: "BTC",
 				Tick: model.Tick{
 					Level: model.Level{
-						Price: g(i),
+						Price:  g(i),
+						Volume: 1,
 					},
-					Time:   now.Add(time.Duration(i) * time.Duration(t) * time.Minute),
+					Time:   tt,
 					Active: true,
 				},
 			})
@@ -457,7 +459,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 	cfg := map[model.Key]Segments{
 		model.Key{
 			Coin:     model.BTC,
-			Duration: 15 * time.Minute,
+			Duration: 5 * time.Second,
 			Strategy: "default",
 		}: {
 			Stats: Stats{
@@ -485,6 +487,9 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 			Debug:     true,
 			Benchmark: false,
 			Test:      true,
+		},
+		Buffer: Buffer{
+			Interval: time.Second,
 		},
 	}
 }

@@ -56,28 +56,32 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		go func(col *collector) {
 			ds := newDataSets()
 			for vv := range col.vectors {
-				metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "poly", Name)
-				configSegments := config.segments(vv.meta.coin, vv.meta.duration)
+				coin := string(vv.meta.key.Coin)
+				duration := vv.meta.key.Duration.String()
+				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
+				configSegments := config.segments(vv.meta.key.Coin, vv.meta.key.Duration)
 				signal := Signal{}
 				for key, segmentConfig := range configSegments {
 					// do our training here ...
-					if segmentConfig.Model.Features > 0 {
-						metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train", Name)
-						if set, ok := ds.push(key, vv, segmentConfig); ok {
-							metrics.Observer.IncrementEvents(string(vv.meta.coin), vv.meta.duration.String(), "train_buffer", Name)
-							if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
-								signal = Signal{
-									Key:       key,
-									Time:      vv.meta.tick.Time,
-									Price:     vv.meta.tick.Price,
-									Type:      t,
-									Spectrum:  coin_math.FFT(vv.yy),
-									Buffer:    vv.yy,
-									Precision: acc,
-									Weight:    segmentConfig.Trader.Weight,
-								}
-								if config.Option.Benchmark {
-									benchmarks.add(key, vv.meta.tick, signal, config)
+					if key.Match(vv.meta.key.Coin) {
+						if segmentConfig.Model.Features > 0 {
+							metrics.Observer.IncrementEvents(coin, duration, "train", Name)
+							if set, ok := ds.push(key, vv, segmentConfig); ok {
+								metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
+								if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
+									signal = Signal{
+										Key:       key,
+										Time:      vv.meta.tick.Time,
+										Price:     vv.meta.tick.Price,
+										Type:      t,
+										Spectrum:  coin_math.FFT(vv.yy),
+										Buffer:    vv.yy,
+										Precision: acc,
+										Weight:    segmentConfig.Trader.Weight,
+									}
+									if config.Option.Benchmark {
+										benchmarks.add(key, vv.meta.tick, signal, config)
+									}
 								}
 							}
 						}
@@ -105,7 +109,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			}
 		}(col)
 
-		return processor.ProcessBufferedWithClose(Name, time.Minute, func(tradeSignal *model.TradeSignal) error {
+		return processor.ProcessBufferedWithClose(Name, config.Buffer.Interval, func(tradeSignal *model.TradeSignal) error {
 			coin := string(tradeSignal.Coin)
 			f, _ := strconv.ParseFloat(tradeSignal.Meta.Time.Format("0102.1504"), 64)
 			start := time.Now()

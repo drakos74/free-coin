@@ -262,12 +262,14 @@ type StatsMessage struct {
 
 type IntervalWindow struct {
 	ID       string
-	Time     time.Time         `json:"Time"`
-	Duration time.Duration     `json:"Duration"`
-	Dim      int64             `json:"Dimensions"`
-	window   *Window           `json:"-"`
-	stats    chan StatsMessage `json:"-"`
-	lock     *sync.RWMutex     `json:"-"`
+	Time     time.Time     `json:"Time"`
+	Duration time.Duration `json:"Duration"`
+	Dim      int64         `json:"Dimensions"`
+	window   *Window
+	stats    chan StatsMessage
+	lock     *sync.RWMutex
+	count    int
+	limit    int
 }
 
 // NewIntervalWindow creates a new IntervalWindow with the given Duration.
@@ -282,20 +284,30 @@ func NewIntervalWindow(id string, dim int64, duration time.Duration) (*IntervalW
 		lock:     new(sync.RWMutex),
 	}
 
-	iw.exec()
+	go iw.exec()
 
 	return iw, stats
+}
+
+func (iw *IntervalWindow) WithLimit(limit int) *IntervalWindow {
+	iw.limit = limit
+	return iw
 }
 
 // Push adds an element to the interval Window.
 func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
 	iw.lock.RLock()
-	defer iw.lock.RUnlock()
 	if iw.window == nil {
 		iw.window = NewWindow(iw.Dim)
 		iw.Time = t
 	}
+	iw.lock.RUnlock()
 	iw.window.Push(1, v...)
+	iw.count++
+
+	if iw.limit > 0 && iw.count > iw.limit {
+		iw.Flush()
+	}
 }
 
 // Flush flushes the current bucket contents
@@ -311,6 +323,7 @@ func (iw *IntervalWindow) Flush() {
 
 	stats := iw.window.bucket.Flush()
 	iw.window = nil
+	iw.count = 0
 	iw.stats <- StatsMessage{
 		OK:       true,
 		Time:     iw.Time,
@@ -322,10 +335,11 @@ func (iw *IntervalWindow) Flush() {
 
 // exec initiates the execution
 func (iw *IntervalWindow) exec() {
-	time.AfterFunc(iw.Duration, func() {
+	if iw.limit == 0 {
+		<-time.After(iw.Duration)
 		iw.Flush()
 		iw.exec()
-	})
+	}
 }
 
 // Close closes the channel

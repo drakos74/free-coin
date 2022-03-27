@@ -101,7 +101,7 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 			}
 		}(trade.Coin, sb.trades)
 	}
-	sb.windows[coin].Push(trade.Meta.Time, trade.Tick.Price, trade.Tick.Volume)
+	sb.windows[coin].Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume)
 }
 
 func (sb *SignalBuffer) Close() {
