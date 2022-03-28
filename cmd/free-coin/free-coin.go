@@ -253,6 +253,9 @@ func configML() *ml.Config {
 			Benchmark: true,
 			Test:      true,
 		},
+		Buffer: ml.Buffer{
+			Interval: time.Minute,
+		},
 	}
 }
 
