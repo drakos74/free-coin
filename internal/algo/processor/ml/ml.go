@@ -2,6 +2,7 @@ package ml
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -24,7 +25,7 @@ type state struct {
 	buffer *buffer.MultiBuffer
 }
 
-func newCollector(dim int64, shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
+func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
 	store, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
@@ -76,21 +77,24 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		xx := make([]float64, 0)
 		yy := make([]float64, 0)
 		t0 := 0.0
-		last := messages[len(messages)-1]
-		for i, bucket := range messages {
-			if bucket.OK {
-				if i == 0 {
+		last := buffer.StatsMessage{}
+		first := true
+		for _, bucket := range messages {
+			if bucket.OK && bucket.Time.Unix() > 0 {
+				if first {
 					t0 = float64(bucket.Time.Unix()) / bucket.Duration.Seconds()
+					first = false
 				}
 				x := float64(bucket.Time.Unix())/bucket.Duration.Seconds() - t0
 				xx = append(xx, x)
 
-				y := 100 * bucket.Stats[0].Ratio()
+				y := math.Round(100 * bucket.Stats[0].Ratio())
 				yy = append(yy, y)
+				last = bucket
 			}
 		}
 		inp, err := fit(xx, yy, 0, 1, 2)
-		if err != nil {
+		if err != nil || !last.OK {
 			log.Warn().Err(err).
 				Str("key", fmt.Sprintf("%+v", key)).
 				Str("x", fmt.Sprintf("%+v", xx)).

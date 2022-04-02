@@ -3,6 +3,7 @@ package ml
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -30,21 +31,21 @@ func TestProcessor(t *testing.T) {
 
 	tests := map[string]test{
 		"increasing": {
-			config: testUniformML(5, 10, 3, 0.5),
-			trades: testTrades(500, 5, func(i int) float64 {
-				return 10.0 * float64(i)
+			config: testUniformML(5, 10, 3, 0.3),
+			trades: testTrades(200, 5, func(i int) float64 {
+				return 30000.0 + 10.0*float64(i)
 			}),
 			pnl: []client.Report{
 				{
 					Buy:     1,
-					BuyAvg:  30300,
+					BuyAvg:  31000,
 					Sell:    0,
 					SellAvg: 0,
 					Profit:  10,
 				},
 				{
 					Buy:     1,
-					BuyAvg:  30500,
+					BuyAvg:  31500,
 					Sell:    0,
 					SellAvg: 0,
 					Profit:  15,
@@ -53,7 +54,7 @@ func TestProcessor(t *testing.T) {
 		},
 		"decreasing": {
 			config: testUniformML(5, 10, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
+			trades: testTrades(200, 5, func(i int) float64 {
 				return 30000 - 10.0*float64(i)
 			}),
 			pnl: []client.Report{
@@ -61,25 +62,26 @@ func TestProcessor(t *testing.T) {
 					Buy:     0,
 					BuyAvg:  0,
 					Sell:    1,
-					SellAvg: 29600,
+					SellAvg: 28500,
 					Profit:  10,
 				},
 				{
 					Buy:     0,
 					BuyAvg:  0,
 					Sell:    1,
-					SellAvg: 29700,
+					SellAvg: 29000,
 					Profit:  15,
 				},
 			},
 		},
 		"up-and-down": {
-			config: testVaryingML(15, 3, 10, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
-				if i <= 50 {
-					return 10.0 * float64(i)
+			config: testVaryingML(5, 10, 10, 3, 0.5),
+			trades: testTrades(300, 5, func(i int) float64 {
+				v := 200
+				if i <= v {
+					return 30000 + 10.0*float64(i)
 				}
-				return 10.0*50.0 - 10.0*float64(i-50)
+				return 30000 + 10.0*float64(v) - 10.0*float64(i-v)
 			}),
 			pnl: []client.Report{
 				{
@@ -124,9 +126,9 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-high-range": {
-			config: testVaryingML(15, 3, 10, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
-				return 500 * coin_math.SineEvolve(i, 0.1)
+			config: testVaryingML(5, 10, 10, 3, 0.5),
+			trades: testTrades(300, 5, func(i int) float64 {
+				return 30000 + 500*coin_math.SineEvolve(i, 0.1)
 			}),
 			pnl: []client.Report{
 				{
@@ -146,9 +148,31 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-low-range": { // TODO : this produces loss
-			config: testVaryingML(15, 3, 10, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
-				return 100 * coin_math.SineEvolve(i, 0.1)
+			config: testVaryingML(5, 5, 10, 3, 0.5),
+			trades: testTrades(300, 5, func(i int) float64 {
+				return 30000 + 100*coin_math.SineEvolve(i, 0.1)
+			}),
+			pnl: []client.Report{
+				{
+					Buy:     4,
+					BuyAvg:  29900,
+					Sell:    6,
+					SellAvg: 29900,
+					Profit:  0,
+				},
+				{
+					Buy:     6,
+					BuyAvg:  30100,
+					Sell:    7,
+					SellAvg: 30100,
+					Profit:  3,
+				},
+			},
+		},
+		"sine-rand-range": { // TODO : this produces loss
+			config: testVaryingML(5, 20, 10, 3, 0.5),
+			trades: testTrades(300, 5, func(i int) float64 {
+				return 30000 + 100*coin_math.SineEvolve(i, 0.1) + 10*coin_math.SineEvolve(i, rand.Float64())
 			}),
 			pnl: []client.Report{
 				{
@@ -194,7 +218,10 @@ func TestProcessor(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"), nil, tt.config)
+			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"),
+				RandomForestNetwork{debug: true},
+				//NewNN(nil),
+				tt.config)
 
 			u, err := local.NewUser("")
 			assert.NoError(t, err)
@@ -438,11 +465,22 @@ func testTrades(s, t int, g coin_math.Generator) func() []*model.TradeSignal {
 		now := time.Now()
 		for i := 0; i < s; i++ {
 			tt := now.Add(time.Duration(i) * time.Duration(t) * time.Minute)
+
+			p := g(i)
+
+			coin := model.BTC
+
+			f := rand.Float64()
+			if f > 0.5 {
+				p = p / 200
+				coin = model.ETH
+			}
+
 			trades = append(trades, &model.TradeSignal{
-				Coin: "BTC",
+				Coin: coin,
 				Tick: model.Tick{
 					Level: model.Level{
-						Price:  g(i),
+						Price:  p,
 						Volume: 1,
 					},
 					Time:   tt,
@@ -459,6 +497,24 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 	cfg := map[model.Key]Segments{
 		model.Key{
 			Coin:     model.BTC,
+			Duration: 3 * time.Second,
+			Strategy: "default",
+		}: {
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+			Trader: Trader{Weight: 1},
+		},
+		model.Key{
+			Coin:     model.ETH,
 			Duration: 5 * time.Second,
 			Strategy: "default",
 		}: {
@@ -473,6 +529,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 				ModelSize:          modelSize,
 				Features:           features,
 			},
+			Trader: Trader{Weight: 1},
 		},
 	}
 
@@ -486,7 +543,45 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 		Option: Option{
 			Debug:     true,
 			Benchmark: false,
-			Test:      true,
+		},
+		Buffer: Buffer{
+			Interval: time.Second,
+		},
+	}
+}
+
+func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64) *Config {
+	cfg := map[model.Key]Segments{
+		model.Key{
+			Coin:     model.BTC,
+			Duration: time.Duration(duration) * time.Second,
+			Strategy: "default",
+		}: {
+			Stats: Stats{
+				LookBack:  5,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: Model{
+				BufferSize:         bufferSize,
+				PrecisionThreshold: precisionThreshold,
+				ModelSize:          modelSize,
+				Features:           features,
+			},
+			Trader: Trader{Weight: 1},
+		},
+	}
+
+	return &Config{
+		Segments: cfg,
+		Position: Position{
+			OpenValue:  500,
+			StopLoss:   0.01,
+			TakeProfit: 0.01,
+		},
+		Option: Option{
+			Debug:     true,
+			Benchmark: false,
 		},
 		Buffer: Buffer{
 			Interval: time.Second,
@@ -530,7 +625,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 				ModelSize:          modelSize,
 				Features:           features,
 			},
-			Trader: Trader{Weight: 0},
+			Trader: Trader{Weight: 1},
 		},
 		model.Key{
 			Coin:     model.BTC,
@@ -548,43 +643,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 				ModelSize:          modelSize,
 				Features:           features,
 			},
-			Trader: Trader{Weight: 0},
-		},
-	}
-
-	return &Config{
-		Segments: cfg,
-		Position: Position{
-			OpenValue:  500,
-			StopLoss:   0.01,
-			TakeProfit: 0.01,
-		},
-		Option: Option{
-			Debug:     true,
-			Benchmark: false,
-			Test:      true,
-		},
-	}
-}
-
-func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64) *Config {
-	cfg := map[model.Key]Segments{
-		model.Key{
-			Coin:     model.BTC,
-			Duration: time.Duration(duration) * time.Minute,
-			Strategy: "default",
-		}: {
-			Stats: Stats{
-				LookBack:  5,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: Model{
-				BufferSize:         bufferSize,
-				PrecisionThreshold: precisionThreshold,
-				ModelSize:          modelSize,
-				Features:           features,
-			},
+			Trader: Trader{Weight: 1},
 		},
 	}
 
@@ -644,7 +703,6 @@ func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold 
 		Option: Option{
 			Debug:     true,
 			Benchmark: false,
-			Test:      true,
 		},
 	}
 }

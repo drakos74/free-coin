@@ -83,6 +83,10 @@ func (str *strategy) isLive(coin model.Coin, trade model.Tick) (bool, bool) {
 }
 
 func (str *strategy) eval(trade model.Tick, signal Signal, config *Config) (Signal, model.Key, bool, bool) {
+	if signal.Type == model.NoType {
+		log.Error().Str("signal", fmt.Sprintf("%+v", signal)).Msg("wrong signal")
+		return Signal{}, model.Key{}, false, false
+	}
 	// strategy is not live yet ... trade is past one
 	if live, _ := str.isLive(signal.Key.Coin, trade); !live && !config.Option.Debug {
 		return Signal{}, model.Key{}, false, false
@@ -94,16 +98,16 @@ func (str *strategy) eval(trade model.Tick, signal Signal, config *Config) (Sign
 	signal.Key = k
 	// if we get the go-ahead from the strategy act on it
 	str.signal(k, signal)
-	return str.trade(signal.Key, trade)
+	return str.trade(k, trade)
 }
 
 // trade assesses the current trade event and builds up the current state
-func (str *strategy) trade(key model.Key, trade model.Tick) (Signal, model.Key, bool, bool) {
+func (str *strategy) trade(k model.Key, trade model.Tick) (Signal, model.Key, bool, bool) {
 	str.lock.RLock()
 	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
 	for key, s := range str.signals {
-		if key.Match(key.Coin) && str.enabled[key.Coin] {
+		if key.Match(k.Coin) && str.enabled[key.Coin] {
 			str.trades[key] = trade
 			cfg := str._key(key)
 			// if we have a signal from the past already ...
@@ -111,13 +115,13 @@ func (str *strategy) trade(key model.Key, trade model.Tick) (Signal, model.Key, 
 			if lag >= cfg.bufferTime {
 				// and the signal seems to come true ...
 				diff := trade.Price - s.Price
-				var act bool
-				switch s.Type {
-				case model.Buy:
-					act = diff >= cfg.priceThreshold
-				case model.Sell:
-					act = diff <= -1*cfg.priceThreshold
-				}
+				var act bool = true
+				//switch s.Type {
+				//case model.Buy:
+				//	act = diff >= cfg.priceThreshold
+				//case model.Sell:
+				//	act = diff <= -1*cfg.priceThreshold
+				//}
 				if act {
 					s.Time = trade.Time
 					s.Price = trade.Price
@@ -130,7 +134,7 @@ func (str *strategy) trade(key model.Key, trade model.Tick) (Signal, model.Key, 
 						Float64("lag in hours", lag).
 						Float64("diff", diff).
 						Str("type", s.Type.String()).
-						Msg("ignoring log")
+						Msg("ignoring tick")
 				}
 			}
 		}

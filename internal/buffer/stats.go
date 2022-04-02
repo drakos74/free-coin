@@ -152,6 +152,7 @@ func (sc *StatsCollector) Size() int {
 // Bucket groups together stats collectors with the same Index
 type Bucket struct {
 	stats *StatsCollector
+	dim   int
 	index int64
 }
 
@@ -165,6 +166,7 @@ func (b Bucket) String() string {
 func NewBucket(id int64, dim int) Bucket {
 	return Bucket{
 		stats: NewStatsCollector(dim),
+		dim:   dim,
 		index: id,
 	}
 }
@@ -218,10 +220,10 @@ func (w Window) String() string {
 }
 
 // NewWindow creates a new Window of the given Window size e.g. the Index range for each bucket.
-func NewWindow(size int64) *Window {
+func NewWindow(size int64, dim int) *Window {
 	return &Window{
 		size:   size,
-		bucket: NewBucket(0, int(size)),
+		bucket: NewBucket(0, dim),
 	}
 }
 
@@ -242,7 +244,7 @@ func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 		// new start ...
 		w.lastIndex = index
 		w.bucket = NewBucket(index, len(value))
-	} else if index >= w.lastIndex+w.size {
+	} else if w.size > 0 && index >= w.lastIndex+w.size {
 		// start a new one
 		if w.bucket.Size() > 0 {
 			tmpBucket := w.bucket

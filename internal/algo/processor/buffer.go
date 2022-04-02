@@ -80,24 +80,24 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 		// start consuming for the new created window
 		go func(coin model.Coin, signals chan<- *model.TradeSignal) {
 			for bucket := range trades {
-				signal := &model.TradeSignal{
-					Coin: coin,
-					Tick: model.Tick{
-						Time:   bucket.Time.Add(bucket.Duration),
-						Active: bucket.OK,
-					},
-					Meta: model.Meta{
-						Time: bucket.Time,
-						Live: bucket.OK,
-					},
-				}
 				if bucket.OK {
+					signal := &model.TradeSignal{
+						Coin: coin,
+						Tick: model.Tick{
+							Time:   bucket.Time.Add(bucket.Duration),
+							Active: bucket.OK,
+						},
+						Meta: model.Meta{
+							Time: bucket.Time,
+							Live: bucket.OK,
+						},
+					}
 					signal.Tick.Level = model.Level{
 						Price:  bucket.Stats[0].Avg(),
 						Volume: bucket.Stats[1].Avg(),
 					}
+					signals <- signal
 				}
-				signals <- signal
 			}
 		}(trade.Coin, sb.trades)
 	}

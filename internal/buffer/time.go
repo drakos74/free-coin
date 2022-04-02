@@ -69,7 +69,7 @@ func NewTimeWindow(duration time.Duration) TimeWindow {
 	d := int64(duration.Seconds())
 	return TimeWindow{
 		Duration: d,
-		window:   NewWindow(1),
+		window:   NewWindow(d, 1),
 	}
 }
 
@@ -255,8 +255,9 @@ func WindowDensity() TimeBucketTransform {
 type StatsMessage struct {
 	OK       bool          `json:"ok"`
 	Time     time.Time     `json:"Time"`
+	ID       string        `json:"id"`
 	Duration time.Duration `json:"Duration"`
-	Dim      int64         `json:"Dimensions"`
+	Dim      int           `json:"Dimensions"`
 	Stats    []Stats       `json:"-"`
 }
 
@@ -264,7 +265,7 @@ type IntervalWindow struct {
 	ID       string
 	Time     time.Time     `json:"Time"`
 	Duration time.Duration `json:"Duration"`
-	Dim      int64         `json:"Dimensions"`
+	Dim      int           `json:"Dimensions"`
 	window   *Window
 	stats    chan StatsMessage
 	lock     *sync.RWMutex
@@ -273,7 +274,7 @@ type IntervalWindow struct {
 }
 
 // NewIntervalWindow creates a new IntervalWindow with the given Duration.
-func NewIntervalWindow(id string, dim int64, duration time.Duration) (*IntervalWindow, <-chan StatsMessage) {
+func NewIntervalWindow(id string, dim int, duration time.Duration) (*IntervalWindow, <-chan StatsMessage) {
 	stats := make(chan StatsMessage)
 
 	iw := &IntervalWindow{
@@ -298,7 +299,7 @@ func (iw *IntervalWindow) WithLimit(limit int) *IntervalWindow {
 func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
 	iw.lock.RLock()
 	if iw.window == nil {
-		iw.window = NewWindow(iw.Dim)
+		iw.window = NewWindow(int64(iw.Duration.Seconds()), iw.Dim)
 		iw.Time = t
 	}
 	iw.lock.RUnlock()
@@ -316,7 +317,7 @@ func (iw *IntervalWindow) Flush() {
 	defer iw.lock.RUnlock()
 
 	// if we did not have any event
-	if iw.window == nil {
+	if iw.count == 0 {
 		iw.stats <- StatsMessage{}
 		return
 	}
@@ -327,6 +328,7 @@ func (iw *IntervalWindow) Flush() {
 	iw.stats <- StatsMessage{
 		OK:       true,
 		Time:     iw.Time,
+		ID:       iw.ID,
 		Duration: iw.Duration,
 		Dim:      iw.Dim,
 		Stats:    stats,
@@ -354,7 +356,7 @@ type BatchWindow struct {
 }
 
 // NewBatchWindow creates a new batch Window.
-func NewBatchWindow(id string, dim int64, duration time.Duration, size int) (*BatchWindow, <-chan []StatsMessage) {
+func NewBatchWindow(id string, dim int, duration time.Duration, size int) (*BatchWindow, <-chan []StatsMessage) {
 	stats := make(chan []StatsMessage)
 	iw, stat := NewIntervalWindow(id, dim, duration)
 	bw := BatchWindow{

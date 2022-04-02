@@ -12,7 +12,6 @@ import (
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/drakos74/free-coin/internal/trader"
-	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
 	"github.com/rs/zerolog/log"
 	"gonum.org/v1/gonum/floats"
 )
@@ -22,7 +21,7 @@ const (
 )
 
 // Processor is the position processor main routine.
-func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, _ *ff.Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
+func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, network Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
 	col, err := newCollector(2, shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
@@ -54,57 +53,54 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		// process the collector vectors
 		go func(col *collector) {
-			ds := newDataSets()
+			ds := newDataSets(network)
 			for vv := range col.vectors {
 				coin := string(vv.meta.key.Coin)
 				duration := vv.meta.key.Duration.String()
 				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
 				configSegments := config.segments(vv.meta.key.Coin, vv.meta.key.Duration)
-				signal := Signal{}
 				for key, segmentConfig := range configSegments {
 					// do our training here ...
-					if key.Match(vv.meta.key.Coin) {
-						if segmentConfig.Model.Features > 0 {
-							metrics.Observer.IncrementEvents(coin, duration, "train", Name)
-							if set, ok := ds.push(key, vv, segmentConfig); ok {
-								metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
-								if t, acc, ok := set.train(segmentConfig.Model, config.Option.Test); ok {
-									signal = Signal{
-										Key:       key,
-										Time:      vv.meta.tick.Time,
-										Price:     vv.meta.tick.Price,
-										Type:      t,
-										Spectrum:  coin_math.FFT(vv.yy),
-										Buffer:    vv.yy,
-										Precision: acc,
-										Weight:    segmentConfig.Trader.Weight,
+					if segmentConfig.Model.Features > 0 && key.Match(vv.meta.key.Coin) {
+						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
+						if set, ok := ds.push(key, vv, segmentConfig.Model); ok {
+							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
+							if t, acc, ok := ds.network.Train(segmentConfig.Model, set); ok {
+								signal := Signal{
+									Key:       key,
+									Time:      vv.meta.tick.Time,
+									Price:     vv.meta.tick.Price,
+									Type:      t,
+									Spectrum:  coin_math.FFT(vv.yy),
+									Buffer:    vv.yy,
+									Precision: acc,
+									Weight:    segmentConfig.Trader.Weight,
+								}
+								//if config.Option.Benchmark {
+								//	benchmarks.add(key, vv.meta.tick, signal, config)
+								//}
+								if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
+									if config.Option.Test {
+										u.Send(index,
+											api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
+												AddLine("test"),
+											nil)
+										continue
 									}
-									if config.Option.Benchmark {
-										benchmarks.add(key, vv.meta.tick, signal, config)
+									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
+									if err != nil {
+										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
+									} else if ok && config.Option.Debug {
+										// track the raw signals for debug purposes
+										u.Send(index, api.NewMessage(encodeMessage(s)), nil)
+									} else if !ok {
+										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
+									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 								}
 							}
 						}
 					}
-				}
-				if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
-					if config.Option.Test {
-						u.Send(index,
-							api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
-								AddLine("test"),
-							nil)
-						continue
-					}
-					_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
-					if err != nil {
-						log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
-					} else if ok && config.Option.Debug {
-						// track the raw signals for debug purposes
-						u.Send(index, api.NewMessage(encodeMessage(s)), nil)
-					} else if !ok {
-						log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
-					}
-					u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
 				}
 			}
 		}(col)

@@ -104,7 +104,7 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 			coin := s.converter.Coin(update.Pair)
 
 			if _, ok := spread[coin]; !ok {
-				spread[coin] = buffer.NewWindow(2)
+				spread[coin] = buffer.NewWindow(0, 2)
 			}
 
 			signal := s.signals[coin]
@@ -142,7 +142,7 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 						Std:   b.Values().Stats()[0].StDev() - b.Values().Stats()[1].StDev(),
 					}
 				}
-				spread[coin] = buffer.NewWindow(2)
+				spread[coin] = buffer.NewWindow(0, 2)
 				s.signals[coin] = signal
 				if signal.Tick.Active {
 					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
