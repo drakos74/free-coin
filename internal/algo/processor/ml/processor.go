@@ -7,6 +7,7 @@ import (
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/emoji"
 	coin_math "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
@@ -38,9 +39,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 	strategy := newStrategy(config.Segments)
 	return func(u api.User, e api.Exchange) api.Processor {
 		wallet, err := trader.SimpleTrader(string(index), shard, registry, trader.Settings{
-			OpenValue:  config.Position.OpenValue,
-			TakeProfit: config.Position.TakeProfit,
-			StopLoss:   config.Position.StopLoss,
+			OpenValue:      config.Position.OpenValue,
+			TakeProfit:     config.Position.TakeProfit,
+			StopLoss:       config.Position.StopLoss,
+			TrackingConfig: config.Position.TrackingConfig,
 		}, e)
 		if err != nil {
 			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
@@ -75,19 +77,13 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									Buffer:    vv.yy,
 									Precision: acc,
 									Weight:    segmentConfig.Trader.Weight,
+									Live:      segmentConfig.Trader.Live,
 								}
 								//if config.Option.Benchmark {
 								//	benchmarks.add(key, vv.meta.tick, signal, config)
 								//}
 								if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
-									if config.Option.Test {
-										u.Send(index,
-											api.NewMessage(formatSignal(s, trader.Event{}, err, ok)).
-												AddLine("test"),
-											nil)
-										continue
-									}
-									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason)
+									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live)
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 									} else if ok && config.Option.Debug {
@@ -96,7 +92,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									} else if !ok {
 										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
-									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)), nil)
+									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 							}
 						}
@@ -129,14 +125,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if p.PnL < 0 {
 								reason = trader.StopLossReason
 							}
-							if config.Option.Test {
-								u.Send(index,
-									api.NewMessage(formatAction(trader.Event{}, profit, err, false)).
-										AddLine("test"),
-									nil)
-								continue
-							}
-							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason)
+							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
 							} else if floats.Sum(profit) < 0 {
@@ -145,7 +134,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, profit, err, ok)), nil)
+							u.Send(index, api.NewMessage(formatAction(action, profit, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					}
 				}

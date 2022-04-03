@@ -28,7 +28,7 @@ type ExchangeTrader struct {
 
 // SimpleTrader is a simple exchange trader
 func SimpleTrader(id string, shard storage.Shard, registry storage.EventRegistry, settings Settings, e api.Exchange) (*ExchangeTrader, error) {
-	t, err := newTrader(id, shard, nil)
+	t, err := newTrader(id, shard, settings.TrackingConfig)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trader: %w", err)
 	}
@@ -106,8 +106,16 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			takeProfitActivated := position.PnL >= et.settings.TakeProfit
 			//shift := position.Trend.Shift != model.NoType
 			//validShift := position.Trend.Shift != position.Type
-			trend := position.Trend.Type != model.NoType
-			validTrend := position.Trend.Type != position.Type
+			// TODO : we have a trend ... any ... for now
+			var validTrend bool
+			for _, trend := range position.Trend {
+				// NOTE : Type here does not mean market , but profit/loss
+				if trend.Type != model.NoType {
+					// valid-trend
+					validTrend = true
+				}
+			}
+
 			//if stopLossActivated {
 			//	// if we pass the stop-loss threshold
 			//	positions[k] = position
@@ -118,7 +126,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			//	positions[k] = position
 			//	delete(et.profit, k)
 			//} else
-			if trend && validTrend {
+			if validTrend {
 				// if there is a trend in the opposite direction
 				if stopLossActivated || takeProfitActivated {
 					positions[k] = position
@@ -134,7 +142,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 }
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64, reason Reason) (*model.TrackedOrder, bool, Event, error) {
+	openType model.Type, open bool, volume float64, reason Reason, live bool) (*model.TrackedOrder, bool, Event, error) {
 
 	if volume == 0 {
 		volume = et.settings.OpenValue / price
@@ -247,21 +255,26 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		}, time, fmt.Sprintf("%+v", action))
 	order.RefID = close
 	order.Price = price
-	order, _, err := et.exchange.OpenOrder(order)
-	if err != nil {
-		return nil, false, action, fmt.Errorf("could not send initial order: %w", err)
+	var err error = nil
+	if live {
+		order, _, err = et.exchange.OpenOrder(order)
+		if err != nil {
+			return nil, false, action, fmt.Errorf("could not send initial order: %w", err)
+		}
 	}
 	if close == "" {
-		err = et.trader.add(key, order)
+		err = et.trader.add(key, order, live)
 	} else {
 		err = et.trader.close(key)
 		// and ... open a new one ...
 		if open {
-			_, _, err = et.exchange.OpenOrder(order)
-			if err != nil {
-				return nil, false, action, fmt.Errorf("could not send reverse order: %w", err)
+			if live {
+				_, _, err = et.exchange.OpenOrder(order)
+				if err != nil {
+					return nil, false, action, fmt.Errorf("could not send reverse order: %w", err)
+				}
 			}
-			err = et.trader.add(key, order)
+			err = et.trader.add(key, order, live)
 		}
 	}
 	if err != nil {

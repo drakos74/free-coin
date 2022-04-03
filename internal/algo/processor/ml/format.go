@@ -28,7 +28,7 @@ func formatConfig(config Config) string {
 		buffer.WriteString(fmt.Sprintf("%+v - %+v\n", k, segment))
 	}
 
-	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v,test=%v]",
+	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
 		len(config.Segments),
 		buffer.String(),
 		config.Position.OpenValue,
@@ -36,7 +36,6 @@ func formatConfig(config Config) string {
 		config.Position.StopLoss,
 		config.Option.Debug,
 		config.Option.Benchmark,
-		config.Option.Test,
 	)
 }
 func formatPosition(p model.Position) string {

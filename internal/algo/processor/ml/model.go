@@ -50,7 +50,6 @@ func (c *Config) SetPrecisionThreshold(coin model.Coin, precision float64) *Conf
 type Option struct {
 	Debug     bool
 	Benchmark bool
-	Test      bool
 }
 
 type Buffer struct {
@@ -106,6 +105,7 @@ type Trader struct {
 	BufferTime     float64 `json:"buffer_time"`
 	PriceThreshold float64 `json:"price_threshold"`
 	Weight         int     `json:"weight"`
+	Live           bool    `json:"live"`
 }
 
 // Segments defines the look back and ahead segment number.
@@ -127,6 +127,7 @@ type Signal struct {
 	Precision float64             `json:"precision"`
 	Factor    float64             `json:"factor"`
 	Weight    int                 `json:"weight"`
+	Live      bool                `json:"live"`
 	Buffer    []float64           `json:"buffer"`
 	Spectrum  *coin_math.Spectrum `json:"-"`
 }
@@ -243,7 +244,7 @@ func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *
 		Tick: trade,
 	})
 
-	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason)
+	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason, true)
 	if err != nil {
 		log.Err(err).Msg("could not submit signal for benchmark")
 		return client.Report{}, ok, nil

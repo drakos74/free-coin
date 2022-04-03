@@ -24,9 +24,10 @@ type State struct {
 }
 
 type Settings struct {
-	OpenValue  float64
-	TakeProfit float64
-	StopLoss   float64
+	OpenValue      float64
+	TakeProfit     float64
+	StopLoss       float64
+	TrackingConfig []*model.TrackingConfig
 }
 
 type config struct {

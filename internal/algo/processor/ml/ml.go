@@ -95,7 +95,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		}
 		inp, err := fit(xx, yy, 0, 1, 2)
 		if err != nil || !last.OK {
-			log.Warn().Err(err).
+			log.Debug().Err(err).
 				Str("key", fmt.Sprintf("%+v", key)).
 				Str("x", fmt.Sprintf("%+v", xx)).
 				Str("y", fmt.Sprintf("%+v", yy)).
@@ -110,7 +110,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		volume := last.Stats[1].Avg()
 		value := price * volume
 		std := last.Stats[0].StDev()
-		inp = append(inp, float64(count), value, std)
+		ema := last.Stats[0].EMA()
+		inp = append(inp, float64(count), value, std, ema)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {

@@ -297,12 +297,12 @@ func (iw *IntervalWindow) WithLimit(limit int) *IntervalWindow {
 
 // Push adds an element to the interval Window.
 func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
-	iw.lock.RLock()
+	iw.lock.Lock()
 	if iw.window == nil {
 		iw.window = NewWindow(int64(iw.Duration.Seconds()), iw.Dim)
 		iw.Time = t
 	}
-	iw.lock.RUnlock()
+	iw.lock.Unlock()
 	iw.window.Push(1, v...)
 	iw.count++
 
@@ -313,11 +313,11 @@ func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
 
 // Flush flushes the current bucket contents
 func (iw *IntervalWindow) Flush() {
-	iw.lock.RLock()
-	defer iw.lock.RUnlock()
+	iw.lock.Lock()
+	defer iw.lock.Unlock()
 
 	// if we did not have any event
-	if iw.count == 0 {
+	if iw.count == 0 || iw.window == nil {
 		iw.stats <- StatsMessage{}
 		return
 	}

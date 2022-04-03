@@ -49,6 +49,10 @@ const (
 	Close = "🔕"
 
 	Money = "💰"
+
+	Valid   = "🚛"
+	Invalid = "🚒"
+	Demi    = "\U0001F6FA"
 )
 
 func MapBool(s bool) string {
@@ -94,6 +98,17 @@ func MapToAction(b bool) string {
 		emo = Go
 	} else if !b {
 		emo = TakeCare
+	}
+	return emo
+}
+
+// MapToValid maps the given boolean value to a validity icon.
+func MapToValid(b bool) string {
+	emo := Demi
+	if b {
+		emo = Valid
+	} else if !b {
+		emo = Invalid
 	}
 	return emo
 }

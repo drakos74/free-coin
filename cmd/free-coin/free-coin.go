@@ -99,7 +99,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -121,7 +121,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -143,7 +143,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -165,7 +165,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -187,7 +187,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -209,7 +209,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -231,7 +231,7 @@ func configML() *ml.Config {
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
-				Features:           6,
+				Features:           7,
 			},
 			Trader: ml.Trader{
 				BufferTime:     0,
@@ -247,11 +247,15 @@ func configML() *ml.Config {
 			OpenValue:  500,
 			StopLoss:   0.01,
 			TakeProfit: 0.008,
+			TrackingConfig: []*model.TrackingConfig{{
+				Duration:  3 * time.Minute,
+				Samples:   5,
+				Threshold: 0.0000015,
+			}},
 		},
 		Option: ml.Option{
 			Debug:     false,
 			Benchmark: true,
-			Test:      true,
 		},
 		Buffer: ml.Buffer{
 			Interval: time.Minute,

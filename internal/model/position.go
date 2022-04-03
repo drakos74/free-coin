@@ -51,6 +51,7 @@ type Data struct {
 	TxID    string `json:"txId"`
 	OrderID string `json:"order_id"`
 	CID     string `json:"cid"`
+	Live    bool   `json:"live"`
 }
 
 // MetaData contains position related metadata
@@ -64,7 +65,7 @@ type MetaData struct {
 
 // Stats contains position stats, these are calculated by processors on the fly
 type Stats struct {
-	Trend  Trend                     `json:"-"`
+	Trend  map[time.Duration]Trend   `json:"-"`
 	Profit map[time.Duration]*Profit `json:"-"`
 	PnL    float64                   `json:"pnl"`
 }
@@ -73,6 +74,7 @@ type Stats struct {
 type Trend struct {
 	LastValue    float64
 	CurrentValue float64
+	CurrentDiff  float64
 	Type         Type
 	Shift        Type
 }
@@ -121,8 +123,6 @@ type Position struct {
 	Volume       float64 `json:"volume"`
 }
 
-const timeDuration = 3 * time.Minute
-
 // Update updates the current status of the position and the profit or loss percentage.
 func (p *Position) Update(trade Tick) Position {
 
@@ -135,51 +135,41 @@ func (p *Position) Update(trade Tick) Position {
 	p.PnL = pnl
 	p.Fees = fees
 
-	if p.Profit == nil || len(p.Profit) == 0 {
-		p.Profit = map[time.Duration]*Profit{
-			timeDuration: NewProfit(&TrackingConfig{
-				Duration: timeDuration,
-				Samples:  5,
-			}),
-		}
-	}
-
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats
-		aa := make(map[time.Duration][]float64)
-		vv := make(map[time.Duration][]float64)
-		for k, _ := range p.Profit {
+		for k, cfg := range p.Profit {
 			if _, ok := p.Profit[k].Window.Push(trade.Time, p.PnL); ok {
 				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
-				} else {
-					aa[k] = a
 				}
-				v, err := p.Profit[k].Window.Values(0, buffer.Avg)
-				if err != nil {
-					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not extract values")
-				} else {
-					vv[k] = v
-				}
-			}
-		}
-		if a, ok := aa[timeDuration]; ok {
-			if len(a) > 2 {
-				p.Trend.CurrentValue = a[2]
-				p.Trend.Type = NoType
-				p.Trend.Shift = NoType
-				if math.Abs(p.Trend.CurrentValue) > 0.000015 {
-					p.Trend.Type = SignedType(p.Trend.CurrentValue)
-					if p.Trend.CurrentValue*p.Trend.LastValue < 0 {
-						//  we have a switch of direction
-						p.Trend.Shift = SignedType(p.Trend.CurrentValue)
+				//v, err := p.Profit[k].Window.Values(0, buffer.Avg)
+				//if err != nil {
+				//	log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not extract values")
+				//}
+				//fmt.Printf("a = %+v\n", a)
+				//fmt.Printf("v = %+v\n", v)
+				if len(a) >= 2 {
+					if _, ok := p.Trend[k]; !ok {
+						p.Trend[k] = Trend{}
 					}
+					trend := p.Trend[k]
+					trend.CurrentValue = a[2]
+					trend.Type = NoType
+					trend.Shift = NoType
+					trend.CurrentDiff = math.Abs(trend.CurrentValue) - cfg.Config.Threshold
+					if math.Abs(trend.CurrentValue) > cfg.Config.Threshold {
+						// NOTE : we identify with type , the loss conditions for this position, not he market movement
+						trend.Type = SignedType(trend.CurrentValue)
+						if trend.CurrentValue*trend.LastValue < 0 {
+							//  we have a switch of direction
+							trend.Shift = SignedType(trend.CurrentValue)
+						}
+					}
+					trend.LastValue = a[2]
+					p.Trend[k] = trend
 				}
-				p.Trend.LastValue = a[2]
 			}
-		} else {
-			p.Trend = Trend{}
 		}
 	}
 	return *p
@@ -246,7 +236,8 @@ func OpenPosition(order *TrackedOrder, trackingConfig []*TrackingConfig) Positio
 			OpenTime: order.Time,
 		},
 		Stats: Stats{
-			Profit: nil,
+			Trend:  make(map[time.Duration]Trend),
+			Profit: profit,
 		},
 		Coin:      order.Coin,
 		Type:      order.Type,
