@@ -192,9 +192,9 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-high-vol": {
-			config: testVaryingML(15, 3, 5, 3, 0.5),
-			trades: testTrades(100, 5, func(i int) float64 {
-				return 100 * coin_math.SineEvolve(i, 0.1)
+			config: testVaryingML(5, 8, 5, 7, 0.5),
+			trades: testTrades(1000, 5, func(i int) float64 {
+				return 30000 + 3000*coin_math.SineEvolve(i, 0.05)
 			}),
 			pnl: []client.Report{
 				{
@@ -219,7 +219,16 @@ func TestProcessor(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"),
-				RandomForestNetwork{debug: true},
+				NewMultiNetwork(
+					ConstructRandomForest(true),
+					ConstructRandomForest(true),
+					ConstructRandomForest(true),
+					//ConstructRandomForest(true),
+					//ConstructPolynomialNetwork(0.0001),
+					//RandomForestNetwork{debug: true, tmpKey: "3"},
+					//RandomForestNetwork{debug: true, tmpKey: "4"},
+				),
+				//RandomForestNetwork{debug: true},
 				//NewNN(nil),
 				tt.config)
 
@@ -470,11 +479,11 @@ func testTrades(s, t int, g coin_math.Generator) func() []*model.TradeSignal {
 
 			coin := model.BTC
 
-			f := rand.Float64()
-			if f > 0.5 {
-				p = p / 200
-				coin = model.ETH
-			}
+			//f := rand.Float64()
+			//if f > 0.5 {
+			//	p = p / 200
+			//	coin = model.ETH
+			//}
 
 			trades = append(trades, &model.TradeSignal{
 				Coin: coin,
@@ -546,9 +555,9 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 			TrackingConfig: []*model.TrackingConfig{{
-				Duration:  time.Second,
+				Duration:  3 * time.Second,
 				Samples:   5,
-				Threshold: 0.000001,
+				Threshold: []float64{0.000001, 0.000001},
 			}},
 		},
 		Option: Option{
@@ -593,14 +602,14 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 			StopLoss:   0.01,
 			TakeProfit: 0.01,
 			TrackingConfig: []*model.TrackingConfig{{
-				Duration:  time.Second,
+				Duration:  30 * time.Second,
 				Samples:   5,
-				Threshold: 0.000001,
+				Threshold: []float64{0.0000005, 0.0000005},
 			}},
 		},
 		Option: Option{
 			Debug:     true,
-			Benchmark: false,
+			Benchmark: true,
 		},
 		Buffer: Buffer{
 			Interval: time.Second,
@@ -628,7 +637,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 			},
 			Trader: Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   true,
 			},
 		},
 		model.Key{
@@ -649,7 +658,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 			},
 			Trader: Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   true,
 			},
 		},
 		model.Key{
@@ -670,7 +679,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 			},
 			Trader: Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   true,
 			},
 		},
 	}
@@ -684,7 +693,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration:  time.Second,
 				Samples:   5,
-				Threshold: 0.000001,
+				Threshold: []float64{0.000001, 0.000001},
 			}},
 		},
 		Option: Option{
@@ -719,7 +728,7 @@ func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold 
 		if w {
 			segment.Trader = Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   true,
 			}
 			w = false
 		}
@@ -735,7 +744,7 @@ func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold 
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration:  time.Second,
 				Samples:   5,
-				Threshold: 0.000001,
+				Threshold: []float64{0.0001, 0.000001},
 			}},
 		},
 		Option: Option{

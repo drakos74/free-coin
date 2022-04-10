@@ -93,6 +93,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				last = bucket
 			}
 		}
+		//fmt.Printf("key = %+v\n", key)
 		inp, err := fit(xx, yy, 0, 1, 2)
 		if err != nil || !last.OK {
 			log.Debug().Err(err).

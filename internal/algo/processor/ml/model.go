@@ -121,6 +121,7 @@ type Segments struct {
 // Signal represents a signal from the ml processor.
 type Signal struct {
 	Key       model.Key           `json:"key"`
+	Detail    string              `json:"detail"`
 	Time      time.Time           `json:"time"`
 	Price     float64             `json:"price"`
 	Type      model.Type          `json:"type"`
@@ -183,9 +184,13 @@ func newBenchmarks() *Benchmark {
 	}
 }
 
-func (b *Benchmark) reset(coin model.Coin) {
+func (b *Benchmark) reset(coin model.Coin, key model.Key) {
 	for k, _ := range b.Wallet {
-		if k.Match(coin) {
+		if key.Strategy == "" && k.Match(coin) {
+			delete(b.Wallet, k)
+			delete(b.Exchange, k)
+			delete(b.Actions, k)
+		} else if key == k {
 			delete(b.Wallet, k)
 			delete(b.Exchange, k)
 			delete(b.Actions, k)
@@ -251,14 +256,15 @@ func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *
 	}
 	if ok {
 		report := b.Exchange[key].Gather(false)[key.Coin]
-		sec := trade.Time.Unix()
-		g := sec / int64(4*time.Hour.Seconds())
-		if g != b.Timer[key.Coin] {
-			b.Timer[key.Coin] = g
-			report.Stamp = trade.Time
-			b.Profit[key] = addReport(b.Profit[key], report, 3)
-			b.reset(key.Coin)
-		}
+		// TODO : dont reset the benchmark for now
+		//sec := trade.Time.Unix()
+		//g := sec / int64(4*time.Hour.Seconds())
+		//if g != b.Timer[key.Coin] {
+		//	b.Timer[key.Coin] = g
+		//	report.Stamp = trade.Time
+		//	b.Profit[key] = addReport(b.Profit[key], report, 3)
+		//	b.reset(key.Coin)
+		//}
 		return report, ok, nil
 	}
 	return client.Report{}, false, nil

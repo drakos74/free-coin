@@ -36,7 +36,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 	benchmarks := newBenchmarks()
 
-	strategy := newStrategy(config.Segments)
+	ds := newDataSets(func() Network {
+		return network
+	})
+
+	strategy := newStrategy(config, ds)
 	return func(u api.User, e api.Exchange) api.Processor {
 		wallet, err := trader.SimpleTrader(string(index), shard, registry, trader.Settings{
 			OpenValue:      config.Position.OpenValue,
@@ -55,7 +59,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		// process the collector vectors
 		go func(col *collector) {
-			ds := newDataSets(network)
 			for vv := range col.vectors {
 				coin := string(vv.meta.key.Coin)
 				duration := vv.meta.key.Duration.String()
@@ -67,32 +70,45 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 						if set, ok := ds.push(key, vv, segmentConfig.Model); ok {
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
-							if t, acc, ok := ds.network.Train(segmentConfig.Model, set); ok {
-								signal := Signal{
-									Key:       key,
-									Time:      vv.meta.tick.Time,
-									Price:     vv.meta.tick.Price,
-									Type:      t,
-									Spectrum:  coin_math.FFT(vv.yy),
-									Buffer:    vv.yy,
-									Precision: acc,
-									Weight:    segmentConfig.Trader.Weight,
-									Live:      segmentConfig.Trader.Live,
-								}
-								//if config.Option.Benchmark {
-								//	benchmarks.add(key, vv.meta.tick, signal, config)
-								//}
+							result, tt := set.network.Train(segmentConfig.Model, set)
+							signal := Signal{
+								Key:       key,
+								Detail:    result.key,
+								Time:      vv.meta.tick.Time,
+								Price:     vv.meta.tick.Price,
+								Type:      result.t,
+								Spectrum:  coin_math.FFT(vv.yy),
+								Buffer:    vv.yy,
+								Precision: result.acc,
+								Weight:    segmentConfig.Trader.Weight,
+								Live:      segmentConfig.Trader.Live,
+							}
+							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live)
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
-									} else if ok && config.Option.Debug {
-										// track the raw signals for debug purposes
-										u.Send(index, api.NewMessage(encodeMessage(s)), nil)
 									} else if !ok {
 										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
 									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
+								}
+							}
+							// whatever happened , lets benchmark it
+							if config.Option.Benchmark {
+								for k, res := range tt {
+									kk := key
+									kk.Strategy = k
+									if res.reset {
+										benchmarks.reset(kk.Coin, kk)
+									} else {
+										s := signal
+										s.Type = res.t
+										report, ok, _ := benchmarks.add(kk, vv.meta.tick, s, config)
+										if ok {
+											set.network.Eval(k, report)
+										}
+									}
 								}
 							}
 						}
@@ -116,7 +132,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				}
 				if tradeSignal.Meta.Live || config.Option.Debug {
 					metrics.Observer.NoteLag(f, coin, Name, "process")
-					pp, profit := wallet.Update(tradeSignal)
+					pp, profit, trend := wallet.Update(tradeSignal)
 					if len(pp) > 0 {
 						for k, p := range pp {
 							reason := trader.VoidReasonClose
@@ -134,8 +150,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, profit, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+							u.Send(index, api.NewMessage(formatAction(action, profit, trend, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
+					} else if len(trend) > 0 {
+						u.Send(index, api.NewMessage(formatTrend(tradeSignal, trend)), nil)
 					}
 				}
 				strategyDuration := time.Now().Sub(startStrategy).Seconds()

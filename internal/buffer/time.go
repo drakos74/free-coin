@@ -202,7 +202,6 @@ func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64
 // scaled at the corresponding time duration.
 func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int) ([]float64, error) {
 	xx, yy, err := h.Extract(index, extract)
-
 	if err != nil {
 		return nil, fmt.Errorf("could not extarct series: %w", err)
 	}

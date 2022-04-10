@@ -72,18 +72,30 @@ type Stats struct {
 
 // Trend defines the position profit trend
 type Trend struct {
-	LastValue    float64
-	CurrentValue float64
-	CurrentDiff  float64
-	Type         Type
-	Shift        Type
+	LastValue    []float64
+	CurrentValue []float64
+	Threshold    []float64
+	CurrentDiff  []float64
+	Type         []Type
+	Shift        []Type
+}
+
+func newTrend() Trend {
+	return Trend{
+		LastValue:    make([]float64, 2),
+		CurrentValue: make([]float64, 2),
+		Threshold:    make([]float64, 2),
+		CurrentDiff:  make([]float64, 2),
+		Type:         make([]Type, 2),
+		Shift:        make([]Type, 2),
+	}
 }
 
 // TrackingConfig defines the configuration for tracking position profit
 type TrackingConfig struct {
 	Duration  time.Duration
 	Samples   int
-	Threshold float64
+	Threshold []float64
 }
 
 // Track creates a new tracking config.
@@ -137,42 +149,53 @@ func (p *Position) Update(trade Tick) Position {
 
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats
-		for k, cfg := range p.Profit {
-			if _, ok := p.Profit[k].Window.Push(trade.Time, p.PnL); ok {
-				a, err := p.Profit[k].Window.Polynomial(0, buffer.Avg, 2)
+		for k, profit := range p.Profit {
+			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
+				s, err := profit.Window.Polynomial(0, buffer.Avg, 1)
 				if err != nil {
-					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
+					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '2' fit for position")
+				}
+				a, err := profit.Window.Polynomial(0, buffer.Avg, 2)
+				if err != nil {
+					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '3' fit for position")
 				}
 				//v, err := p.Profit[k].Window.Values(0, buffer.Avg)
 				//if err != nil {
 				//	log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not extract values")
 				//}
+				//fmt.Printf("s = %+v\n", s)
 				//fmt.Printf("a = %+v\n", a)
-				//fmt.Printf("v = %+v\n", v)
-				if len(a) >= 2 {
+				if len(s) >= 1 && len(a) >= 2 {
 					if _, ok := p.Trend[k]; !ok {
-						p.Trend[k] = Trend{}
+						p.Trend[k] = newTrend()
 					}
 					trend := p.Trend[k]
-					trend.CurrentValue = a[2]
-					trend.Type = NoType
-					trend.Shift = NoType
-					trend.CurrentDiff = math.Abs(trend.CurrentValue) - cfg.Config.Threshold
-					if math.Abs(trend.CurrentValue) > cfg.Config.Threshold {
-						// NOTE : we identify with type , the loss conditions for this position, not he market movement
-						trend.Type = SignedType(trend.CurrentValue)
-						if trend.CurrentValue*trend.LastValue < 0 {
-							//  we have a switch of direction
-							trend.Shift = SignedType(trend.CurrentValue)
-						}
-					}
-					trend.LastValue = a[2]
+					trend.CurrentValue[0] = s[1]
+					trend.CurrentValue[1] = a[2]
+					trend.CurrentDiff[1] = math.Abs(trend.CurrentValue[1]) - profit.Config.Threshold[1]
+					trend.Threshold = profit.Config.Threshold
+					trend.Type[0], trend.Shift[0] = calculateTrend(trend.CurrentValue[0], profit.Config.Threshold[0], trend.LastValue[0])
+					trend.Type[1], trend.Shift[1] = calculateTrend(trend.CurrentValue[1], profit.Config.Threshold[1], trend.LastValue[1])
+					trend.LastValue[0] = s[1]
+					trend.LastValue[1] = a[2]
 					p.Trend[k] = trend
 				}
 			}
 		}
 	}
 	return *p
+}
+
+func calculateTrend(currentValue, threshold, lastValue float64) (trend Type, shift Type) {
+	if math.Abs(currentValue) > threshold {
+		// NOTE : we identify with type , the loss conditions for this position, not he market movement
+		trend = SignedType(currentValue)
+		if currentValue*lastValue < 0 {
+			//  we have a switch of direction
+			shift = SignedType(currentValue)
+		}
+	}
+	return trend, shift
 }
 
 // Value returns the value of the position and the profit or loss percentage.

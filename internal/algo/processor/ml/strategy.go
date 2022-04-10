@@ -9,64 +9,45 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type config struct {
-	bufferTime     float64
-	priceThreshold float64
-	weight         int
-	enabled        bool
-}
-
 // strategy is responsible for making a call on weather the signal is good enough to trade on.
 type strategy struct {
-	lock    *sync.RWMutex
-	signals map[model.Key]Signal
-	trades  map[model.Key]model.Tick
-	config  map[model.Key]config
-	enabled map[model.Coin]bool
-	live    map[model.Coin]bool
+	lock     *sync.RWMutex
+	signals  map[model.Key]Signal
+	trades   map[model.Key]model.Tick
+	config   *Config
+	datasets *datasets
+	live     map[model.Coin]bool
 }
 
-func newStrategy(segments map[model.Key]Segments) *strategy {
-	cfg := make(map[model.Key]config)
-	enabled := make(map[model.Coin]bool)
-	for k, segment := range segments {
-		cfg[k] = config{
-			bufferTime:     segment.Trader.BufferTime,
-			priceThreshold: segment.Trader.PriceThreshold,
-			weight:         segment.Trader.Weight,
-			enabled:        true,
-		}
-		// auto-enable
-		enabled[k.Coin] = true
-		log.Info().
-			Str("key", fmt.Sprintf("%+v", k)).
-			Str("config", fmt.Sprintf("%+v", cfg[k])).
-			Msg("init strategy")
-	}
+func newStrategy(segments *Config, datasets *datasets) *strategy {
 	return &strategy{
-		lock:    new(sync.RWMutex),
-		signals: make(map[model.Key]Signal),
-		trades:  make(map[model.Key]model.Tick),
-		config:  cfg,
-		live:    make(map[model.Coin]bool),
-		enabled: enabled,
+		lock:     new(sync.RWMutex),
+		signals:  make(map[model.Key]Signal),
+		trades:   make(map[model.Key]model.Tick),
+		config:   segments,
+		datasets: datasets,
+		live:     make(map[model.Coin]bool),
 	}
 }
 
-func (str *strategy) enable(c model.Coin, enabled bool) []bool {
+func (str *strategy) enable(c model.Coin, enabled bool) map[string]bool {
 	str.lock.Lock()
 	defer str.lock.Unlock()
-	for coin, _ := range str.enabled {
-		if c == model.AllCoins || c == coin {
-			str.enabled[coin] = enabled
+	newConfig := &Config{
+		Segments: str.config.Segments,
+		Position: str.config.Position,
+		Option:   str.config.Option,
+		Buffer:   str.config.Buffer,
+	}
+	ee := make(map[string]bool, 0)
+	for k, cfg := range str.config.Segments {
+		if c == model.AllCoins || k.Match(c) {
+			cfg.Trader.Live = enabled
+			newConfig.Segments[k] = cfg
+			ee[k.ToString()] = newConfig.Segments[k].Trader.Live
 		}
 	}
-	ee := make([]bool, 0)
-	for coin, ok := range str.enabled {
-		if c == model.AllCoins || c == coin {
-			ee = append(ee, ok)
-		}
-	}
+	str.config = newConfig
 	return ee
 }
 
@@ -107,12 +88,12 @@ func (str *strategy) trade(k model.Key, trade model.Tick) (Signal, model.Key, bo
 	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
 	for key, s := range str.signals {
-		if key.Match(k.Coin) && str.enabled[key.Coin] {
+		if key.Match(k.Coin) && (str.config.Segments[key].Trader.Live || str.config.Option.Debug) {
 			str.trades[key] = trade
 			cfg := str._key(key)
 			// if we have a signal from the past already ...
 			lag := trade.Time.Sub(s.Time).Hours()
-			if lag >= cfg.bufferTime {
+			if lag >= cfg.BufferTime {
 				// and the signal seems to come true ...
 				diff := trade.Price - s.Price
 				var act bool = true
@@ -128,7 +109,7 @@ func (str *strategy) trade(k model.Key, trade model.Tick) (Signal, model.Key, bo
 					// re-validate the signal
 					str.signals[key] = s
 					// act on the signal
-					return s, key, s.Weight > 0, str.enabled[key.Coin]
+					return s, key, s.Weight > 0, str.config.Segments[key].Trader.Live || str.config.Option.Debug
 				} else {
 					log.Debug().
 						Float64("lag in hours", lag).
@@ -176,14 +157,14 @@ func (str *strategy) reset(key model.Key) bool {
 	return false
 }
 
-func (str strategy) _key(key model.Key) config {
-	if cfg, ok := str.config[key]; ok {
-		return cfg
+func (str strategy) _key(key model.Key) Trader {
+	if cfg, ok := str.config.Segments[key]; ok {
+		return cfg.Trader
 	}
-	for k, cfg := range str.config {
+	for k, cfg := range str.config.Segments {
 		if k.Coin == key.Coin {
-			return cfg
+			return cfg.Trader
 		}
 	}
-	return config{}
+	return Trader{}
 }

@@ -85,7 +85,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
-func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64) {
+func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[time.Duration]model.Trend) {
 	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
@@ -99,6 +99,8 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 
 	allProfit := make([]float64, 0)
 
+	allTrend := make(map[time.Duration]model.Trend)
+
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
@@ -107,15 +109,19 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			//shift := position.Trend.Shift != model.NoType
 			//validShift := position.Trend.Shift != position.Type
 			// TODO : we have a trend ... any ... for now
-			var validTrend bool
-			for _, trend := range position.Trend {
+			validTrend := make([]model.Type, 2)
+			for tt, trend := range position.Trend {
 				// NOTE : Type here does not mean market , but profit/loss
-				if trend.Type != model.NoType {
+				if trend.Type[0] != model.NoType {
 					// valid-trend
-					validTrend = true
+					validTrend[0] = trend.Type[0]
 				}
+				if trend.Type[1] != model.NoType {
+					// valid-trend
+					validTrend[1] = trend.Type[1]
+				}
+				allTrend[tt] = trend
 			}
-
 			//if stopLossActivated {
 			//	// if we pass the stop-loss threshold
 			//	positions[k] = position
@@ -126,9 +132,10 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			//	positions[k] = position
 			//	delete(et.profit, k)
 			//} else
-			if validTrend {
-				// if there is a trend in the opposite direction
-				if stopLossActivated || takeProfitActivated {
+			//fmt.Printf("[ valid = %v  , take-profit = %v, stop-loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, profit)
+			if stopLossActivated || takeProfitActivated {
+				if (validTrend[0] != model.NoType && validTrend[0] != position.Type) ||
+					(validTrend[1] != model.NoType && validTrend[1] != position.Type) {
 					positions[k] = position
 					delete(et.profit, k)
 				}
@@ -137,13 +144,12 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 		}
 	}
 
-	return positions, allProfit
+	return positions, allProfit, allTrend
 
 }
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
 	openType model.Type, open bool, volume float64, reason Reason, live bool) (*model.TrackedOrder, bool, Event, error) {
-
 	if volume == 0 {
 		volume = et.settings.OpenValue / price
 	}

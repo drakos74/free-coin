@@ -41,11 +41,11 @@ func (s *Stats) Push(v float64) {
 		s.first = v
 	}
 
-	if s.min > v {
+	if s.min == 0 || s.min > v {
 		s.min = v
 	}
 
-	if s.max < v {
+	if s.max == 0 || s.max < v {
 		s.max = v
 	}
 

@@ -79,7 +79,13 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 	return coin.NewStrategy(ml.Name).
 		ForUser(u).
 		ForExchange(e).
-		WithProcessor(ml.Processor(api.FreeCoin, shard, registry, ml.RandomForestNetwork{}, configML())).
+		WithProcessor(ml.Processor(api.FreeCoin, shard, registry,
+			ml.NewMultiNetwork(
+				ml.ConstructRandomForest(false),
+				ml.ConstructRandomForest(false),
+				ml.ConstructRandomForest(false),
+			),
+			configML())).
 		Apply()
 }
 
@@ -246,15 +252,15 @@ func configML() *ml.Config {
 		Position: ml.Position{
 			OpenValue:  500,
 			StopLoss:   0.01,
-			TakeProfit: 0.008,
+			TakeProfit: 0.005,
 			TrackingConfig: []*model.TrackingConfig{{
-				Duration:  3 * time.Minute,
+				Duration:  1 * time.Minute,
 				Samples:   5,
-				Threshold: 0.0000015,
+				Threshold: []float64{0.0005, 0.0000015},
 			}},
 		},
 		Option: ml.Option{
-			Debug:     false,
+			Debug:     true,
 			Benchmark: true,
 		},
 		Buffer: ml.Buffer{

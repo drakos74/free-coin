@@ -58,8 +58,8 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Event, profit []float64, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s%.2f) | %s\n%v|%v",
+func formatAction(action trader.Event, profit []float64, trend map[time.Duration]model.Trend, err error, ok bool) string {
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s%.2f) | %s\n%v|%v\n%+v",
 		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -73,14 +73,16 @@ func formatAction(action trader.Event, profit []float64, err error, ok bool) str
 		profit,
 		action.Reason,
 		emoji.MapToAction(ok),
-		err)
+		err,
+		trend)
 }
 
 func formatSignal(signal Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s) | %s (%.2f)\n%v|%v",
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s %s (%.4f|%s|%.2f%s %.2f%s) | %s (%.2f)\n%v|%v",
 		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
+		signal.Detail,
 		emoji.MapType(signal.Type),
 		signal.Price,
 		emoji.MapToSign(action.Value),
@@ -92,6 +94,13 @@ func formatSignal(signal Signal, action trader.Event, err error, ok bool) string
 		signal.Precision,
 		emoji.MapToAction(ok),
 		err)
+}
+
+func formatTrend(signal *model.TradeSignal, trend map[time.Duration]model.Trend) string {
+	return fmt.Sprintf("%s (%.0f) | [%s] %+v",
+		signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
+		signal.Coin,
+		trend)
 }
 
 func encodeMessage(signal Signal) string {

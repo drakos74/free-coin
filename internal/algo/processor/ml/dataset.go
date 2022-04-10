@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/client"
+	coinmath "github.com/drakos74/free-coin/internal/math"
 	coinml "github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/go-ex-machina/xmachina/ml"
@@ -18,34 +21,64 @@ import (
 )
 
 type Network interface {
-	Train(config Model, ds *dataset) (model.Type, float64, bool)
+	Train(config Model, ds *dataset) (modelResult, map[string]modelResult)
 	Fit(config Model, ds *dataset) (float64, error)
 	Predict(config Model, ds *dataset) model.Type
+	Eval(k string, report client.Report)
+	Report() client.Report
+}
+
+type ConstructNetwork func() Network
+
+type SingleNetwork struct {
+	report client.Report
+}
+
+func (bn *SingleNetwork) Eval(k string, report client.Report) {
+	bn.report = report
+}
+
+func (bn *SingleNetwork) Report() client.Report {
+	return bn.report
 }
 
 type RandomForestNetwork struct {
-	debug bool
+	SingleNetwork
+	debug  bool
+	tmpKey string
 }
 
-func (r RandomForestNetwork) Train(config Model, ds *dataset) (model.Type, float64, bool) {
+func ConstructRandomForest(debug bool) func() Network {
+	return func() Network {
+		return NewRandomForestNetwork(debug, coinmath.String(10))
+	}
+}
+
+func NewRandomForestNetwork(debug bool, key string) *RandomForestNetwork {
+	return &RandomForestNetwork{debug: debug, tmpKey: key}
+}
+
+func (r *RandomForestNetwork) Train(config Model, ds *dataset) (modelResult, map[string]modelResult) {
 	acc, err := r.Fit(config, ds)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train online")
 	} else if acc > config.PrecisionThreshold {
 		t := r.Predict(config, ds)
 		if t != model.NoType {
-			return t, acc, true
+			return modelResult{
+				key: r.tmpKey,
+				t:   t,
+				acc: acc,
+				ok:  true,
+			}, make(map[string]modelResult)
 		}
 	}
-	return model.NoType, 0, false
+	return modelResult{}, make(map[string]modelResult)
 }
 
-func (r RandomForestNetwork) Fit(config Model, ds *dataset) (float64, error) {
-	hash := "tmp_fit"
-	if r.debug {
-		hash = time.Now().Format(time.RFC3339)
-	}
-	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s", hash)), ds.vectors, false)
+func (r *RandomForestNetwork) Fit(config Model, ds *dataset) (float64, error) {
+	hash := r.tmpKey
+	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), ds.vectors, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create dataset file")
 		return 0.0, err
@@ -59,8 +92,9 @@ func (r RandomForestNetwork) Fit(config Model, ds *dataset) (float64, error) {
 	return prec, nil
 }
 
-func (r RandomForestNetwork) Predict(config Model, ds *dataset) model.Type {
-	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s", "tmp_predict")), ds.vectors, true)
+func (r *RandomForestNetwork) Predict(config Model, ds *dataset) model.Type {
+	hash := r.tmpKey
+	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_predict")), ds.vectors, true)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create dataset file")
 		return model.NoType
@@ -81,14 +115,15 @@ type dataset struct {
 	duration time.Duration
 	vectors  []vector
 	config   Model
+	network  Network
 }
 
 type datasets struct {
 	sets    map[model.Key]*dataset
-	network Network
+	network func() Network
 }
 
-func newDataSets(network Network) *datasets {
+func newDataSets(network func() Network) *datasets {
 	return &datasets{
 		sets:    make(map[model.Key]*dataset),
 		network: network,
@@ -97,12 +132,12 @@ func newDataSets(network Network) *datasets {
 
 func (ds *datasets) push(key model.Key, vv vector, cfg Model) (*dataset, bool) {
 	if _, ok := ds.sets[key]; !ok {
-		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, make([]vector, 0))
+		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, make([]vector, 0), ds.network())
 	}
 	// keep only the last vectors based on the buffer size
 	newVectors := addVector(ds.sets[key].vectors, vv, cfg.BufferSize)
 
-	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors)
+	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors, ds.sets[key].network)
 
 	if len(ds.sets[key].vectors) >= cfg.BufferSize {
 		return ds.sets[key], true
@@ -119,12 +154,13 @@ func addVector(ss []vector, s vector, size int) []vector {
 	return newVectors
 }
 
-func newDataSet(coin model.Coin, duration time.Duration, cfg Model, vv []vector) *dataset {
+func newDataSet(coin model.Coin, duration time.Duration, cfg Model, vv []vector, network Network) *dataset {
 	return &dataset{
 		coin:     coin,
 		duration: duration,
 		vectors:  vv,
 		config:   cfg,
+		network:  network,
 	}
 }
 
@@ -194,7 +230,14 @@ func makePath(parentDir string, fileName string) (string, error) {
 
 // NNetwork defines an ml network.
 type NNetwork struct {
+	SingleNetwork
 	net *ff.Network
+}
+
+func ConstructNeuralNetwork(network ff.Network) func() Network {
+	return func() Network {
+		return NewNN(&network)
+	}
 }
 
 // NewNN creates a new neural network.
@@ -231,7 +274,7 @@ func NewNN(network *ff.Network) *NNetwork {
 	return &NNetwork{net: network}
 }
 
-func (n *NNetwork) Train(config Model, ds *dataset) (model.Type, float64, bool) {
+func (n *NNetwork) Train(config Model, ds *dataset) (modelResult, map[string]modelResult) {
 
 	accuracy := math.MaxFloat64
 	i := 0
@@ -239,7 +282,7 @@ func (n *NNetwork) Train(config Model, ds *dataset) (model.Type, float64, bool) 
 	acc, err := n.Fit(config, ds)
 	if err != nil {
 		log.Error().Err(err).Msg("error during training")
-		return model.NoType, 0.0, false
+		return modelResult{}, make(map[string]modelResult)
 	}
 	//if acc < 1 || i > 10 {
 	accuracy = acc
@@ -251,7 +294,11 @@ func (n *NNetwork) Train(config Model, ds *dataset) (model.Type, float64, bool) 
 	//if i < 10 && accuracy < 1 {
 	t := n.Predict(config, ds)
 
-	return t, accuracy, t != model.NoType
+	return modelResult{
+		t:   t,
+		acc: accuracy,
+		ok:  t != model.NoType,
+	}, make(map[string]modelResult)
 	//}
 	//
 	//return model.NoType, 0.0, false
@@ -266,7 +313,6 @@ func (n *NNetwork) Fit(config Model, ds *dataset) (float64, error) {
 		loss, _ := n.net.Train(inp, xmath.Vec(len(vv.prevOut)).With(vv.prevOut...))
 		l += loss.Norm()
 	}
-	fmt.Printf("l = %+v\n", l)
 	return l, nil
 }
 
@@ -278,8 +324,6 @@ func (n *NNetwork) Predict(config Model, ds *dataset) model.Type {
 
 	outp := n.net.Predict(inp)
 
-	fmt.Printf("outp = %+v\n", outp)
-
 	if outp[0]-outp[2] > 0.0 {
 		return model.Buy
 	} else if outp[2]-outp[0] > 0.0 {
@@ -288,4 +332,149 @@ func (n *NNetwork) Predict(config Model, ds *dataset) model.Type {
 
 	return model.NoType
 
+}
+
+type PolynomialRegression struct {
+	SingleNetwork
+	threshold float64
+}
+
+func ConstructPolynomialNetwork(threshold float64) func() Network {
+	return func() Network {
+		return NewPolynomialRegressionNetwork(threshold)
+	}
+}
+
+func NewPolynomialRegressionNetwork(threshold float64) *PolynomialRegression {
+	return &PolynomialRegression{threshold: threshold}
+}
+
+func (p *PolynomialRegression) Train(config Model, ds *dataset) (modelResult, map[string]modelResult) {
+	if len(ds.vectors) > 0 {
+		v := ds.vectors[len(ds.vectors)-1]
+		in := v.newIn
+		if in[2] > p.threshold {
+			return modelResult{
+				t:   model.Buy,
+				acc: in[2],
+				ok:  true,
+			}, make(map[string]modelResult)
+		} else if in[2] < -1*p.threshold {
+			return modelResult{
+				t:   model.Sell,
+				acc: math.Abs(in[2]),
+				ok:  true,
+			}, make(map[string]modelResult)
+		}
+	}
+	return modelResult{}, make(map[string]modelResult)
+}
+
+func (p *PolynomialRegression) Fit(config Model, ds *dataset) (float64, error) {
+	panic("implement me")
+}
+
+func (p *PolynomialRegression) Predict(config Model, ds *dataset) model.Type {
+	panic("implement me")
+}
+
+type MultiNetwork struct {
+	construct map[string]ConstructNetwork
+	networks  map[string]Network
+}
+
+func NewMultiNetwork(network ...ConstructNetwork) *MultiNetwork {
+	nn := make(map[string]Network)
+	cc := make(map[string]ConstructNetwork)
+	for i, net := range network {
+		k := fmt.Sprintf("%+v", i)
+		cc[k] = net
+		nn[k] = net()
+	}
+	return &MultiNetwork{
+		networks:  nn,
+		construct: cc,
+	}
+}
+
+type modelResult struct {
+	key    string
+	t      model.Type
+	acc    float64
+	profit float64
+	ok     bool
+	reset  bool
+}
+
+type modelResults []modelResult
+
+func (rr modelResults) Len() int           { return len(rr) }
+func (rr modelResults) Less(i, j int) bool { return rr[i].profit < rr[j].profit }
+func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
+
+func (m *MultiNetwork) Train(config Model, ds *dataset) (modelResult, map[string]modelResult) {
+
+	tt := make(map[string]modelResult)
+
+	results := make([]modelResult, 0)
+
+	kk := make(map[string]client.Report, 0)
+
+	for k, net := range m.networks {
+		report := net.Report()
+		res, _ := net.Train(config, ds)
+		result := modelResult{
+			key:    k,
+			t:      res.t,
+			acc:    res.acc,
+			profit: report.Profit,
+			ok:     res.ok,
+		}
+		if res.ok && report.Profit >= 0.0 {
+			results = append(results, result)
+		} else if res.ok && report.Profit < -0.1 {
+			kk[k] = report
+			result.reset = true
+		}
+		if res.t != model.NoType {
+			tt[k] = result
+		}
+	}
+
+	for k, report := range kk {
+		log.Info().
+			Str("key", k).
+			Int("trades", report.Buy+report.Sell).
+			Float64("profit", report.Profit).
+			Msg("new network")
+		m.networks[k] = m.construct[k]()
+	}
+
+	if len(results) == 0 {
+		return modelResult{}, tt
+	}
+
+	sort.Sort(sort.Reverse(modelResults(results)))
+
+	return results[0], tt
+}
+
+func (m *MultiNetwork) Eval(k string, report client.Report) {
+	for key, n := range m.networks {
+		if k == key {
+			n.Eval(k, report)
+		}
+	}
+}
+
+func (m *MultiNetwork) Report() client.Report {
+	return client.Report{}
+}
+
+func (m *MultiNetwork) Fit(config Model, ds *dataset) (float64, error) {
+	panic("implement me")
+}
+
+func (m *MultiNetwork) Predict(config Model, ds *dataset) model.Type {
+	panic("implement me")
 }

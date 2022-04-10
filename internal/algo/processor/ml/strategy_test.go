@@ -110,16 +110,18 @@ func TestStrategy(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			strategy := newStrategy(map[model.Key]Segments{
-				model.Key{
-					Coin: model.BTC,
-				}: {
-					Trader: Trader{
-						BufferTime:     bufferTime,
-						PriceThreshold: 50,
+			strategy := newStrategy(&Config{
+				Segments: map[model.Key]Segments{
+					model.Key{
+						Coin: model.BTC,
+					}: {
+						Trader: Trader{
+							BufferTime:     bufferTime,
+							PriceThreshold: 50,
+						},
 					},
 				},
-			})
+			}, nil)
 			k := model.Key{}
 			signalCount := 0
 			tradeCount := 0

@@ -54,7 +54,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						txtBuffer.WriteString(fmt.Sprintf("%s|%s %s(%s)\n%s\n%s\n",
 							report.Stamp.Format(time.Stamp),
 							k.ToString(),
-							emoji.MapOpen(strategy.enabled[k.Coin]),
+							emoji.MapOpen(strategy.config.Segments[k].Trader.Live),
 							emoji.MapToSign(report.Profit),
 							pString,
 							formatReport(report)))
@@ -84,6 +84,20 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "stop":
 			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
+		case "ds":
+			sets := strategy.datasets.sets
+			for k, set := range sets {
+				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
+				if networks, ok := set.network.(*MultiNetwork); ok {
+					for key, network := range networks.networks {
+						report := network.Report()
+						txtBuffer.WriteString(fmt.Sprintf("%s - %.2f | %d\n", key, report.Profit, report.Buy+report.Sell))
+					}
+				} else {
+					report := set.network.Report()
+					txtBuffer.WriteString(fmt.Sprintf("%.2f | %d\n", report.Profit, report.Buy+report.Sell))
+				}
+			}
 		case "start":
 			bb := strategy.enable(key.Coin, true)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
