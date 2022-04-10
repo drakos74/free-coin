@@ -26,7 +26,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?ml"),
-			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", "wallet", "gap", "prec", ""),
+			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", "wallet", "gap", "prec", "ds", ""),
 			api.Any(&coin),
 			api.Float(&num),
 		)
