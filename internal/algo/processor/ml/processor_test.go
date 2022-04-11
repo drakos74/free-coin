@@ -219,15 +219,17 @@ func TestProcessor(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"),
-				NewMultiNetwork(
-					ConstructRandomForest(true),
-					ConstructRandomForest(true),
-					ConstructRandomForest(true),
-					//ConstructRandomForest(true),
-					//ConstructPolynomialNetwork(0.0001),
-					//RandomForestNetwork{debug: true, tmpKey: "3"},
-					//RandomForestNetwork{debug: true, tmpKey: "4"},
-				),
+				func() Network {
+					return NewMultiNetwork(
+						ConstructRandomForest(true),
+						ConstructRandomForest(true),
+						ConstructRandomForest(true),
+						//ConstructRandomForest(true),
+						//ConstructPolynomialNetwork(0.0001),
+						//RandomForestNetwork{debug: true, tmpKey: "3"},
+						//RandomForestNetwork{debug: true, tmpKey: "4"},
+					)
+				},
 				//RandomForestNetwork{debug: true},
 				//NewNN(nil),
 				tt.config)

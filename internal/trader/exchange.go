@@ -21,7 +21,6 @@ const (
 type ExchangeTrader struct {
 	exchange api.Exchange
 	trader   *trader
-	profit   map[model.Key]float64
 	settings Settings
 	log      *Log
 }
@@ -41,7 +40,6 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 	return &ExchangeTrader{
 		exchange: exchange,
 		trader:   trader,
-		profit:   make(map[model.Key]float64),
 		settings: settings,
 		log:      NewEventLog(registry),
 	}
@@ -112,11 +110,11 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			validTrend := make([]model.Type, 2)
 			for tt, trend := range position.Trend {
 				// NOTE : Type here does not mean market , but profit/loss
-				if trend.Type[0] != model.NoType {
+				if trend.Live && trend.Type[0] != model.NoType {
 					// valid-trend
 					validTrend[0] = trend.Type[0]
 				}
-				if trend.Type[1] != model.NoType {
+				if trend.Live && trend.Type[1] != model.NoType {
 					// valid-trend
 					validTrend[1] = trend.Type[1]
 				}
@@ -137,7 +135,6 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 				if (validTrend[0] != model.NoType && validTrend[0] != position.Type) ||
 					(validTrend[1] != model.NoType && validTrend[1] != position.Type) {
 					positions[k] = position
-					delete(et.profit, k)
 				}
 			}
 			allProfit = append(allProfit, profit)

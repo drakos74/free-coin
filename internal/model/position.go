@@ -72,6 +72,7 @@ type Stats struct {
 
 // Trend defines the position profit trend
 type Trend struct {
+	Live         bool
 	LastValue    []float64
 	CurrentValue []float64
 	Threshold    []float64
@@ -150,6 +151,12 @@ func (p *Position) Update(trade Tick) Position {
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats
 		for k, profit := range p.Profit {
+			if trend, ok := p.Trend[k]; !ok {
+				p.Trend[k] = newTrend()
+			} else {
+				trend.Live = false
+				p.Trend[k] = trend
+			}
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				s, err := profit.Window.Polynomial(0, buffer.Avg, 1)
 				if err != nil {
@@ -166,9 +173,6 @@ func (p *Position) Update(trade Tick) Position {
 				//fmt.Printf("s = %+v\n", s)
 				//fmt.Printf("a = %+v\n", a)
 				if len(s) >= 1 && len(a) >= 2 {
-					if _, ok := p.Trend[k]; !ok {
-						p.Trend[k] = newTrend()
-					}
 					trend := p.Trend[k]
 					trend.CurrentValue[0] = s[1]
 					trend.CurrentValue[1] = a[2]
@@ -178,6 +182,7 @@ func (p *Position) Update(trade Tick) Position {
 					trend.Type[1], trend.Shift[1] = calculateTrend(trend.CurrentValue[1], profit.Config.Threshold[1], trend.LastValue[1])
 					trend.LastValue[0] = s[1]
 					trend.LastValue[1] = a[2]
+					trend.Live = true
 					p.Trend[k] = trend
 				}
 			}

@@ -22,7 +22,7 @@ const (
 )
 
 // Processor is the position processor main routine.
-func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, network Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
+func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, networkConstructor func() Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
 	col, err := newCollector(2, shard, nil, config)
 	// make sure we dont break the pipeline
 	if err != nil {
@@ -36,9 +36,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 	benchmarks := newBenchmarks()
 
-	ds := newDataSets(func() Network {
-		return network
-	})
+	ds := newDataSets(networkConstructor)
 
 	strategy := newStrategy(config, ds)
 	return func(u api.User, e api.Exchange) api.Processor {

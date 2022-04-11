@@ -86,12 +86,14 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "ds":
 			sets := strategy.datasets.sets
+			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
 				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
 				if networks, ok := set.network.(*MultiNetwork); ok {
 					for key, network := range networks.networks {
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%s - %.2f | %d\n", key, report.Profit, report.Buy+report.Sell))
+						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d\n", key, len(set.vectors),
+							report.Profit, report.Buy+report.Sell))
 					}
 				} else {
 					report := set.network.Report()

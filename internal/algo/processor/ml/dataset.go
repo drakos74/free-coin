@@ -379,6 +379,7 @@ func (p *PolynomialRegression) Predict(config Model, ds *dataset) model.Type {
 }
 
 type MultiNetwork struct {
+	ID        string
 	construct map[string]ConstructNetwork
 	networks  map[string]Network
 }
@@ -392,6 +393,7 @@ func NewMultiNetwork(network ...ConstructNetwork) *MultiNetwork {
 		nn[k] = net()
 	}
 	return &MultiNetwork{
+		ID:        coinmath.String(5),
 		networks:  nn,
 		construct: cc,
 	}
