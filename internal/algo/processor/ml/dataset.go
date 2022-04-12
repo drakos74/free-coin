@@ -126,38 +126,49 @@ type datasets struct {
 	network func() Network
 }
 
-func newDataSets(network func() Network) *datasets {
+func newDataSets(storage storage.Persistence, network func() Network) *datasets {
 	return &datasets{
 		sets:    make(map[model.Key]*dataset),
+		storage: storage,
 		network: network,
 	}
 }
 
-//func (ds *datasets) saveVectors(key model.Key, vectors []Vector) error {
-//	return ds.storage.Store(stKey(t.account), t.buildState())
-//}
-//
-//func (ds *datasets) loadVectors(key model.Key) error {
-//	state := State{
-//		Positions: make(map[string]model.Position),
-//	}
-//	err := t.storage.Load(stKey(t.account), &state)
-//	t.parseState(state)
-//	log.Info().Err(err).
-//		Str("account", t.account).
-//		Int("num", len(t.positions)).
-//		Bool("running", t.running).
-//		Int("min-size", t.minSize).
-//		Msg("loaded state")
-//	return nil
-//}
+func (ds *datasets) saveVectors(key model.Key, vectors []Vector) error {
+	return ds.storage.Store(stKey(key), vectors)
+}
+
+func (ds *datasets) loadVectors(key model.Key) ([]Vector, error) {
+	vectors := make([]Vector, 0)
+	err := ds.storage.Load(stKey(key), &vectors)
+	return vectors, err
+}
+
+func stKey(key model.Key) storage.Key {
+	return storage.Key{
+		Pair:  fmt.Sprintf("%v_%v", key.Coin, key.Duration),
+		Hash:  key.Index,
+		Label: key.Strategy,
+	}
+}
 
 func (ds *datasets) push(key model.Key, vv Vector, cfg Model) (*dataset, bool) {
 	if _, ok := ds.sets[key]; !ok {
-		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, make([]Vector, 0), ds.network())
+		vectors := make([]Vector, 0)
+		vv, err := ds.loadVectors(key)
+		if err != nil {
+			vectors = vv
+		} else {
+			log.Error().Err(err).Str("key", key.ToString()).Msg("could not load vectors")
+		}
+		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network())
 	}
 	// keep only the last vectors based on the buffer size
 	newVectors := addVector(ds.sets[key].vectors, vv, cfg.BufferSize)
+	err := ds.saveVectors(key, newVectors)
+	if err != nil {
+		log.Error().Err(err).Str("key", key.ToString()).Msg("could not save vectors")
+	}
 
 	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors, ds.sets[key].network)
 

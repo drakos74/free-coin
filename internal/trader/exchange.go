@@ -122,6 +122,9 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 					hasTrend = true
 				}
 				if hasTrend {
+					if _, ok := allTrend[k]; !ok {
+						allTrend[k] = make(map[time.Duration]model.Trend)
+					}
 					allTrend[k][tt] = trend
 				}
 			}

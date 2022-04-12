@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
@@ -36,7 +38,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 	benchmarks := newBenchmarks()
 
-	ds := newDataSets(networkConstructor)
+	persistence := json.NewJsonBlob("ml", "vectors", false)
+	ds := newDataSets(persistence, networkConstructor)
 
 	strategy := newStrategy(config, ds)
 	return func(u api.User, e api.Exchange) api.Processor {
