@@ -58,13 +58,13 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		// process the collector vectors
 		go func(col *collector) {
 			for vv := range col.vectors {
-				coin := string(vv.meta.key.Coin)
-				duration := vv.meta.key.Duration.String()
+				coin := string(vv.Meta.Key.Coin)
+				duration := vv.Meta.Key.Duration.String()
 				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
-				configSegments := config.segments(vv.meta.key.Coin, vv.meta.key.Duration)
+				configSegments := config.segments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 				for key, segmentConfig := range configSegments {
 					// do our training here ...
-					if segmentConfig.Model.Features > 0 && key.Match(vv.meta.key.Coin) {
+					if segmentConfig.Model.Features > 0 && key.Match(vv.Meta.Key.Coin) {
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 						if set, ok := ds.push(key, vv, segmentConfig.Model); ok {
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
@@ -72,17 +72,17 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							signal := Signal{
 								Key:       key,
 								Detail:    result.key,
-								Time:      vv.meta.tick.Time,
-								Price:     vv.meta.tick.Price,
+								Time:      vv.Meta.Tick.Time,
+								Price:     vv.Meta.Tick.Price,
 								Type:      result.t,
-								Spectrum:  coin_math.FFT(vv.yy),
-								Buffer:    vv.yy,
+								Spectrum:  coin_math.FFT(vv.YY),
+								Buffer:    vv.YY,
 								Precision: result.acc,
 								Weight:    segmentConfig.Trader.Weight,
 								Live:      segmentConfig.Trader.Live,
 							}
 							if ok && signal.Type != model.NoType {
-								if s, k, open, ok := strategy.eval(vv.meta.tick, signal, config); ok {
+								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live)
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
@@ -102,7 +102,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									} else {
 										s := signal
 										s.Type = res.t
-										report, ok, _ := benchmarks.add(kk, vv.meta.tick, s, config)
+										report, ok, _ := benchmarks.add(kk, vv.Meta.Tick, s, config)
 										if ok {
 											set.network.Eval(k, report)
 										}
@@ -145,10 +145,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if floats.Sum(profit) < 0 {
 								ok := strategy.reset(k)
 								if !ok {
-									log.Error().Str("key", k.ToString()).Msg("could not reset signal")
+									log.Error().Str("Key", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, profit, trend, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+							u.Send(index, api.NewMessage(formatAction(action, profit, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 {
 						u.Send(index, api.NewMessage(formatTrend(tradeSignal, trend)), nil)

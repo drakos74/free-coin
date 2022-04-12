@@ -115,7 +115,7 @@ func (str *strategy) trade(k model.Key, trade model.Tick) (Signal, model.Key, bo
 						Float64("lag in hours", lag).
 						Float64("diff", diff).
 						Str("type", s.Type.String()).
-						Msg("ignoring tick")
+						Msg("ignoring Tick")
 				}
 			}
 		}

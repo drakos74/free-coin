@@ -22,16 +22,16 @@ type SignalSource chan *TradeSignal
 
 // Level defines a trading level.
 type Level struct {
-	Price  float64
-	Volume float64
+	Price  float64 `json:"price"`
+	Volume float64 `json:"volume"`
 }
 
 // Tick defines a tick in the price
 type Tick struct {
-	Level
-	Type   Type
-	Time   time.Time
-	Active bool
+	Level  `json:"level"`
+	Type   Type      `json:"type"`
+	Time   time.Time `json:"time"`
+	Active bool      `json:"active"`
 }
 
 // Spread defines the current spread

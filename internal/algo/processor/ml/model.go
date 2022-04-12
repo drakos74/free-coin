@@ -120,7 +120,7 @@ type Segments struct {
 
 // Signal represents a signal from the ml processor.
 type Signal struct {
-	Key       model.Key           `json:"key"`
+	Key       model.Key           `json:"Key"`
 	Detail    string              `json:"detail"`
 	Time      time.Time           `json:"time"`
 	Price     float64             `json:"price"`
@@ -259,11 +259,11 @@ func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *
 		// TODO : dont reset the benchmark for now
 		//sec := trade.Time.Unix()
 		//g := sec / int64(4*time.Hour.Seconds())
-		//if g != b.Timer[key.Coin] {
-		//	b.Timer[key.Coin] = g
+		//if g != b.Timer[Key.Coin] {
+		//	b.Timer[Key.Coin] = g
 		//	report.Stamp = trade.Time
-		//	b.Profit[key] = addReport(b.Profit[key], report, 3)
-		//	b.reset(key.Coin)
+		//	b.Profit[Key] = addReport(b.Profit[Key], report, 3)
+		//	b.reset(Key.Coin)
 		//}
 		return report, ok, nil
 	}

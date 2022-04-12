@@ -65,9 +65,10 @@ type MetaData struct {
 
 // Stats contains position stats, these are calculated by processors on the fly
 type Stats struct {
-	Trend  map[time.Duration]Trend   `json:"-"`
-	Profit map[time.Duration]*Profit `json:"-"`
-	PnL    float64                   `json:"pnl"`
+	HasUpdate bool                      `json:"-"`
+	Trend     map[time.Duration]Trend   `json:"-"`
+	Profit    map[time.Duration]*Profit `json:"-"`
+	PnL       float64                   `json:"pnl"`
 }
 
 // Trend defines the position profit trend
@@ -148,6 +149,8 @@ func (p *Position) Update(trade Tick) Position {
 	p.PnL = pnl
 	p.Fees = fees
 
+	p.HasUpdate = false
+
 	if p.Profit != nil {
 		// try to ingest the new value to the window stats
 		for k, profit := range p.Profit {
@@ -158,6 +161,7 @@ func (p *Position) Update(trade Tick) Position {
 				p.Trend[k] = trend
 			}
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
+				p.HasUpdate = true
 				s, err := profit.Window.Polynomial(0, buffer.Avg, 1)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '2' fit for position")

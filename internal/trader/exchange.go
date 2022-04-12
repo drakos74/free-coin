@@ -83,7 +83,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop loss and take profit thresholds
-func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[time.Duration]model.Trend) {
+func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend) {
 	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
@@ -97,7 +97,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 
 	allProfit := make([]float64, 0)
 
-	allTrend := make(map[time.Duration]model.Trend)
+	allTrend := make(map[model.Key]map[time.Duration]model.Trend)
 
 	if len(pp) > 0 {
 		for k, position := range pp {
@@ -109,16 +109,21 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			// TODO : we have a trend ... any ... for now
 			validTrend := make([]model.Type, 2)
 			for tt, trend := range position.Trend {
+				var hasTrend bool
 				// NOTE : Type here does not mean market , but profit/loss
 				if trend.Live && trend.Type[0] != model.NoType {
 					// valid-trend
 					validTrend[0] = trend.Type[0]
+					hasTrend = true
 				}
 				if trend.Live && trend.Type[1] != model.NoType {
 					// valid-trend
 					validTrend[1] = trend.Type[1]
+					hasTrend = true
 				}
-				allTrend[tt] = trend
+				if hasTrend {
+					allTrend[k][tt] = trend
+				}
 			}
 			//if stopLossActivated {
 			//	// if we pass the stop-loss threshold

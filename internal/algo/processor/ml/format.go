@@ -96,11 +96,17 @@ func formatSignal(signal Signal, action trader.Event, err error, ok bool) string
 		err)
 }
 
-func formatTrend(signal *model.TradeSignal, trend map[time.Duration]model.Trend) string {
-	return fmt.Sprintf("%s (%.0f) | [%s] %+v",
-		signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
-		signal.Coin,
-		trend)
+func formatTrend(signal *model.TradeSignal, trend map[model.Key]map[time.Duration]model.Trend) string {
+	txtBuffer := new(strings.Builder)
+	txtBuffer.WriteString("\n")
+	for k, tt := range trend {
+		txtBuffer.WriteString(fmt.Sprintf("%+v\n", k))
+		txtBuffer.WriteString(fmt.Sprintf("%s (%.0f) | [%s] %+v\n",
+			signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
+			signal.Coin,
+			tt))
+	}
+	return txtBuffer.String()
 }
 
 func encodeMessage(signal Signal) string {

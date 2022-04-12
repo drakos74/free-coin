@@ -17,7 +17,7 @@ type collector struct {
 	store   storage.Persistence
 	windows map[model.Key]*buffer.BatchWindow
 	state   map[model.Key]*state
-	vectors chan vector
+	vectors chan Vector
 	config  *Config
 }
 
@@ -38,7 +38,7 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (
 	col := &collector{
 		store:   store,
 		config:  config,
-		vectors: make(chan vector),
+		vectors: make(chan Vector),
 	}
 
 	for k, cfg := range config.Segments {
@@ -47,7 +47,7 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),
 		}
-		log.Info().Str("key", k.ToString()).Msg("init collector")
+		log.Info().Str("Key", k.ToString()).Msg("init collector")
 		go col.process(k, trades)
 	}
 
@@ -57,18 +57,18 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (
 	return col, nil
 }
 
-type meta struct {
-	key  model.Key
-	tick model.Tick
+type Meta struct {
+	Key  model.Key  `json:"key"`
+	Tick model.Tick `json:"tick"`
 }
 
-type vector struct {
-	meta    meta
-	prevIn  []float64
-	prevOut []float64
-	newIn   []float64
-	xx      []float64
-	yy      []float64
+type Vector struct {
+	Meta    Meta      `json:"meta"`
+	PrevIn  []float64 `json:"prev_in"`
+	PrevOut []float64 `json:"prev_out"`
+	NewIn   []float64 `json:"new_in"`
+	XX      []float64 `json:"xx"`
+	YY      []float64 `json:"yy"`
 }
 
 func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
@@ -93,11 +93,11 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				last = bucket
 			}
 		}
-		//fmt.Printf("key = %+v\n", key)
+		//fmt.Printf("Key = %+v\n", Key)
 		inp, err := fit(xx, yy, 0, 1, 2)
 		if err != nil || !last.OK {
 			log.Debug().Err(err).
-				Str("key", fmt.Sprintf("%+v", key)).
+				Str("Key", fmt.Sprintf("%+v", key)).
 				Str("x", fmt.Sprintf("%+v", xx)).
 				Str("y", fmt.Sprintf("%+v", yy)).
 				Msg("could not fit")
@@ -123,10 +123,10 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 			next[1] = 1
 		}
 		if _, ok := tracker.buffer.Push(inp); ok {
-			v := vector{
-				meta: meta{
-					key: key,
-					tick: model.Tick{
+			v := Vector{
+				Meta: Meta{
+					Key: key,
+					Tick: model.Tick{
 						Level: model.Level{
 							Price:  price,
 							Volume: volume,
@@ -134,11 +134,11 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 						Time: last.Time.Add(last.Duration),
 					},
 				},
-				prevIn:  prev,
-				prevOut: next,
-				newIn:   inp,
-				yy:      yy,
-				xx:      xx,
+				PrevIn:  prev,
+				PrevOut: next,
+				NewIn:   inp,
+				YY:      yy,
+				XX:      xx,
 			}
 			c.vectors <- v
 		}
@@ -155,8 +155,8 @@ func (c *collector) push(trade *model.TradeSignal) {
 
 func fit(xx, yy []float64, degree ...int) ([]float64, error) {
 	p := make([]float64, len(degree))
-	//fmt.Printf("xx = %+v\n", xx)
-	//fmt.Printf("yy = %+v\n", yy)
+	//fmt.Printf("XX = %+v\n", XX)
+	//fmt.Printf("YY = %+v\n", YY)
 	for i, d := range degree {
 		if len(yy) < d+1 {
 			return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",

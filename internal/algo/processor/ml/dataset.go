@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/drakos74/free-coin/client"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	coinml "github.com/drakos74/free-coin/internal/math/ml"
@@ -113,13 +115,14 @@ func (r *RandomForestNetwork) Predict(config Model, ds *dataset) model.Type {
 type dataset struct {
 	coin     model.Coin
 	duration time.Duration
-	vectors  []vector
+	vectors  []Vector
 	config   Model
 	network  Network
 }
 
 type datasets struct {
 	sets    map[model.Key]*dataset
+	storage storage.Persistence
 	network func() Network
 }
 
@@ -130,9 +133,28 @@ func newDataSets(network func() Network) *datasets {
 	}
 }
 
-func (ds *datasets) push(key model.Key, vv vector, cfg Model) (*dataset, bool) {
+//func (ds *datasets) saveVectors(key model.Key, vectors []Vector) error {
+//	return ds.storage.Store(stKey(t.account), t.buildState())
+//}
+//
+//func (ds *datasets) loadVectors(key model.Key) error {
+//	state := State{
+//		Positions: make(map[string]model.Position),
+//	}
+//	err := t.storage.Load(stKey(t.account), &state)
+//	t.parseState(state)
+//	log.Info().Err(err).
+//		Str("account", t.account).
+//		Int("num", len(t.positions)).
+//		Bool("running", t.running).
+//		Int("min-size", t.minSize).
+//		Msg("loaded state")
+//	return nil
+//}
+
+func (ds *datasets) push(key model.Key, vv Vector, cfg Model) (*dataset, bool) {
 	if _, ok := ds.sets[key]; !ok {
-		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, make([]vector, 0), ds.network())
+		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, make([]Vector, 0), ds.network())
 	}
 	// keep only the last vectors based on the buffer size
 	newVectors := addVector(ds.sets[key].vectors, vv, cfg.BufferSize)
@@ -145,7 +167,7 @@ func (ds *datasets) push(key model.Key, vv vector, cfg Model) (*dataset, bool) {
 	return &dataset{}, false
 }
 
-func addVector(ss []vector, s vector, size int) []vector {
+func addVector(ss []Vector, s Vector, size int) []Vector {
 	newVectors := append(ss, s)
 	l := len(newVectors)
 	if l > size {
@@ -154,7 +176,7 @@ func addVector(ss []vector, s vector, size int) []vector {
 	return newVectors
 }
 
-func newDataSet(coin model.Coin, duration time.Duration, cfg Model, vv []vector, network Network) *dataset {
+func newDataSet(coin model.Coin, duration time.Duration, cfg Model, vv []Vector, network Network) *dataset {
 	return &dataset{
 		coin:     coin,
 		duration: duration,
@@ -172,7 +194,7 @@ const benchmarkModelPath = "file-storage/ml/models"
 const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
-func toFeatureFile(parentPath string, description string, vectors []vector, predict bool) (string, error) {
+func toFeatureFile(parentPath string, description string, vectors []Vector, predict bool) (string, error) {
 	fn, err := makePath(parentPath, fmt.Sprintf("%s.csv", description))
 	if err != nil {
 		return "", err
@@ -190,12 +212,12 @@ func toFeatureFile(parentPath string, description string, vectors []vector, pred
 	// take only the last n samples
 	for _, vector := range vectors {
 		lw := new(strings.Builder)
-		for _, in := range vector.prevIn {
+		for _, in := range vector.PrevIn {
 			lw.WriteString(fmt.Sprintf("%f,", in))
 		}
-		if vector.prevOut[0] == 1.0 {
+		if vector.PrevOut[0] == 1.0 {
 			lw.WriteString(fmt.Sprintf("%s", model.Buy.String()))
-		} else if vector.prevOut[2] == 1.0 {
+		} else if vector.PrevOut[2] == 1.0 {
 			lw.WriteString(fmt.Sprintf("%s", model.Sell.String()))
 		} else {
 			lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
@@ -206,7 +228,7 @@ func toFeatureFile(parentPath string, description string, vectors []vector, pred
 		// for the last one add also the new value ...
 		lastVector := vectors[len(vectors)-1]
 		pw := new(strings.Builder)
-		for _, in := range lastVector.newIn {
+		for _, in := range lastVector.NewIn {
 			pw.WriteString(fmt.Sprintf("%f,", in))
 		}
 		pw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
@@ -309,8 +331,8 @@ func (n *NNetwork) Fit(config Model, ds *dataset) (float64, error) {
 	l := 0.0
 	for i := 0; i < len(ds.vectors)-1; i++ {
 		vv := ds.vectors[i]
-		inp := xmath.Vec(len(vv.prevIn)).With(vv.prevIn...)
-		loss, _ := n.net.Train(inp, xmath.Vec(len(vv.prevOut)).With(vv.prevOut...))
+		inp := xmath.Vec(len(vv.PrevIn)).With(vv.PrevIn...)
+		loss, _ := n.net.Train(inp, xmath.Vec(len(vv.PrevOut)).With(vv.PrevOut...))
 		l += loss.Norm()
 	}
 	return l, nil
@@ -320,7 +342,7 @@ func (n *NNetwork) Predict(config Model, ds *dataset) model.Type {
 
 	last := ds.vectors[len(ds.vectors)-1]
 
-	inp := xmath.Vec(len(last.newIn)).With(last.newIn...)
+	inp := xmath.Vec(len(last.NewIn)).With(last.NewIn...)
 
 	outp := n.net.Predict(inp)
 
@@ -352,7 +374,7 @@ func NewPolynomialRegressionNetwork(threshold float64) *PolynomialRegression {
 func (p *PolynomialRegression) Train(config Model, ds *dataset) (modelResult, map[string]modelResult) {
 	if len(ds.vectors) > 0 {
 		v := ds.vectors[len(ds.vectors)-1]
-		in := v.newIn
+		in := v.NewIn
 		if in[2] > p.threshold {
 			return modelResult{
 				t:   model.Buy,
@@ -445,7 +467,7 @@ func (m *MultiNetwork) Train(config Model, ds *dataset) (modelResult, map[string
 
 	for k, report := range kk {
 		log.Info().
-			Str("key", k).
+			Str("Key", k).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
 			Msg("new network")
