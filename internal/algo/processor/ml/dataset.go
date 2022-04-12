@@ -126,10 +126,14 @@ type datasets struct {
 	network func() Network
 }
 
-func newDataSets(storage storage.Persistence, network func() Network) *datasets {
+func newDataSets(shard storage.Shard, network func() Network) *datasets {
+	persistence, err := shard("vectors")
+	if err != nil {
+		persistence = storage.VoidStorage{}
+	}
 	return &datasets{
 		sets:    make(map[model.Key]*dataset),
-		storage: storage,
+		storage: persistence,
 		network: network,
 	}
 }
