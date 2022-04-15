@@ -148,7 +148,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("Key", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, profit, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+							u.Send(index, api.NewMessage(formatAction(action, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 {
 						u.Send(index, api.NewMessage(formatTrend(tradeSignal, trend)), nil)

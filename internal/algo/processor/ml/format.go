@@ -58,19 +58,22 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Event, profit []float64, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s%.2f) | %s\n%v|%v\n%+v",
+func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s\n%v|%v\n%+v",
 		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
 		emoji.MapType(action.Type),
+
 		action.Price,
 		emoji.MapToSign(action.Value),
 		action.Value,
 		model.EURO,
 		100*action.PnL,
 		"%",
-		profit,
+		action.CoinPnL,
+		action.GlobalPnL,
+
 		action.Reason,
 		emoji.MapToAction(ok),
 		err,
