@@ -160,8 +160,9 @@ func (ds *datasets) push(key model.Key, vv Vector, cfg Model) (*dataset, bool) {
 	if _, ok := ds.sets[key]; !ok {
 		vectors := make([]Vector, 0)
 		vv, err := ds.loadVectors(key)
-		if err != nil {
+		if err == nil {
 			vectors = vv
+			log.Info().Str("key", key.ToString()).Int("vv", len(vv)).Msg("loaded vectors")
 		} else {
 			log.Error().Err(err).Str("key", key.ToString()).Msg("could not load vectors")
 		}

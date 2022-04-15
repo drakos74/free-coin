@@ -73,6 +73,7 @@ type Stats struct {
 
 // Trend defines the position profit trend
 type Trend struct {
+	State        PositionState
 	Live         bool
 	LastValue    []float64
 	CurrentValue []float64
@@ -82,8 +83,16 @@ type Trend struct {
 	Shift        []Type
 }
 
-func newTrend() Trend {
+type PositionState struct {
+	Coin         Coin
+	OpenPrice    float64
+	CurrentPrice float64
+	Type         Type
+}
+
+func newTrend(state PositionState) Trend {
 	return Trend{
+		State:        state,
 		LastValue:    make([]float64, 2),
 		CurrentValue: make([]float64, 2),
 		Threshold:    make([]float64, 2),
@@ -152,12 +161,19 @@ func (p *Position) Update(trade Tick) Position {
 	p.HasUpdate = false
 
 	if p.Profit != nil {
+		state := PositionState{
+			Coin:         p.Coin,
+			Type:         p.Type,
+			OpenPrice:    p.OpenPrice,
+			CurrentPrice: trade.Price,
+		}
 		// try to ingest the new value to the window stats
 		for k, profit := range p.Profit {
 			if trend, ok := p.Trend[k]; !ok {
-				p.Trend[k] = newTrend()
+				p.Trend[k] = newTrend(state)
 			} else {
 				trend.Live = false
+				trend.State = state
 				p.Trend[k] = trend
 			}
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
