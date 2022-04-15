@@ -78,18 +78,22 @@ func formatAction(action trader.Event, profit []float64, trend map[time.Duration
 }
 
 func formatSignal(signal Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s %s (%.4f|%s|%.2f%s %.2f%s) | %s (%.2f)\n%v|%v",
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s (%.2f)\n%v|%v",
 		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
 		signal.Detail,
 		emoji.MapType(signal.Type),
+
 		signal.Price,
 		emoji.MapToSign(action.Value),
 		action.Value,
 		model.EURO,
 		100*action.PnL,
 		"%",
+		action.CoinPnL,
+		action.GlobalPnL,
+
 		action.Reason,
 		signal.Precision,
 		emoji.MapToAction(ok),

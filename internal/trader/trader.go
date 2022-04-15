@@ -137,7 +137,7 @@ func (t *trader) getAll(coins ...model.Coin) ([]model.Key, map[model.Key]model.P
 	keys := make([]model.Key, 0)
 	for _, c := range coins {
 		for k, p := range t.positions {
-			if c == model.AllCoins || k.Match(c) {
+			if c == model.AllCoins || c == model.NoCoin || k.Match(c) {
 				positions[k] = p
 				keys = append(keys, k)
 			}

@@ -17,11 +17,29 @@ const (
 	EventRegistryPath = "events"
 )
 
+type tracker struct {
+	pnl    map[model.Coin]float64
+	wallet float64
+}
+
+func newTracker() *tracker {
+	return &tracker{
+		pnl: make(map[model.Coin]float64),
+	}
+}
+
+func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl float64) {
+	t.pnl[coin] = t.pnl[coin] + value
+	t.wallet += value
+	return t.pnl[coin], t.wallet
+}
+
 // ExchangeTrader implements the main trading logic.
 type ExchangeTrader struct {
 	exchange api.Exchange
 	trader   *trader
 	settings Settings
+	tracker  *tracker
 	log      *Log
 }
 
@@ -41,6 +59,7 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 		exchange: exchange,
 		trader:   trader,
 		settings: settings,
+		tracker:  newTracker(),
 		log:      NewEventLog(registry),
 	}
 }
@@ -291,6 +310,9 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	if err != nil {
 		log.Error().Err(err).Msg("could not store position")
 	}
+	coinPnl, globalPnl := et.tracker.add(order.Coin, action.Value)
+	action.CoinPnL = coinPnl
+	action.GlobalPnL = globalPnl
 	return order, true, action, err
 }
 

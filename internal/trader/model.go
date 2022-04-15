@@ -80,13 +80,15 @@ const (
 
 // Event defines a trading action for reference and debugging.
 type Event struct {
-	Key    model.Key  `json:"key"`
-	Time   time.Time  `json:"time"`
-	Type   model.Type `json:"type"`
-	Price  float64    `json:"price"`
-	Value  float64    `json:"value"`
-	Reason Reason     `json:"reason"`
-	PnL    float64    `json:"pnl"`
+	Key       model.Key  `json:"key"`
+	Time      time.Time  `json:"time"`
+	Type      model.Type `json:"type"`
+	Price     float64    `json:"price"`
+	Value     float64    `json:"value"`
+	Reason    Reason     `json:"reason"`
+	PnL       float64    `json:"pnl"`
+	CoinPnL   float64    `json:"coin_pnl"`
+	GlobalPnL float64    `json:"global_pnl"`
 }
 
 // Log defines a collection of events and actions.
