@@ -102,6 +102,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 	results := make([]ModelResult, 0)
 
 	kk := make(map[string]client.Report, 0)
+	cfgs := make(map[string]mlmodel.Model, 0)
 
 	cc := make([][]float64, 0)
 
@@ -147,17 +148,11 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		}
 		if res.Type != model.NoType {
 			tt[k] = result
+			cfgs[k] = net.Model()
 		}
 	}
 
 	for k, report := range kk {
-		log.Info().
-			Str("Key", k).
-			Int("trades", report.Buy+report.Sell).
-			Float64("Profit", report.Profit).
-			Str("config", fmt.Sprintf("%+v", m.cfg)).
-			Str("cc", fmt.Sprintf("%+v", cc)).
-			Msg("new Network")
 
 		if len(cc) > 0 {
 			m.cfg = mlmodel.EvolveModel(cc)
@@ -166,6 +161,17 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Evolution[k] = newBuffer()
 		m.Trend[k] = 0.0
+
+		log.Info().
+			Str("Key", k).
+			Str("coin", string(ds.Coin)).
+			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+			Int("trades", report.Buy+report.Sell).
+			Float64("Profit", report.Profit).
+			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
+			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
+			Str("cc", fmt.Sprintf("%+v", cc)).
+			Msg("replace network")
 	}
 
 	if len(results) == 0 {
