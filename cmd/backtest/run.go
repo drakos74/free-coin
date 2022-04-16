@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/algo/processor/ml"
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
@@ -155,9 +155,9 @@ func run() server.Handler {
 
 		// gather all signals for different scenarios
 		log.Info().Int("count", len(u.Messages)).Msg("messages")
-		signals := make([]*ml.Signal, 0)
+		signals := make([]*model2.Signal, 0)
 		for _, m := range u.Messages {
-			signal := new(ml.Signal)
+			signal := new(model2.Signal)
 			err := json.Unmarshal([]byte(m.Text), signal)
 			if err != nil {
 				fmt.Printf("err = %+v\n m = %+v\n", err, m.Text)

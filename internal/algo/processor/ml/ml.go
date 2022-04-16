@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
@@ -17,15 +18,15 @@ type collector struct {
 	store   storage.Persistence
 	windows map[model.Key]*buffer.BatchWindow
 	state   map[model.Key]*state
-	vectors chan Vector
-	config  *Config
+	vectors chan mlmodel.Vector
+	config  *mlmodel.Config
 }
 
 type state struct {
 	buffer *buffer.MultiBuffer
 }
 
-func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (*collector, error) {
+func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *mlmodel.Config) (*collector, error) {
 	store, err := shard(Name)
 	if err != nil {
 		log.Error().Err(err).Msg("could not init storage")
@@ -38,7 +39,7 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (
 	col := &collector{
 		store:   store,
 		config:  config,
-		vectors: make(chan Vector),
+		vectors: make(chan mlmodel.Vector),
 	}
 
 	for k, cfg := range config.Segments {
@@ -55,20 +56,6 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *Config) (
 	col.state = states
 
 	return col, nil
-}
-
-type Meta struct {
-	Key  model.Key  `json:"key"`
-	Tick model.Tick `json:"tick"`
-}
-
-type Vector struct {
-	Meta    Meta      `json:"meta"`
-	PrevIn  []float64 `json:"prev_in"`
-	PrevOut []float64 `json:"prev_out"`
-	NewIn   []float64 `json:"new_in"`
-	XX      []float64 `json:"xx"`
-	YY      []float64 `json:"yy"`
 }
 
 func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
@@ -122,9 +109,9 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		} else {
 			next[1] = 1
 		}
-		if _, ok := tracker.buffer.Push(inp); ok {
-			v := Vector{
-				Meta: Meta{
+		if _, ok := tracker.buffer.Push(inp...); ok {
+			v := mlmodel.Vector{
+				Meta: mlmodel.Meta{
 					Key: key,
 					Tick: model.Tick{
 						Level: model.Level{

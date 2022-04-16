@@ -5,6 +5,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
+
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
@@ -80,36 +84,56 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		ForUser(u).
 		ForExchange(e).
 		WithProcessor(ml.Processor(api.FreeCoin, shard, registry,
-			func() ml.Network {
-				return ml.NewMultiNetwork(
-					ml.ConstructRandomForest(false),
-					ml.ConstructRandomForest(false),
-					ml.ConstructRandomForest(false),
-				)
-			},
+			net.MultiNetworkConstructor(
+				net.ConstructRandomForest(false),
+				net.ConstructRandomForest(false),
+				net.ConstructRandomForest(false),
+			),
 			configML())).
 		Apply()
 }
 
-func configML() *ml.Config {
-	cfg := map[model.Key]ml.Segments{
+func configML() *model2.Config {
+	cfg := map[model.Key]model2.Segments{
 		model.Key{
 			Coin:     model.BTC,
 			Duration: 15 * time.Minute,
 			Strategy: "btc",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.BTC,
+			Duration: 5 * time.Minute,
+			Strategy: "btc",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -120,18 +144,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "dot",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.DOT,
+			Duration: 5 * time.Minute,
+			Strategy: "dot",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -142,18 +188,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "eth",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.ETH,
+			Duration: 5 * time.Minute,
+			Strategy: "eth",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -164,18 +232,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "link",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.LINK,
+			Duration: 5 * time.Minute,
+			Strategy: "link",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -186,18 +276,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "sol",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.SOL,
+			Duration: 5 * time.Minute,
+			Strategy: "sol",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -208,18 +320,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "flow",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.FLOW,
+			Duration: 5 * time.Minute,
+			Strategy: "flow",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -230,18 +364,40 @@ func configML() *ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "matic",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  3,
 				LookAhead: 1,
 				Gap:       0.1,
 			},
-			Model: ml.Model{
+			Model: model2.Model{
 				BufferSize:         42,
 				PrecisionThreshold: 0.55,
 				ModelSize:          120,
 				Features:           7,
 			},
-			Trader: ml.Trader{
+			Trader: model2.Trader{
+				BufferTime:     0,
+				PriceThreshold: 0,
+				Weight:         1,
+			},
+		},
+		model.Key{
+			Coin:     model.MATIC,
+			Duration: 5 * time.Minute,
+			Strategy: "matic",
+		}: {
+			Stats: model2.Stats{
+				LookBack:  3,
+				LookAhead: 1,
+				Gap:       0.05,
+			},
+			Model: model2.Model{
+				BufferSize:         42,
+				PrecisionThreshold: 0.55,
+				ModelSize:          120,
+				Features:           7,
+			},
+			Trader: model2.Trader{
 				BufferTime:     0,
 				PriceThreshold: 0,
 				Weight:         1,
@@ -249,9 +405,9 @@ func configML() *ml.Config {
 		},
 	}
 
-	return &ml.Config{
+	return &model2.Config{
 		Segments: cfg,
-		Position: ml.Position{
+		Position: model2.Position{
 			OpenValue:  500,
 			StopLoss:   0.01,
 			TakeProfit: 0.005,
@@ -261,11 +417,11 @@ func configML() *ml.Config {
 				Threshold: []float64{0.0001, 0.000015},
 			}},
 		},
-		Option: ml.Option{
+		Option: model2.Option{
 			Debug:     true,
 			Benchmark: true,
 		},
-		Buffer: ml.Buffer{
+		Buffer: model2.Buffer{
 			Interval: time.Minute,
 		},
 	}

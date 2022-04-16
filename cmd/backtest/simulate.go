@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/drakos74/free-coin/internal/algo/processor/ml"
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/model"
 )
 
-func simulate(signals []*ml.Signal, threshold int) Result {
+func simulate(signals []*model2.Signal, threshold int) Result {
 
 	result := Result{
 		Threshold: threshold,

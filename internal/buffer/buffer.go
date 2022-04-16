@@ -60,7 +60,7 @@ func NewMultiBuffer(size int) *MultiBuffer {
 }
 
 // Push adds an element to the buffer.
-func (b *MultiBuffer) Push(x []float64) ([]float64, bool) {
+func (b *MultiBuffer) Push(x ...float64) ([]float64, bool) {
 	b.values = append(b.values, x)
 	if len(b.values) > b.size {
 		value := b.values[0]
@@ -88,6 +88,11 @@ func (b *MultiBuffer) Get() [][]float64 {
 		vv[i] = b.values[i]
 	}
 	return vv
+}
+
+// Len returns the current length of the buffer.
+func (b *MultiBuffer) Len() int {
+	return len(b.values)
 }
 
 // Last returns the last element in the buffer.

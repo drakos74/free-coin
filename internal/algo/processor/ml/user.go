@@ -6,6 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
+
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
@@ -13,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *Benchmark, config *Config) {
+func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *model2.Benchmark, config *model2.Config) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -85,18 +89,18 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "ds":
-			sets := strategy.datasets.sets
+			sets := strategy.datasets.Sets()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
 				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
-				if networks, ok := set.network.(*MultiNetwork); ok {
-					for key, network := range networks.networks {
+				if networks, ok := set.Network.(*net.MultiNetwork); ok {
+					for key, network := range networks.Networks {
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d\n", key, len(set.vectors),
+						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d\n", key, len(set.Vectors),
 							report.Profit, report.Buy+report.Sell))
 					}
 				} else {
-					report := set.network.Report()
+					report := set.Network.Report()
 					txtBuffer.WriteString(fmt.Sprintf("%.2f | %d\n", report.Profit, report.Buy+report.Sell))
 				}
 			}

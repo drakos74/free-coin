@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
 	coin_math "github.com/drakos74/free-coin/internal/math"
@@ -22,9 +24,9 @@ const (
 )
 
 // Processor is the position processor main routine.
-func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, networkConstructor func() Network, config *Config) func(u api.User, e api.Exchange) api.Processor {
+func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, networkConstructor net.ConstructNetwork, config *mlmodel.Config) func(u api.User, e api.Exchange) api.Processor {
 	col, err := newCollector(2, shard, nil, config)
-	// make sure we dont break the pipeline
+	// make sure we don't break the pipeline
 	if err != nil {
 		log.Error().Err(err).Str("processor", Name).Msg("could not init processor")
 		return func(u api.User, e api.Exchange) api.Processor {
@@ -34,9 +36,9 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 	//network := math.NewML(net)
 
-	benchmarks := newBenchmarks()
+	benchmarks := mlmodel.NewBenchmarks()
 
-	ds := newDataSets(shard, networkConstructor)
+	ds := net.NewDataSets(shard, networkConstructor)
 
 	strategy := newStrategy(config, ds)
 	return func(u api.User, e api.Exchange) api.Processor {
@@ -51,8 +53,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			return processor.NoProcess(Name)
 		}
 
+		// init the user interactions
 		go trackUserActions(index, u, col, strategy, wallet, benchmarks, config)
-
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		// process the collector vectors
@@ -61,23 +63,24 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				coin := string(vv.Meta.Key.Coin)
 				duration := vv.Meta.Key.Duration.String()
 				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
-				configSegments := config.segments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
+				configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 				for key, segmentConfig := range configSegments {
 					// do our training here ...
 					if segmentConfig.Model.Features > 0 && key.Match(vv.Meta.Key.Coin) {
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
-						if set, ok := ds.push(key, vv, segmentConfig.Model); ok {
+						if set, ok := ds.Push(key, vv, segmentConfig.Model); ok {
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
-							result, tt := set.network.Train(segmentConfig.Model, set)
-							signal := Signal{
+							result, tt := set.Train()
+							signal := mlmodel.Signal{
 								Key:       key,
-								Detail:    result.key,
+								Detail:    result.Key,
 								Time:      vv.Meta.Tick.Time,
 								Price:     vv.Meta.Tick.Price,
-								Type:      result.t,
+								Type:      result.Type,
 								Spectrum:  coin_math.FFT(vv.YY),
 								Buffer:    vv.YY,
-								Precision: result.acc,
+								Precision: result.Accuracy,
+								Trend:     result.Trend,
 								Weight:    segmentConfig.Trader.Weight,
 								Live:      segmentConfig.Trader.Live,
 							}
@@ -97,14 +100,14 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								for k, res := range tt {
 									kk := key
 									kk.Strategy = k
-									if res.reset {
-										benchmarks.reset(kk.Coin, kk)
+									if res.Reset {
+										benchmarks.Reset(kk.Coin, kk)
 									} else {
 										s := signal
-										s.Type = res.t
-										report, ok, _ := benchmarks.add(kk, vv.Meta.Tick, s, config)
+										s.Type = res.Type
+										report, ok, _ := benchmarks.Add(kk, vv.Meta.Tick, s, config)
 										if ok {
-											set.network.Eval(k, report)
+											set.Eval(k, report)
 										}
 									}
 								}

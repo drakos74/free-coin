@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,14 +22,14 @@ func TestStrategy(t *testing.T) {
 	now := time.Now()
 
 	type test struct {
-		signals map[int]Signal
+		signals map[int]model2.Signal
 		trades  map[int]*model.TradeSignal
 		action  []bool
 	}
 
 	tests := map[string]test{
 		"no_trade_time": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
 			trades: map[int]*model.TradeSignal{
@@ -36,7 +38,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, false},
 		},
 		"no_trade_value": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
 			trades: map[int]*model.TradeSignal{
@@ -45,7 +47,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, false},
 		},
 		"buy_trade": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
 			trades: map[int]*model.TradeSignal{
@@ -55,7 +57,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, true, false},
 		},
 		"multiple_no-buy_trade": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
 			trades: map[int]*model.TradeSignal{
@@ -65,7 +67,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, true, false},
 		},
 		"multiple_buy_trade": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 			},
 			trades: map[int]*model.TradeSignal{
@@ -75,7 +77,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, true, true},
 		},
 		"confirm_signal": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(halfBufferTime*time.Hour), 1000, model.Buy),
 			},
@@ -85,7 +87,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, false, true},
 		},
 		"opposite_signal_stall": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(1*time.Hour), 1000, model.Sell),
 			},
@@ -96,7 +98,7 @@ func TestStrategy(t *testing.T) {
 			action: []bool{false, false, false, false},
 		},
 		"opposite_signal_act": {
-			signals: map[int]Signal{
+			signals: map[int]model2.Signal{
 				0: mockSignal(now, 1000, model.Buy),
 				1: mockSignal(now.Add(halfBufferTime*time.Hour), 1000, model.Sell),
 			},
@@ -110,12 +112,12 @@ func TestStrategy(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			strategy := newStrategy(&Config{
-				Segments: map[model.Key]Segments{
+			strategy := newStrategy(&model2.Config{
+				Segments: map[model.Key]model2.Segments{
 					model.Key{
 						Coin: model.BTC,
 					}: {
-						Trader: Trader{
+						Trader: model2.Trader{
 							BufferTime:     bufferTime,
 							PriceThreshold: 50,
 						},
@@ -144,8 +146,8 @@ func TestStrategy(t *testing.T) {
 	}
 }
 
-func mockSignal(t time.Time, p float64, tt model.Type) Signal {
-	return Signal{
+func mockSignal(t time.Time, p float64, tt model.Type) model2.Signal {
+	return model2.Signal{
 		Key: model.Key{
 			Coin:     model.BTC,
 			Duration: 0,

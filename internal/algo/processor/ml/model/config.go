@@ -1,4 +1,4 @@
-package ml
+package model
 
 import (
 	"fmt"
@@ -63,8 +63,8 @@ type Position struct {
 	TrackingConfig []*model.TrackingConfig
 }
 
-// segments returns the segments that match the given parameters.
-func (c *Config) segments(coin model.Coin, duration time.Duration) map[model.Key]Segments {
+// GetSegments returns the segments that match the given parameters.
+func (c *Config) GetSegments(coin model.Coin, duration time.Duration) map[model.Key]Segments {
 	ss := make(map[model.Key]Segments)
 	for k, s := range c.Segments {
 		if k.Coin == coin && k.Duration == duration {
@@ -97,6 +97,19 @@ type Model struct {
 	Features           int     `json:"features"`
 }
 
+func (m Model) ToSlice() []float64 {
+	return []float64{float64(m.BufferSize), m.PrecisionThreshold, float64(m.ModelSize), float64(m.Features)}
+}
+
+func (m Model) FromSlice(p []float64) Model {
+	return Model{
+		BufferSize:         int(p[0]),
+		PrecisionThreshold: p[1],
+		ModelSize:          int(p[2]),
+		Features:           int(p[3]),
+	}
+}
+
 // Trader defines the trading configuration for signals
 // BufferTime defines the time to wait for a signal to be confirmed by actual trading
 // PriceThreshold defines the price threshold to verify the model performance within the above buffertime
@@ -126,6 +139,7 @@ type Signal struct {
 	Price     float64             `json:"price"`
 	Type      model.Type          `json:"type"`
 	Precision float64             `json:"precision"`
+	Trend     float64             `json:"trend"`
 	Factor    float64             `json:"factor"`
 	Weight    int                 `json:"weight"`
 	Live      bool                `json:"live"`
@@ -173,7 +187,7 @@ type Benchmark struct {
 	Timer    map[model.Coin]int64
 }
 
-func newBenchmarks() *Benchmark {
+func NewBenchmarks() *Benchmark {
 	return &Benchmark{
 		lock:     new(sync.RWMutex),
 		Exchange: make(map[model.Key]*local.Exchange),
@@ -184,7 +198,7 @@ func newBenchmarks() *Benchmark {
 	}
 }
 
-func (b *Benchmark) reset(coin model.Coin, key model.Key) {
+func (b *Benchmark) Reset(coin model.Coin, key model.Key) {
 	for k, _ := range b.Wallet {
 		if key.Strategy == "" && k.Match(coin) {
 			delete(b.Wallet, k)
@@ -204,7 +218,7 @@ func (b *Benchmark) assess() map[model.Key][]client.Report {
 	return b.Profit
 }
 
-func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *Config) (client.Report, bool, error) {
+func (b *Benchmark) Add(key model.Key, trade model.Tick, signal Signal, config *Config) (client.Report, bool, error) {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
@@ -239,7 +253,7 @@ func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *
 	if len(actions) > 0 {
 		actions[len(actions)-1] = actions[len(actions)-1].eval(action.Time, action.Price)
 	}
-	// add the new action
+	// Add the new action
 	actions = append(actions, action)
 	b.Actions[key] = actions
 
@@ -256,14 +270,14 @@ func (b *Benchmark) add(key model.Key, trade model.Tick, signal Signal, config *
 	}
 	if ok {
 		report := b.Exchange[key].Gather(false)[key.Coin]
-		// TODO : dont reset the benchmark for now
+		// TODO : dont Reset the benchmark for now
 		//sec := trade.Time.Unix()
 		//g := sec / int64(4*time.Hour.Seconds())
 		//if g != b.Timer[Key.Coin] {
 		//	b.Timer[Key.Coin] = g
 		//	report.Stamp = trade.Time
 		//	b.Profit[Key] = addReport(b.Profit[Key], report, 3)
-		//	b.reset(Key.Coin)
+		//	b.Reset(Key.Coin)
 		//}
 		return report, ok, nil
 	}

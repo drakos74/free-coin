@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+
 	"github.com/drakos74/free-coin/client/history"
 	localExchange "github.com/drakos74/free-coin/client/local"
 	coin "github.com/drakos74/free-coin/internal"
@@ -158,7 +160,7 @@ func train() server.Handler {
 			return []byte(err.Error()), http.StatusBadRequest, nil
 		}
 
-		mm := make(map[model.Key]ml.Segments)
+		mm := make(map[model.Key]model2.Segments)
 
 		for _, m := range request.Model {
 			// TODO : note this needs to be the hash delimiter of the model.Key
@@ -179,19 +181,19 @@ func train() server.Handler {
 				Duration: duration,
 				Strategy: "ui",
 			}
-			mm[k] = ml.Segments{
-				Stats: ml.Stats{
+			mm[k] = model2.Segments{
+				Stats: model2.Stats{
 					LookBack:  lookBack,
 					LookAhead: lookAhead,
 					Gap:       gap,
 				},
-				Model: ml.Model{
+				Model: model2.Model{
 					BufferSize:         bufferSize,
 					PrecisionThreshold: precision,
 					ModelSize:          size,
 					Features:           features,
 				},
-				Trader: ml.Trader{
+				Trader: model2.Trader{
 					BufferTime:     bufferTime,
 					PriceThreshold: PriceThreshold,
 					Weight:         1,
@@ -291,10 +293,10 @@ func train() server.Handler {
 			// gather all signals for different scenarios
 			log.Info().Int("count", len(u.Messages)).Msg("messages")
 
-			signals := make(map[string][]*ml.Signal, 0)
+			signals := make(map[string][]*model2.Signal, 0)
 			for _, m := range u.Messages {
 				fmt.Printf("m = %+v\n", m)
-				signal := new(ml.Signal)
+				signal := new(model2.Signal)
 				err := json.Unmarshal([]byte(m.Text), signal)
 				if err != nil {
 					fmt.Printf("msg err = %+v\n", err)
@@ -340,7 +342,7 @@ func train() server.Handler {
 					Sell: sell,
 				}
 				if _, ok := signals[key.ToString()]; !ok {
-					signals[key.ToString()] = make([]*ml.Signal, 0)
+					signals[key.ToString()] = make([]*model2.Signal, 0)
 				}
 				ss := append(signals[key.ToString()], signal)
 				signals[key.ToString()] = ss
@@ -394,14 +396,14 @@ func train() server.Handler {
 	}
 }
 
-func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
-	cfg := map[model.Key]ml.Segments{
+func configML(mm map[model.Key]model2.Segments, tp, sl float64) model2.Config {
+	cfg := map[model.Key]model2.Segments{
 		model.Key{
 			Coin:     model.BTC,
 			Duration: 2 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -412,7 +414,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			Duration: 5 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -423,7 +425,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			Duration: 15 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -434,7 +436,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			Duration: 30 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -445,7 +447,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			Duration: 60 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -456,7 +458,7 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 			Duration: 240 * time.Minute,
 			Strategy: "default",
 		}: {
-			Stats: ml.Stats{
+			Stats: model2.Stats{
 				LookBack:  9,
 				LookAhead: 1,
 				Gap:       0.5,
@@ -468,14 +470,14 @@ func configML(mm map[model.Key]ml.Segments, tp, sl float64) ml.Config {
 		cfg = mm
 	}
 
-	return ml.Config{
+	return model2.Config{
 		Segments: cfg,
-		Position: ml.Position{
+		Position: model2.Position{
 			OpenValue:  1000,
 			StopLoss:   tp,
 			TakeProfit: sl,
 		},
-		Option: ml.Option{
+		Option: model2.Option{
 			Debug:     true,
 			Benchmark: true,
 		},

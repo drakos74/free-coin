@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
@@ -20,7 +22,7 @@ func formatSettings(settings trader.Settings) string {
 		settings.StopLoss)
 }
 
-func formatConfig(config Config) string {
+func formatConfig(config model2.Config) string {
 
 	buffer := new(strings.Builder)
 
@@ -80,12 +82,13 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 		trend)
 }
 
-func formatSignal(signal Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s (%.2f)\n%v|%v",
+func formatSignal(signal model2.Signal, action trader.Event, err error, ok bool) string {
+	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s:%.2f %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s (%.2f)\n%v|%v",
 		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
 		signal.Detail,
+		signal.Trend,
 		emoji.MapType(signal.Type),
 
 		signal.Price,
@@ -108,15 +111,26 @@ func formatTrend(signal *model.TradeSignal, trend map[model.Key]map[time.Duratio
 	txtBuffer.WriteString("\n")
 	for k, tt := range trend {
 		txtBuffer.WriteString(fmt.Sprintf("%+v\n", k))
-		txtBuffer.WriteString(fmt.Sprintf("%s (%.0f) | [%s] %+v\n",
+		txtBuffer.WriteString(fmt.Sprintf("%s (%.0f) | [%s]\n",
 			signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
-			signal.Coin,
-			tt))
+			signal.Coin))
+		for _, t := range tt {
+			txtBuffer.WriteString(fmt.Sprintf("%2.f %s %s",
+				t.State.CurrentPrice-t.State.OpenPrice,
+				emoji.MapToSign(t.State.CurrentPrice-t.State.OpenPrice),
+				emoji.MapType(t.State.Type),
+			))
+			txtBuffer.WriteString(fmt.Sprintf("%+v [%s %s]",
+				t.CurrentValue,
+				emoji.MapType(t.Type[0]),
+				emoji.MapType(t.Type[1]),
+			))
+		}
 	}
 	return txtBuffer.String()
 }
 
-func encodeMessage(signal Signal) string {
+func encodeMessage(signal model2.Signal) string {
 	bb, _ := json.Marshal(signal)
 	return fmt.Sprintf("%s", string(bb))
 }
