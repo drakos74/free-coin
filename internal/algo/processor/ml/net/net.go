@@ -69,6 +69,7 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 		construct: cc,
 		Evolution: ev,
 		Trend:     tt,
+		cfg:       cfg,
 	}
 }
 
@@ -101,6 +102,8 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 	results := make([]ModelResult, 0)
 
 	kk := make(map[string]client.Report, 0)
+
+	cc := make([][]float64, 0)
 
 	for k, net := range m.Networks {
 		report := net.Report()
@@ -137,6 +140,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		}
 		if res.OK && result.Profit > 0 && result.Trend > 0 {
 			results = append(results, result)
+			cc = append(cc, net.Model().ToSlice())
 		} else if res.OK && result.Trend < 0 {
 			kk[k] = report
 			result.Reset = true
@@ -151,7 +155,14 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 			Str("Key", k).
 			Int("trades", report.Buy+report.Sell).
 			Float64("Profit", report.Profit).
+			Str("config", fmt.Sprintf("%+v", m.cfg)).
+			Str("cc", fmt.Sprintf("%+v", cc)).
 			Msg("new Network")
+
+		if len(cc) > 0 {
+			m.cfg = mlmodel.EvolveModel(cc)
+		}
+
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Evolution[k] = newBuffer()
 		m.Trend[k] = 0.0

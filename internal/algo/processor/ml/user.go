@@ -95,6 +95,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
 				if networks, ok := set.Network.(*net.MultiNetwork); ok {
 					for kk, network := range networks.Networks {
+						txtBuffer.WriteString(fmt.Sprintf("%+v", network.Model()))
 						trend := networks.Trend[kk]
 						report := network.Report()
 						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d (%.2f)\n",

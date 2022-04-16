@@ -22,7 +22,8 @@ type RandomForestNetwork struct {
 
 func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
 	return func(cfg mlmodel.Model) Network {
-		return NewRandomForestNetwork(debug, coinmath.String(10), cfg)
+		config := cfg.Evolve()
+		return NewRandomForestNetwork(debug, coinmath.String(10), config)
 	}
 }
 

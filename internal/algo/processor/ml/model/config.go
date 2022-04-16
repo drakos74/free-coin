@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -97,17 +98,60 @@ type Model struct {
 	Features           int     `json:"features"`
 }
 
-func (m Model) ToSlice() []float64 {
-	return []float64{float64(m.BufferSize), m.PrecisionThreshold, float64(m.ModelSize), float64(m.Features)}
-}
-
-func (m Model) FromSlice(p []float64) Model {
+func NewModel(p []float64) Model {
 	return Model{
 		BufferSize:         int(p[0]),
 		PrecisionThreshold: p[1],
 		ModelSize:          int(p[2]),
 		Features:           int(p[3]),
 	}
+}
+
+func EvolveModel(cc [][]float64) Model {
+	mm := make([]float64, 4)
+	for _, c := range cc {
+		mm[0] += c[0]
+		mm[1] += c[1]
+		mm[2] += c[2]
+		mm[3] += c[3]
+	}
+
+	for i, m := range mm {
+		mm[i] = m / float64(len(cc))
+	}
+
+	return NewModel(mm)
+}
+
+const evolvePerc = 5
+
+func (m Model) Evolve() Model {
+	bf := m.BufferSize / evolvePerc
+	if rand.Float64() > 0.5 {
+		m.BufferSize += bf
+	} else {
+		m.BufferSize -= bf
+	}
+
+	pt := m.PrecisionThreshold / evolvePerc
+	if rand.Float64() > 0.5 {
+		m.PrecisionThreshold += pt
+	} else {
+		m.PrecisionThreshold -= pt
+	}
+
+	ms := m.ModelSize / evolvePerc
+	if rand.Float64() > 0.5 {
+		m.ModelSize += ms
+	} else {
+		m.ModelSize -= ms
+	}
+
+	return m
+}
+
+func (m Model) ToSlice() []float64 {
+	return []float64{float64(m.BufferSize), m.PrecisionThreshold, float64(m.ModelSize), float64(m.Features)}
 }
 
 // Trader defines the trading configuration for signals
