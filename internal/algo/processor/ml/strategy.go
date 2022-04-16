@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
-
-	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-
 	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/rs/zerolog/log"
@@ -16,17 +14,17 @@ import (
 // strategy is responsible for making a call on weather the signal is good enough to trade on.
 type strategy struct {
 	lock     *sync.RWMutex
-	signals  map[model.Key]model2.Signal
+	signals  map[model.Key]mlmodel.Signal
 	trades   map[model.Key]model.Tick
-	config   *model2.Config
+	config   *mlmodel.Config
 	datasets *net.Datasets
 	live     map[model.Coin]bool
 }
 
-func newStrategy(segments *model2.Config, datasets *net.Datasets) *strategy {
+func newStrategy(segments *mlmodel.Config, datasets *net.Datasets) *strategy {
 	return &strategy{
 		lock:     new(sync.RWMutex),
-		signals:  make(map[model.Key]model2.Signal),
+		signals:  make(map[model.Key]mlmodel.Signal),
 		trades:   make(map[model.Key]model.Tick),
 		config:   segments,
 		datasets: datasets,
@@ -37,7 +35,7 @@ func newStrategy(segments *model2.Config, datasets *net.Datasets) *strategy {
 func (str *strategy) enable(c model.Coin, enabled bool) map[string]bool {
 	str.lock.Lock()
 	defer str.lock.Unlock()
-	newConfig := &model2.Config{
+	newConfig := &mlmodel.Config{
 		Segments: str.config.Segments,
 		Position: str.config.Position,
 		Option:   str.config.Option,
@@ -67,18 +65,17 @@ func (str *strategy) isLive(coin model.Coin, trade model.Tick) (bool, bool) {
 	return false, false
 }
 
-func (str *strategy) eval(trade model.Tick, signal model2.Signal, config *model2.Config) (model2.Signal, model.Key, bool, bool) {
+func (str *strategy) eval(trade model.Tick, signal mlmodel.Signal, config *mlmodel.Config) (mlmodel.Signal, model.Key, bool, bool) {
 	if signal.Type == model.NoType {
 		log.Error().Str("signal", fmt.Sprintf("%+v", signal)).Msg("wrong signal")
-		return model2.Signal{}, model.Key{}, false, false
+		return mlmodel.Signal{}, model.Key{}, false, false
 	}
 	// strategy is not live yet ... trade is past one
 	if live, _ := str.isLive(signal.Key.Coin, trade); !live && !config.Option.Debug {
-		return model2.Signal{}, model.Key{}, false, false
+		return mlmodel.Signal{}, model.Key{}, false, false
 	}
 	k := model.Key{
-		Coin:     signal.Key.Coin,
-		Duration: signal.Key.Duration,
+		Coin: signal.Key.Coin,
 	}
 	signal.Key = k
 	// if we get the go-ahead from the strategy act on it
@@ -87,7 +84,7 @@ func (str *strategy) eval(trade model.Tick, signal model2.Signal, config *model2
 }
 
 // trade assesses the current trade event and builds up the current state
-func (str *strategy) trade(k model.Key, trade model.Tick) (model2.Signal, model.Key, bool, bool) {
+func (str *strategy) trade(k model.Key, trade model.Tick) (mlmodel.Signal, model.Key, bool, bool) {
 	str.lock.RLock()
 	defer str.lock.RUnlock()
 	// we want to have buffer time of 4h to evaluate the signal
@@ -124,11 +121,11 @@ func (str *strategy) trade(k model.Key, trade model.Tick) (model2.Signal, model.
 			}
 		}
 	}
-	return model2.Signal{}, model.Key{}, false, false
+	return mlmodel.Signal{}, model.Key{}, false, false
 }
 
 // signal assesses the current signal validity
-func (str *strategy) signal(key model.Key, signal model2.Signal) (model2.Signal, bool) {
+func (str *strategy) signal(key model.Key, signal mlmodel.Signal) (mlmodel.Signal, bool) {
 	replace := true
 	if s, ok := str.signals[key]; ok {
 		if s.Type != signal.Type {
@@ -161,7 +158,7 @@ func (str *strategy) reset(key model.Key) bool {
 	return false
 }
 
-func (str strategy) _key(key model.Key) model2.Trader {
+func (str strategy) _key(key model.Key) mlmodel.Trader {
 	if cfg, ok := str.config.Segments[key]; ok {
 		return cfg.Trader
 	}
@@ -170,5 +167,5 @@ func (str strategy) _key(key model.Key) model2.Trader {
 			return cfg.Trader
 		}
 	}
-	return model2.Trader{}
+	return mlmodel.Trader{}
 }

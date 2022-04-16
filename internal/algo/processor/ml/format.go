@@ -115,9 +115,18 @@ func formatTrend(signal *model.TradeSignal, trend map[model.Key]map[time.Duratio
 			signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
 			signal.Coin))
 		for _, t := range tt {
-			txtBuffer.WriteString(fmt.Sprintf("%2.f %s %s",
-				t.State.CurrentPrice-t.State.OpenPrice,
-				emoji.MapToSign(t.State.CurrentPrice-t.State.OpenPrice),
+
+			value := 0.0
+			switch t.State.Type {
+			case model.Buy:
+				value = t.State.CurrentPrice - t.State.OpenPrice
+			case model.Sell:
+				value = t.State.OpenPrice - t.State.CurrentPrice
+			}
+
+			txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s",
+				value/t.State.OpenPrice,
+				emoji.MapToSign(value),
 				emoji.MapType(t.State.Type),
 			))
 			txtBuffer.WriteString(fmt.Sprintf("%+v [%s %s]",

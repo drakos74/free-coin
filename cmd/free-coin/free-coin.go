@@ -2,17 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
-
-	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
-
-	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml"
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -93,321 +92,116 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		Apply()
 }
 
-func configML() *model2.Config {
-	cfg := map[model.Key]model2.Segments{
-		model.Key{
-			Coin:     model.BTC,
-			Duration: 15 * time.Minute,
-			Strategy: "btc",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+func StatsConfig(gap float64) mlmodel.Stats {
+	return mlmodel.Stats{
+		LookBack:  3,
+		LookAhead: 1,
+		Gap:       gap,
+	}
+}
+
+func ModelConfig(precision float64) mlmodel.Model {
+	return mlmodel.Model{
+		BufferSize:         42,
+		PrecisionThreshold: precision,
+		ModelSize:          120,
+		Features:           7,
+	}
+}
+
+func TraderConfig() mlmodel.Trader {
+	return mlmodel.Trader{
+		BufferTime:     0,
+		PriceThreshold: 0,
+		Weight:         1,
+	}
+}
+
+func ConfigKey(coin model.Coin, d int) model.Key {
+	return model.Key{
+		Coin:     coin,
+		Duration: time.Duration(d) * time.Minute,
+		Strategy: fmt.Sprintf("%s_%d", string(coin), d),
+	}
+}
+
+func configML() *mlmodel.Config {
+	cfg := map[model.Key]mlmodel.Segments{
+		ConfigKey(model.BTC, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.BTC,
-			Duration: 5 * time.Minute,
-			Strategy: "btc",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.BTC, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.DOT,
-			Duration: 15 * time.Minute,
-			Strategy: "dot",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.DOT, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.DOT,
-			Duration: 5 * time.Minute,
-			Strategy: "dot",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.DOT, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.ETH,
-			Duration: 15 * time.Minute,
-			Strategy: "eth",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.ETH, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.ETH,
-			Duration: 5 * time.Minute,
-			Strategy: "eth",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.ETH, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.LINK,
-			Duration: 15 * time.Minute,
-			Strategy: "link",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.LINK, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.LINK,
-			Duration: 5 * time.Minute,
-			Strategy: "link",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.LINK, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.SOL,
-			Duration: 15 * time.Minute,
-			Strategy: "sol",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.SOL, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.SOL,
-			Duration: 5 * time.Minute,
-			Strategy: "sol",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.SOL, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.FLOW,
-			Duration: 15 * time.Minute,
-			Strategy: "flow",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.FLOW, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.FLOW,
-			Duration: 5 * time.Minute,
-			Strategy: "flow",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.FLOW, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.MATIC,
-			Duration: 15 * time.Minute,
-			Strategy: "matic",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.1,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.MATIC, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
 		},
-		model.Key{
-			Coin:     model.MATIC,
-			Duration: 5 * time.Minute,
-			Strategy: "matic",
-		}: {
-			Stats: model2.Stats{
-				LookBack:  3,
-				LookAhead: 1,
-				Gap:       0.05,
-			},
-			Model: model2.Model{
-				BufferSize:         42,
-				PrecisionThreshold: 0.55,
-				ModelSize:          120,
-				Features:           7,
-			},
-			Trader: model2.Trader{
-				BufferTime:     0,
-				PriceThreshold: 0,
-				Weight:         1,
-			},
+		ConfigKey(model.MATIC, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
 		},
 	}
 
-	return &model2.Config{
+	return &mlmodel.Config{
 		Segments: cfg,
-		Position: model2.Position{
+		Position: mlmodel.Position{
 			OpenValue:  500,
 			StopLoss:   0.01,
 			TakeProfit: 0.005,
@@ -417,11 +211,11 @@ func configML() *model2.Config {
 				Threshold: []float64{0.0001, 0.000015},
 			}},
 		},
-		Option: model2.Option{
+		Option: mlmodel.Option{
 			Debug:     true,
 			Benchmark: true,
 		},
-		Buffer: model2.Buffer{
+		Buffer: mlmodel.Buffer{
 			Interval: time.Minute,
 		},
 	}
