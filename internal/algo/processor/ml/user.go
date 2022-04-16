@@ -94,10 +94,13 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			for k, set := range sets {
 				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
 				if networks, ok := set.Network.(*net.MultiNetwork); ok {
-					for key, network := range networks.Networks {
+					for kk, network := range networks.Networks {
+						trend := networks.Trend[kk]
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d\n", key, len(set.Vectors),
-							report.Profit, report.Buy+report.Sell))
+						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d (%.2f)\n",
+							kk, len(set.Vectors),
+							report.Profit, report.Buy+report.Sell,
+							trend))
 					}
 				} else {
 					report := set.Network.Report()

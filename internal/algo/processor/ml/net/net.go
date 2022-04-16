@@ -43,6 +43,7 @@ type MultiNetwork struct {
 	construct map[string]ConstructNetwork
 	Networks  map[string]Network
 	Evolution map[string]*buffer.MultiBuffer
+	Trend     map[string]float64
 	cfg       mlmodel.Model
 }
 
@@ -54,17 +55,20 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 	nn := make(map[string]Network)
 	cc := make(map[string]ConstructNetwork)
 	ev := make(map[string]*buffer.MultiBuffer)
+	tt := make(map[string]float64)
 	for i, net := range network {
 		k := fmt.Sprintf("%+v", i)
 		cc[k] = net
 		nn[k] = net(cfg)
 		ev[k] = newBuffer()
+
 	}
 	return &MultiNetwork{
 		ID:        coinmath.String(5),
 		Networks:  nn,
 		construct: cc,
 		Evolution: ev,
+		Trend:     tt,
 	}
 }
 
@@ -118,6 +122,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 				a, err := coinmath.Fit(xx, yy, 2)
 				if err == nil {
 					trend = a[2]
+					m.Trend[k] = trend
 				}
 			}
 		}
@@ -130,9 +135,9 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 			Trend:    trend,
 			OK:       res.OK,
 		}
-		if res.OK && report.Profit > 0 && result.Trend > 0 {
+		if res.OK && result.Profit > 0 && result.Trend > 0 {
 			results = append(results, result)
-		} else if res.OK && report.Profit < -0 && result.Trend < 0 {
+		} else if res.OK && result.Trend < 0 {
 			kk[k] = report
 			result.Reset = true
 		}
@@ -149,6 +154,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 			Msg("new Network")
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Evolution[k] = newBuffer()
+		m.Trend[k] = 0.0
 	}
 
 	if len(results) == 0 {
