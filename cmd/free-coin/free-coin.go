@@ -197,6 +197,36 @@ func configML() *mlmodel.Config {
 			Model:  ModelConfig(0.6),
 			Trader: TraderConfig(),
 		},
+		ConfigKey(model.AAVE, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
+		},
+		ConfigKey(model.AAVE, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
+		},
+		ConfigKey(model.KSM, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
+		},
+		ConfigKey(model.KSM, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
+		},
+		ConfigKey(model.KAVA, 15): {
+			Stats:  StatsConfig(0.1),
+			Model:  ModelConfig(0.55),
+			Trader: TraderConfig(),
+		},
+		ConfigKey(model.KAVA, 6): {
+			Stats:  StatsConfig(0.05),
+			Model:  ModelConfig(0.6),
+			Trader: TraderConfig(),
+		},
 	}
 
 	return &mlmodel.Config{
