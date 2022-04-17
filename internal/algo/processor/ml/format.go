@@ -27,7 +27,9 @@ func formatConfig(config model2.Config) string {
 	buffer := new(strings.Builder)
 
 	for k, segment := range config.Segments {
-		buffer.WriteString(fmt.Sprintf("%+v - %+v\n", k, segment))
+		buffer.WriteString(fmt.Sprintf("%+v\n%s %s - %s\n", k,
+			segment.Model.Format(),
+			segment.Stats.Format(), segment.Trader.Format()))
 	}
 
 	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",

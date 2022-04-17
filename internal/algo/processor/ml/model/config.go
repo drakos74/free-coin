@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/emoji"
+
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/client/local"
 	coin_math "github.com/drakos74/free-coin/internal/math"
@@ -80,6 +82,10 @@ type Stats struct {
 	LookBack  int     `json:"prev"`
 	LookAhead int     `json:"next"`
 	Gap       float64 `json:"gap"`
+}
+
+func (s Stats) Format() string {
+	return fmt.Sprintf("[%d:%d] %.2f", s.LookBack, s.LookAhead, s.Gap)
 }
 
 // Model defines the ml model config.
@@ -171,6 +177,10 @@ type Trader struct {
 	PriceThreshold float64 `json:"price_threshold"`
 	Weight         int     `json:"weight"`
 	Live           bool    `json:"live"`
+}
+
+func (t Trader) Format() string {
+	return fmt.Sprintf("%s", emoji.MapOpen(t.Live))
 }
 
 // Segments defines the look back and ahead segment number.
