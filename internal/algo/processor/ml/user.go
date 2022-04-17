@@ -98,7 +98,12 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
 						trend := networks.Trend[kk]
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v", network.Stats().Iterations, network.Stats().Accuracy))
+						stats := network.Stats()
+						aa := make([]string, len(stats.Accuracy))
+						for i, acc := range stats.Accuracy {
+							aa[i] = fmt.Sprintf("%.2f", acc)
+						}
+						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
 						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d (%.2f)\n",
 							kk, len(set.Vectors),
 							report.Profit, report.Buy+report.Sell,

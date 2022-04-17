@@ -23,6 +23,10 @@ func Leverage() LeverageConverter {
 			model.SOL:   model.L_4,
 			model.FLOW:  model.L_3,
 			model.MATIC: model.L_3,
+			model.KSM:   model.L_3,
+			model.AAVE:  model.L_3,
+			model.KAVA:  model.L_3,
+			model.ADA:   model.L_4,
 		},
 	}
 }

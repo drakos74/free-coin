@@ -125,109 +125,39 @@ func ConfigKey(coin model.Coin, d int) model.Key {
 	}
 }
 
-func configML() *mlmodel.Config {
-	cfg := map[model.Key]mlmodel.Segments{
-		ConfigKey(model.BTC, 15): {
+func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+		sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
 			Stats:  StatsConfig(0.1),
 			Model:  ModelConfig(0.55),
 			Trader: TraderConfig(),
-		},
-		ConfigKey(model.BTC, 6): {
+		}
+		sgm[ConfigKey(coin, 6)] = mlmodel.Segments{
 			Stats:  StatsConfig(0.05),
 			Model:  ModelConfig(0.6),
 			Trader: TraderConfig(),
-		},
-		ConfigKey(model.DOT, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.DOT, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.ETH, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.ETH, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.LINK, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.LINK, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.SOL, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.SOL, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.FLOW, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.FLOW, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.MATIC, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.MATIC, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.AAVE, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.AAVE, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.KSM, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.KSM, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.KAVA, 15): {
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
-			Trader: TraderConfig(),
-		},
-		ConfigKey(model.KAVA, 6): {
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
-			Trader: TraderConfig(),
-		},
+		}
+		return sgm
 	}
+}
+
+func configML() *mlmodel.Config {
+
+	cfg := mlmodel.SegmentConfig(make(map[model.Key]mlmodel.Segments))
+
+	cfg = cfg.
+		AddConfig(forCoin(model.BTC)).
+		AddConfig(forCoin(model.DOT)).
+		AddConfig(forCoin(model.ETH)).
+		AddConfig(forCoin(model.LINK)).
+		AddConfig(forCoin(model.SOL)).
+		AddConfig(forCoin(model.FLOW)).
+		AddConfig(forCoin(model.MATIC)).
+		AddConfig(forCoin(model.AAVE)).
+		AddConfig(forCoin(model.KSM)).
+		AddConfig(forCoin(model.XRP)).
+		AddConfig(forCoin(model.ADA)).
+		AddConfig(forCoin(model.KAVA))
 
 	return &mlmodel.Config{
 		Segments: cfg,

@@ -18,9 +18,19 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type SegmentConfig map[model.Key]Segments
+
+func (sgm SegmentConfig) AddConfig(add ...func(cfg SegmentConfig) SegmentConfig) SegmentConfig {
+	cfg := sgm
+	for _, fn := range add {
+		cfg = fn(cfg)
+	}
+	return cfg
+}
+
 // Config defines the configuration for the collector.
 type Config struct {
-	Segments map[model.Key]Segments
+	Segments SegmentConfig
 	Position Position
 	Option   Option
 	Buffer   Buffer
