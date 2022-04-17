@@ -126,7 +126,7 @@ func EvolveModel(cc [][]float64) Model {
 const evolvePerc = 5
 
 func (m Model) Format() string {
-	return fmt.Sprintf("[%d|%.2f|%s|%s]",
+	return fmt.Sprintf("[%d|%.2f|%d|%d]",
 		m.BufferSize,
 		m.PrecisionThreshold,
 		m.ModelSize,

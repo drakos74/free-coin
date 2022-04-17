@@ -38,6 +38,8 @@ func (r *RandomForestNetwork) Model() mlmodel.Model {
 func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
 	config := r.cfg
 	acc, err := r.Fit(ds)
+	r.statsCollector.Accuracy.Push(acc)
+	r.statsCollector.Iterations++
 	if err != nil {
 		log.Error().Err(err).Msg("could not train online")
 	} else if acc > config.PrecisionThreshold {
@@ -57,10 +59,11 @@ func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelR
 func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 	config := r.cfg
 	hash := r.tmpKey
-	if len(ds.Vectors) < r.cfg.BufferSize {
-		return 0, fmt.Errorf("low bufffer size: %d vs %d", len(ds.Vectors), r.cfg.BufferSize)
+	vv := ds.Vectors
+	if len(vv) > r.cfg.BufferSize {
+		vv = vv[len(ds.Vectors)-r.cfg.BufferSize:]
 	}
-	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), ds.Vectors[len(ds.Vectors)-r.cfg.BufferSize:], false)
+	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), vv, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create Dataset file")
 		return 0.0, err
@@ -77,7 +80,11 @@ func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
 	config := r.cfg
 	hash := r.tmpKey
-	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_predict")), ds.Vectors, true)
+	vv := ds.Vectors
+	if len(vv) > r.cfg.BufferSize {
+		vv = vv[len(ds.Vectors)-r.cfg.BufferSize:]
+	}
+	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_predict")), vv, true)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create Dataset file")
 		return model.NoType

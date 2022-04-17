@@ -6,28 +6,50 @@ import (
 	"sort"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/buffer"
-
 	"github.com/drakos74/free-coin/client"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
 
+// Stats defines generic network stats.
+type Stats struct {
+	Iterations int
+	Accuracy   []float64
+}
+
+type StatsCollector struct {
+	Iterations int
+	Accuracy   *buffer.Buffer
+}
+
+// NewStatsCollector creates a new stats struct.
+func NewStatsCollector() *StatsCollector {
+	return &StatsCollector{
+		Accuracy: buffer.NewBuffer(5),
+	}
+}
+
+// Network defines the main interface for a network training.
 type Network interface {
 	Train(ds *Dataset) (ModelResult, map[string]ModelResult)
 	Fit(ds *Dataset) (float64, error)
 	Predict(ds *Dataset) model.Type
 	Eval(k string, report client.Report)
 	Report() client.Report
+	Stats() Stats
 	Model() mlmodel.Model
 }
 
+// ConstructNetwork defines a network constructor func.
 type ConstructNetwork func(cfg mlmodel.Model) Network
 
+// SingleNetwork defines a base network implementation
 type SingleNetwork struct {
-	report client.Report
+	report         client.Report
+	statsCollector *StatsCollector
 }
 
 func (bn *SingleNetwork) Eval(k string, report client.Report) {
@@ -36,6 +58,13 @@ func (bn *SingleNetwork) Eval(k string, report client.Report) {
 
 func (bn *SingleNetwork) Report() client.Report {
 	return bn.report
+}
+
+func (bn *SingleNetwork) Stats() Stats {
+	return Stats{
+		Iterations: bn.statsCollector.Iterations,
+		Accuracy:   bn.statsCollector.Accuracy.Get(),
+	}
 }
 
 type MultiNetwork struct {
@@ -107,6 +136,11 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 	cc := make([][]float64, 0)
 
 	for k, net := range m.Networks {
+		// make sure we train only models fit for the dataset
+		if len(ds.Vectors) < net.Model().BufferSize {
+			continue
+		}
+
 		report := net.Report()
 		res, _ := net.Train(ds)
 
@@ -153,7 +187,6 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 	}
 
 	for k, report := range kk {
-
 		if len(cc) > 0 {
 			m.cfg = mlmodel.EvolveModel(cc)
 		}
@@ -206,4 +239,8 @@ func (m *MultiNetwork) Predict(ds *Dataset) model.Type {
 
 func (m *MultiNetwork) Model() mlmodel.Model {
 	return m.cfg
+}
+
+func (m *MultiNetwork) Stats() Stats {
+	return Stats{}
 }
