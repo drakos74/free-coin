@@ -84,8 +84,8 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		}
 		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network(cfg))
 	}
-	// keep only the last Vectors based on the buffer size + 10%
-	bufferSize := cfg.BufferSize / 10
+	// keep only the last Vectors based on the buffer size + 10% to cover for the max
+	bufferSize := cfg.BufferSize + cfg.BufferSize/10
 	newVectors := addVector(ds.sets[key].Vectors, vv, bufferSize)
 	err := ds.saveVectors(key, newVectors)
 	if err != nil {
@@ -94,7 +94,7 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 
 	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors, ds.sets[key].Network)
 
-	if len(ds.sets[key].Vectors) >= cfg.BufferSize {
+	if len(ds.sets[key].Vectors) >= bufferSize {
 		return ds.sets[key], true
 	}
 	return &Dataset{}, false
