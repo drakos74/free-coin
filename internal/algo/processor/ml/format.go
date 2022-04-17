@@ -61,8 +61,8 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s\n%v|%v\n%+v",
-		action.Time.Format(time.Stamp), cointime.ToNow(action.Time),
+	return fmt.Sprintf("%s\n%s|%.fm|%s|%.2f %s\n%.4f %s \n%.2f%s|%.2f|%.2f | %s\n%v|%v\n%+v",
+		formatTime(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
 		emoji.MapType(action.Type),
@@ -79,12 +79,13 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 		action.Reason,
 		emoji.MapToAction(ok),
 		err,
-		trend)
+		formatTimeTrend(trend))
 }
 
 func formatSignal(signal model2.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s (%.0f) | %s:%.fm:%s:%.2f %s (%.4f|%s|%.2f%s %.2f%s|%.2f|%.2f) | %s (%.2f)\n%v|%v",
-		signal.Time.Format(time.Stamp), cointime.ToNow(signal.Time),
+	return fmt.Sprintf("%s\n%s|%.fm|%s|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f|%.2f %s (%.2f)\n%v|%v",
+		formatTime(signal.Time),
+
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
 		signal.Detail,
@@ -106,35 +107,42 @@ func formatSignal(signal model2.Signal, action trader.Event, err error, ok bool)
 		err)
 }
 
-func formatTrend(signal *model.TradeSignal, trend map[model.Key]map[time.Duration]model.Trend) string {
+func formatTime(t time.Time) string {
+	return fmt.Sprintf("%s (%.0f)",
+		t.Format(time.Stamp), cointime.ToNow(t),
+	)
+}
+
+func formatTrend(trend map[model.Key]map[time.Duration]model.Trend) string {
 	txtBuffer := new(strings.Builder)
-	txtBuffer.WriteString("\n")
 	for k, tt := range trend {
 		txtBuffer.WriteString(fmt.Sprintf("%+v\n", k))
-		txtBuffer.WriteString(fmt.Sprintf("%s (%.0f) | [%s]\n",
-			signal.Tick.Time.Format(time.Stamp), cointime.ToNow(signal.Tick.Time),
-			signal.Coin))
-		for _, t := range tt {
+		txtBuffer.WriteString(formatTimeTrend(tt))
+	}
+	return txtBuffer.String()
+}
 
-			value := 0.0
-			switch t.State.Type {
-			case model.Buy:
-				value = t.State.CurrentPrice - t.State.OpenPrice
-			case model.Sell:
-				value = t.State.OpenPrice - t.State.CurrentPrice
-			}
-
-			txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s",
-				value/t.State.OpenPrice,
-				emoji.MapToSign(value),
-				emoji.MapType(t.State.Type),
-			))
-			txtBuffer.WriteString(fmt.Sprintf("%+v [%s %s]",
-				t.CurrentValue,
-				emoji.MapType(t.Type[0]),
-				emoji.MapType(t.Type[1]),
-			))
+func formatTimeTrend(tt map[time.Duration]model.Trend) string {
+	txtBuffer := new(strings.Builder)
+	for _, t := range tt {
+		value := 0.0
+		switch t.State.Type {
+		case model.Buy:
+			value = t.State.CurrentPrice - t.State.OpenPrice
+		case model.Sell:
+			value = t.State.OpenPrice - t.State.CurrentPrice
 		}
+
+		txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s",
+			value/t.State.OpenPrice,
+			emoji.MapToSign(value),
+			emoji.MapType(t.State.Type),
+		))
+		txtBuffer.WriteString(fmt.Sprintf("%+v [%s %s]",
+			t.CurrentValue,
+			emoji.MapType(t.Type[0]),
+			emoji.MapType(t.Type[1]),
+		))
 	}
 	return txtBuffer.String()
 }

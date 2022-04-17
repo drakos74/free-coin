@@ -39,7 +39,7 @@ type Datasets struct {
 }
 
 func NewDataSets(shard storage.Shard, network ConstructNetwork) *Datasets {
-	persistence, err := shard("Vectors")
+	persistence, err := shard("vectors")
 	if err != nil {
 		persistence = storage.VoidStorage{}
 	}

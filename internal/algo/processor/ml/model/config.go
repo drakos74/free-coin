@@ -125,6 +125,14 @@ func EvolveModel(cc [][]float64) Model {
 
 const evolvePerc = 5
 
+func (m Model) Format() string {
+	return fmt.Sprintf("[%d|%.2f|%s|%s]",
+		m.BufferSize,
+		m.PrecisionThreshold,
+		m.ModelSize,
+		m.Features)
+}
+
 func (m Model) Evolve() Model {
 	bf := m.BufferSize / evolvePerc
 	if rand.Float64() > 0.5 {
