@@ -57,6 +57,9 @@ func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelR
 func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 	config := r.cfg
 	hash := r.tmpKey
+	if len(ds.Vectors) < r.cfg.BufferSize {
+		return 0, fmt.Errorf("low bufffer size: %d vs %d", len(ds.Vectors), r.cfg.BufferSize)
+	}
 	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), ds.Vectors[len(ds.Vectors)-r.cfg.BufferSize:], false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create Dataset file")
