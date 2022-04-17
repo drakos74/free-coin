@@ -26,9 +26,9 @@ type StatsCollector struct {
 }
 
 // NewStatsCollector creates a new stats struct.
-func NewStatsCollector() *StatsCollector {
+func NewStatsCollector(s int) *StatsCollector {
 	return &StatsCollector{
-		Accuracy: buffer.NewBuffer(5),
+		Accuracy: buffer.NewBuffer(s),
 	}
 }
 
