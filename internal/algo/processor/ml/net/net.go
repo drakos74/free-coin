@@ -18,21 +18,23 @@ import (
 type Stats struct {
 	Iterations int
 	Accuracy   []float64
+	Decisions  []int
 }
 
 type StatsCollector struct {
 	Iterations int
-	Accuracy   *buffer.Buffer
+	History    *buffer.MultiBuffer
 }
 
 // NewStatsCollector creates a new stats struct.
 func NewStatsCollector(s int) *StatsCollector {
 	return &StatsCollector{
-		Accuracy: buffer.NewBuffer(s),
+		History: buffer.NewMultiBuffer(s),
 	}
 }
 
 // Network defines the main interface for a network training.
+// TODO : split network and multi-network interface
 type Network interface {
 	Train(ds *Dataset) (ModelResult, map[string]ModelResult)
 	Fit(ds *Dataset) (float64, error)
@@ -61,9 +63,21 @@ func (bn *SingleNetwork) Report() client.Report {
 }
 
 func (bn *SingleNetwork) Stats() Stats {
+
+	history := bn.statsCollector.History.Get()
+
+	acc := make([]float64, len(history))
+	dec := make([]int, len(history))
+
+	for i, h := range history {
+		acc[i] = h[0]
+		dec[i] = int(h[1])
+	}
+
 	return Stats{
 		Iterations: bn.statsCollector.Iterations,
-		Accuracy:   bn.statsCollector.Accuracy.Get(),
+		Accuracy:   acc,
+		Decisions:  dec,
 	}
 }
 

@@ -101,7 +101,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						stats := network.Stats()
 						aa := make([]string, len(stats.Accuracy))
 						for i, acc := range stats.Accuracy {
-							aa[i] = fmt.Sprintf("%.2f", acc)
+							aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
 						}
 						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
 						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d (%.2f)\n",

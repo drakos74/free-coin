@@ -45,13 +45,14 @@ func (r *RandomForestNetwork) Model() mlmodel.Model {
 func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
 	config := r.cfg
 	acc, err := r.Fit(ds)
-	r.statsCollector.Accuracy.Push(acc)
+
 	r.statsCollector.Iterations++
 	if err != nil {
 		log.Error().Err(err).Msg("could not train online")
 	} else if acc > config.PrecisionThreshold {
 		t := r.Predict(ds)
 		if t != model.NoType {
+			r.statsCollector.History.Push(acc, float64(t))
 			return ModelResult{
 				Key:      r.tmpKey,
 				Type:     t,
@@ -60,6 +61,7 @@ func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelR
 			}, make(map[string]ModelResult)
 		}
 	}
+	r.statsCollector.History.Push(acc, 0)
 	return ModelResult{}, make(map[string]ModelResult)
 }
 
