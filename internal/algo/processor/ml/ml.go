@@ -142,6 +142,10 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 							Price:  price,
 							Volume: volume,
 						},
+						Move: model.Move{
+							Velocity: last.Stats[2].Avg(),
+							Momentum: last.Stats[3].Avg(),
+						},
 						Time: last.Time.Add(last.Duration),
 					},
 				},

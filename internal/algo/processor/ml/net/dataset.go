@@ -41,6 +41,7 @@ type Datasets struct {
 func NewDataSets(shard storage.Shard, network ConstructNetwork) *Datasets {
 	persistence, err := shard("vectors")
 	if err != nil {
+		log.Error().Err(err).Msg("could not crete vector storage")
 		persistence = storage.VoidStorage{}
 	}
 	return &Datasets{
@@ -78,9 +79,9 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		vv, err := ds.loadVectors(key)
 		if err == nil {
 			vectors = vv
-			log.Info().Str("Key", key.ToString()).Int("vv", len(vv)).Msg("loaded Vectors")
+			log.Info().Str("Key", key.ToString()).Int("vv", len(vv)).Msg("loaded vectors")
 		} else {
-			log.Error().Err(err).Str("Key", key.ToString()).Msg("could not load Vectors")
+			log.Error().Err(err).Str("Key", key.ToString()).Msg("could not load vectors")
 		}
 		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network(cfg))
 	}

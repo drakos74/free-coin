@@ -120,7 +120,7 @@ func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
 }
 
 const benchmarkModelPath = "file-storage/ml/models"
-const trainDataSetPath = "file-storage/ml/Datasets"
+const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
 func toFeatureFile(parentPath string, description string, vectors []mlmodel.Vector, predict bool) (string, error) {
