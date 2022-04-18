@@ -29,10 +29,7 @@ func PreProcessAttributes(iris *base.DenseInstances) (*base.LazilyFilteredInstan
 	return irisf, nil
 }
 
-func RandomForestTrain(fileName string, size, features int, debug bool) (base.Classifier, *base.DenseInstances, float64, error) {
-
-	var tree base.Classifier
-
+func RandomForestTrain(tree base.Classifier, fileName string, size, features int, debug bool) (base.Classifier, *base.DenseInstances, float64, error) {
 	rand.Seed(time.Now().Unix())
 
 	// Load in the iris dataset
@@ -49,7 +46,9 @@ func RandomForestTrain(fileName string, size, features int, debug bool) (base.Cl
 	// Create a 60-40 training-test split
 	trainData, testData := base.InstancesTrainTestSplit(irisf, 0.60)
 
-	tree = NewRandomForest(size, features)
+	if tree == nil {
+		tree = NewRandomForest(size, features)
+	}
 	err = tree.Fit(trainData)
 	if err != nil {
 		return nil, nil, 0.0, err
@@ -72,11 +71,7 @@ func RandomForestTrain(fileName string, size, features int, debug bool) (base.Cl
 	return tree, iris, evaluation.GetAccuracy(cf), nil
 }
 
-func RandomForestPredict(fileName string, size, features int, debug bool) (base.FixedDataGrid, error) {
-
-	var tree base.Classifier
-
-	rand.Seed(44111342)
+func RandomForestPredict(tree base.Classifier, fileName string, debug bool) (base.FixedDataGrid, error) {
 
 	// Load in the dataset
 	ds, err := base.ParseCSVToInstances(fileName, false)
@@ -89,7 +84,6 @@ func RandomForestPredict(fileName string, size, features int, debug bool) (base.
 		return nil, err
 	}
 
-	tree = NewRandomForest(size, features)
 	err = tree.Fit(dsf)
 
 	if err != nil {

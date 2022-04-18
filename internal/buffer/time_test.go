@@ -53,7 +53,7 @@ func TestHistoryWindow_Push(t *testing.T) {
 
 func TestIntervalWindow_Flush(t *testing.T) {
 
-	iw, stats := NewIntervalWindow(3, time.Second)
+	iw, stats := NewIntervalWindow("", 3, time.Second)
 
 	go func() {
 		for i := 0; i < 1000; i++ {
@@ -77,7 +77,7 @@ func TestIntervalWindow_Flush(t *testing.T) {
 
 func TestBatchWindow_Push(t *testing.T) {
 
-	bw, stats := NewBatchWindow(1, time.Second, 5)
+	bw, stats := NewBatchWindow("", 1, time.Second, 5)
 
 	go func() {
 		for i := 0; i < 1000; i++ {

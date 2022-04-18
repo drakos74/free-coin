@@ -10,7 +10,6 @@ import (
 	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
-	coin_math "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -25,7 +24,7 @@ const (
 
 // Processor is the position processor main routine.
 func Processor(index api.Index, shard storage.Shard, registry storage.EventRegistry, networkConstructor net.ConstructNetwork, config *mlmodel.Config) func(u api.User, e api.Exchange) api.Processor {
-	col, err := newCollector(2, shard, nil, config)
+	col, err := newCollector(4, shard, nil, config)
 	// make sure we don't break the pipeline
 	if err != nil {
 		log.Error().Err(err).Str("processor", Name).Msg("could not init processor")
@@ -72,13 +71,13 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
 							result, tt := set.Train()
 							signal := mlmodel.Signal{
-								Key:       key,
-								Detail:    result.Key,
-								Time:      vv.Meta.Tick.Time,
-								Price:     vv.Meta.Tick.Price,
-								Type:      result.Type,
-								Spectrum:  coin_math.FFT(vv.YY),
-								Buffer:    vv.YY,
+								Key:    key,
+								Detail: result.Key,
+								Time:   vv.Meta.Tick.Time,
+								Price:  vv.Meta.Tick.Price,
+								Type:   result.Type,
+								//Spectrum:  coin_math.FFT(vv.YY),
+								//Buffer:    vv.YY,
 								Precision: result.Accuracy,
 								Trend:     result.Trend,
 								Weight:    segmentConfig.Trader.Weight,
@@ -178,6 +177,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			//		pp = append(pp, tt)
 			//	}
 			//}
-		})
+		}, processor.Deriv())
 	}
 }

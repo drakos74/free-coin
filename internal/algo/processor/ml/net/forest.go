@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sjwhitworth/golearn/base"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	coinml "github.com/drakos74/free-coin/internal/math/ml"
@@ -18,6 +20,7 @@ type RandomForestNetwork struct {
 	cfg    mlmodel.Model
 	debug  bool
 	tmpKey string
+	tree   base.Classifier
 }
 
 func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
@@ -60,6 +63,8 @@ func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelR
 				OK:       true,
 			}, make(map[string]ModelResult)
 		}
+	} else {
+		r.tree = nil
 	}
 	r.statsCollector.History.Push(acc, 0)
 	return ModelResult{}, make(map[string]ModelResult)
@@ -78,16 +83,16 @@ func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 		return 0.0, err
 	}
 
-	_, _, prec, err := coinml.RandomForestTrain(fn, config.ModelSize, config.Features, r.debug)
+	tree, _, prec, err := coinml.RandomForestTrain(r.tree, fn, config.ModelSize, config.Features, r.debug)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
 		return 0.0, err
 	}
+	r.tree = tree
 	return prec, nil
 }
 
 func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
-	config := r.cfg
 	hash := r.tmpKey
 	vv := ds.Vectors
 	if len(vv) > r.cfg.BufferSize {
@@ -99,7 +104,12 @@ func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
 		return model.NoType
 	}
 
-	predictions, err := coinml.RandomForestPredict(fn, config.ModelSize, config.Features, false)
+	if r.tree == nil {
+		log.Error().Err(err).Msg("no tree trained")
+		return model.NoType
+	}
+
+	predictions, err := coinml.RandomForestPredict(r.tree, fn, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
 		return model.NoType

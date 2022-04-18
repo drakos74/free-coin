@@ -12,6 +12,4 @@ type Vector struct {
 	PrevIn  []float64 `json:"prev_in"`
 	PrevOut []float64 `json:"prev_out"`
 	NewIn   []float64 `json:"new_in"`
-	XX      []float64 `json:"xx"`
-	YY      []float64 `json:"yy"`
 }

@@ -26,9 +26,16 @@ type Level struct {
 	Volume float64 `json:"volume"`
 }
 
+// Move describes the price move
+type Move struct {
+	Velocity float64 `json:"velocity"`
+	Momentum float64 `json:"momentum"`
+}
+
 // Tick defines a tick in the price
 type Tick struct {
 	Level  `json:"level"`
+	Move   Move      `json:"move"`
 	Type   Type      `json:"type"`
 	Time   time.Time `json:"time"`
 	Active bool      `json:"active"`

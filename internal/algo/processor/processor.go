@@ -5,12 +5,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/metrics"
-
-	"github.com/drakos74/free-coin/internal/storage"
-
 	"github.com/drakos74/free-coin/internal/api"
+	"github.com/drakos74/free-coin/internal/buffer"
+	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 )
 
@@ -76,7 +75,7 @@ func ProcessWithClose(name string, p func(trade *model.TradeSignal) error, shutd
 }
 
 // ProcessBufferedWithClose is a wrapper for a processor logic with a close execution func and buffering logic.
-func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade *model.TradeSignal) error, shutdown func()) api.Processor {
+func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade *model.TradeSignal) error, shutdown func(), enrich ...Enrich) api.Processor {
 
 	signalBuffer, trades := NewSignalBuffer(duration)
 
@@ -85,6 +84,9 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			coin := string(signal.Coin)
 			f, _ := strconv.ParseFloat(signal.Tick.Time.Format("0102.1504"), 64)
 			metrics.Observer.NoteLag(f, coin, Name, "source")
+			for _, fn := range enrich {
+				signal = fn(signal)
+			}
 			err := p(signal)
 			if err != nil {
 				log.Error().Err(err).Msg("error during trade signal processing")
@@ -113,4 +115,25 @@ func NoProcess(name string) api.Processor {
 	return Process(name, func(trade *model.TradeSignal) error {
 		return nil
 	})
+}
+
+// Enrich defines a function that will enrich the trade
+type Enrich func(trade *model.TradeSignal) *model.TradeSignal
+
+func Deriv() Enrich {
+
+	buf := buffer.NewMultiBuffer(2)
+
+	return func(trade *model.TradeSignal) *model.TradeSignal {
+		if _, ok := buf.Push(float64(trade.Tick.Time.Unix()), trade.Tick.Price, trade.Tick.Volume); ok {
+			vv := buf.Get()
+			velocity := (vv[1][1] - vv[0][1]) / (vv[1][0] - vv[0][0])
+			momentum := (vv[1][1]*vv[1][2] - vv[0][1]*vv[0][2]) / (vv[1][0] - vv[0][0])
+			trade.Tick.Move = model.Move{
+				Velocity: velocity,
+				Momentum: momentum,
+			}
+		}
+		return trade
+	}
 }

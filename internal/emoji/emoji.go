@@ -48,11 +48,13 @@ const (
 	Open  = "🔔"
 	Close = "🔕"
 
-	Money = "💰"
-
 	Valid   = "🚛"
 	Invalid = "🚒"
-	Demi    = "\U0001F6FA"
+	Demi    = ""
+
+	Loss   = "🩸"
+	Profit = "💰"
+	None   = "🪙"
 )
 
 func MapBool(s bool) string {
@@ -78,6 +80,17 @@ func MapType(t model.Type) string {
 		return Biohazard
 	}
 	return Error
+}
+
+// MapToTrend maps the given type as a sign.
+func MapToTrend(t model.Type) string {
+	switch t {
+	case model.Buy:
+		return Profit
+	case model.Sell:
+		return Loss
+	}
+	return None
 }
 
 // MapToSign maps the given float value according to it's sign.

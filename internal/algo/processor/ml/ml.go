@@ -63,6 +63,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 	for messages := range batch {
 		xx := make([]float64, 0)
 		yy := make([]float64, 0)
+		dv := make([]float64, 0)
+		dp := make([]float64, 0)
 		t0 := 0.0
 		last := buffer.StatsMessage{}
 		first := true
@@ -77,11 +79,12 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 
 				y := math.Round(100 * bucket.Stats[0].Ratio())
 				yy = append(yy, y)
+				dv = append(dv, math.Round(10000*bucket.Stats[2].Avg()))
+				dp = append(dp, math.Round(10000*bucket.Stats[3].Avg()))
 				last = bucket
 			}
 		}
-		//fmt.Printf("Key = %+v\n", Key)
-		inp, err := fit(xx, yy, 0, 1, 2)
+		inp, err := fit(xx, yy, 1, 2)
 		if err != nil || !last.OK {
 			log.Debug().Err(err).
 				Str("Key", fmt.Sprintf("%+v", key)).
@@ -90,16 +93,23 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Msg("could not fit")
 			continue
 		}
+		ddv, _ := fit(xx, dv, 2)
+		inp = append(inp, ddv...)
+		ddp, _ := fit(xx, dp, 1)
+		inp = append(inp, ddp...)
 		tracker := c.state[key]
 		prev := tracker.buffer.Last()
 		ratio := last.Stats[0].Ratio()
 		count := last.Stats[0].Count()
 		price := last.Stats[0].Avg()
 		volume := last.Stats[1].Avg()
-		value := price * volume
-		std := last.Stats[0].StDev()
-		ema := last.Stats[0].EMA()
-		inp = append(inp, float64(count), value, std, ema)
+		std := 0.0
+		ema := 0.0
+		if price != 0 {
+			std = last.Stats[0].StDev() / math.Sqrt(price)
+			ema = last.Stats[0].EMA() / price
+		}
+		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {
@@ -124,8 +134,6 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				PrevIn:  prev,
 				PrevOut: next,
 				NewIn:   inp,
-				YY:      yy,
-				XX:      xx,
 			}
 			c.vectors <- v
 		}
@@ -135,7 +143,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 func (c *collector) push(trade *model.TradeSignal) {
 	for k, window := range c.windows {
 		if k.Match(trade.Coin) {
-			window.Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume)
+			window.Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume, trade.Tick.Move.Velocity, trade.Tick.Move.Momentum)
 		}
 	}
 }

@@ -130,15 +130,15 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			for tt, trend := range position.Trend {
 				var hasTrend bool
 				// NOTE : Type here does not mean market , but profit/loss
-				if trend.Live && trend.Type[0] != model.NoType {
+				if trend.Type[0] != model.NoType {
 					// valid-trend
 					validTrend[0] = trend.Type[0]
-					hasTrend = true
+					hasTrend = trend.Live
 				}
-				if trend.Live && trend.Type[1] != model.NoType {
+				if trend.Type[1] != model.NoType {
 					// valid-trend
 					validTrend[1] = trend.Type[1]
-					hasTrend = true
+					hasTrend = trend.Live
 				}
 				if hasTrend {
 					if _, ok := allTrend[k]; !ok {
@@ -159,8 +159,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			//} else
 			//fmt.Printf("[ valid = %v  , take-profit = %v, stop-loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, profit)
 			if stopLossActivated || takeProfitActivated {
-				if (validTrend[0] != model.NoType && validTrend[0] != position.Type) ||
-					(validTrend[1] != model.NoType && validTrend[1] != position.Type) {
+				if (validTrend[0] == model.Sell) || (validTrend[1] == model.Sell) {
 					positions[k] = position
 				}
 			}

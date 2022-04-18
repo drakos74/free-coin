@@ -136,15 +136,14 @@ func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 			value = t.State.OpenPrice - t.State.CurrentPrice
 		}
 
-		txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s",
+		txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s ",
 			value/t.State.OpenPrice,
 			emoji.MapToSign(value),
 			emoji.MapType(t.State.Type),
 		))
-		txtBuffer.WriteString(fmt.Sprintf("%+v [%s %s]",
-			t.CurrentValue,
-			emoji.MapType(t.Type[0]),
-			emoji.MapType(t.Type[1]),
+		txtBuffer.WriteString(fmt.Sprintf("[%s %s]",
+			emoji.MapToTrend(t.Type[0]),
+			emoji.MapToTrend(t.Type[1]),
 		))
 	}
 	return txtBuffer.String()

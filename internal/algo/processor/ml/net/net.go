@@ -169,8 +169,6 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 					xx = append(xx, float64(i))
 					yy = append(yy, math.Round(v[1]))
 				}
-				//fmt.Printf("xx = %+v\n", xx)
-				//fmt.Printf("yy = %+v\n", yy)
 				a, err := coinmath.Fit(xx, yy, 2)
 				if err == nil {
 					trend = a[2]
@@ -214,7 +212,8 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 			Str("coin", string(ds.Coin)).
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
-			Float64("Profit", report.Profit).
+			Float64("profit", report.Profit).
+			Float64("trend", tt[k].Trend).
 			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", cc)).
