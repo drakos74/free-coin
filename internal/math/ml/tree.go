@@ -85,10 +85,10 @@ func RandomForestPredict(tree base.Classifier, fileName string, debug bool) (bas
 	}
 
 	err = tree.Fit(dsf)
-
 	if err != nil {
 		return nil, err
 	}
+
 	predictions, err := tree.Predict(dsf)
 	if err != nil {
 		return nil, err

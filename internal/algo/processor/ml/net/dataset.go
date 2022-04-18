@@ -89,7 +89,11 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 	newVectors := addVector(ds.sets[key].Vectors, vv, bufferSize)
 	err := ds.saveVectors(key, newVectors)
 	if err != nil {
-		log.Error().Err(err).Str("vectors", fmt.Sprintf("%+v", newVectors)).Str("Key", key.ToString()).Msg("could not save vectors")
+		log.Error().
+			Err(err).
+			Str("vectors", fmt.Sprintf("%+v", newVectors)).
+			Str("Key", key.ToString()).
+			Msg("could not save vectors")
 	}
 
 	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors, ds.sets[key].Network)

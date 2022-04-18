@@ -224,9 +224,12 @@ func TestProcessor(t *testing.T) {
 
 			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"),
 				net.MultiNetworkConstructor(
-					net.ConstructRandomForest(true),
-					net.ConstructRandomForest(true),
-					net.ConstructRandomForest(true),
+					//net.ConstructNeuralNetwork(nil),
+					//net.ConstructNeuralNetwork(nil),
+					//net.ConstructNeuralNetwork(nil),
+					net.ConstructRandomForest(false),
+					net.ConstructRandomForest(false),
+					net.ConstructRandomForest(false),
 					//ConstructRandomForest(true),
 					//ConstructPolynomialNetwork(0.0001),
 					//RandomForestNetwork{debug: true, tmpKey: "3"},
