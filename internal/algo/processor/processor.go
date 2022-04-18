@@ -127,8 +127,12 @@ func Deriv() Enrich {
 	return func(trade *model.TradeSignal) *model.TradeSignal {
 		if _, ok := buf.Push(float64(trade.Tick.Time.Unix()), trade.Tick.Price, trade.Tick.Volume); ok {
 			vv := buf.Get()
-			velocity := (vv[1][1] - vv[0][1]) / (vv[1][0] - vv[0][0])
-			momentum := (vv[1][1]*vv[1][2] - vv[0][1]*vv[0][2]) / (vv[1][0] - vv[0][0])
+			velocity := 0.0
+			momentum := 0.0
+			if vv[1][0] != vv[0][0] {
+				velocity = (vv[1][1] - vv[0][1]) / (vv[1][0] - vv[0][0])
+				momentum = (vv[1][1]*vv[1][2] - vv[0][1]*vv[0][2]) / (vv[1][0] - vv[0][0])
+			}
 			trade.Tick.Move = model.Move{
 				Velocity: velocity,
 				Momentum: momentum,
