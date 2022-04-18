@@ -93,9 +93,23 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Msg("could not fit")
 			continue
 		}
-		ddv, _ := fit(xx, dv, 2)
+		ddv, err := fit(xx, dv, 2)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("dv", fmt.Sprintf("%+v", dv)).
+				Str("ddv", fmt.Sprintf("%+v", ddv)).
+				Msg("could not fit velocity")
+		}
 		inp = append(inp, ddv...)
-		ddp, _ := fit(xx, dp, 1)
+		ddp, err := fit(xx, dp, 1)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("dp", fmt.Sprintf("%+v", dp)).
+				Str("ddp", fmt.Sprintf("%+v", ddp)).
+				Msg("could not fit momentum")
+		}
 		inp = append(inp, ddp...)
 		tracker := c.state[key]
 		prev := tracker.buffer.Last()

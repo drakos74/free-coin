@@ -19,9 +19,9 @@ type NNetwork struct {
 	cfg mlmodel.Model
 }
 
-func ConstructNeuralNetwork(network ff.Network) func(cfg mlmodel.Model) Network {
+func ConstructNeuralNetwork(network *ff.Network) func(cfg mlmodel.Model) Network {
 	return func(cfg mlmodel.Model) Network {
-		return NewNN(&network, cfg)
+		return NewNN(network, cfg)
 	}
 }
 
@@ -33,8 +33,8 @@ func NewNN(network *ff.Network, cfg mlmodel.Model) *NNetwork {
 
 		initW := xmath.Rand(-1, 1, math.Sqrt)
 		initB := xmath.Rand(-1, 1, math.Sqrt)
-		network = ff.New(6, 3).
-			Add(48, net.NewBuilder().
+		network = ff.New(7, 3).
+			Add(42, net.NewBuilder().
 				WithModule(ml.Base().
 					WithRate(rate).
 					WithActivation(ml.TanH)).
