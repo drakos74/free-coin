@@ -105,7 +105,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		volume := last.Stats[1].Avg()
 		std := 0.0
 		ema := 0.0
-		if price != 0 {
+		if price > 0 {
 			std = last.Stats[0].StDev() / math.Sqrt(price)
 			ema = last.Stats[0].EMA() / price
 		}
