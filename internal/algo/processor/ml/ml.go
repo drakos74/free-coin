@@ -79,8 +79,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 
 				y := math.Round(100 * bucket.Stats[0].Ratio())
 				yy = append(yy, y)
-				dv = append(dv, math.Round(10000*bucket.Stats[2].Avg()))
-				dp = append(dp, math.Round(10000*bucket.Stats[3].Avg()))
+				dv = append(dv, math.Round(100*bucket.Stats[2].Avg()))
+				dp = append(dp, math.Round(100*bucket.Stats[3].Avg()))
 				last = bucket
 			}
 		}
