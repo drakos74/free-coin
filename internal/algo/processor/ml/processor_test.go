@@ -222,7 +222,7 @@ func TestProcessor(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"),
+			proc := Processor("", json.BlobShard("ml"), json.EventRegistry("ml-trade-registry"),
 				net.MultiNetworkConstructor(
 					//net.ConstructNeuralNetwork(nil),
 					//net.ConstructNeuralNetwork(nil),

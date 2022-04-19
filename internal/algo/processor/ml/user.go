@@ -92,29 +92,31 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			sets := strategy.datasets.Sets()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
-				txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
-				if networks, ok := set.Network.(*net.MultiNetwork); ok {
-					for kk, network := range networks.Networks {
-						txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
+				if k.Match(key.Coin) {
+					txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
+					if networks, ok := set.Network.(*net.MultiNetwork); ok {
+						for kk, network := range networks.Networks {
+							txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
 
-						trend := networks.Trend[kk]
-						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%s (%d) - %.2f | %d (%.2f)\n",
-							kk, len(set.Vectors),
-							report.Profit, report.Buy+report.Sell,
-							trend))
+							trend := networks.Trend[kk]
+							report := network.Report()
+							txtBuffer.WriteString(fmt.Sprintf("%s (%d) %.2f%s | %d (%.2f)\n",
+								kk, len(set.Vectors),
+								report.Profit, emoji.Profit, report.Buy+report.Sell,
+								trend))
 
-						stats := network.Stats()
-						aa := make([]string, len(stats.Accuracy))
-						for i, acc := range stats.Accuracy {
-							aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
+							stats := network.Stats()
+							aa := make([]string, len(stats.Accuracy))
+							for i, acc := range stats.Accuracy {
+								aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
+							}
+							txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
+
 						}
-						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
-
+					} else {
+						report := set.Network.Report()
+						txtBuffer.WriteString(fmt.Sprintf("%.2f | %d\n", report.Profit, report.Buy+report.Sell))
 					}
-				} else {
-					report := set.Network.Report()
-					txtBuffer.WriteString(fmt.Sprintf("%.2f | %d\n", report.Profit, report.Buy+report.Sell))
 				}
 			}
 		case "start":
