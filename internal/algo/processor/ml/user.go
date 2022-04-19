@@ -100,7 +100,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 
 							trend := networks.Trend[kk]
 							report := network.Report()
-							txtBuffer.WriteString(fmt.Sprintf("%s (%d) %.2f%s | %d (%.2f)\n",
+							txtBuffer.WriteString(fmt.Sprintf("%s - %d %.2f%s | %d (%.2f)\n",
 								kk, len(set.Vectors),
 								report.Profit, emoji.Profit, report.Buy+report.Sell,
 								trend))
