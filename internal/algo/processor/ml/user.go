@@ -92,7 +92,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			sets := strategy.datasets.Sets()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
-				if k.Match(key.Coin) {
+				if model.IsAnyCoin(key.Coin) || k.Match(key.Coin) {
 					txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
 					if networks, ok := set.Network.(*net.MultiNetwork); ok {
 						for kk, network := range networks.Networks {

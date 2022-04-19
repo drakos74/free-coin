@@ -65,6 +65,10 @@ const (
 	REP Coin = "REP"
 )
 
+func IsAnyCoin(coin Coin) bool {
+	return coin == NoCoin || coin == AllCoins
+}
+
 // Coins contains coin related configuration.
 var Coins = map[string]Coin{
 	"BTC": BTC,
