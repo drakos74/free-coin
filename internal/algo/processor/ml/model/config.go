@@ -139,7 +139,7 @@ func EvolveModel(cc [][]float64) Model {
 	return NewModel(mm)
 }
 
-const evolvePerc = 5
+const EvolvePerc = 2.0
 
 func (m Model) Format() string {
 	return fmt.Sprintf("[%d|%.2f|%d|%d]",
@@ -150,21 +150,21 @@ func (m Model) Format() string {
 }
 
 func (m Model) Evolve() Model {
-	bf := m.BufferSize / evolvePerc
+	bf := m.BufferSize / EvolvePerc
 	if rand.Float64() > 0.5 {
 		m.BufferSize += bf
 	} else {
 		m.BufferSize -= bf
 	}
 
-	pt := m.PrecisionThreshold / evolvePerc
+	pt := m.PrecisionThreshold / EvolvePerc
 	if rand.Float64() > 0.5 {
 		m.PrecisionThreshold += pt
 	} else {
 		m.PrecisionThreshold -= pt
 	}
 
-	ms := m.ModelSize / evolvePerc
+	ms := m.ModelSize / EvolvePerc
 	if rand.Float64() > 0.5 {
 		m.ModelSize += ms
 	} else {

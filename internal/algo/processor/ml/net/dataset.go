@@ -86,7 +86,7 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network(cfg))
 	}
 	// keep only the last Vectors based on the buffer size + 10% to cover for the max
-	bufferSize := cfg.BufferSize + cfg.BufferSize/10 + 1
+	bufferSize := cfg.BufferSize + int(float64(cfg.BufferSize)/mlmodel.EvolvePerc)
 	newVectors := addVector(ds.sets[key].Vectors, vv, bufferSize)
 	err := ds.saveVectors(key, newVectors)
 	if err != nil {
