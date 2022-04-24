@@ -45,7 +45,7 @@ func NewMultiHMM(config ...HMMConfig) *HMM {
 	}
 }
 
-// NewMultiHMM creates a new model from a previous one.
+// HMMFromState creates a new model from a previous one.
 func HMMFromState(hmm HMM) *HMM {
 	var max int
 	for _, s := range hmm.Config {
@@ -132,6 +132,7 @@ func NewPrediction(s Sequence, st State) *Prediction {
 type PredictionList []*Prediction
 
 // for sorting predictions
+
 func (p PredictionList) Len() int           { return len(p) }
 func (p PredictionList) Less(i, j int) bool { return p[i].state.sum() < p[j].state.sum() }
 func (p PredictionList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

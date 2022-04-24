@@ -2,10 +2,41 @@ package buffer
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestHMM(t *testing.T) {
+
+	hmm := NewMultiHMM([]HMMConfig{{
+		LookBack:  2,
+		LookAhead: 1,
+	}}...)
+
+	for i := 0; i < 100; i++ {
+		f := rand.Float64()
+		var v string
+		if f > 0.66 {
+			v = "1"
+		} else if f > 0.33 {
+			v = "0"
+		} else {
+			v = "-1"
+		}
+		pp, st := hmm.Add(v, "test")
+		//hmm.Add("1", "up")
+		fmt.Printf("add = %+v\n", pp)
+		fmt.Printf("st = %+v\n", st)
+
+	}
+
+	pp, p := hmm.predict("1:0")
+	fmt.Printf("pp = %+v\n", pp)
+	fmt.Printf("p = %+v\n", p)
+
+}
 
 func TestCounter_Add(t *testing.T) {
 
