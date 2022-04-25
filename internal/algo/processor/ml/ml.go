@@ -2,7 +2,6 @@ package ml
 
 import (
 	"fmt"
-	"math"
 
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -58,6 +57,14 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *mlmodel.C
 	return col, nil
 }
 
+func (c *collector) push(trade *model.TradeSignal) {
+	for k, window := range c.windows {
+		if k.Match(trade.Coin) {
+			window.Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume, trade.Tick.Move.Velocity, trade.Tick.Move.Momentum)
+		}
+	}
+}
+
 func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 	metrics.Observer.IncrementEvents(string(key.Coin), key.Hash(), "window", Name)
 	for messages := range batch {
@@ -77,10 +84,10 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				x := float64(bucket.Time.Unix())/bucket.Duration.Seconds() - t0
 				xx = append(xx, x)
 
-				y := math.Round(100 * bucket.Stats[0].Ratio())
+				y := 100 * bucket.Stats[0].Ratio()
 				yy = append(yy, y)
-				dv = append(dv, math.Round(100*bucket.Stats[2].Avg()))
-				dp = append(dp, math.Round(100*bucket.Stats[3].Avg()))
+				dv = append(dv, 100*bucket.Stats[2].Avg())
+				dp = append(dp, bucket.Stats[3].Avg())
 				last = bucket
 			}
 		}
@@ -154,14 +161,6 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				NewIn:   inp,
 			}
 			c.vectors <- v
-		}
-	}
-}
-
-func (c *collector) push(trade *model.TradeSignal) {
-	for k, window := range c.windows {
-		if k.Match(trade.Coin) {
-			window.Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume, trade.Tick.Move.Velocity, trade.Tick.Move.Momentum)
 		}
 	}
 }
