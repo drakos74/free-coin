@@ -3,6 +3,7 @@ package net
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"sort"
 	"time"
 
@@ -37,9 +38,7 @@ func NewStatsCollector(s int) *StatsCollector {
 // TODO : split network and multi-network interface
 type Network interface {
 	Train(ds *Dataset) (ModelResult, map[string]ModelResult)
-	Fit(ds *Dataset) (float64, error)
-	Predict(ds *Dataset) model.Type
-	Eval(k string, report client.Report)
+	Eval(report client.Report)
 	Report() client.Report
 	Stats() Stats
 	Model() mlmodel.Model
@@ -48,13 +47,16 @@ type Network interface {
 // ConstructNetwork defines a network constructor func.
 type ConstructNetwork func(cfg mlmodel.Model) Network
 
+// ConstructMultiNetwork defines a multi-network constructor func.
+type ConstructMultiNetwork func(cfg mlmodel.Model) *MultiNetwork
+
 // SingleNetwork defines a base network implementation
 type SingleNetwork struct {
 	report         client.Report
 	statsCollector *StatsCollector
 }
 
-func (bn *SingleNetwork) Eval(k string, report client.Report) {
+func (bn *SingleNetwork) Eval(report client.Report) {
 	bn.report = report
 }
 
@@ -100,11 +102,11 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 	ev := make(map[string]*buffer.MultiBuffer)
 	tt := make(map[string]float64)
 	for i, net := range network {
-		k := fmt.Sprintf("%+v", i)
+		nnet := net(cfg)
+		k := fmt.Sprintf("%+v-%s", i, reflect.TypeOf(nnet).Elem())
 		cc[k] = net
-		nn[k] = net(cfg)
+		nn[k] = nnet
 		ev[k] = newBuffer()
-
 	}
 	return &MultiNetwork{
 		ID:        coinmath.String(5),
@@ -116,8 +118,8 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 	}
 }
 
-func MultiNetworkConstructor(network ...ConstructNetwork) func(cfg mlmodel.Model) Network {
-	return func(cfg mlmodel.Model) Network {
+func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork {
+	return func(cfg mlmodel.Model) *MultiNetwork {
 		return NewMultiNetwork(cfg, network...)
 	}
 }
@@ -233,27 +235,11 @@ func (m *MultiNetwork) Eval(k string, report client.Report) {
 	for key, n := range m.Networks {
 		if k == key {
 			m.Evolution[key].Push(float64(time.Now().Unix()), report.Profit)
-			n.Eval(k, report)
+			n.Eval(report)
 		}
 	}
 }
 
-func (m *MultiNetwork) Report() client.Report {
-	return client.Report{}
-}
-
-func (m *MultiNetwork) Fit(ds *Dataset) (float64, error) {
-	panic("implement me")
-}
-
-func (m *MultiNetwork) Predict(ds *Dataset) model.Type {
-	panic("implement me")
-}
-
 func (m *MultiNetwork) Model() mlmodel.Model {
 	return m.cfg
-}
-
-func (m *MultiNetwork) Stats() Stats {
-	return Stats{}
 }

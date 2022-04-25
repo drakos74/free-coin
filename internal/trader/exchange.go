@@ -18,20 +18,42 @@ const (
 )
 
 type tracker struct {
-	pnl    map[model.Coin]float64
-	wallet float64
+	pnl    map[model.Coin]trades
+	trades trades
+}
+
+type trades struct {
+	pnl    float64
+	num    int
+	loss   int
+	profit int
 }
 
 func newTracker() *tracker {
 	return &tracker{
-		pnl: make(map[model.Coin]float64),
+		pnl: make(map[model.Coin]trades),
 	}
 }
 
-func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl float64) {
-	t.pnl[coin] = t.pnl[coin] + value
-	t.wallet += value
-	return t.pnl[coin], t.wallet
+func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl trades) {
+	tt := t.pnl[coin]
+	if value > 0 {
+		tt.profit += 1
+		tt.pnl += value
+		tt.num += 1
+		t.trades.pnl += value
+		t.trades.num += 1
+		t.trades.profit += 1
+	} else if value < 0 {
+		tt.loss += 1
+		tt.pnl += value
+		tt.num += 1
+		t.trades.pnl += value
+		t.trades.num += 1
+		t.trades.loss += 1
+	}
+	t.pnl[coin] = tt
+	return tt, t.trades
 }
 
 // ExchangeTrader implements the main trading logic.
@@ -209,6 +231,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 				Msg("ignoring signal")
 			action.Reason = VoidReasonIgnore
 			et.log.append(action)
+			action = et.track(key.Coin, action)
 			return nil, false, action, nil
 		}
 		// we need to close the position
@@ -248,6 +271,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 				Msg("ignoring conflicting signal")
 			action.Reason = VoidReasonConflict
 			et.log.append(action)
+			action = et.track(key.Coin, action)
 			return nil, false, action, nil
 		}
 		log.Debug().
@@ -260,12 +284,14 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	if t == 0 {
 		action.Reason = VoidReasonType
 		et.log.append(action)
+		action = et.track(key.Coin, action)
 		return nil, false, action, fmt.Errorf("no clean type [%s %s:%v]", openType.String(), position.Type.String(), ok)
 	}
 	if close == "" {
 		if !open {
 			action.Reason = VoidReasonClose
 			et.log.append(action)
+			action = et.track(key.Coin, action)
 			// we intended to close the position , but we dont have anything to close
 			return nil, false, action, fmt.Errorf("ignoring close signal '%s' no open position for '%v'", openType.String(), key)
 		} else {
@@ -309,10 +335,21 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	if err != nil {
 		log.Error().Err(err).Msg("could not store position")
 	}
-	coinPnl, globalPnl := et.tracker.add(order.Coin, action.Value)
-	action.CoinPnL = coinPnl
-	action.GlobalPnL = globalPnl
+	et.tracker.add(order.Coin, action.Value)
+	action = et.track(order.Coin, action)
 	return order, true, action, err
+}
+
+func (et *ExchangeTrader) track(coin model.Coin, action Event) Event {
+	action.CoinPnL = et.tracker.pnl[coin].pnl
+	action.CoinLossTrades = et.tracker.pnl[coin].loss
+	action.CoinProfitTrades = et.tracker.pnl[coin].profit
+	action.CoinNumOfTrades = et.tracker.pnl[coin].num
+	action.GlobalPnL = et.tracker.trades.pnl
+	action.GlobalLossTrades = et.tracker.trades.loss
+	action.GlobalProfitTrades = et.tracker.trades.profit
+	action.GlobalNumOfTrades = et.tracker.trades.num
+	return action
 }
 
 func (et *ExchangeTrader) Reset(coins ...model.Coin) (int, error) {

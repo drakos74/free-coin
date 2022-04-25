@@ -80,15 +80,25 @@ const (
 
 // Event defines a trading action for reference and debugging.
 type Event struct {
-	Key       model.Key  `json:"key"`
-	Time      time.Time  `json:"time"`
-	Type      model.Type `json:"type"`
-	Price     float64    `json:"price"`
-	Value     float64    `json:"value"`
-	Reason    Reason     `json:"reason"`
-	PnL       float64    `json:"pnl"`
-	CoinPnL   float64    `json:"coin_pnl"`
-	GlobalPnL float64    `json:"global_pnl"`
+	Key    model.Key  `json:"key"`
+	Time   time.Time  `json:"time"`
+	Type   model.Type `json:"type"`
+	Price  float64    `json:"price"`
+	Value  float64    `json:"value"`
+	Reason Reason     `json:"reason"`
+	PnL    float64    `json:"pnl"`
+	TradeTracker
+}
+
+type TradeTracker struct {
+	CoinNumOfTrades    int     `json:"coin_num_of_trades"`
+	CoinLossTrades     int     `json:"coin_loss_trades"`
+	CoinProfitTrades   int     `json:"coin_profit-trades"`
+	CoinPnL            float64 `json:"coin_pnl"`
+	GlobalNumOfTrades  int     `json:"global_num_of_trades"`
+	GlobalLossTrades   int     `json:"global_loss_trades"`
+	GlobalProfitTrades int     `json:"global_profit_trades"`
+	GlobalPnL          float64 `json:"global_pnl"`
 }
 
 // Log defines a collection of events and actions.

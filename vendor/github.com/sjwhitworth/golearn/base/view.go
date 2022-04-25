@@ -21,11 +21,8 @@ func (v *InstancesView) addClassAttrsFromSrc(src FixedDataGrid) {
 		if v.attrs != nil {
 			matched = false
 			for _, b := range v.attrs {
-				// TODO : handle better if attribute is not found
-				if b.attr != nil {
-					if b.attr.Equals(a) {
-						matched = true
-					}
+				if b.attr.Equals(a) {
+					matched = true
 				}
 			}
 		}

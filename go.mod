@@ -1,6 +1,6 @@
 module github.com/drakos74/free-coin
 
-go 1.16
+go 1.18
 
 require (
 	github.com/adshao/go-binance/v2 v2.2.1
@@ -8,18 +8,45 @@ require (
 	github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
 	github.com/drakos74/go-ex-machina v0.0.0-20211107134813-9131c4153fda
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.1.1
-	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rs/zerolog v1.20.0
 	github.com/sjwhitworth/golearn v0.0.0-20211014193759-a8b69c276cd8
 	github.com/stretchr/testify v1.7.0
-	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gonum.org/v1/gonum v0.9.3
+)
+
+require (
+	github.com/aopoltorzhicky/go_kraken/rest v0.0.3 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bitly/go-simplejson v0.5.0 // indirect
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac // indirect
+	github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9 // indirect
+	github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9 // indirect
+	github.com/google/go-cmp v0.5.4 // indirect
+	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/guptarohit/asciigraph v0.5.1 // indirect
+	github.com/mattn/go-runewidth v0.0.7 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/olekukonko/tablewriter v0.0.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/common v0.15.0 // indirect
+	github.com/prometheus/procfs v0.2.0 // indirect
+	github.com/rocketlaunchr/dataframe-go v0.0.0-20201007021539-67b046771f0b // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
+	golang.org/x/sys v0.0.0-20210304124612-50617c2ba197 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
 replace github.com/beldur/kraken-go-api-client => ../kraken-go-api-client

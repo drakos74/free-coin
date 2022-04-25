@@ -76,7 +76,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"up-and-down": {
-			config: testVaryingML(5, 10, 10, 3, 0.5),
+			config: testVaryingML(5, 10, 10, 3, 0.5, false),
 			trades: testTrades(300, 5, func(i int) float64 {
 				v := 200
 				if i <= v {
@@ -102,7 +102,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"down-and-up": {
-			config: testVaryingML(15, 3, 10, 3, 0.5),
+			config: testVaryingML(15, 3, 10, 3, 0.5, false),
 			trades: testTrades(100, 5, func(i int) float64 {
 				if i <= 50 {
 					return -10.0 * float64(i)
@@ -127,7 +127,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-high-range": {
-			config: testVaryingML(5, 10, 10, 3, 0.5),
+			config: testVaryingML(5, 10, 10, 3, 0.5, false),
 			trades: testTrades(300, 5, func(i int) float64 {
 				return 30000 + 500*coin_math.SineEvolve(i, 0.1)
 			}),
@@ -149,7 +149,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-low-range": { // TODO : this produces loss
-			config: testVaryingML(5, 5, 10, 3, 0.5),
+			config: testVaryingML(5, 5, 10, 3, 0.5, false),
 			trades: testTrades(300, 5, func(i int) float64 {
 				return 30000 + 100*coin_math.SineEvolve(i, 0.1)
 			}),
@@ -171,7 +171,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-rand-range": {
-			config: testVaryingML(5, 20, 10, 3, 0.5),
+			config: testVaryingML(5, 20, 10, 3, 0.5, false),
 			trades: testTrades(1000, 5, func(i int) float64 {
 				return 30000 + 1000*coin_math.SineEvolve(i, 0.05) + 500*coin_math.SineEvolve(i, 0.1) + 100*coin_math.SineEvolve(i, 0.5)
 			}),
@@ -193,7 +193,7 @@ func TestProcessor(t *testing.T) {
 			},
 		},
 		"sine-high-vol": {
-			config: testVaryingML(6, 8, 5, 7, 0.5),
+			config: testVaryingML(6, 8, 5, 7, 0.5, false),
 			trades: testTrades(1000, 5, func(i int) float64 {
 				return 30000 + 3000*coin_math.SineEvolve(i, 0.05)
 			}),
@@ -220,21 +220,20 @@ func TestProcessor(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			proc := Processor("", json.BlobShard("ml"), json.EventRegistry("ml-trade-registry"),
-				net.MultiNetworkConstructor(
-					//net.ConstructNeuralNetwork(nil),
-					//net.ConstructNeuralNetwork(nil),
-					//net.ConstructNeuralNetwork(nil),
-					net.ConstructRandomForest(false),
-					net.ConstructRandomForest(false),
-					net.ConstructRandomForest(false),
-					//ConstructRandomForest(true),
-					//ConstructPolynomialNetwork(0.0001),
-					//RandomForestNetwork{debug: true, tmpKey: "3"},
-					//RandomForestNetwork{debug: true, tmpKey: "4"},
-				),
 				//RandomForestNetwork{debug: true},
 				//NewNN(nil),
-				tt.config)
+				tt.config,
+				//net.ConstructNeuralNetwork(nil),
+				//net.ConstructNeuralNetwork(nil),
+				//net.ConstructNeuralNetwork(nil),
+				net.ConstructRandomForest(false),
+				net.ConstructRandomForest(false),
+				net.ConstructRandomForest(false),
+			//ConstructRandomForest(true),
+			//ConstructPolynomialNetwork(0.0001),
+			//RandomForestNetwork{debug: true, tmpKey: "3"},
+			//RandomForestNetwork{debug: true, tmpKey: "4"},
+			)
 
 			u, err := local.NewUser("")
 			assert.NoError(t, err)
@@ -304,7 +303,7 @@ func TestProcessor(t *testing.T) {
 }
 
 func netConfig() *mlmodel.Config {
-	return testVaryingML(6, 8, 5, 7, 0.5)
+	return testVaryingML(6, 8, 5, 7, 0.5, true)
 }
 
 func tradeGen() func() []*model.TradeSignal {
@@ -343,16 +342,34 @@ func TestNetwork(t *testing.T) {
 				net.ConstructNeuralNetwork(nil),
 			},
 		},
+		"hmm": {
+			config: netConfig(),
+			trades: tradeGen(),
+			pnl:    []client.Report{},
+			network: []net.ConstructNetwork{
+				net.ConstructHMM(),
+				net.ConstructHMM(),
+				net.ConstructHMM(),
+			},
+		},
+		"mix": {
+			config: netConfig(),
+			trades: tradeGen(),
+			pnl:    []client.Report{},
+			network: []net.ConstructNetwork{
+				net.ConstructHMM(),
+				net.ConstructNeuralNetwork(nil),
+				net.ConstructRandomForest(false),
+			},
+		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
 			proc := Processor("", json.BlobShard("ml"), json.EventRegistry("ml-trade-registry"),
-				net.MultiNetworkConstructor(
-					tt.network...,
-				),
-				tt.config)
+				tt.config,
+				tt.network...)
 
 			u, err := local.NewUser("")
 			assert.NoError(t, err)
@@ -521,7 +538,7 @@ func TestMultiStrategyProcessor(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"), nil, tt.config)
+			proc := Processor("", json.LocalShard(), json.EventRegistry("ml-trade-registry"), tt.config)
 
 			u, err := local.NewUser("")
 			assert.NoError(t, err)
@@ -692,7 +709,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 	}
 }
 
-func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64) *mlmodel.Config {
+func testVaryingML(duration, bufferSize, modelSize, features int, precisionThreshold float64, live bool) *mlmodel.Config {
 	cfg := map[model.Key]mlmodel.Segments{
 		model.Key{
 			Coin:     model.BTC,
@@ -712,7 +729,7 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 			},
 			Trader: mlmodel.Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   live,
 			},
 		},
 		model.Key{
@@ -733,7 +750,7 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 			},
 			Trader: mlmodel.Trader{
 				Weight: 1,
-				Live:   false,
+				Live:   live,
 			},
 		},
 	}

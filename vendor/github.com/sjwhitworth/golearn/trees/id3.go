@@ -365,7 +365,9 @@ func (d *DecisionTreeNode) Predict(what base.FixedDataGrid) (base.FixedDataGrid,
 	what.MapOverRows(predAttrSpecs, func(row [][]byte, rowNo int) (bool, error) {
 		cur := d
 		for {
-			if cur.Children == nil {
+			if cur == nil {
+				break
+			}else if cur.Children == nil {
 				predictions.Set(classAttrSpec, rowNo, classAttr.GetSysValFromString(cur.Class))
 				break
 			} else {

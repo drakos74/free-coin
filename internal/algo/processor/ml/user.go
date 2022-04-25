@@ -6,10 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
-
-	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
@@ -17,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *model2.Benchmark, config *model2.Config) {
+func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *mlmodel.Benchmark, config *mlmodel.Config) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -93,29 +90,25 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
 				if model.IsAnyCoin(key.Coin) || k.Match(key.Coin) {
+					networks := set.Network
 					txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
-					if networks, ok := set.Network.(*net.MultiNetwork); ok {
-						for kk, network := range networks.Networks {
-							txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
+					for kk, network := range networks.Networks {
+						txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
 
-							trend := networks.Trend[kk]
-							report := network.Report()
-							txtBuffer.WriteString(fmt.Sprintf("%s - %d %.2f%s | %d (%.2f)\n",
-								kk, len(set.Vectors),
-								report.Profit, emoji.Profit, report.Buy+report.Sell,
-								trend))
+						trend := networks.Trend[kk]
+						report := network.Report()
+						txtBuffer.WriteString(fmt.Sprintf("%s - %d %.2f%s | %d (%.2f)\n",
+							kk, len(set.Vectors),
+							report.Profit, emoji.Profit, report.Buy+report.Sell,
+							trend))
 
-							stats := network.Stats()
-							aa := make([]string, len(stats.Accuracy))
-							for i, acc := range stats.Accuracy {
-								aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
-							}
-							txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
-
+						stats := network.Stats()
+						aa := make([]string, len(stats.Accuracy))
+						for i, acc := range stats.Accuracy {
+							aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
 						}
-					} else {
-						report := set.Network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%.2f | %d\n", report.Profit, report.Buy+report.Sell))
+						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
+
 					}
 				}
 			}

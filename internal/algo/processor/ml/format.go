@@ -6,9 +6,8 @@ import (
 	"strings"
 	"time"
 
-	model2 "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-
 	"github.com/drakos74/free-coin/client"
+	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
@@ -22,7 +21,7 @@ func formatSettings(settings trader.Settings) string {
 		settings.StopLoss)
 }
 
-func formatConfig(config model2.Config) string {
+func formatConfig(config mlmodel.Config) string {
 
 	buffer := new(strings.Builder)
 
@@ -64,7 +63,7 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm %s %.2f \n%s %.4f %s\n%.2f %s|%.2f|%.2f | %s\n%v|%v\n%+v",
+	return fmt.Sprintf("%s\n%s|%.fm %s %.2f \n%s %.4f %s\n%.2f %s|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
 		formatTime(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -77,7 +76,11 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 		100*action.PnL,
 		"%",
 		action.CoinPnL,
+		action.CoinProfitTrades,
+		action.CoinLossTrades,
 		action.GlobalPnL,
+		action.GlobalProfitTrades,
+		action.GlobalLossTrades,
 
 		action.Reason,
 		emoji.MapToAction(ok),
@@ -85,8 +88,8 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 		formatTimeTrend(trend))
 }
 
-func formatSignal(signal model2.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm|%s|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f|%.2f %s (%.2f)\n%v|%v",
+func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
+	return fmt.Sprintf("%s\n%s|%.fm|%s|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
 		formatTime(signal.Time),
 
 		signal.Key.Coin,
@@ -102,7 +105,11 @@ func formatSignal(signal model2.Signal, action trader.Event, err error, ok bool)
 		100*action.PnL,
 		"%",
 		action.CoinPnL,
+		action.CoinProfitTrades,
+		action.CoinLossTrades,
 		action.GlobalPnL,
+		action.GlobalProfitTrades,
+		action.GlobalLossTrades,
 
 		action.Reason,
 		signal.Precision,
@@ -149,7 +156,7 @@ func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 	return txtBuffer.String()
 }
 
-func encodeMessage(signal model2.Signal) string {
+func encodeMessage(signal mlmodel.Signal) string {
 	bb, _ := json.Marshal(signal)
 	return fmt.Sprintf("%s", string(bb))
 }

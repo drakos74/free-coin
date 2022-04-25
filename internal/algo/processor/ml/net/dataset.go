@@ -17,7 +17,7 @@ type Dataset struct {
 	Duration time.Duration
 	Vectors  []mlmodel.Vector
 	config   mlmodel.Model
-	Network  Network
+	Network  *MultiNetwork
 }
 
 func (s Dataset) getDescription(postfix string) string {
@@ -35,10 +35,10 @@ func (s *Dataset) Eval(k string, report client.Report) {
 type Datasets struct {
 	sets    map[model.Key]*Dataset
 	storage storage.Persistence
-	network ConstructNetwork
+	network ConstructMultiNetwork
 }
 
-func NewDataSets(shard storage.Shard, network ConstructNetwork) *Datasets {
+func NewDataSets(shard storage.Shard, network ConstructMultiNetwork) *Datasets {
 	persistence, err := shard("vectors")
 	if err != nil {
 		log.Error().Err(err).Msg("could not crete vector storage")
@@ -114,7 +114,7 @@ func addVector(ss []mlmodel.Vector, s mlmodel.Vector, size int) []mlmodel.Vector
 	return newVectors
 }
 
-func newDataSet(coin model.Coin, duration time.Duration, cfg mlmodel.Model, vv []mlmodel.Vector, network Network) *Dataset {
+func newDataSet(coin model.Coin, duration time.Duration, cfg mlmodel.Model, vv []mlmodel.Vector, network *MultiNetwork) *Dataset {
 	return &Dataset{
 		Coin:     coin,
 		Duration: duration,

@@ -105,7 +105,7 @@ func (b *BaggedModel) Predict(from base.FixedDataGrid) (base.FixedDataGrid, erro
 	// Channel to receive the results as they come in
 	votes := make(chan base.DataGrid, n)
 	// Count the votes for each class
-	voting := make(map[int]map[string]int)
+	voting := make(map[int](map[string]int))
 
 	// Create a goroutine to collect the votes
 	var votingwait sync.WaitGroup
@@ -139,9 +139,9 @@ func (b *BaggedModel) Predict(from base.FixedDataGrid) (base.FixedDataGrid, erro
 		processwait.Add(1)
 		go func() {
 			for {
-				if i, ok := <-processpipe; ok {
-					c := b.Models[i]
-					l := b.generatePredictionInstances(i, from)
+				if j, ok := <-processpipe; ok {
+					c := b.Models[j]
+					l := b.generatePredictionInstances(j, from)
 					v, _ := c.Predict(l)
 					votes <- v
 				} else {

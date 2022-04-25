@@ -47,11 +47,3 @@ func (p *PolynomialRegression) Train(ds *Dataset) (ModelResult, map[string]Model
 	}
 	return ModelResult{}, make(map[string]ModelResult)
 }
-
-func (p *PolynomialRegression) Fit(ds *Dataset) (float64, error) {
-	panic("implement me")
-}
-
-func (p *PolynomialRegression) Predict(ds *Dataset) model.Type {
-	panic("implement me")
-}

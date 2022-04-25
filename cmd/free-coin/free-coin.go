@@ -6,12 +6,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
+
 	"github.com/drakos74/free-coin/client/kraken"
 	coin "github.com/drakos74/free-coin/internal"
 	"github.com/drakos74/free-coin/internal/account"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
 	"github.com/drakos74/free-coin/internal/algo/processor/stats"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/model"
@@ -83,12 +84,12 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		ForUser(u).
 		ForExchange(e).
 		WithProcessor(ml.Processor(api.FreeCoin, shard, registry,
-			net.MultiNetworkConstructor(
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
-			),
-			configML())).
+			configML(),
+			net.ConstructRandomForest(false),
+			net.ConstructRandomForest(false),
+			net.ConstructRandomForest(false),
+			net.ConstructHMM(),
+		)).
 		Apply()
 }
 

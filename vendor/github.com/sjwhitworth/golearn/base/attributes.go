@@ -12,7 +12,7 @@ const (
 	BinaryType
 )
 
-// Attribute disambiguate columns of the feature matrix and declare their types.
+// Attributes disambiguate columns of the feature matrix and declare their types.
 type Attribute interface {
 	json.Unmarshaler
 	json.Marshaler

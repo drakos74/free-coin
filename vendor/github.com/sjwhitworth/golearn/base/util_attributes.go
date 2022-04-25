@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -30,7 +31,7 @@ func NonClassFloatAttributes(d DataGrid) []Attribute {
 	return ret
 }
 
-// NonClassAttributes returns all Attributes which aren't designated as a
+// NonClassAttrs returns all Attributes which aren't designated as a
 // class Attribute.
 func NonClassAttributes(d DataGrid) []Attribute {
 	classAttrs := d.AllClassAttributes()
@@ -47,8 +48,7 @@ func ResolveAttributes(d DataGrid, attrs []Attribute) []AttributeSpec {
 		a := attrs[i]
 		spec, err := d.GetAttribute(a)
 		if err != nil {
-			continue
-			//panic(fmt.Errorf("error resolving Attribute %s: %s\n %v", a,err, d ))
+			panic(fmt.Errorf("Error resolving Attribute %s: %s", a, err))
 		}
 		ret[i] = spec
 	}
