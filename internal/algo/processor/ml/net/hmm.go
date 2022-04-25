@@ -30,7 +30,7 @@ func ConstructHMM() ConstructNetwork {
 
 func NewHMM(model mlmodel.Model, config ...buffer.HMMConfig) *HMM {
 	return &HMM{
-		SingleNetwork: SingleNetwork{},
+		SingleNetwork: NewSingleNetwork(),
 		HMM:           buffer.NewMultiHMM(config...),
 		config:        model,
 	}

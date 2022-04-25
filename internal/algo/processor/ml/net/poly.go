@@ -20,7 +20,10 @@ func ConstructPolynomialNetwork(threshold float64) func(cfg mlmodel.Model) Netwo
 }
 
 func NewPolynomialRegressionNetwork(cfg mlmodel.Model) *PolynomialRegression {
-	return &PolynomialRegression{cfg: cfg}
+	return &PolynomialRegression{
+		SingleNetwork: NewSingleNetwork(),
+		cfg:           cfg,
+	}
 }
 
 func (p *PolynomialRegression) Model() mlmodel.Model {

@@ -56,6 +56,13 @@ type SingleNetwork struct {
 	statsCollector *StatsCollector
 }
 
+// NewSingleNetwork creates a new single network
+func NewSingleNetwork() SingleNetwork {
+	return SingleNetwork{
+		statsCollector: NewStatsCollector(3),
+	}
+}
+
 func (bn *SingleNetwork) Eval(report client.Report) {
 	bn.report = report
 }

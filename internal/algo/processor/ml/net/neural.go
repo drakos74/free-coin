@@ -56,7 +56,11 @@ func NewNN(network *ff.Network, cfg mlmodel.Model) *NNetwork {
 		network.Loss(ml.Pow)
 	}
 
-	return &NNetwork{net: network, cfg: cfg}
+	return &NNetwork{
+		SingleNetwork: NewSingleNetwork(),
+		net:           network,
+		cfg:           cfg,
+	}
 }
 
 func (n *NNetwork) Model() mlmodel.Model {
