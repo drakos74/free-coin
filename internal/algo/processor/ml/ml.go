@@ -47,7 +47,7 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *mlmodel.C
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),
 		}
-		log.Info().Str("Key", k.ToString()).Msg("init collector")
+		log.Info().Str("Index", k.ToString()).Msg("init collector")
 		go col.process(k, trades)
 	}
 
@@ -86,7 +86,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 
 				y := 100 * bucket.Stats[0].Ratio()
 				yy = append(yy, y)
-				dv = append(dv, 100*bucket.Stats[2].Avg())
+				dv = append(dv, bucket.Stats[2].Avg())
 				dp = append(dp, bucket.Stats[3].Avg())
 				last = bucket
 			}
@@ -94,7 +94,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		inp, err := fit(xx, yy, 1, 2)
 		if err != nil || !last.OK {
 			log.Debug().Err(err).
-				Str("Key", fmt.Sprintf("%+v", key)).
+				Str("Index", fmt.Sprintf("%+v", key)).
 				Str("x", fmt.Sprintf("%+v", xx)).
 				Str("y", fmt.Sprintf("%+v", yy)).
 				Msg("could not fit")
@@ -130,7 +130,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 			std = last.Stats[0].StDev() / price
 			ema = last.Stats[0].EMA() / price
 		}
-		inp = append(inp, float64(count)/float64(last.Duration.Milliseconds()), std, ema)
+		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {
