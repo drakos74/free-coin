@@ -83,12 +83,11 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 	return coin.NewStrategy(ml.Name).
 		ForUser(u).
 		ForExchange(e).
-		WithProcessor(ml.Processor(api.FreeCoin, shard, registry,
-			configML(),
+		WithProcessor(ml.Processor(api.FreeCoin, shard, registry, configML(),
 			net.ConstructRandomForest(false),
 			net.ConstructRandomForest(false),
 			net.ConstructRandomForest(false),
-			net.ConstructHMM(),
+			//net.ConstructHMM(),
 		)).
 		Apply()
 }
