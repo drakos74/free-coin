@@ -84,7 +84,7 @@ func TestExchangeTrader_CreateOrder(t *testing.T) {
 			total:  3,
 			wallet: 1200,
 		},
-		"close-order-loss": {
+		"close-order-Loss": {
 			signals: []signal{
 				{
 					model.Buy,

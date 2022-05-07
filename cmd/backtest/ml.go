@@ -163,7 +163,7 @@ func train() server.Handler {
 		mm := make(map[model.Key]model2.Segments)
 
 		for _, m := range request.Model {
-			// TODO : note this needs to be the hash delimiter of the model.Key
+			// TODO : note this needs to be the hash delimiter of the model.Index
 			p := strings.Split(m, model.Delimiter)
 			c := model.Coin(p[0])
 

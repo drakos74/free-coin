@@ -43,7 +43,7 @@ func (r *RandomForestNetwork) Model() mlmodel.Model {
 	return r.cfg
 }
 
-func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
+func (r *RandomForestNetwork) Train(ds *Dataset) ModelResult {
 	config := r.cfg
 	acc, err := r.Fit(ds)
 
@@ -55,17 +55,20 @@ func (r *RandomForestNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelR
 		if t != model.NoType {
 			r.statsCollector.History.Push(acc, float64(t))
 			return ModelResult{
-				Key:      r.tmpKey,
+				Detail: mlmodel.Detail{
+					Type: networkType(r),
+					Hash: r.tmpKey,
+				},
 				Type:     t,
 				Accuracy: acc,
 				OK:       true,
-			}, make(map[string]ModelResult)
+			}
 		}
 	} else {
 		r.tree = nil
 	}
 	r.statsCollector.History.Push(acc, 0)
-	return ModelResult{}, make(map[string]ModelResult)
+	return ModelResult{}
 }
 
 func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {

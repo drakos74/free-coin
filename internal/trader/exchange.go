@@ -18,42 +18,42 @@ const (
 )
 
 type tracker struct {
-	pnl    map[model.Coin]trades
-	trades trades
+	PnL   map[model.Coin]Stats
+	Stats Stats
 }
 
-type trades struct {
-	pnl    float64
-	num    int
-	loss   int
-	profit int
+type Stats struct {
+	PnL    float64
+	Num    int
+	Loss   int
+	Profit int
 }
 
 func newTracker() *tracker {
 	return &tracker{
-		pnl: make(map[model.Coin]trades),
+		PnL: make(map[model.Coin]Stats),
 	}
 }
 
-func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl trades) {
-	tt := t.pnl[coin]
+func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl Stats) {
+	tt := t.PnL[coin]
 	if value > 0 {
-		tt.profit += 1
-		tt.pnl += value
-		tt.num += 1
-		t.trades.pnl += value
-		t.trades.num += 1
-		t.trades.profit += 1
+		tt.Profit += 1
+		tt.PnL += value
+		tt.Num += 1
+		t.Stats.PnL += value
+		t.Stats.Num += 1
+		t.Stats.Profit += 1
 	} else if value < 0 {
-		tt.loss += 1
-		tt.pnl += value
-		tt.num += 1
-		t.trades.pnl += value
-		t.trades.num += 1
-		t.trades.loss += 1
+		tt.Loss += 1
+		tt.PnL += value
+		tt.Num += 1
+		t.Stats.PnL += value
+		t.Stats.Num += 1
+		t.Stats.Loss += 1
 	}
-	t.pnl[coin] = tt
-	return tt, t.trades
+	t.PnL[coin] = tt
+	return tt, t.Stats
 }
 
 // ExchangeTrader implements the main trading logic.
@@ -84,6 +84,10 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 		tracker:  newTracker(),
 		log:      NewEventLog(registry),
 	}
+}
+
+func (et *ExchangeTrader) Stats() map[model.Coin]Stats {
+	return et.tracker.PnL
 }
 
 func (et *ExchangeTrader) Settings() Settings {
@@ -123,7 +127,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 	return positions, nil
 }
 
-// Update updates the positions and returns the ones over the stop loss and take profit thresholds
+// Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
 func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend) {
 	pp := et.trader.update(trade)
 
@@ -151,7 +155,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 			validTrend := make([]model.Type, 2)
 			for tt, trend := range position.Trend {
 				var hasTrend bool
-				// NOTE : Type here does not mean market , but profit/loss
+				// NOTE : Type here does not mean market , but Profit/Loss
 				if trend.Type[0] != model.NoType {
 					// valid-trend
 					validTrend[0] = trend.Type[0]
@@ -170,16 +174,16 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 				}
 			}
 			//if stopLossActivated {
-			//	// if we pass the stop-loss threshold
+			//	// if we pass the stop-Loss threshold
 			//	positions[k] = position
-			//	delete(et.profit, k)
+			//	delete(et.Profit, k)
 			//} else
 			//if shift && validShift {
 			//	// if there is a shift in the opposite direction of the position
 			//	positions[k] = position
-			//	delete(et.profit, k)
+			//	delete(et.Profit, k)
 			//} else
-			//fmt.Printf("[ valid = %v  , take-profit = %v, stop-loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, profit)
+			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
 			if stopLossActivated || takeProfitActivated {
 				if (validTrend[0] == model.Sell) || (validTrend[1] == model.Sell) {
 					positions[k] = position
@@ -213,7 +217,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	if ok {
 		volume = position.Volume
 		value := 0.0
-		// find out how much profit we re making
+		// find out how much Profit we re making
 		switch position.Type {
 		case model.Buy:
 			value = (price - position.OpenPrice) * position.Volume
@@ -341,14 +345,14 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 }
 
 func (et *ExchangeTrader) track(coin model.Coin, action Event) Event {
-	action.CoinPnL = et.tracker.pnl[coin].pnl
-	action.CoinLossTrades = et.tracker.pnl[coin].loss
-	action.CoinProfitTrades = et.tracker.pnl[coin].profit
-	action.CoinNumOfTrades = et.tracker.pnl[coin].num
-	action.GlobalPnL = et.tracker.trades.pnl
-	action.GlobalLossTrades = et.tracker.trades.loss
-	action.GlobalProfitTrades = et.tracker.trades.profit
-	action.GlobalNumOfTrades = et.tracker.trades.num
+	action.CoinPnL = et.tracker.PnL[coin].PnL
+	action.CoinLossTrades = et.tracker.PnL[coin].Loss
+	action.CoinProfitTrades = et.tracker.PnL[coin].Profit
+	action.CoinNumOfTrades = et.tracker.PnL[coin].Num
+	action.GlobalPnL = et.tracker.Stats.PnL
+	action.GlobalLossTrades = et.tracker.Stats.Loss
+	action.GlobalProfitTrades = et.tracker.Stats.Profit
+	action.GlobalNumOfTrades = et.tracker.Stats.Num
 	return action
 }
 

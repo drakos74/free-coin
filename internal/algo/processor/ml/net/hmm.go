@@ -47,7 +47,7 @@ func toEmoji(v []float64) string {
 	return emoji.DotSnow
 }
 
-func (hmm *HMM) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
+func (hmm *HMM) Train(ds *Dataset) ModelResult {
 	vector := ds.Vectors[len(ds.Vectors)-1]
 	v := toEmoji(vector.PrevOut)
 	predictions, status := hmm.Add(v, "train")
@@ -74,7 +74,7 @@ func (hmm *HMM) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
 			}
 		}
 	}
-	return result, make(map[string]ModelResult)
+	return result
 }
 
 func (hmm *HMM) Model() mlmodel.Model {

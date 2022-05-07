@@ -24,11 +24,11 @@ func (s Dataset) getDescription(postfix string) string {
 	return fmt.Sprintf("%s_%s_%.2f_%s", s.Coin, s.Duration, s.config.PrecisionThreshold, postfix)
 }
 
-func (s *Dataset) Train() (ModelResult, map[string]ModelResult) {
+func (s *Dataset) Train() (ModelResult, map[mlmodel.Detail]ModelResult) {
 	return s.Network.Train(s)
 }
 
-func (s *Dataset) Eval(k string, report client.Report) {
+func (s *Dataset) Eval(k mlmodel.Detail, report client.Report) {
 	s.Network.Eval(k, report)
 }
 
@@ -79,9 +79,9 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		vv, err := ds.loadVectors(key)
 		if err == nil {
 			vectors = vv
-			log.Info().Str("Key", key.ToString()).Int("vv", len(vv)).Msg("loaded vectors")
+			log.Info().Str("Index", key.ToString()).Int("vv", len(vv)).Msg("loaded vectors")
 		} else {
-			log.Error().Err(err).Str("Key", key.ToString()).Msg("could not load vectors")
+			log.Error().Err(err).Str("Index", key.ToString()).Msg("could not load vectors")
 		}
 		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network(cfg))
 	}
@@ -93,7 +93,7 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		log.Error().
 			Err(err).
 			Str("vectors", fmt.Sprintf("%+v", newVectors)).
-			Str("Key", key.ToString()).
+			Str("Index", key.ToString()).
 			Msg("could not save vectors")
 	}
 

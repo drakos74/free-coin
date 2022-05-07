@@ -174,7 +174,7 @@ func TestCounter_Add(t *testing.T) {
 			},
 			predictions: []Predictions{
 				// NOTE : this never comes up
-				// Key:    "1:2:2",
+				// Index:    "1:2:2",
 				{
 					Key:    "1:2:1",
 					Sample: 32,
@@ -252,7 +252,7 @@ func TestCounter_Add(t *testing.T) {
 			},
 			predictions: []Predictions{
 				// NOTE : this never comes up
-				// Key:    "1:2:2",
+				// Index:    "1:2:2",
 				{
 					Key:    "1:2:1",
 					Sample: 31,

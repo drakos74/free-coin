@@ -72,7 +72,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							result, tt := set.Train()
 							signal := mlmodel.Signal{
 								Key:    key,
-								Detail: result.Key,
+								Detail: result.Detail,
 								Time:   vv.Meta.Tick.Time,
 								Price:  vv.Meta.Tick.Price,
 								Type:   result.Type,
@@ -98,7 +98,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							if config.Option.Benchmark {
 								for k, res := range tt {
 									kk := key
-									kk.Strategy = k
+									kk.Strategy = k.Type
 									if res.Reset {
 										benchmarks.Reset(kk.Coin, kk)
 									} else {
@@ -147,7 +147,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if floats.Sum(profit) < 0 {
 								ok := strategy.reset(k)
 								if !ok {
-									log.Error().Str("Key", k.ToString()).Msg("could not reset signal")
+									log.Error().Str("Index", k.ToString()).Msg("could not reset signal")
 								}
 							}
 							u.Send(index, api.NewMessage(formatAction(action, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)

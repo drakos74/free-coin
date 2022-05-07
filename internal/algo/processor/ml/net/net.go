@@ -15,6 +15,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func networkType(net Network) string {
+	return reflect.TypeOf(net).Elem().String()
+}
+
 // Stats defines generic network stats.
 type Stats struct {
 	Iterations int
@@ -37,7 +41,7 @@ func NewStatsCollector(s int) *StatsCollector {
 // Network defines the main interface for a network training.
 // TODO : split network and multi-network interface
 type Network interface {
-	Train(ds *Dataset) (ModelResult, map[string]ModelResult)
+	Train(ds *Dataset) ModelResult
 	Eval(report client.Report)
 	Report() client.Report
 	Stats() Stats
@@ -92,10 +96,10 @@ func (bn *SingleNetwork) Stats() Stats {
 
 type MultiNetwork struct {
 	ID        string
-	construct map[string]ConstructNetwork
-	Networks  map[string]Network
-	Evolution map[string]*buffer.MultiBuffer
-	Trend     map[string]float64
+	construct map[mlmodel.Detail]ConstructNetwork
+	Networks  map[mlmodel.Detail]Network
+	Evolution map[mlmodel.Detail]*buffer.MultiBuffer
+	Trend     map[mlmodel.Detail]float64
 	cfg       mlmodel.Model
 }
 
@@ -104,13 +108,16 @@ func newBuffer() *buffer.MultiBuffer {
 }
 
 func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwork {
-	nn := make(map[string]Network)
-	cc := make(map[string]ConstructNetwork)
-	ev := make(map[string]*buffer.MultiBuffer)
-	tt := make(map[string]float64)
+	nn := make(map[mlmodel.Detail]Network)
+	cc := make(map[mlmodel.Detail]ConstructNetwork)
+	ev := make(map[mlmodel.Detail]*buffer.MultiBuffer)
+	tt := make(map[mlmodel.Detail]float64)
 	for i, net := range network {
 		nnet := net(cfg)
-		k := fmt.Sprintf("%+v-%s", i, reflect.TypeOf(nnet).Elem())
+		k := mlmodel.Detail{
+			Type:  networkType(nnet),
+			Index: i,
+		}
 		cc[k] = net
 		nn[k] = nnet
 		ev[k] = newBuffer()
@@ -132,7 +139,7 @@ func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork 
 }
 
 type ModelResult struct {
-	Key      string
+	Detail   mlmodel.Detail
 	Type     model.Type
 	Accuracy float64
 	Profit   float64
@@ -147,14 +154,13 @@ func (rr modelResults) Len() int           { return len(rr) }
 func (rr modelResults) Less(i, j int) bool { return rr[i].Trend < rr[j].Trend }
 func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
 
-func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
-
-	tt := make(map[string]ModelResult)
+func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]ModelResult) {
 
 	results := make([]ModelResult, 0)
 
-	kk := make(map[string]client.Report, 0)
-	cfgs := make(map[string]mlmodel.Model, 0)
+	tt := make(map[mlmodel.Detail]ModelResult)
+	kk := make(map[mlmodel.Detail]client.Report, 0)
+	cfgs := make(map[mlmodel.Detail]mlmodel.Model, 0)
 
 	cc := make([][]float64, 0)
 
@@ -165,7 +171,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		}
 
 		report := net.Report()
-		res, _ := net.Train(ds)
+		res := net.Train(ds)
 
 		var trend float64
 
@@ -187,7 +193,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		}
 
 		result := ModelResult{
-			Key:      k,
+			Detail:   k,
 			Type:     res.Type,
 			Accuracy: res.Accuracy,
 			Profit:   report.Profit,
@@ -217,7 +223,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 		m.Trend[k] = 0.0
 
 		log.Info().
-			Str("Key", k).
+			Str("Index", fmt.Sprintf("%+v", k)).
 			Str("coin", string(ds.Coin)).
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
@@ -238,7 +244,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) 
 	return results[0], tt
 }
 
-func (m *MultiNetwork) Eval(k string, report client.Report) {
+func (m *MultiNetwork) Eval(k mlmodel.Detail, report client.Report) {
 	for key, n := range m.Networks {
 		if k == key {
 			m.Evolution[key].Push(float64(time.Now().Unix()), report.Profit)

@@ -69,8 +69,8 @@ type Reason string
 
 const (
 	SignalReason       Reason = "signal"
-	StopLossReason     Reason = "stop-loss"
-	TakeProfitReason   Reason = "take-profit"
+	StopLossReason     Reason = "stop-Loss"
+	TakeProfitReason   Reason = "take-Profit"
 	VoidReasonIgnore   Reason = "void-ignore"
 	VoidReasonConflict Reason = "void-conflict"
 	VoidReasonType     Reason = "void-type"
@@ -86,14 +86,14 @@ type Event struct {
 	Price  float64    `json:"price"`
 	Value  float64    `json:"value"`
 	Reason Reason     `json:"reason"`
-	PnL    float64    `json:"pnl"`
+	PnL    float64    `json:"PnL"`
 	TradeTracker
 }
 
 type TradeTracker struct {
 	CoinNumOfTrades    int     `json:"coin_num_of_trades"`
 	CoinLossTrades     int     `json:"coin_loss_trades"`
-	CoinProfitTrades   int     `json:"coin_profit-trades"`
+	CoinProfitTrades   int     `json:"coin_profit-Stats"`
 	CoinPnL            float64 `json:"coin_pnl"`
 	GlobalNumOfTrades  int     `json:"global_num_of_trades"`
 	GlobalLossTrades   int     `json:"global_loss_trades"`

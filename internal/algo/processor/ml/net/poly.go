@@ -30,7 +30,7 @@ func (p *PolynomialRegression) Model() mlmodel.Model {
 	return p.cfg
 }
 
-func (p *PolynomialRegression) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
+func (p *PolynomialRegression) Train(ds *Dataset) ModelResult {
 	if len(ds.Vectors) > 0 {
 		v := ds.Vectors[len(ds.Vectors)-1]
 		in := v.NewIn
@@ -39,14 +39,14 @@ func (p *PolynomialRegression) Train(ds *Dataset) (ModelResult, map[string]Model
 				Type:     model.Buy,
 				Accuracy: in[2],
 				OK:       true,
-			}, make(map[string]ModelResult)
+			}
 		} else if in[2] < -1*p.cfg.PrecisionThreshold {
 			return ModelResult{
 				Type:     model.Sell,
 				Accuracy: math.Abs(in[2]),
 				OK:       true,
-			}, make(map[string]ModelResult)
+			}
 		}
 	}
-	return ModelResult{}, make(map[string]ModelResult)
+	return ModelResult{}
 }

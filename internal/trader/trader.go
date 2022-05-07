@@ -78,7 +78,7 @@ func (t *trader) load() error {
 	t.parseState(state)
 	log.Info().Err(err).
 		Str("account", t.account).
-		Int("num", len(t.positions)).
+		Int("Num", len(t.positions)).
 		Bool("running", t.running).
 		Int("min-size", t.minSize).
 		Msg("loaded state")
@@ -102,7 +102,7 @@ func (t *trader) update(trade *model.TradeSignal) map[model.Key]model.Position {
 	t.positions = newPositions
 	//err := t.save()
 	//if err != nil {
-	//	log.Error().Err(err).Int("num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")
+	//	log.Error().Err(err).Int("Num", ip).Str("coin", string(trade.Coin)).Msg("could not update position")
 	//}
 	return positions
 }

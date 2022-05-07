@@ -61,7 +61,7 @@ func newStats(shard storage.Shard, configs map[model.Coin]map[time.Duration]Conf
 }
 
 // TODO : re-enable user interaction to start and stop stats collectors
-//func (s *statsCollector) stop(k model.Key) {
+//func (s *statsCollector) stop(k model.Index) {
 //	s.lock.Lock()
 //	defer s.lock.Unlock()
 //	delete(s.configs[k.Coin], k.Duration)

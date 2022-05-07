@@ -91,6 +91,14 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				last = bucket
 			}
 		}
+
+		ratio := last.Stats[0].Ratio()
+		count := last.Stats[0].Count()
+		price := last.Stats[0].Avg()
+		std := last.Stats[0].StDev()
+		ema := last.Stats[0].EMA()
+		volume := last.Stats[1].Avg()
+
 		inp, err := fit(xx, yy, 1, 2)
 		if err != nil || !last.OK {
 			log.Debug().Err(err).
@@ -109,7 +117,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Msg("could not fit velocity")
 		}
 		inp = append(inp, ddv...)
-		ddp, err := fit(xx, dp, 1)
+		ddp, err := fit(xx, dp, 1, 2)
 		if err != nil {
 			log.Error().
 				Err(err).
@@ -120,16 +128,6 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		inp = append(inp, ddp...)
 		tracker := c.state[key]
 		prev := tracker.buffer.Last()
-		ratio := last.Stats[0].Ratio()
-		count := last.Stats[0].Count()
-		price := last.Stats[0].Avg()
-		volume := last.Stats[1].Avg()
-		std := 0.0
-		ema := 0.0
-		if price != 0 {
-			std = last.Stats[0].StDev() / price
-			ema = last.Stats[0].EMA() / price
-		}
 		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
@@ -140,6 +138,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		} else {
 			next[1] = 1
 		}
+		fmt.Printf("inp = %+v\n", inp)
 		if _, ok := tracker.buffer.Push(inp...); ok {
 			v := mlmodel.Vector{
 				Meta: mlmodel.Meta{

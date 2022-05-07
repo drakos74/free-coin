@@ -303,7 +303,7 @@ func TestProcessor(t *testing.T) {
 }
 
 func netConfig() *mlmodel.Config {
-	return testVaryingML(6, 8, 5, 7, 0.5, true)
+	return testVaryingML(6, 8, 5, 8, 0.5, true)
 }
 
 func tradeGen() func() []*model.TradeSignal {

@@ -27,7 +27,21 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		_, err := command.Validate(
 			api.AnyUser(),
 			api.Contains("?ml"),
-			api.OneOf(&action, "start", "stop", "reset", "pos", "tp", "sl", "ov", "cfg", "wallet", "gap", "prec", "ds", ""),
+			api.OneOf(&action,
+				"start",
+				"stop",
+				"reset",
+				"pos",
+				"tp",
+				"sl",
+				"ov",
+				"cfg",
+				"wallet",
+				"gap",
+				"prec",
+				"ds",
+				"",
+			),
 			api.Any(&coin),
 			api.Float(&num),
 		)
@@ -65,6 +79,15 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "wallet":
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
+		case "stats":
+			stats := wallet.Stats()
+			if key.Coin == model.AllCoins || key.Coin == model.NoCoin {
+				for c, stat := range stats {
+					txtBuffer.WriteString(formatStat(c, stat))
+				}
+			} else {
+				txtBuffer.WriteString(formatStat(key.Coin, stats[key.Coin]))
+			}
 		case "cfg":
 			txtBuffer.WriteString(formatConfig(*config))
 		case "gap":
@@ -82,9 +105,6 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "ov":
 			settings := wallet.OpenValue(num)
 			txtBuffer.WriteString(formatSettings(settings))
-		case "stop":
-			bb := strategy.enable(key.Coin, false)
-			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "ds":
 			sets := strategy.datasets.Sets()
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
@@ -97,7 +117,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 
 						trend := networks.Trend[kk]
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%s - %d %.2f%s | %d (%.2f)\n",
+						txtBuffer.WriteString(fmt.Sprintf("%+v - %d %.2f%s | %d (%.2f)\n",
 							kk, len(set.Vectors),
 							report.Profit, emoji.Profit, report.Buy+report.Sell,
 							trend))
@@ -114,6 +134,9 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			}
 		case "start":
 			bb := strategy.enable(key.Coin, true)
+			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
+		case "stop":
+			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
 		case "reset":
 			pp, err := wallet.UpstreamPositions(context.Background())

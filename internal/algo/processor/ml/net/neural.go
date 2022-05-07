@@ -67,14 +67,14 @@ func (n *NNetwork) Model() mlmodel.Model {
 	return n.cfg
 }
 
-func (n *NNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
+func (n *NNetwork) Train(ds *Dataset) ModelResult {
 	accuracy := math.MaxFloat64
 	i := 0
 	//for {
 	acc, err := n.Fit(ds)
 	if err != nil {
 		log.Error().Err(err).Msg("error during training")
-		return ModelResult{}, make(map[string]ModelResult)
+		return ModelResult{}
 	}
 	//if Accuracy < 1 || i > 10 {
 	accuracy = acc
@@ -90,7 +90,7 @@ func (n *NNetwork) Train(ds *Dataset) (ModelResult, map[string]ModelResult) {
 		Type:     t,
 		Accuracy: accuracy,
 		OK:       t != model.NoType,
-	}, make(map[string]ModelResult)
+	}
 	//}
 	//
 	//return model.NoType, 0.0, false

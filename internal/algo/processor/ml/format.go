@@ -21,6 +21,10 @@ func formatSettings(settings trader.Settings) string {
 		settings.StopLoss)
 }
 
+func formatStat(c model.Coin, stats trader.Stats) string {
+	return fmt.Sprintf("[%s] %.2f [%d:%d]\n", c, stats.PnL, stats.Profit, stats.Loss)
+}
+
 func formatConfig(config mlmodel.Config) string {
 
 	buffer := new(strings.Builder)
@@ -89,12 +93,13 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 }
 
 func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm|%s|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
+	return fmt.Sprintf("%s\n%s|%.fm|%s-%d|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
 		formatTime(signal.Time),
 
 		signal.Key.Coin,
 		signal.Key.Duration.Minutes(),
-		signal.Detail,
+		signal.Detail.Type,
+		signal.Detail.Index,
 		signal.Trend,
 		emoji.MapType(signal.Type),
 
