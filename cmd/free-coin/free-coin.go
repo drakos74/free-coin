@@ -105,7 +105,7 @@ func ModelConfig(precision float64) mlmodel.Model {
 		BufferSize:         42,
 		PrecisionThreshold: precision,
 		ModelSize:          120,
-		Features:           7,
+		Features:           8,
 	}
 }
 
