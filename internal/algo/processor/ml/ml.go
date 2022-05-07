@@ -86,8 +86,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 
 				y := 100 * bucket.Stats[0].Ratio()
 				yy = append(yy, y)
-				dv = append(dv, bucket.Stats[2].Avg())
-				dp = append(dp, bucket.Stats[3].Avg())
+				dv = append(dv, 100*bucket.Stats[2].Avg())
+				dp = append(dp, 100*bucket.Stats[3].Avg())
 				last = bucket
 			}
 		}
@@ -138,7 +138,6 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		} else {
 			next[1] = 1
 		}
-		fmt.Printf("inp = %+v\n", inp)
 		if _, ok := tracker.buffer.Push(inp...); ok {
 			v := mlmodel.Vector{
 				Meta: mlmodel.Meta{
