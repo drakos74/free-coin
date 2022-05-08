@@ -327,9 +327,9 @@ func TestNetwork(t *testing.T) {
 			trades: tradeGen(),
 			pnl:    []client.Report{},
 			network: []net.ConstructNetwork{
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
+				net.ConstructRandomForest(true),
+				net.ConstructRandomForest(true),
+				net.ConstructRandomForest(true),
 			},
 		},
 		"ml-network": {

@@ -92,6 +92,14 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 			}
 		}
 
+		if !last.OK {
+			log.Debug().
+				Str("Index", fmt.Sprintf("%+v", key)).
+				Int("batch-size", len(batch)).
+				Msg("no batch")
+			continue
+		}
+
 		ratio := last.Stats[0].Ratio()
 		count := last.Stats[0].Count()
 		price := last.Stats[0].Avg()
@@ -99,15 +107,16 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		ema := last.Stats[0].EMA()
 		volume := last.Stats[1].Avg()
 
+		// add the price fit polynomials
 		inp, err := fit(xx, yy, 1, 2)
-		if err != nil || !last.OK {
-			log.Debug().Err(err).
-				Str("Index", fmt.Sprintf("%+v", key)).
-				Str("x", fmt.Sprintf("%+v", xx)).
-				Str("y", fmt.Sprintf("%+v", yy)).
-				Msg("could not fit")
-			continue
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("xx", fmt.Sprintf("%+v", xx)).
+				Str("yy", fmt.Sprintf("%+v", yy)).
+				Msg("could not fit velocity")
 		}
+		// add the velocity fit polynomials
 		ddv, err := fit(xx, dv, 2)
 		if err != nil {
 			log.Error().
@@ -117,6 +126,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Msg("could not fit velocity")
 		}
 		inp = append(inp, ddv...)
+		// add the momentum fit polynomials
 		ddp, err := fit(xx, dp, 1, 2)
 		if err != nil {
 			log.Error().
@@ -126,9 +136,11 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Msg("could not fit momentum")
 		}
 		inp = append(inp, ddp...)
+		// add statistical data
+		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
+		// build the next state
 		tracker := c.state[key]
 		prev := tracker.buffer.Last()
-		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
 		next := make([]float64, 3)
 		threshold := c.config.Segments[key].Stats.Gap
 		if ratio > threshold {

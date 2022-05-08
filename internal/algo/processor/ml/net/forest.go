@@ -86,7 +86,7 @@ func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 
 	tree, _, prec, err := coinml.RandomForestTrain(r.tree, fn, config.ModelSize, config.Features, r.debug)
 	if err != nil {
-		log.Error().Err(err).Msg("could not train with isolation forest")
+		log.Error().Err(err).Msg("could not train with random forest")
 		return 0.0, err
 	}
 	r.tree = tree
