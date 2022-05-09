@@ -10,7 +10,6 @@ import (
 type HMM struct {
 	SingleNetwork
 	*buffer.HMM
-	config mlmodel.Model
 }
 
 func ConstructHMM() ConstructNetwork {
@@ -28,11 +27,10 @@ func ConstructHMM() ConstructNetwork {
 	}
 }
 
-func NewHMM(model mlmodel.Model, config ...buffer.HMMConfig) *HMM {
+func NewHMM(cfg mlmodel.Model, config ...buffer.HMMConfig) *HMM {
 	return &HMM{
-		SingleNetwork: NewSingleNetwork(),
+		SingleNetwork: NewSingleNetwork(cfg),
 		HMM:           buffer.NewMultiHMM(config...),
-		config:        model,
 	}
 }
 
@@ -75,8 +73,4 @@ func (hmm *HMM) Train(ds *Dataset) ModelResult {
 		}
 	}
 	return result
-}
-
-func (hmm *HMM) Model() mlmodel.Model {
-	return hmm.config
 }

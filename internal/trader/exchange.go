@@ -18,8 +18,9 @@ const (
 )
 
 type tracker struct {
-	PnL   map[model.Coin]Stats
-	Stats Stats
+	PnLPerCoin    map[model.Coin]Stats
+	PnLPerNetwork map[string]Stats
+	Stats         Stats
 }
 
 type Stats struct {
@@ -31,16 +32,21 @@ type Stats struct {
 
 func newTracker() *tracker {
 	return &tracker{
-		PnL: make(map[model.Coin]Stats),
+		PnLPerCoin:    make(map[model.Coin]Stats),
+		PnLPerNetwork: make(map[string]Stats),
 	}
 }
 
-func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl Stats) {
-	tt := t.PnL[coin]
+func (t *tracker) add(coin model.Coin, network string, value float64) (coinPnl, globalPnl Stats) {
+	tt := t.PnLPerCoin[coin]
+	nn := t.PnLPerNetwork[network]
 	if value > 0 {
 		tt.Profit += 1
 		tt.PnL += value
 		tt.Num += 1
+		nn.Profit += 1
+		nn.PnL += value
+		nn.Num += 1
 		t.Stats.PnL += value
 		t.Stats.Num += 1
 		t.Stats.Profit += 1
@@ -48,11 +54,15 @@ func (t *tracker) add(coin model.Coin, value float64) (coinPnl, globalPnl Stats)
 		tt.Loss += 1
 		tt.PnL += value
 		tt.Num += 1
+		nn.Loss += 1
+		nn.PnL += value
+		nn.Num += 1
 		t.Stats.PnL += value
 		t.Stats.Num += 1
 		t.Stats.Loss += 1
 	}
-	t.PnL[coin] = tt
+	t.PnLPerCoin[coin] = tt
+	t.PnLPerNetwork[network] = nn
 	return tt, t.Stats
 }
 
@@ -86,8 +96,8 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 	}
 }
 
-func (et *ExchangeTrader) Stats() map[model.Coin]Stats {
-	return et.tracker.PnL
+func (et *ExchangeTrader) Stats() (map[model.Coin]Stats, map[string]Stats) {
+	return et.tracker.PnLPerCoin, et.tracker.PnLPerNetwork
 }
 
 func (et *ExchangeTrader) Settings() Settings {
@@ -198,7 +208,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 }
 
 func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64, reason Reason, live bool) (*model.TrackedOrder, bool, Event, error) {
+	openType model.Type, open bool, volume float64, reason Reason, network string, live bool) (*model.TrackedOrder, bool, Event, error) {
 	if volume == 0 {
 		volume = et.settings.OpenValue / price
 	}
@@ -208,11 +218,12 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	t := openType
 	position, ok, positions := et.trader.check(key)
 	action := Event{
-		Time:   time,
-		Type:   openType,
-		Price:  price,
-		Key:    key,
-		Reason: reason,
+		Time:    time,
+		Network: network,
+		Type:    openType,
+		Price:   price,
+		Key:     key,
+		Reason:  reason,
 	}
 	if ok {
 		volume = position.Volume
@@ -322,7 +333,7 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		}
 	}
 	if close == "" {
-		err = et.trader.add(key, order, live)
+		err = et.trader.add(key, order, live, network)
 	} else {
 		err = et.trader.close(key)
 		// and ... open a new one ...
@@ -333,26 +344,21 @@ func (et *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 					return nil, false, action, fmt.Errorf("could not send reverse order: %w", err)
 				}
 			}
-			err = et.trader.add(key, order, live)
+			err = et.trader.add(key, order, live, network)
 		}
 	}
 	if err != nil {
 		log.Error().Err(err).Msg("could not store position")
 	}
-	et.tracker.add(order.Coin, action.Value)
+	et.tracker.add(order.Coin, action.Network, action.Value)
 	action = et.track(order.Coin, action)
 	return order, true, action, err
 }
 
 func (et *ExchangeTrader) track(coin model.Coin, action Event) Event {
-	action.CoinPnL = et.tracker.PnL[coin].PnL
-	action.CoinLossTrades = et.tracker.PnL[coin].Loss
-	action.CoinProfitTrades = et.tracker.PnL[coin].Profit
-	action.CoinNumOfTrades = et.tracker.PnL[coin].Num
-	action.GlobalPnL = et.tracker.Stats.PnL
-	action.GlobalLossTrades = et.tracker.Stats.Loss
-	action.GlobalProfitTrades = et.tracker.Stats.Profit
-	action.GlobalNumOfTrades = et.tracker.Stats.Num
+	action.Coin = et.tracker.PnLPerCoin[coin]
+	action.Global = et.tracker.Stats
+	action.TradeTracker.Network = et.tracker.PnLPerNetwork[action.Network]
 	return action
 }
 

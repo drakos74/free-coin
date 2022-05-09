@@ -226,10 +226,10 @@ func TestProcessor(t *testing.T) {
 				//net.ConstructNeuralNetwork(nil),
 				//net.ConstructNeuralNetwork(nil),
 				//net.ConstructNeuralNetwork(nil),
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
-				net.ConstructRandomForest(false),
-			//ConstructRandomForest(true),
+				net.ConstructRandomForestNetwork(false),
+				net.ConstructRandomForestNetwork(false),
+				net.ConstructRandomForestNetwork(false),
+			//ConstructRandomForestNetwork(true),
 			//ConstructPolynomialNetwork(0.0001),
 			//RandomForestNetwork{debug: true, tmpKey: "3"},
 			//RandomForestNetwork{debug: true, tmpKey: "4"},
@@ -303,7 +303,7 @@ func TestProcessor(t *testing.T) {
 }
 
 func netConfig() *mlmodel.Config {
-	return testVaryingML(6, 8, 5, 8, 0.5, true)
+	return testVaryingML(6, 8, 50, 8, 0.5, true)
 }
 
 func tradeGen() func() []*model.TradeSignal {
@@ -322,6 +322,16 @@ func TestNetwork(t *testing.T) {
 	}
 
 	tests := map[string]test{
+		"random-forest-network": {
+			config: netConfig(),
+			trades: tradeGen(),
+			pnl:    []client.Report{},
+			network: []net.ConstructNetwork{
+				net.ConstructRandomForestNetwork(true),
+				net.ConstructRandomForestNetwork(true),
+				net.ConstructRandomForestNetwork(true),
+			},
+		},
 		"random-forest": {
 			config: netConfig(),
 			trades: tradeGen(),
@@ -359,7 +369,7 @@ func TestNetwork(t *testing.T) {
 			network: []net.ConstructNetwork{
 				net.ConstructHMM(),
 				net.ConstructNeuralNetwork(nil),
-				net.ConstructRandomForest(false),
+				net.ConstructRandomForestNetwork(false),
 			},
 		},
 	}

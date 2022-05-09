@@ -21,7 +21,7 @@ func formatSettings(settings trader.Settings) string {
 		settings.StopLoss)
 }
 
-func formatStat(c model.Coin, stats trader.Stats) string {
+func formatStat(c string, stats trader.Stats) string {
 	return fmt.Sprintf("[%s] %.2f [%d:%d]\n", c, stats.PnL, stats.Profit, stats.Loss)
 }
 
@@ -67,7 +67,7 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm %s %.2f \n%s %.4f %s\n%.2f %s|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
+	return fmt.Sprintf("%s\n%s|%.fm %s %.2f \n%s %.4f %s\n%.2f %s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
 		formatTime(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -79,12 +79,15 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 		model.EURO,
 		100*action.PnL,
 		"%",
-		action.CoinPnL,
-		action.CoinProfitTrades,
-		action.CoinLossTrades,
-		action.GlobalPnL,
-		action.GlobalProfitTrades,
-		action.GlobalLossTrades,
+		action.TradeTracker.Network.PnL,
+		action.TradeTracker.Network.Profit,
+		action.TradeTracker.Network.Loss,
+		action.Coin.PnL,
+		action.Coin.Profit,
+		action.Coin.Loss,
+		action.Global.PnL,
+		action.Global.Profit,
+		action.Global.Loss,
 
 		action.Reason,
 		emoji.MapToAction(ok),
@@ -93,7 +96,7 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 }
 
 func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm|%s-%d|%.2f %s\n%.4f %s %.2f%s\n%.2f%s|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
+	return fmt.Sprintf("%s\n%s|%.fm|%s-%d|%.2f %s\n%.4f %s %.2f%s\n%.2f%s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
 		formatTime(signal.Time),
 
 		signal.Key.Coin,
@@ -109,12 +112,15 @@ func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool
 		model.EURO,
 		100*action.PnL,
 		"%",
-		action.CoinPnL,
-		action.CoinProfitTrades,
-		action.CoinLossTrades,
-		action.GlobalPnL,
-		action.GlobalProfitTrades,
-		action.GlobalLossTrades,
+		action.TradeTracker.Network.PnL,
+		action.TradeTracker.Network.Profit,
+		action.TradeTracker.Network.Loss,
+		action.Coin.PnL,
+		action.Coin.Profit,
+		action.Coin.Loss,
+		action.Global.PnL,
+		action.Global.Profit,
+		action.Global.Loss,
 
 		action.Reason,
 		signal.Precision,

@@ -10,7 +10,6 @@ import (
 
 type PolynomialRegression struct {
 	SingleNetwork
-	cfg mlmodel.Model
 }
 
 func ConstructPolynomialNetwork(threshold float64) func(cfg mlmodel.Model) Network {
@@ -21,26 +20,22 @@ func ConstructPolynomialNetwork(threshold float64) func(cfg mlmodel.Model) Netwo
 
 func NewPolynomialRegressionNetwork(cfg mlmodel.Model) *PolynomialRegression {
 	return &PolynomialRegression{
-		SingleNetwork: NewSingleNetwork(),
-		cfg:           cfg,
+		SingleNetwork: NewSingleNetwork(cfg),
 	}
 }
 
-func (p *PolynomialRegression) Model() mlmodel.Model {
-	return p.cfg
-}
-
 func (p *PolynomialRegression) Train(ds *Dataset) ModelResult {
+	config := p.SingleNetwork.config
 	if len(ds.Vectors) > 0 {
 		v := ds.Vectors[len(ds.Vectors)-1]
 		in := v.NewIn
-		if in[2] > p.cfg.PrecisionThreshold {
+		if in[2] > config.PrecisionThreshold {
 			return ModelResult{
 				Type:     model.Buy,
 				Accuracy: in[2],
 				OK:       true,
 			}
-		} else if in[2] < -1*p.cfg.PrecisionThreshold {
+		} else if in[2] < -1*config.PrecisionThreshold {
 			return ModelResult{
 				Type:     model.Sell,
 				Accuracy: math.Abs(in[2]),

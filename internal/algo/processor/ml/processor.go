@@ -85,7 +85,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live)
+									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Detail.Type, s.Live)
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 									} else if !ok {
@@ -93,6 +93,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									}
 									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
+								log.Info().
+									Str("coin", string(key.Coin)).
+									Floats64("features", result.Features).
+									Str("detail", fmt.Sprintf("%+v", result.Detail.Type)).
+									Str("signal", fmt.Sprintf("%+v", signal)).
+									Msg("features")
 							}
 							// whatever happened , lets benchmark it
 							if config.Option.Benchmark {
@@ -141,7 +147,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if p.PnL < 0 {
 								reason = trader.StopLossReason
 							}
-							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live)
+							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Stats.Strategy, p.Live)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
 							} else if floats.Sum(profit) < 0 {

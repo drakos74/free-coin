@@ -17,13 +17,12 @@ import (
 
 type RandomForestNetwork struct {
 	SingleNetwork
-	cfg    mlmodel.Model
 	debug  bool
 	tmpKey string
 	tree   base.Classifier
 }
 
-func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
+func ConstructRandomForestNetwork(debug bool) func(cfg mlmodel.Model) Network {
 	return func(cfg mlmodel.Model) Network {
 		config := cfg.Evolve()
 		return NewRandomForestNetwork(debug, coinmath.String(10), config)
@@ -32,19 +31,14 @@ func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
 
 func NewRandomForestNetwork(debug bool, key string, cfg mlmodel.Model) *RandomForestNetwork {
 	return &RandomForestNetwork{
-		SingleNetwork: NewSingleNetwork(),
-		cfg:           cfg,
+		SingleNetwork: NewSingleNetwork(cfg),
 		debug:         debug,
 		tmpKey:        key,
 	}
 }
 
-func (r *RandomForestNetwork) Model() mlmodel.Model {
-	return r.cfg
-}
-
 func (r *RandomForestNetwork) Train(ds *Dataset) ModelResult {
-	config := r.cfg
+	config := r.SingleNetwork.config
 	acc, err := r.Fit(ds)
 
 	r.statsCollector.Iterations++
@@ -72,11 +66,11 @@ func (r *RandomForestNetwork) Train(ds *Dataset) ModelResult {
 }
 
 func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
-	config := r.cfg
+	config := r.SingleNetwork.config
 	hash := r.tmpKey
 	vv := ds.Vectors
-	if len(vv) > r.cfg.BufferSize {
-		vv = vv[len(ds.Vectors)-r.cfg.BufferSize:]
+	if len(vv) > config.BufferSize {
+		vv = vv[len(ds.Vectors)-config.BufferSize:]
 	}
 	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), vv, false)
 	if err != nil {
@@ -94,10 +88,11 @@ func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
 }
 
 func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
+	config := r.SingleNetwork.config
 	hash := r.tmpKey
 	vv := ds.Vectors
-	if len(vv) > r.cfg.BufferSize {
-		vv = vv[len(ds.Vectors)-r.cfg.BufferSize:]
+	if len(vv) > config.BufferSize {
+		vv = vv[len(ds.Vectors)-config.BufferSize:]
 	}
 	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_predict")), vv, true)
 	if err != nil {

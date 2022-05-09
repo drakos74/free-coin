@@ -123,13 +123,24 @@ func NewModel(p []float64) Model {
 	}
 }
 
-func EvolveModel(cc [][]float64) Model {
+type Performance struct {
+	Config []float64
+	Score  float64
+}
+
+type ByScore []Performance
+
+func (p ByScore) Len() int           { return len(p) }
+func (p ByScore) Less(i, j int) bool { return p[i].Score < p[j].Score }
+func (p ByScore) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func EvolveModel(cc []Performance) Model {
 	mm := make([]float64, 4)
 	for _, c := range cc {
-		mm[0] += c[0]
-		mm[1] += c[1]
-		mm[2] += c[2]
-		mm[3] += c[3]
+		mm[0] += c.Config[0]
+		mm[1] += c.Config[1]
+		mm[2] += c.Config[2]
+		mm[3] += c.Config[3]
 	}
 
 	for i, m := range mm {
@@ -231,6 +242,12 @@ type Detail struct {
 	Type  string `json:"type"`
 	Hash  string `json:"hash"`
 	Index int    `json:"index"`
+}
+
+func NetworkDetail(n string) Detail {
+	return Detail{
+		Type: n,
+	}
 }
 
 func (signal Signal) ToString() string {
@@ -349,7 +366,7 @@ func (b *Benchmark) Add(key model.Key, trade model.Tick, signal Signal, config *
 		Tick: trade,
 	})
 
-	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason, true)
+	_, ok, _, err := b.Wallet[key].CreateOrder(key, signal.Time, signal.Price, signal.Type, true, 0, trader.SignalReason, signal.Detail.Type, true)
 	if err != nil {
 		log.Err(err).Msg("could not submit signal for benchmark")
 		return client.Report{}, ok, nil

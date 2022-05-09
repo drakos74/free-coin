@@ -40,6 +40,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				"gap",
 				"prec",
 				"ds",
+				"stats",
 				"",
 			),
 			api.Any(&coin),
@@ -80,13 +81,16 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))
 		case "stats":
-			stats := wallet.Stats()
+			coinStats, networkStats := wallet.Stats()
 			if key.Coin == model.AllCoins || key.Coin == model.NoCoin {
-				for c, stat := range stats {
-					txtBuffer.WriteString(formatStat(c, stat))
+				for c, stat := range coinStats {
+					txtBuffer.WriteString(formatStat(string(c), stat))
 				}
 			} else {
-				txtBuffer.WriteString(formatStat(key.Coin, stats[key.Coin]))
+				txtBuffer.WriteString(formatStat(string(key.Coin), coinStats[key.Coin]))
+			}
+			for network, stat := range networkStats {
+				txtBuffer.WriteString(formatStat(network, stat))
 			}
 		case "cfg":
 			txtBuffer.WriteString(formatConfig(*config))
@@ -128,8 +132,9 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 							aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
 						}
 						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
-
 					}
+					txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Stats))
+					txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.CC))
 				}
 			}
 		case "start":
@@ -150,7 +155,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						if k.Match(p.Coin) {
 							if position.Type == p.Type {
 								// the least we can check here ...
-								_, ok, _, err := wallet.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume, trader.ForceResetReason, true)
+								_, ok, _, err := wallet.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume, trader.ForceResetReason, p.Strategy, true)
 								if err != nil || !ok {
 									txtBuffer.WriteString(fmt.Sprintf("%v|err=<%s>\n", ok, err.Error()))
 								} else {

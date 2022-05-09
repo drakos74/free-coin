@@ -35,12 +35,15 @@ func RandomForestTrain(tree base.Classifier, fileName string, size, features int
 	// Load in the iris dataset
 	iris, err := base.ParseCSVToInstances(fileName, false)
 	if err != nil {
-		return nil, nil, 0.0, err
+		return nil, nil, 0.0, fmt.Errorf("could not parse csv: %w", err)
 	}
 
+	fmt.Printf("iris = %+v\n", iris)
+
 	irisf, err := PreProcessAttributes(iris)
+	fmt.Printf("irisf.AllAttributes() = %+v\n", irisf.AllAttributes())
 	if err != nil {
-		return nil, nil, 0.0, err
+		return nil, nil, 0.0, fmt.Errorf("could not pre-process: %w", err)
 	}
 
 	// Create a 60-40 training-test split
@@ -51,16 +54,16 @@ func RandomForestTrain(tree base.Classifier, fileName string, size, features int
 	}
 	err = tree.Fit(trainData)
 	if err != nil {
-		return nil, nil, 0.0, err
+		return nil, nil, 0.0, fmt.Errorf("could not fit: %w", err)
 	}
 	predictions, err := tree.Predict(testData)
 	if err != nil {
-		return nil, nil, 0.0, err
+		return nil, nil, 0.0, fmt.Errorf("could not predict: %w", err)
 	}
 
 	cf, err := evaluation.GetConfusionMatrix(testData, predictions)
 	if err != nil {
-		return nil, nil, 0.0, err
+		return nil, nil, 0.0, fmt.Errorf("could not get confusion matrix: %w", err)
 	}
 
 	if debug {

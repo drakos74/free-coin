@@ -16,7 +16,6 @@ import (
 type NNetwork struct {
 	SingleNetwork
 	net *ff.Network
-	cfg mlmodel.Model
 }
 
 func ConstructNeuralNetwork(network *ff.Network) func(cfg mlmodel.Model) Network {
@@ -57,14 +56,9 @@ func NewNN(network *ff.Network, cfg mlmodel.Model) *NNetwork {
 	}
 
 	return &NNetwork{
-		SingleNetwork: NewSingleNetwork(),
+		SingleNetwork: NewSingleNetwork(cfg),
 		net:           network,
-		cfg:           cfg,
 	}
-}
-
-func (n *NNetwork) Model() mlmodel.Model {
-	return n.cfg
 }
 
 func (n *NNetwork) Train(ds *Dataset) ModelResult {
