@@ -38,10 +38,7 @@ func RandomForestTrain(tree base.Classifier, fileName string, size, features int
 		return nil, nil, 0.0, fmt.Errorf("could not parse csv: %w", err)
 	}
 
-	fmt.Printf("iris = %+v\n", iris)
-
 	irisf, err := PreProcessAttributes(iris)
-	fmt.Printf("irisf.AllAttributes() = %+v\n", irisf.AllAttributes())
 	if err != nil {
 		return nil, nil, 0.0, fmt.Errorf("could not pre-process: %w", err)
 	}
