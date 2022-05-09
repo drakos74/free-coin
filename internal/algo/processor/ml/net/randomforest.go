@@ -27,7 +27,7 @@ func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
 func NewRandomForest(cfg mlmodel.Model, key string, debug bool) *RandomForest {
 	return &RandomForest{
 		SingleNetwork: NewSingleNetwork(cfg),
-		forest:        ml.NewForest(cfg.ModelSize),
+		forest:        ml.NewForest(1000),
 		cfg:           cfg,
 		debug:         debug,
 		tmpKey:        key,

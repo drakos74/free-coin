@@ -67,10 +67,11 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm %s %.2f \n%s %.4f %s\n%.2f %s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
+	return fmt.Sprintf("%s\n%s|%.fm %s %s %.2f \n%s %.4f %s\n%.2f %s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
 		formatTime(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
+		action.Network,
 		emoji.MapType(action.Type),
 
 		action.Price,

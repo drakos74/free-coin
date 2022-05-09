@@ -214,6 +214,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Detail:   k,
 			Type:     res.Type,
 			Accuracy: res.Accuracy,
+			Features: res.Features,
 			Profit:   report.Profit,
 			Trend:    trend,
 			OK:       res.OK,

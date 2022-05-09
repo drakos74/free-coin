@@ -87,7 +87,9 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 			net.ConstructRandomForestNetwork(false),
 			net.ConstructRandomForestNetwork(false),
 			net.ConstructRandomForestNetwork(false),
-			//net.ConstructHMM(),
+			net.ConstructRandomForest(false),
+			net.ConstructRandomForest(false),
+			net.ConstructHMM(),
 		)).
 		Apply()
 }

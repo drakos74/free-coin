@@ -370,6 +370,7 @@ func TestNetwork(t *testing.T) {
 				net.ConstructHMM(),
 				net.ConstructNeuralNetwork(nil),
 				net.ConstructRandomForestNetwork(false),
+				net.ConstructRandomForest(false),
 			},
 		},
 	}
