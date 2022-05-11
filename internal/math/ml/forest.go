@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/rs/zerolog/log"
+
 	randomforest "github.com/malaschitz/randomForest"
 )
 
@@ -20,6 +22,7 @@ func NewForest(n int) *RandomForest {
 
 func (rf *RandomForest) Train(xData [][]float64, yData []int) (float64, []float64) {
 	forest := &randomforest.Forest{}
+	log.Info().Str("xData", fmt.Sprintf("%+v", xData)).Str("yData", fmt.Sprintf("%+v", yData)).Msg("data")
 	forest.Data = randomforest.ForestData{X: xData, Class: yData}
 	//dForest := forest.BuildDeepForest()
 	//dForest.Train(20, 100, 1000)
