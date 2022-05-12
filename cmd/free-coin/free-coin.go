@@ -84,11 +84,11 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		ForUser(u).
 		ForExchange(e).
 		WithProcessor(ml.Processor(api.FreeCoin, shard, registry, configML(),
-			net.ConstructRandomForestNetwork(false),
-			net.ConstructRandomForestNetwork(false),
+			//net.ConstructRandomForestNetwork(false),
+			//net.ConstructRandomForestNetwork(false),
 			net.ConstructRandomForest(false),
 			net.ConstructRandomForest(false),
-			net.ConstructHMM(),
+			//net.ConstructHMM(),
 		)).
 		Apply()
 }
