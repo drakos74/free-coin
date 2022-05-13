@@ -1,12 +1,14 @@
 package net
 
 import (
+	"fmt"
 	"math"
 
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/rs/zerolog/log"
 )
 
 type RandomForest struct {
@@ -55,7 +57,17 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 	}
 	acc, features := r.forest.Train(xx, yy)
 	var t model.Type
-	p := r.forest.Predict(newX)
+	var p []float64
+
+	if len(newX) == r.config.Features {
+		p = r.forest.Predict(newX)
+	} else {
+		log.Info().
+			Int("xx", len(xx)).
+			Int("yy", len(yy)).
+			Str("newX", fmt.Sprintf("%+v", newX)).
+			Msg("malformed entry")
+	}
 
 	if acc > r.cfg.PrecisionThreshold {
 		if p[0] > p[2] {
