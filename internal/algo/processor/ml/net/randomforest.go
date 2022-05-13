@@ -40,6 +40,9 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 
 	newX := make([]float64, 0)
 	for _, v := range ds.Vectors {
+		if len(v.PrevIn) != r.config.Features {
+			continue
+		}
 		xx = append(xx, v.PrevIn)
 		y := -1
 		for i, o := range v.PrevOut {
