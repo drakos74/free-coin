@@ -177,7 +177,7 @@ func configML() *mlmodel.Config {
 			Benchmark: true,
 		},
 		Buffer: mlmodel.Buffer{
-			Interval: time.Minute,
+			Interval: 10 * time.Second,
 		},
 	}
 }

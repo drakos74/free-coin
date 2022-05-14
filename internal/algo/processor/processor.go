@@ -130,7 +130,6 @@ func Deriv() Enrich {
 			velocity := 0.0
 			momentum := 0.0
 			if vv[1][0] != vv[0][0] {
-
 				velocity = (vv[1][1]/vv[0][1] - 1) / (vv[1][0] - vv[0][0])
 				momentum = ((vv[1][1]*vv[1][2])/(vv[0][1]*vv[0][2]) - 1) / (vv[1][0] - vv[0][0])
 			}

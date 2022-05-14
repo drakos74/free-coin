@@ -81,11 +81,22 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 		go func(coin model.Coin, signals chan<- *model.TradeSignal) {
 			for bucket := range trades {
 				if bucket.OK {
+					min, max := bucket.Stats[0].Range()
 					signal := &model.TradeSignal{
 						Coin: coin,
 						Tick: model.Tick{
 							Time:   bucket.Time.Add(bucket.Duration),
 							Active: bucket.OK,
+							Range: model.Range{
+								From: model.Event{
+									Price: min,
+									Time:  bucket.Time,
+								},
+								To: model.Event{
+									Price: max,
+									Time:  bucket.Time.Add(bucket.Duration),
+								},
+							},
 						},
 						Meta: model.Meta{
 							Time: bucket.Time,

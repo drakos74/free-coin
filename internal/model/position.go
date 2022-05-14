@@ -151,8 +151,8 @@ type Position struct {
 func (p *Position) Update(trade Tick) Position {
 
 	if trade.Active {
-		p.CurrentPrice = trade.Price
-		p.CurrentTime = trade.Time
+		p.CurrentPrice = trade.Range.To.Price
+		p.CurrentTime = trade.Range.To.Time
 	}
 
 	pnl, fees := PnL(p.Type, p.Volume, p.OpenPrice, p.CurrentPrice)

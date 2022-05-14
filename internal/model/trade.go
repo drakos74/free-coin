@@ -32,10 +32,21 @@ type Move struct {
 	Momentum float64 `json:"momentum"`
 }
 
+type Event struct {
+	Price float64   `json:"price"`
+	Time  time.Time `json:"time"`
+}
+
+type Range struct {
+	From Event `json:"from"`
+	To   Event `json:"to"`
+}
+
 // Tick defines a tick in the price
 type Tick struct {
 	Level  `json:"level"`
 	Move   Move      `json:"move"`
+	Range  Range     `json:"range"`
 	Type   Type      `json:"type"`
 	Time   time.Time `json:"time"`
 	Active bool      `json:"active"`

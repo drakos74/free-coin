@@ -106,7 +106,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		std := last.Stats[0].StDev()
 		ema := last.Stats[0].EMA()
 		volume := last.Stats[1].Avg()
-
+		min, max := last.Stats[0].Range()
 		// add the price fit polynomials
 		inp, err := fit(xx, yy, 1, 2)
 		if err != nil {
@@ -158,6 +158,16 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 						Level: model.Level{
 							Price:  price,
 							Volume: volume,
+						},
+						Range: model.Range{
+							From: model.Event{
+								Price: min,
+								Time:  last.Time,
+							},
+							To: model.Event{
+								Price: max,
+								Time:  last.Time.Add(last.Duration),
+							},
 						},
 						Move: model.Move{
 							Velocity: last.Stats[2].Avg(),

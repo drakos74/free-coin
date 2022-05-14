@@ -52,6 +52,11 @@ func (s *Stats) Push(v float64) {
 	s.last = v
 }
 
+// Range returns the range of the diff.
+func (s Stats) Range() (float64, float64) {
+	return s.min, s.max
+}
+
 // Ratio returns the percentage of the diff.
 func (s Stats) Ratio() float64 {
 	if s.mean == 0 {

@@ -73,8 +73,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							signal := mlmodel.Signal{
 								Key:    key,
 								Detail: result.Detail,
-								Time:   vv.Meta.Tick.Time,
-								Price:  vv.Meta.Tick.Price,
+								Time:   vv.Meta.Tick.Range.To.Time,
+								Price:  vv.Meta.Tick.Range.To.Price,
 								Type:   result.Type,
 								//Spectrum:  coin_math.FFT(vv.YY),
 								//Buffer:    vv.YY,
