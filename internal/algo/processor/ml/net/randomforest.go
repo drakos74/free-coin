@@ -75,9 +75,8 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 		} else if p[2] > p[0] {
 			t = model.Sell
 		}
+		acc = math.Abs(p[0] - p[2])
 	}
-
-	acc = math.Abs(p[0] - p[2])
 
 	result := ModelResult{
 		Detail: mlmodel.Detail{
