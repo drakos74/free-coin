@@ -169,7 +169,7 @@ func configML() *mlmodel.Config {
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration:  20 * time.Second,
 				Samples:   3,
-				Threshold: []float64{0.0001, 0.000015},
+				Threshold: []float64{0.00001, 0.0000015},
 			}},
 		},
 		Option: mlmodel.Option{
