@@ -69,7 +69,7 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 			Msg("malformed entry")
 	}
 
-	if len(p) > 0 && acc > r.cfg.PrecisionThreshold {
+	if len(p) >= 3 && acc > r.cfg.PrecisionThreshold {
 		if p[0] > p[2] {
 			t = model.Buy
 		} else if p[2] > p[0] {
