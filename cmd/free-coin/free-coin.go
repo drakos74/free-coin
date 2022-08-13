@@ -129,13 +129,13 @@ func ConfigKey(coin model.Coin, d int) model.Key {
 func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 		sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
-			Stats:  StatsConfig(0.1),
-			Model:  ModelConfig(0.55),
+			Stats:  StatsConfig(0.15),
+			Model:  ModelConfig(0.61),
 			Trader: TraderConfig(),
 		}
-		sgm[ConfigKey(coin, 6)] = mlmodel.Segments{
-			Stats:  StatsConfig(0.05),
-			Model:  ModelConfig(0.6),
+		sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
+			Stats:  StatsConfig(0.2),
+			Model:  ModelConfig(0.61),
 			Trader: TraderConfig(),
 		}
 		return sgm
@@ -163,11 +163,11 @@ func configML() *mlmodel.Config {
 	return &mlmodel.Config{
 		Segments: cfg,
 		Position: mlmodel.Position{
-			OpenValue:  500,
-			StopLoss:   0.01,
-			TakeProfit: 0.005,
+			OpenValue:  1000,
+			StopLoss:   0.04,
+			TakeProfit: 0.02,
 			TrackingConfig: []*model.TrackingConfig{{
-				Duration:  20 * time.Second,
+				Duration:  10 * time.Second,
 				Samples:   3,
 				Threshold: []float64{0.00001, 0.0000015},
 			}},
