@@ -177,6 +177,7 @@ func configML() *mlmodel.Config {
 		Option: mlmodel.Option{
 			Trace: map[string]bool{
 				string(model.FLOW): true,
+				string(model.BTC):  true,
 			},
 			Log:       false,
 			Debug:     true,

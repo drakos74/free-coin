@@ -211,8 +211,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				for _, ip := range pos {
 					internalVolume += ip.p.Volume
 					internalOpen += ip.p.OpenPrice
-					internalPnl += ip.p.PnL
 					internalValue += ip.p.OpenPrice * ip.p.Volume
+					internalPnl += ip.p.PnL
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
 						ip.k.Coin,
 						ip.k.Duration.Minutes(),
@@ -227,7 +227,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n"+
 					"ext-vol = %f | int-vol = %f\n"+
 					"ext-pnl = %.2f | int-pnl = %.2f\n"+
-					"ext-value = %.2f | int-value = %.2f",
+					"ext-value = %.2f | int-value = %.2f\n",
 					externalOpen,
 					internalOpen,
 					internalOpen-externalOpen,
