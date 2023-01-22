@@ -76,14 +76,14 @@ func (s *statsCollector) push(k model.Key, signal *model.TradeSignal) ([]interfa
 		poly := make(map[int][]float64)
 		poly2, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 			return 10000 * b.Ratio
-		}, 2)
+		}, 2, false)
 		if err != nil {
 			log.Debug().Int("degree", 2).Msg("could not fit polynomial")
 		}
 		poly[2] = poly2
 		poly3, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 			return 10000 * b.Ratio
-		}, 3)
+		}, 3, false)
 		poly[3] = poly3
 		if err != nil {
 			log.Debug().Int("degree", 3).Msg("could not fit polynomial")

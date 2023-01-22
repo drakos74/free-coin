@@ -203,41 +203,28 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 				p.Trend[k] = trend
 			}
 
-			if trace {
-				log.Info().
-					Str("coin", string(p.Coin)).
-					Str("duration", fmt.Sprintf("%+v", k.Minutes())).
-					Str("config", fmt.Sprintf("%+v", profit.Config)).
-					Str("time", fmt.Sprintf("%+v", trade.Time)).
-					Str("index", fmt.Sprintf("%+v", trade.Time.Unix()/int64(profit.Config.Duration.Seconds()))).
-					Str("pnl", fmt.Sprintf("%+v", p.PnL)).
-					Str("window", fmt.Sprintf("%+v", profit.Window.Raw())).
-					Msg("tracking")
-			}
+			//if trace {
+			//	log.Info().
+			//		Str("coin", string(p.Coin)).
+			//		Str("duration", fmt.Sprintf("%+v", k.Minutes())).
+			//		Str("config", fmt.Sprintf("%+v", profit.Config)).
+			//		Str("time", fmt.Sprintf("%+v", trade.Time)).
+			//		Str("index", fmt.Sprintf("%+v", trade.Time.Unix()/int64(profit.Config.Duration.Seconds()))).
+			//		Str("pnl", fmt.Sprintf("%+v", p.PnL)).
+			//		Str("window", fmt.Sprintf("%+v", profit.Window.Raw())).
+			//		Msg("tracking")
+			//}
 
-			if w, ok := profit.Window.Push(trade.Time, p.PnL); ok {
+			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				p.HasUpdate = true
-				s, err := profit.Window.Polynomial(0, buffer.Avg, 1)
+				s, err := profit.Window.Polynomial(0, buffer.Avg, 1, trace)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '2' fit for position")
 				}
-				a, err := profit.Window.Polynomial(0, buffer.Avg, 2)
+				a, err := profit.Window.Polynomial(0, buffer.Avg, 2, trace)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '3' fit for position")
 				}
-				if trace {
-					log.Info().
-						Str("coin", string(p.Coin)).
-						Str("stats", fmt.Sprintf("%+v", w.Values().Stats())).
-						Str("buckets", fmt.Sprintf("%+v", w.Bucket.Values().Stats())).
-						Msg("window")
-				}
-				//v, err := p.Profit[k].Window.Values(0, buffer.Avg)
-				//if err != nil {
-				//	log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not extract values")
-				//}
-				//fmt.Printf("s = %+v\n", s)
-				//fmt.Printf("a = %+v\n", a)
 				if len(s) >= 1 && len(a) >= 2 {
 					trend := p.Trend[k]
 					trend.CurrentValue[0] = s[1]
@@ -297,7 +284,7 @@ func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Du
 		if _, ok := p.Profit[k].Window.Push(price.Time, profit); ok {
 			a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 				return b.Value
-			}, 2)
+			}, 2, false)
 			if err != nil {
 				log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
 			} else {

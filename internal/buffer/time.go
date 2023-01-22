@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/drakos74/free-coin/internal/math"
 )
 
@@ -222,10 +224,17 @@ func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64
 // for the given polynomial degree
 // and based on the value extracted from the TimeBucket
 // scaled at the corresponding time duration.
-func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int) ([]float64, error) {
+func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int, trace bool) ([]float64, error) {
 	xx, yy, err := h.Extract(index, extract)
 	if err != nil {
 		return nil, fmt.Errorf("could not extarct series: %w", err)
+	}
+	if trace {
+		log.Info().
+			Str("xx", fmt.Sprintf("%+v", xx)).
+			Str("yy", fmt.Sprintf("%+v", yy)).
+			Str("index", fmt.Sprintf("%+v", degree)).
+			Msg("fit")
 	}
 	if len(yy) < degree+1 {
 		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
