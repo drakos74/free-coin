@@ -121,13 +121,19 @@ func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 type WindowStatus struct {
 	TimeValues []interface{}
 	TimeSize   int
-	Values     []*Stats
+	Values     []string
 	Size       int
 }
 
 func (h HistoryWindow) Raw() WindowStatus {
+	stats := make([]string, 0)
+
+	for _, stat := range h.Window.window.bucket.Values().Stats() {
+		stats = append(stats, fmt.Sprintf("%+v", stat))
+	}
+
 	return WindowStatus{
-		Values:     h.Window.window.bucket.Values().Stats(),
+		Values:     stats,
 		Size:       h.Window.window.bucket.Size(),
 		TimeValues: h.buckets.values,
 		TimeSize:   h.buckets.Size(),
