@@ -110,11 +110,12 @@ func ModelConfig(precision float64) mlmodel.Model {
 	}
 }
 
-func TraderConfig() mlmodel.Trader {
+func TraderConfig(live bool) mlmodel.Trader {
 	return mlmodel.Trader{
 		BufferTime:     0,
 		PriceThreshold: 0,
 		Weight:         1,
+		Live:           live,
 	}
 }
 
@@ -136,7 +137,7 @@ func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentCon
 		sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
 			Stats:  StatsConfig(0.2),
 			Model:  ModelConfig(0.61),
-			Trader: TraderConfig(),
+			Trader: TraderConfig(true),
 		}
 		return sgm
 	}
