@@ -208,6 +208,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 					Str("coin", string(p.Coin)).
 					Str("duration", fmt.Sprintf("%+v", k.Minutes())).
 					Str("config", fmt.Sprintf("%+v", profit.Config)).
+					Str("time", fmt.Sprintf("%+v", trade.Time)).
+					Str("pnl", fmt.Sprintf("%+v", p.PnL)).
+					Str("window", fmt.Sprintf("%+v", profit.Window.Raw())).
 					Msg("tracking")
 			}
 

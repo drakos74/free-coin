@@ -118,7 +118,21 @@ func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 	}
 }
 
-// TODO : make this a channel in order to time the bucket correctly
+type WindowStatus struct {
+	TimeValues []interface{}
+	TimeSize   int
+	Values     []*Stats
+	Size       int
+}
+
+func (h HistoryWindow) Raw() WindowStatus {
+	return WindowStatus{
+		Values:     h.Window.window.bucket.Values().Stats(),
+		Size:       h.Window.window.bucket.Size(),
+		TimeValues: h.buckets.values,
+		TimeSize:   h.buckets.Size(),
+	}
+}
 
 // Push adds an element to the given time Index.
 // It will return true, if there was a new bucket completed at the last operation
