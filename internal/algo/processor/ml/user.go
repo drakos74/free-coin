@@ -214,31 +214,31 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					internalPnl += ip.p.PnL
 					pnl, _ := model.PnL(ip.p.Type, externalVolume, externalOpen, ip.p.CurrentPrice)
 					externalPnl += pnl
-					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
+					txtBuffer.WriteString(fmt.Sprintf("%s %s\n",
 						ip.k.Coin,
-						ip.k.Duration.Minutes(),
+						//ip.k.Duration.Minutes(),
 						formatPosition(ip.p)))
 				}
-				txtBuffer.WriteString(fmt.Sprintf("value = %.2f | pnl = %.2f (%d:%d)\n",
-					externalValue-internalValue,
-					externalPnl-internalPnl,
-					externalCount,
-					len(pos),
-				))
-				txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n"+
-					"ext-vol = %f | int-vol = %f\n"+
-					"ext-pnl = %.2f | int-pnl = %.2f\n"+
-					"ext-value = %.2f | int-value = %.2f\n",
-					externalOpen,
-					internalOpen,
-					internalOpen-externalOpen,
-					externalVolume,
-					internalVolume,
-					externalPnl,
-					internalPnl,
-					externalValue,
-					internalValue,
-				))
+				//txtBuffer.WriteString(fmt.Sprintf("value = %.2f | pnl = %.2f (%d:%d)\n",
+				//	externalValue-internalValue,
+				//	externalPnl-internalPnl,
+				//	externalCount,
+				//	len(pos),
+				//))
+				//txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n"+
+				//	"ext-vol = %f | int-vol = %f\n"+
+				//	"ext-pnl = %.2f | int-pnl = %.2f\n"+
+				//	"ext-value = %.2f | int-value = %.2f\n",
+				//	externalOpen,
+				//	internalOpen,
+				//	internalOpen-externalOpen,
+				//	externalVolume,
+				//	internalVolume,
+				//	externalPnl,
+				//	internalPnl,
+				//	externalValue,
+				//	internalValue,
+				//))
 			}
 		}
 
