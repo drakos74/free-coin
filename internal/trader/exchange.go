@@ -6,6 +6,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/emoji"
+
 	"github.com/drakos74/free-coin/internal/storage"
 
 	"github.com/drakos74/free-coin/internal/api"
@@ -116,7 +118,9 @@ func (xtrader *ExchangeTrader) sync() {
 			case <-ticker.C:
 				pp, err := xtrader.UpstreamPositions(context.Background())
 				if err != nil {
-					xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf("err-get-pos ... %s", err.Error())), nil)
+					if xtrader.user != nil {
+						xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf("err-get-pos ... %s", err.Error())), nil)
+					}
 					continue
 				}
 				_, positions := xtrader.CurrentPositions(model.AllCoins)
@@ -128,7 +132,10 @@ func (xtrader *ExchangeTrader) sync() {
 							newPos, update := pos.Sync(xp)
 							if update {
 								xtrader.trader.positions[k] = newPos
-								xtrader.trader.save()
+								err = xtrader.trader.save()
+								if xtrader.user != nil {
+									xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(newPos), err)), nil)
+								}
 							}
 						}
 					}
@@ -136,7 +143,10 @@ func (xtrader *ExchangeTrader) sync() {
 						// open new position
 						xp.Live = true
 						xtrader.trader.positions[model.Key{Coin: xp.Coin}] = xp
-						xtrader.trader.save()
+						err = xtrader.trader.save()
+						if xtrader.user != nil {
+							xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(xp), err)), nil)
+						}
 					}
 				}
 			case <-quit:
@@ -145,6 +155,11 @@ func (xtrader *ExchangeTrader) sync() {
 			}
 		}
 	}()
+}
+
+func formatPos(pos model.Position) string {
+	return fmt.Sprintf("%s %s at %.2f * %.2f",
+		pos.Coin, emoji.MapType(pos.Type), pos.OpenPrice, pos.Volume)
 }
 
 func (xtrader *ExchangeTrader) Stats() (map[model.Coin]Stats, map[string]Stats) {

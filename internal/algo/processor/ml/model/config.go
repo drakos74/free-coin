@@ -334,7 +334,7 @@ func (b *Benchmark) Add(key model.Key, trade model.Tick, signal Signal, config *
 			OpenValue:  config.Position.OpenValue,
 			TakeProfit: config.Position.TakeProfit,
 			StopLoss:   config.Position.StopLoss,
-		}, e)
+		}, e, nil)
 		if err != nil {
 			return client.Report{}, false, fmt.Errorf("could not create trader for signal: %+v: %w", signal, err)
 		}
