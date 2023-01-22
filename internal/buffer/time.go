@@ -78,7 +78,7 @@ func NewTimeWindow(duration time.Duration) TimeWindow {
 func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 	// TODO : provide a inverse hash operation
-	index := t.Unix() / tw.Duration
+	index := t.Unix() // / tw.Duration
 
 	index, bucket, closed := tw.window.Push(index, v...)
 
@@ -119,6 +119,7 @@ func NewHistoryWindow(duration time.Duration, size int) HistoryWindow {
 }
 
 type WindowStatus struct {
+	LastIndex  int64
 	TimeValues []interface{}
 	TimeSize   int
 	Values     []string
@@ -135,6 +136,7 @@ func (h HistoryWindow) Raw() WindowStatus {
 	return WindowStatus{
 		Values:     stats,
 		Size:       h.Window.window.bucket.Size(),
+		LastIndex:  h.Window.window.lastIndex,
 		TimeValues: h.buckets.values,
 		TimeSize:   h.buckets.Size(),
 	}
