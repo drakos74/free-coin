@@ -145,7 +145,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
-func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend) {
+func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]TrendReport) {
 	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
@@ -218,14 +218,15 @@ func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 			if trace[string(k.Coin)] {
 				log.Info().
 					Str("report", fmt.Sprintf("%+v", report)).
-					Str("trend", fmt.Sprintf("%+v", position.Trend))
+					Str("trend", fmt.Sprintf("%+v", position.Trend)).
+					Msg("trend")
 			}
 			reports[k] = report
 			allProfit = append(allProfit, profit)
 		}
 	}
 
-	return positions, allProfit, allTrend
+	return positions, allProfit, allTrend, reports
 
 }
 

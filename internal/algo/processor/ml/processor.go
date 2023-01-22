@@ -139,7 +139,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				}
 				if tradeSignal.Meta.Live || config.Option.Debug {
 					metrics.Observer.NoteLag(f, coin, Name, "process")
-					pp, profit, trend := wallet.Update(config.Option.Trace, tradeSignal)
+					pp, profit, trend, reports := wallet.Update(config.Option.Trace, tradeSignal)
 					if len(pp) > 0 {
 						for k, p := range pp {
 							reason := trader.VoidReasonClose
@@ -161,6 +161,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						}
 					} else if len(trend) > 0 {
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)
+					}
+					// print the reports for trace reasons
+					for k, report := range reports {
+						if config.Option.Trace[string(k.Coin)] {
+							u.Send(index, api.NewMessage(formatTrendReport(config.Option.Log, k, report)), nil)
+						}
 					}
 				}
 				strategyDuration := time.Now().Sub(startStrategy).Seconds()

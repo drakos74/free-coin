@@ -57,6 +57,12 @@ func formatPosition(p model.Position) string {
 	)
 }
 
+func formatKey(k model.Key) string {
+	return fmt.Sprintf("%s|%.0f",
+		k.Coin,
+		k.Duration.Minutes())
+}
+
 func formatReport(report client.Report) string {
 	return fmt.Sprintf("[ buy : %d , sell : %d ] %.2f ( %.2f | %.2f ) ",
 		report.Buy,
@@ -64,6 +70,17 @@ func formatReport(report client.Report) string {
 		report.Profit,
 		report.Wallet,
 		report.Fees)
+}
+
+func formatTrendReport(log bool, k model.Key, report trader.TrendReport) string {
+	return fmt.Sprintf("%s %.2f (loss=%v , profit=%v)\n"+
+		"[%s , %s]",
+		formatKey(k),
+		report.Profit,
+		report.StopLossActive,
+		report.TakeProfitActive,
+		emoji.MapType(report.ValidTrend[0]), emoji.MapType(report.ValidTrend[1]),
+	)
 }
 
 func formatAction(log bool, action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
