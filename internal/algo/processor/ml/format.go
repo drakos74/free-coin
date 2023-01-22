@@ -119,9 +119,8 @@ func formatAction(log bool, action trader.Event, trend map[time.Duration]model.T
 			err,
 			formatTimeTrend(trend))
 	}
-	return fmt.Sprintf("(%.0f) %s||%s\n"+
-		"%s %.2f%s\n"+
-		"%s () %v",
+	return fmt.Sprintf("(%.0f) %s %s %s\n"+
+		"%.2f%s %s %v",
 
 		cointime.ToNow(action.Time),
 
@@ -184,9 +183,8 @@ func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err erro
 		//♻|<nil>
 		//🚛
 	}
-	return fmt.Sprintf("(%.0f) %s|%.2f|%s\n"+
-		"%s %.2f%s\n"+
-		"%s (%.2f|%.2f) %v",
+	return fmt.Sprintf("(%.0f) %s|%.2f|%s %s\n"+
+		"%.2f%s %s (%.2f|%.2f) %v",
 
 		cointime.ToNow(signal.Time),
 
@@ -213,7 +211,7 @@ func formatTime(t time.Time) string {
 func formatTrend(trend map[model.Key]map[time.Duration]model.Trend) string {
 	txtBuffer := new(strings.Builder)
 	for k, tt := range trend {
-		txtBuffer.WriteString(fmt.Sprintf("%+v\n", k))
+		txtBuffer.WriteString(fmt.Sprintf("%s ", k.Coin))
 		txtBuffer.WriteString(formatTimeTrend(tt))
 	}
 	return txtBuffer.String()
