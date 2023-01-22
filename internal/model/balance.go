@@ -28,5 +28,4 @@ func PnL(t Type, volume, openPrice, currentPrice float64) (float64, float64) {
 	value := (net * volume) - fees
 	profit := value / (openPrice * volume)
 	return profit, fees
-
 }

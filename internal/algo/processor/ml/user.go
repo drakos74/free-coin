@@ -203,8 +203,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					if np.Coin == c {
 						externalVolume += np.Volume
 						externalOpen += np.OpenPrice
-						externalValue += np.Cost
-						externalPnl += np.Net / (np.Cost + np.Fees)
+						externalValue += np.Net
 						externalCount++
 					}
 				}
@@ -213,6 +212,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					internalOpen += ip.p.OpenPrice
 					internalValue += ip.p.OpenPrice * ip.p.Volume
 					internalPnl += ip.p.PnL
+					pnl, _ := model.PnL(ip.p.Type, externalVolume, externalOpen, ip.p.CurrentPrice)
+					externalPnl += pnl
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
 						ip.k.Coin,
 						ip.k.Duration.Minutes(),

@@ -179,7 +179,7 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 			Str("coin", string(p.Coin)).
 			Str("config", fmt.Sprintf("%v", len(profit))).
 			Strs("configs", configs).
-			Msg("tracking-config")
+			Msg("create tracking config for position")
 	}
 	if p.Trend == nil {
 		p.Trend = make(map[time.Duration]Trend)
