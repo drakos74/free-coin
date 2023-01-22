@@ -146,7 +146,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 
 // Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
 func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]TrendReport) {
-	pp := et.trader.update(trade)
+	pp := et.trader.update(trace, trade)
 
 	if et.settings.TakeProfit == 0.0 {
 		et.settings.TakeProfit = math.MaxFloat64

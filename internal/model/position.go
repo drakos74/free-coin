@@ -148,7 +148,7 @@ type Position struct {
 }
 
 // Update updates the current status of the position and the profit or loss percentage.
-func (p *Position) Update(trade Tick) Position {
+func (p *Position) Update(trace bool, trade Tick) Position {
 
 	if trade.Active {
 		p.CurrentPrice = trade.Range.To.Price
@@ -169,6 +169,7 @@ func (p *Position) Update(trade Tick) Position {
 			CurrentPrice: trade.Price,
 		}
 		// try to ingest the new value to the window stats
+
 		for k, profit := range p.Profit {
 			if trend, ok := p.Trend[k]; !ok {
 				p.Trend[k] = newTrend(state)
@@ -177,7 +178,16 @@ func (p *Position) Update(trade Tick) Position {
 				trend.State = state
 				p.Trend[k] = trend
 			}
-			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
+
+			if trace {
+				log.Info().
+					Str("coin", string(p.Coin)).
+					Str("duration", fmt.Sprintf("%+v", k.Minutes())).
+					Str("config", fmt.Sprintf("%+v", profit.Config)).
+					Msg("tracking")
+			}
+
+			if w, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				p.HasUpdate = true
 				s, err := profit.Window.Polynomial(0, buffer.Avg, 1)
 				if err != nil {
@@ -186,6 +196,13 @@ func (p *Position) Update(trade Tick) Position {
 				a, err := profit.Window.Polynomial(0, buffer.Avg, 2)
 				if err != nil {
 					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '3' fit for position")
+				}
+				if trace {
+					log.Info().
+						Str("coin", string(p.Coin)).
+						Str("stats", fmt.Sprintf("%+v", w.Values().Stats())).
+						Str("buckets", fmt.Sprintf("%+v", w.Bucket.Values().Stats())).
+						Msg("window")
 				}
 				//v, err := p.Profit[k].Window.Values(0, buffer.Avg)
 				//if err != nil {

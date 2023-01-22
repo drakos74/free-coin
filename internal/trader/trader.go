@@ -85,14 +85,14 @@ func (t *trader) load() error {
 	return nil
 }
 
-func (t *trader) update(trade *model.TradeSignal) map[model.Key]model.Position {
+func (t *trader) update(trace map[string]bool, trade *model.TradeSignal) map[model.Key]model.Position {
 	positions := make(map[model.Key]model.Position)
 	newPositions := make(map[model.Key]model.Position)
 	ip := 0
 	pp := t.positions
 	for k, p := range pp {
 		if k.Match(trade.Coin) {
-			p = p.Update(trade.Tick)
+			p = p.Update(trace[string(k.Coin)], trade.Tick)
 			positions[k] = p
 			ip++
 		}
