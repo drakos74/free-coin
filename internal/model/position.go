@@ -147,6 +147,20 @@ type Position struct {
 	Volume       float64 `json:"volume"`
 }
 
+func (p *Position) Sync(pos Position) (Position, bool) {
+	update := false
+
+	if pos.OpenPrice != p.OpenPrice {
+		update = true
+		p.OpenPrice = pos.OpenPrice
+	}
+	if pos.Volume != p.Volume {
+		update = true
+		p.Volume = pos.Volume
+	}
+	return *p, update
+}
+
 // Update updates the current status of the position and the profit or loss percentage.
 func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Position {
 
@@ -254,46 +268,6 @@ func calculateTrend(currentValue, threshold, lastValue float64) (trend Type, shi
 		}
 	}
 	return trend, shift
-}
-
-// Value returns the value of the position and the profit or loss percentage.
-// TODO : add processing function for past profits
-func (p *Position) Value(price *Price) (value, profit float64, stats map[time.Duration][]float64) {
-
-	if price != nil {
-		p.CurrentPrice = price.Value
-	}
-
-	net := 0.0
-	switch p.Type {
-	case Buy:
-		net = p.CurrentPrice - p.OpenPrice
-	case Sell:
-		net = p.OpenPrice - p.CurrentPrice
-	}
-	value = (net * p.Volume) - p.Fees
-	profit = 100 * value / (p.OpenPrice * p.Volume)
-
-	if price == nil || p.Profit == nil {
-		return value, profit, nil
-	}
-
-	// try to ingest the new value to the window stats
-	aa := make(map[time.Duration][]float64)
-	for k, _ := range p.Profit {
-		if _, ok := p.Profit[k].Window.Push(price.Time, profit); ok {
-			a, err := p.Profit[k].Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
-				return b.Value
-			}, 2, false)
-			if err != nil {
-				log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial fit for position")
-			} else {
-				aa[k] = a
-			}
-		}
-	}
-
-	return value, profit, aa
 }
 
 // OpenPosition creates a position from a given order.

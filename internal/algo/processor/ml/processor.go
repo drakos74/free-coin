@@ -46,7 +46,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			TakeProfit:     config.Position.TakeProfit,
 			StopLoss:       config.Position.StopLoss,
 			TrackingConfig: config.Position.TrackingConfig,
-		}, e)
+		}, e, u)
 		if err != nil {
 			log.Error().Err(err).Str("processor", Name).Msg("processor in void state")
 			return processor.NoProcess(Name)

@@ -31,11 +31,10 @@ func TestPositionTracking(t *testing.T) {
 
 			cfg := Track(1*time.Second, 10)
 
-			pos := OpenPosition(order, []*TrackingConfig{cfg})
+			pos := OpenPosition(order, "", []*TrackingConfig{cfg})
 
 			for i := 0; i < 100; i++ {
 				now = now.Add(100 * time.Millisecond)
-				pos.Value(NewPrice(float64(i), now))
 				fmt.Printf("\npos.Profit.Data = %+v", pos.Profit)
 			}
 
