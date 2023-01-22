@@ -215,12 +215,13 @@ func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 					positions[k] = position
 				}
 			}
-			//if trace[string(k.Coin)] {
-			log.Info().
-				Str("report", fmt.Sprintf("%+v", report)).
-				Str("trend", fmt.Sprintf("%+v", position.Trend)).
-				Msg("trend")
-			//}
+			if trace[string(k.Coin)] {
+				log.Info().
+					Str("key", k.ToString()).
+					Str("report", fmt.Sprintf("%+v", report)).
+					Str("trend", fmt.Sprintf("%+v", position.Trend)).
+					Msg("trend")
+			}
 			reports[k] = report
 			allProfit = append(allProfit, profit)
 		}
