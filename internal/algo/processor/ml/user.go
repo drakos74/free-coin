@@ -190,30 +190,28 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				})
 			}
 			for c, pos := range coinPositions {
-				internalSum := 0.0
+				internalPnl := 0.0
 				internalValue := 0.0
-				externalSum := 0.0
+				externalPnl := 0.0
 				externalValue := 0.0
 				externalCount := 0
 				internalOpen := 0.0
 				externalOpen := 0.0
+				internalVolume := 0.0
+				externalVolume := 0.0
 				for _, np := range pp {
 					if np.Coin == c {
-						ep := np.Update(model.Tick{
-							Level: model.Level{
-								Price: pos[0].p.CurrentPrice,
-							},
-							Time: pos[0].p.CurrentTime,
-						})
-						externalOpen += ep.OpenPrice
-						externalValue += ep.Cost
-						externalSum += ep.PnL
+						externalVolume += np.Volume
+						externalOpen += np.OpenPrice
+						externalValue += np.Cost
+						externalPnl += np.Net / (np.Cost + np.Fees)
 						externalCount++
 					}
 				}
 				for _, ip := range pos {
+					internalVolume += ip.p.Volume
 					internalOpen += ip.p.OpenPrice
-					internalSum += ip.p.PnL
+					internalPnl += ip.p.PnL
 					internalValue += ip.p.OpenPrice * ip.p.Volume
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
 						ip.k.Coin,
@@ -222,14 +220,23 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				}
 				txtBuffer.WriteString(fmt.Sprintf("value = %.2f | pnl = %.2f (%d:%d)\n",
 					externalValue-internalValue,
-					externalSum-internalSum,
+					externalPnl-internalPnl,
 					externalCount,
 					len(pos),
 				))
-				txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n",
+				txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n"+
+					"ext-vol = %f | int-vol = %f\n"+
+					"ext-pnl = %.2f | int-pnl = %.2f\n"+
+					"ext-value = %.2f | int-value = %.2f",
 					externalOpen,
 					internalOpen,
 					internalOpen-externalOpen,
+					externalVolume,
+					internalVolume,
+					externalPnl,
+					internalPnl,
+					externalValue,
+					internalValue,
 				))
 			}
 		}
