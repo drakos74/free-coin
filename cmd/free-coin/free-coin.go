@@ -163,13 +163,15 @@ func configML() *mlmodel.Config {
 	return &mlmodel.Config{
 		Segments: cfg,
 		Position: mlmodel.Position{
-			OpenValue:  1000,
+			OpenValue:  250,
 			StopLoss:   0.04,
-			TakeProfit: 0.015,
+			TakeProfit: 0.02,
 			TrackingConfig: []*model.TrackingConfig{{
-				Duration:  30 * time.Second,
-				Samples:   3,
-				Threshold: []float64{0.00005, 0.000002},
+				Duration: 30 * time.Second,
+				Samples:  3,
+				// TODO : investigate more what this does
+				//Threshold: []float64{0.00005, 0.000002},
+				Threshold: []float64{0.00002, 0.000001},
 			}},
 		},
 		Option: mlmodel.Option{
