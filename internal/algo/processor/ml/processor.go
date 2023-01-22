@@ -163,11 +163,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)
 					}
 					// print the reports for trace reasons
-					for k, report := range reports {
-						if config.Option.Trace[string(k.Coin)] {
-							u.Send(index, api.NewMessage(formatTrendReport(config.Option.Log, k, report)), nil)
-						}
-					}
+					//for k, report := range reports {
+					//	if config.Option.Trace[string(k.Coin)] {
+					//		u.Send(index, api.NewMessage(formatTrendReport(config.Option.Log, k, report)), nil)
+					//	}
+					//}
 				}
 				strategyDuration := time.Now().Sub(startStrategy).Seconds()
 				metrics.Observer.TrackDuration(strategyDuration, coin, Name, "strategy")
