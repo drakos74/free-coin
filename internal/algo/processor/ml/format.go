@@ -67,7 +67,13 @@ func formatReport(report client.Report) string {
 }
 
 func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm %s %s %.2f \n%s %.4f %s\n%.2f %s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n%v|%v\n%+v",
+	return fmt.Sprintf("%s\n"+
+		"%s|%.fm %s %s %.2f \n"+
+		"%s %.4f %s\n"+
+		"%.2f %s\n"+
+		"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n"+
+		"%v|%v\n"+
+		"%+v",
 		formatTime(action.Time),
 		action.Key.Coin,
 		action.Key.Duration.Minutes(),
@@ -97,7 +103,12 @@ func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err 
 }
 
 func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s\n%s|%.fm|%s-%d|%.2f %s\n%.4f %s %.2f%s\n%.2f%s\n%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f)\n%v|%v",
+	return fmt.Sprintf("%s\n"+
+		"%s|%.fm|%s-%d|%.2f %s\n"+
+		"%.4f %s %.2f%s\n"+
+		"%.2f%s\n"+
+		"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f|%.2f)\n"+
+		"%v|%v",
 		formatTime(signal.Time),
 
 		signal.Key.Coin,
@@ -125,6 +136,8 @@ func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool
 
 		action.Reason,
 		signal.Precision,
+		signal.Gap,
+
 		emoji.MapToAction(ok),
 		err)
 }

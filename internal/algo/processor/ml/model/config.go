@@ -230,6 +230,7 @@ type Signal struct {
 	Price     float64             `json:"price"`
 	Type      model.Type          `json:"type"`
 	Precision float64             `json:"precision"`
+	Gap       float64             `json:"gap"`
 	Trend     float64             `json:"trend"`
 	Factor    float64             `json:"factor"`
 	Weight    int                 `json:"weight"`

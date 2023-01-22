@@ -69,13 +69,19 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 			Msg("malformed entry")
 	}
 
+	gap := 0.0
 	if len(p) >= 3 && acc > r.cfg.PrecisionThreshold {
 		if p[0] > p[2] {
 			t = model.Buy
 		} else if p[2] > p[0] {
 			t = model.Sell
 		}
-		acc = math.Abs(p[0] - p[2])
+		gap = math.Abs(p[0] - p[2])
+		// TODO : pass this from config
+		//if gap < 0.25 {
+		//	// cancel the signal
+		//	t = model.NoType
+		//}
 	}
 
 	result := ModelResult{
@@ -86,6 +92,7 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 		Features: features,
 		Type:     t,
 		Accuracy: acc,
+		Gap:      gap,
 		OK:       true,
 	}
 

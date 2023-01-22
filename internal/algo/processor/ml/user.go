@@ -30,7 +30,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			api.OneOf(&action,
 				"start",
 				"stop",
-				"reset",
+				"close",
 				"pos",
 				"tp",
 				"sl",
@@ -143,7 +143,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "stop":
 			bb := strategy.enable(key.Coin, false)
 			txtBuffer.WriteString(fmt.Sprintf("%+v", bb))
-		case "reset":
+		case "close":
 			pp, err := wallet.UpstreamPositions(context.Background())
 			if err != nil {
 				txtBuffer.WriteString(fmt.Sprintf("err=<%s>\n", err.Error()))
@@ -191,6 +191,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				externalSum := 0.0
 				externalValue := 0.0
 				externalCount := 0
+				internalOpen := 0.0
+				externalOpen := 0.0
 				for _, np := range pp {
 					if np.Coin == c {
 						ep := np.Update(model.Tick{
@@ -199,12 +201,14 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 							},
 							Time: pos[0].p.CurrentTime,
 						})
+						externalOpen += ep.OpenPrice
 						externalValue += ep.Cost
 						externalSum += ep.PnL
 						externalCount++
 					}
 				}
 				for _, ip := range pos {
+					internalOpen += ip.p.OpenPrice
 					internalSum += ip.p.PnL
 					internalValue += ip.p.OpenPrice * ip.p.Volume
 					txtBuffer.WriteString(fmt.Sprintf("%s:%.fm %s\n",
@@ -217,6 +221,11 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					externalSum-internalSum,
 					externalCount,
 					len(pos),
+				))
+				txtBuffer.WriteString(fmt.Sprintf("ext-open = %.2f | int-open = %.2f | (%.2f)\n",
+					externalOpen,
+					internalOpen,
+					internalOpen-externalOpen,
 				))
 			}
 		}

@@ -128,11 +128,11 @@ func ConfigKey(coin model.Coin, d int) model.Key {
 
 func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-		sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
-			Stats:  StatsConfig(0.15),
-			Model:  ModelConfig(0.61),
-			Trader: TraderConfig(),
-		}
+		//sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
+		//	Stats:  StatsConfig(0.2),
+		//	Model:  ModelConfig(0.61),
+		//	Trader: TraderConfig(),
+		//}
 		sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
 			Stats:  StatsConfig(0.2),
 			Model:  ModelConfig(0.61),

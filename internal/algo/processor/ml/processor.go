@@ -78,6 +78,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								Type:   result.Type,
 								//Spectrum:  coin_math.FFT(vv.YY),
 								//Buffer:    vv.YY,
+								Gap:       result.Gap,
 								Precision: result.Accuracy,
 								Trend:     result.Trend,
 								Weight:    segmentConfig.Trader.Weight,

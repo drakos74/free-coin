@@ -158,6 +158,7 @@ func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork 
 type ModelResult struct {
 	Detail   mlmodel.Detail
 	Type     model.Type
+	Gap      float64
 	Accuracy float64
 	Profit   float64
 	Trend    float64

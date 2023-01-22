@@ -172,6 +172,13 @@ func (o *Order) Market() *Order {
 	return o
 }
 
+// Limit defines an order with market order type.
+func (o *Order) Limit() *Order {
+	o.mustBeEmpty(int(o.OType))
+	o.OType = Limit
+	return o
+}
+
 // StopLoss defines an order type of stop loss kind
 func (o *Order) StopLoss() *Order {
 	o.mustBeEmpty(int(o.OType))
