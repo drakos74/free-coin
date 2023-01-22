@@ -66,80 +66,125 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatAction(action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
-	return fmt.Sprintf("%s\n"+
-		"%s|%.fm %s %s %.2f \n"+
-		"%s %.4f %s\n"+
-		"%.2f %s\n"+
-		"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n"+
-		"%v|%v\n"+
-		"%+v",
-		formatTime(action.Time),
-		action.Key.Coin,
-		action.Key.Duration.Minutes(),
-		action.Network,
-		emoji.MapType(action.Type),
+func formatAction(log bool, action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
+	if log {
+		return fmt.Sprintf("%s\n"+
+			"%s|%.fm %s %s %.2f \n"+
+			"%s %.4f %s\n"+
+			"%.2f %s\n"+
+			"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s\n"+
+			"%v|%v\n"+
+			"%+v",
+			formatTime(action.Time),
+			action.Key.Coin,
+			action.Key.Duration.Minutes(),
+			action.Network,
+			emoji.MapType(action.Type),
 
-		action.Price,
+			action.Price,
+			emoji.MapToSign(action.Value),
+			action.Value,
+			model.EURO,
+			100*action.PnL,
+			"%",
+			action.TradeTracker.Network.PnL,
+			action.TradeTracker.Network.Profit,
+			action.TradeTracker.Network.Loss,
+			action.Coin.PnL,
+			action.Coin.Profit,
+			action.Coin.Loss,
+			action.Global.PnL,
+			action.Global.Profit,
+			action.Global.Loss,
+
+			action.Reason,
+			emoji.MapToAction(ok),
+			err,
+			formatTimeTrend(trend))
+	}
+	return fmt.Sprintf("(%.0f) %s||%s\n"+
+		"%s %.2f%s\n"+
+		"%s () %v",
+
+		cointime.ToNow(action.Time),
+
+		emoji.MapType(action.Type),
+		action.Key.Coin,
+
 		emoji.MapToSign(action.Value),
-		action.Value,
-		model.EURO,
 		100*action.PnL,
 		"%",
-		action.TradeTracker.Network.PnL,
-		action.TradeTracker.Network.Profit,
-		action.TradeTracker.Network.Loss,
-		action.Coin.PnL,
-		action.Coin.Profit,
-		action.Coin.Loss,
-		action.Global.PnL,
-		action.Global.Profit,
-		action.Global.Loss,
 
 		action.Reason,
-		emoji.MapToAction(ok),
-		err,
-		formatTimeTrend(trend))
+		emoji.MapToAction(ok))
 }
 
-func formatSignal(signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
-	return fmt.Sprintf("%s\n"+
-		"%s|%.fm|%s-%d|%.2f %s\n"+
-		"%.4f %s %.2f%s\n"+
-		"%.2f%s\n"+
-		"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f|%.2f)\n"+
-		"%v|%v",
-		formatTime(signal.Time),
+func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
+	if log {
+		return fmt.Sprintf("%s\n"+
+			"%s|%.fm|%s-%d|%.2f %s\n"+
+			"%.4f %s %.2f%s\n"+
+			"%.2f%s\n"+
+			"%.2f[%d:%d]|%.2f[%d:%d]|%.2f[%d:%d] %s (%.2f|%.2f)\n"+
+			"%v|%v",
+			formatTime(signal.Time),
 
-		signal.Key.Coin,
-		signal.Key.Duration.Minutes(),
-		signal.Detail.Type,
-		signal.Detail.Index,
-		signal.Trend,
+			signal.Key.Coin,
+			signal.Key.Duration.Minutes(),
+			signal.Detail.Type,
+			signal.Detail.Index,
+			signal.Trend,
+			emoji.MapType(signal.Type),
+
+			signal.Price,
+			emoji.MapToSign(action.Value),
+			action.Value,
+			model.EURO,
+			100*action.PnL,
+			"%",
+			action.TradeTracker.Network.PnL,
+			action.TradeTracker.Network.Profit,
+			action.TradeTracker.Network.Loss,
+			action.Coin.PnL,
+			action.Coin.Profit,
+			action.Coin.Loss,
+			action.Global.PnL,
+			action.Global.Profit,
+			action.Global.Loss,
+
+			action.Reason,
+			signal.Precision,
+			signal.Gap,
+
+			emoji.MapToAction(ok),
+			err)
+
+		//Jan 22 10:17:06 (121)
+		//SOL|0m|net.RandomForest-0|7.00 🤑
+		//23.1265 🔥 1.23€
+		//0.40%
+		//	5.87[14:8]|7.53[5:0]|5.87[14:8] signal (0.24)
+		//♻|<nil>
+		//🚛
+	}
+	return fmt.Sprintf("(%.0f) %s|%.2f|%s\n"+
+		"%s %.2f%s\n"+
+		"%s (%.2f|%.2f) %v",
+
+		cointime.ToNow(signal.Time),
+
 		emoji.MapType(signal.Type),
+		signal.Trend,
+		signal.Key.Coin,
 
-		signal.Price,
 		emoji.MapToSign(action.Value),
-		action.Value,
-		model.EURO,
 		100*action.PnL,
 		"%",
-		action.TradeTracker.Network.PnL,
-		action.TradeTracker.Network.Profit,
-		action.TradeTracker.Network.Loss,
-		action.Coin.PnL,
-		action.Coin.Profit,
-		action.Coin.Loss,
-		action.Global.PnL,
-		action.Global.Profit,
-		action.Global.Loss,
 
 		action.Reason,
 		signal.Precision,
 		signal.Gap,
-
-		emoji.MapToAction(ok),
-		err)
+		emoji.MapToAction(ok))
 }
 
 func formatTime(t time.Time) string {

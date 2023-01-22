@@ -41,6 +41,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 				"prec",
 				"ds",
 				"stats",
+				"log",
 				"",
 			),
 			api.Any(&coin),
@@ -100,6 +101,9 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		case "prec":
 			c := config.SetPrecisionThreshold(key.Coin, num)
 			txtBuffer.WriteString(formatConfig(*c))
+		case "log":
+			settings := wallet.TakeProfit(num / 100)
+			txtBuffer.WriteString(formatSettings(settings))
 		case "tp":
 			settings := wallet.TakeProfit(num / 100)
 			txtBuffer.WriteString(formatSettings(settings))

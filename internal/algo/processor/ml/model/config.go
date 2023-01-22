@@ -61,6 +61,8 @@ func (c *Config) SetPrecisionThreshold(coin model.Coin, precision float64) *Conf
 }
 
 type Option struct {
+	Trace     map[string]bool
+	Log       bool
 	Debug     bool
 	Benchmark bool
 }

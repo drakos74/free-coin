@@ -92,7 +92,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									} else if !ok {
 										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
-									u.Send(index, api.NewMessage(formatSignal(s, action, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
+									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 								log.Info().
 									Str("coin", string(key.Coin)).
@@ -139,7 +139,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				}
 				if tradeSignal.Meta.Live || config.Option.Debug {
 					metrics.Observer.NoteLag(f, coin, Name, "process")
-					pp, profit, trend := wallet.Update(tradeSignal)
+					pp, profit, trend := wallet.Update(config.Option.Trace, tradeSignal)
 					if len(pp) > 0 {
 						for k, p := range pp {
 							reason := trader.VoidReasonClose
@@ -157,7 +157,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("Index", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(action, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 {
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)

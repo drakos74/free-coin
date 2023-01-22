@@ -30,6 +30,13 @@ type Stats struct {
 	Profit int
 }
 
+type TrendReport struct {
+	Profit           float64
+	StopLossActive   bool
+	TakeProfitActive bool
+	ValidTrend       []model.Type
+}
+
 func newTracker() *tracker {
 	return &tracker{
 		PnLPerCoin:    make(map[model.Coin]Stats),
@@ -138,7 +145,7 @@ func (et *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
-func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend) {
+func (et *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend) {
 	pp := et.trader.update(trade)
 
 	if et.settings.TakeProfit == 0.0 {
@@ -154,11 +161,19 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 
 	allTrend := make(map[model.Key]map[time.Duration]model.Trend)
 
+	reports := make(map[model.Key]TrendReport, 0)
+
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
 			stopLossActivated := position.PnL <= -1*et.settings.StopLoss
 			takeProfitActivated := position.PnL >= et.settings.TakeProfit
+			report := TrendReport{
+				Profit:           profit,
+				StopLossActive:   stopLossActivated,
+				TakeProfitActive: takeProfitActivated,
+			}
+
 			//shift := position.Trend.Shift != model.NoType
 			//validShift := position.Trend.Shift != position.Type
 			// TODO : we have a trend ... any ... for now
@@ -183,6 +198,7 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 					allTrend[k][tt] = trend
 				}
 			}
+			report.ValidTrend = validTrend
 			//if stopLossActivated {
 			//	// if we pass the stop-Loss threshold
 			//	positions[k] = position
@@ -199,6 +215,12 @@ func (et *ExchangeTrader) Update(trade *model.TradeSignal) (map[model.Key]model.
 					positions[k] = position
 				}
 			}
+			if trace[string(k.Coin)] {
+				log.Info().
+					Str("report", fmt.Sprintf("%+v", report)).
+					Str("trend", fmt.Sprintf("%+v", position.Trend))
+			}
+			reports[k] = report
 			allProfit = append(allProfit, profit)
 		}
 	}
