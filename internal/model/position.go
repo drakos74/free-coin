@@ -148,7 +148,7 @@ type Position struct {
 }
 
 // Update updates the current status of the position and the profit or loss percentage.
-func (p *Position) Update(trace bool, trade Tick) Position {
+func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Position {
 
 	if trade.Active {
 		p.CurrentPrice = trade.Range.To.Price
@@ -160,6 +160,27 @@ func (p *Position) Update(trace bool, trade Tick) Position {
 	p.Fees = fees
 
 	p.HasUpdate = false
+
+	if p.Profit == nil {
+		profit := make(map[time.Duration]*Profit)
+		configs := make([]string, 0)
+		if cfg != nil && len(cfg) > 0 {
+			// if we are given a tracking config , apply the history to the order
+			for _, cfg := range cfg {
+				if _, ok := profit[cfg.Duration]; ok {
+					log.Warn().Str("key", fmt.Sprintf("%.0f", cfg.Duration.Minutes())).Msg("config already present")
+				}
+				configs = append(configs, fmt.Sprintf("%+v", cfg))
+				profit[cfg.Duration] = NewProfit(cfg)
+			}
+		}
+		p.Profit = profit
+		log.Info().
+			Str("coin", string(p.Coin)).
+			Str("config", fmt.Sprintf("%v", len(profit))).
+			Strs("configs", configs).
+			Msg("tracking-config")
+	}
 
 	if p.Profit != nil {
 		state := PositionState{

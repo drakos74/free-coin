@@ -139,7 +139,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				}
 				if tradeSignal.Meta.Live || config.Option.Debug {
 					metrics.Observer.NoteLag(f, coin, Name, "process")
-					pp, profit, trend, _ := wallet.Update(config.Option.Trace, tradeSignal)
+					pp, profit, trend, _ := wallet.Update(config.Option.Trace, tradeSignal, config.Position.TrackingConfig)
 					if len(pp) > 0 {
 						for k, p := range pp {
 							reason := trader.VoidReasonClose
