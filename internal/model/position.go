@@ -181,6 +181,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 			Strs("configs", configs).
 			Msg("tracking-config")
 	}
+	if p.Trend == nil {
+		p.Trend = make(map[time.Duration]Trend)
+	}
 
 	if p.Profit != nil {
 		state := PositionState{
