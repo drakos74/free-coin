@@ -167,7 +167,7 @@ func EvolveInt(i int, r float64) int {
 	return i
 }
 
-func EvolveFloat(f float64, r float64) float64 {
+func EvolveFloat(f float64, r float64, limit float64) float64 {
 	ff := f * evolvePerc
 	if r == 0.0 {
 		r = rand.Float64()
@@ -177,7 +177,11 @@ func EvolveFloat(f float64, r float64) float64 {
 	} else {
 		f -= ff
 	}
-	return math.Round(1000*f) / 1000
+	res := math.Round(1000*f) / 1000
+	if res > limit {
+		return limit
+	}
+	return res
 }
 
 func (m Model) Format() string {
@@ -190,7 +194,7 @@ func (m Model) Format() string {
 
 func (m Model) Evolve() Model {
 	m.BufferSize = EvolveInt(m.BufferSize, 0.0)
-	m.PrecisionThreshold = EvolveFloat(m.PrecisionThreshold, 0.0)
+	m.PrecisionThreshold = EvolveFloat(m.PrecisionThreshold, 0.0, 0.55)
 	m.ModelSize = EvolveInt(m.ModelSize, 0.0)
 	return m
 }
