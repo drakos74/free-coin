@@ -278,9 +278,7 @@ func (xtrader *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeS
 			allProfit = append(allProfit, profit)
 		}
 	}
-
 	return positions, allProfit, allTrend, reports
-
 }
 
 func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,

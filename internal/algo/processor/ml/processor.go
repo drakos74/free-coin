@@ -159,7 +159,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
-					} else if len(trend) > 0 /* && config.Option.Trace[string(tradeSignal.Coin)] */ {
+					} else if len(trend) > 0 && config.Option.Trace[string(tradeSignal.Coin)] {
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)
 					}
 					// print the reports for trace reasons
