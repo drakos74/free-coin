@@ -159,7 +159,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						if k.Match(p.Coin) {
 							if position.Type == p.Type {
 								// the least we can check here ...
-								_, ok, _, err := wallet.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume, trader.ForceResetReason, p.Strategy, true)
+								_, ok, _, err := wallet.CreateOrder(k, time.Now(), position.OpenPrice, p.Type.Inv(), false, p.Volume, trader.ForceResetReason, true)
 								if err != nil || !ok {
 									txtBuffer.WriteString(fmt.Sprintf("%v|err=<%s>\n", ok, err.Error()))
 								} else {
