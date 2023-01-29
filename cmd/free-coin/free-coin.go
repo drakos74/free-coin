@@ -180,7 +180,7 @@ func configML() *mlmodel.Config {
 			Trace: map[string]bool{
 				//string(model.BTC): true,
 			},
-			Log:       false,
+			Log:       true,
 			Debug:     true,
 			Benchmark: true,
 		},

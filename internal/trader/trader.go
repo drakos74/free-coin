@@ -175,11 +175,12 @@ func (t *trader) close(key model.Key) error {
 	return t.save()
 }
 
-func (t *trader) add(key model.Key, order *model.TrackedOrder, live bool, network string) error {
+func (t *trader) add(order *model.TrackedOrder, live bool) error {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
+	key := order.Key
 	// we need to be careful here and add the position ...
-	position := model.OpenPosition(order, network, t.config)
+	position := model.OpenPosition(order, t.config)
 	position.Live = live
 	if p, ok := t.positions[key]; ok {
 		if position.Coin != p.Coin {

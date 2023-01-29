@@ -27,6 +27,7 @@ type tracker struct {
 
 type Stats struct {
 	PnL    float64
+	Value  float64
 	Num    int
 	Loss   int
 	Profit int
@@ -46,27 +47,33 @@ func newTracker() *tracker {
 	}
 }
 
-func (t *tracker) add(coin model.Coin, network string, value float64) (coinPnl, globalPnl Stats) {
+func (t *tracker) add(coin model.Coin, network string, value float64, pnl float64) (coinPnl, globalPnl Stats) {
 	tt := t.PnLPerCoin[coin]
 	nn := t.PnLPerNetwork[network]
 	if value > 0 {
 		tt.Profit += 1
-		tt.PnL += value
+		tt.Value += value
+		tt.PnL += pnl
 		tt.Num += 1
 		nn.Profit += 1
-		nn.PnL += value
+		nn.PnL += pnl
+		nn.Value += value
 		nn.Num += 1
-		t.Stats.PnL += value
+		t.Stats.PnL += pnl
+		t.Stats.Value += value
 		t.Stats.Num += 1
 		t.Stats.Profit += 1
 	} else if value < 0 {
 		tt.Loss += 1
-		tt.PnL += value
+		tt.PnL += pnl
+		tt.Value += value
 		tt.Num += 1
 		nn.Loss += 1
-		nn.PnL += value
+		nn.PnL += pnl
+		nn.Value += value
 		nn.Num += 1
-		t.Stats.PnL += value
+		t.Stats.PnL += pnl
+		t.Stats.Value += value
 		t.Stats.Num += 1
 		t.Stats.Loss += 1
 	}
@@ -109,21 +116,21 @@ func NewExchangeTrader(trader *trader, exchange api.Exchange, registry storage.R
 	return exTrader
 }
 
-func (xtrader *ExchangeTrader) sync() {
+func (xt *ExchangeTrader) sync() {
 	ticker := time.NewTicker(5 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				pp, err := xtrader.UpstreamPositions(context.Background())
+				pp, err := xt.UpstreamPositions(context.Background())
 				if err != nil {
-					if xtrader.user != nil {
-						xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf("err-get-pos ... %s", err.Error())), nil)
+					if xt.user != nil {
+						xt.user.Send(api.Index(xt.trader.account), api.NewMessage(fmt.Sprintf("err-get-pos ... %s", err.Error())), nil)
 					}
 					continue
 				}
-				_, positions := xtrader.CurrentPositions(model.AllCoins)
+				_, positions := xt.CurrentPositions(model.AllCoins)
 				for _, xp := range pp {
 					found := false
 					for k, pos := range positions {
@@ -131,10 +138,10 @@ func (xtrader *ExchangeTrader) sync() {
 							found = true
 							newPos, update := pos.Sync(xp)
 							if update {
-								xtrader.trader.positions[k] = newPos
-								err = xtrader.trader.save()
-								if xtrader.user != nil {
-									xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(newPos), err)), nil)
+								xt.trader.positions[k] = newPos
+								err = xt.trader.save()
+								if xt.user != nil {
+									xt.user.Send(api.Index(xt.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(newPos), err)), nil)
 								}
 							}
 						}
@@ -142,10 +149,10 @@ func (xtrader *ExchangeTrader) sync() {
 					if !found {
 						// open new position
 						xp.Live = true
-						xtrader.trader.positions[model.Key{Coin: xp.Coin}] = xp
-						err = xtrader.trader.save()
-						if xtrader.user != nil {
-							xtrader.user.Send(api.Index(xtrader.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(xp), err)), nil)
+						xt.trader.positions[model.Key{Coin: xp.Coin}] = xp
+						err = xt.trader.save()
+						if xt.user != nil {
+							xt.user.Send(api.Index(xt.trader.account), api.NewMessage(fmt.Sprintf(" synced with upstream %s | %v", formatPos(xp), err)), nil)
 						}
 					}
 				}
@@ -162,37 +169,37 @@ func formatPos(pos model.Position) string {
 		pos.Coin, emoji.MapType(pos.Type), pos.OpenPrice, pos.Volume)
 }
 
-func (xtrader *ExchangeTrader) Stats() (map[model.Coin]Stats, map[string]Stats) {
-	return xtrader.tracker.PnLPerCoin, xtrader.tracker.PnLPerNetwork
+func (xt *ExchangeTrader) Stats() (map[model.Coin]Stats, map[string]Stats) {
+	return xt.tracker.PnLPerCoin, xt.tracker.PnLPerNetwork
 }
 
-func (xtrader *ExchangeTrader) Settings() Settings {
-	return xtrader.settings
+func (xt *ExchangeTrader) Settings() Settings {
+	return xt.settings
 }
 
-func (xtrader *ExchangeTrader) OpenValue(openValue float64) Settings {
-	xtrader.settings.OpenValue = openValue
-	return xtrader.settings
+func (xt *ExchangeTrader) OpenValue(openValue float64) Settings {
+	xt.settings.OpenValue = openValue
+	return xt.settings
 }
 
-func (xtrader *ExchangeTrader) StopLoss(stopLoss float64) Settings {
-	xtrader.settings.StopLoss = stopLoss
-	return xtrader.settings
+func (xt *ExchangeTrader) StopLoss(stopLoss float64) Settings {
+	xt.settings.StopLoss = stopLoss
+	return xt.settings
 }
 
-func (xtrader *ExchangeTrader) TakeProfit(takeProfit float64) Settings {
-	xtrader.settings.TakeProfit = takeProfit
-	return xtrader.settings
+func (xt *ExchangeTrader) TakeProfit(takeProfit float64) Settings {
+	xt.settings.TakeProfit = takeProfit
+	return xt.settings
 }
 
 // CurrentPositions returns all currently open positions
-func (xtrader *ExchangeTrader) CurrentPositions(coins ...model.Coin) ([]model.Key, map[model.Key]model.Position) {
-	return xtrader.trader.getAll(coins...)
+func (xt *ExchangeTrader) CurrentPositions(coins ...model.Coin) ([]model.Key, map[model.Key]model.Position) {
+	return xt.trader.getAll(coins...)
 }
 
 // UpstreamPositions returns all currently open positions on the exchange
-func (xtrader *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Position, error) {
-	pp, err := xtrader.exchange.OpenPositions(ctx)
+func (xt *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Position, error) {
+	pp, err := xt.exchange.OpenPositions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not gtrader upstream positions: %w", err)
 	}
@@ -204,14 +211,14 @@ func (xtrader *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.P
 }
 
 // Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
-func (xtrader *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal, cfg []*model.TrackingConfig) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]TrendReport) {
-	pp := xtrader.trader.update(trace, trade, cfg)
+func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal, cfg []*model.TrackingConfig) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]TrendReport) {
+	pp := xt.trader.update(trace, trade, cfg)
 
-	if xtrader.settings.TakeProfit == 0.0 {
-		xtrader.settings.TakeProfit = math.MaxFloat64
+	if xt.settings.TakeProfit == 0.0 {
+		xt.settings.TakeProfit = math.MaxFloat64
 	}
-	if xtrader.settings.StopLoss == 0.0 {
-		xtrader.settings.StopLoss = math.MaxFloat64
+	if xt.settings.StopLoss == 0.0 {
+		xt.settings.StopLoss = math.MaxFloat64
 	}
 
 	positions := make(map[model.Key]model.Position)
@@ -225,8 +232,8 @@ func (xtrader *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeS
 	if len(pp) > 0 {
 		for k, position := range pp {
 			profit := position.PnL
-			stopLossActivated := position.PnL <= -1*xtrader.settings.StopLoss
-			takeProfitActivated := position.PnL >= xtrader.settings.TakeProfit
+			stopLossActivated := position.PnL <= -1*xt.settings.StopLoss
+			takeProfitActivated := position.PnL >= xt.settings.TakeProfit
 			report := TrendReport{
 				Profit:           profit,
 				StopLossActive:   stopLossActivated,
@@ -261,12 +268,12 @@ func (xtrader *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeS
 			//if stopLossActivated {
 			//	// if we pass the stop-Loss threshold
 			//	positions[k] = position
-			//	delete(xtrader.Profit, k)
+			//	delete(xt.Profit, k)
 			//} else
 			//if shift && validShift {
 			//	// if there is a shift in the opposite direction of the position
 			//	positions[k] = position
-			//	delete(xtrader.Profit, k)
+			//	delete(xt.Profit, k)
 			//} else
 			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
 			if stopLossActivated || takeProfitActivated {
@@ -281,25 +288,25 @@ func (xtrader *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeS
 	return positions, allProfit, allTrend, reports
 }
 
-func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64, reason Reason, network string, live bool) (*model.TrackedOrder, bool, Event, error) {
+func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
+	openType model.Type, open bool, volume float64, reason Reason, live bool) (*model.TrackedOrder, bool, Event, error) {
 	if volume == 0 {
-		volume = xtrader.settings.OpenValue / price
+		volume = xt.settings.OpenValue / price
 	}
 
 	close := ""
 	// check the positions ...
 	t := openType
-	position, ok, positions := xtrader.trader.check(key)
+	position, ok, positions := xt.trader.check(key)
 	action := Event{
-		Time:    time,
-		Network: network,
-		Type:    openType,
-		Price:   price,
-		Key:     key,
-		Reason:  reason,
+		Time:   time,
+		Type:   openType,
+		Price:  price,
+		Key:    key,
+		Reason: reason,
 	}
 	if ok {
+		// we found a position to close
 		volume = position.Volume
 		value := 0.0
 		// find out how much Profit we re making
@@ -314,25 +321,26 @@ func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price 
 		// if we had a position already ...
 		// TODO :review this ...
 		if position.Type == openType {
-			// but .. we dont want to extend the current one ...
+			// we don't want to extend the current one ...
 			log.Debug().
 				Str("position", fmt.Sprintf("%+v", position)).
 				Msg("ignoring signal")
 			action.Reason = VoidReasonIgnore
-			xtrader.log.append(action)
-			action = xtrader.track(key.Coin, action)
+			xt.log.append(action)
+			action = xt.track(key, action)
 			return nil, false, action, nil
 		}
 		// we need to close the position
 		close = position.OrderID
+		// by overriding the type it allows us to close and open a new one directly
 		t = position.Type.Inv()
-		// allows us to close and open a new one directly
 		log.Debug().
 			Str("position", fmt.Sprintf("%+volume", position)).
 			Str("type", t.String()).
 			Float64("volume", volume).
 			Msg("closing position")
 	} else if len(positions) > 0 {
+		// we did not find a position for this strategy but we found some for the same coin
 		var ignore bool
 		pnl := 0.0
 		value := 0.0
@@ -359,8 +367,8 @@ func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price 
 				Str("positions", fmt.Sprintf("%+volume", positions)).
 				Msg("ignoring conflicting signal")
 			action.Reason = VoidReasonConflict
-			xtrader.log.append(action)
-			action = xtrader.track(key.Coin, action)
+			xt.log.append(action)
+			action = xt.track(key, action)
 			return nil, false, action, nil
 		}
 		log.Debug().
@@ -372,19 +380,19 @@ func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price 
 	}
 	if t == 0 {
 		action.Reason = VoidReasonType
-		xtrader.log.append(action)
-		action = xtrader.track(key.Coin, action)
+		xt.log.append(action)
+		action = xt.track(key, action)
 		return nil, false, action, fmt.Errorf("no clean type [%s %s:%v]", openType.String(), position.Type.String(), ok)
 	}
 	if close == "" {
 		if !open {
 			action.Reason = VoidReasonClose
-			xtrader.log.append(action)
-			action = xtrader.track(key.Coin, action)
+			xt.log.append(action)
+			action = xt.track(key, action)
 			// we intended to close the position , but we dont have anything to close
 			return nil, false, action, fmt.Errorf("ignoring close signal '%s' no open position for '%v'", openType.String(), key)
 		} else {
-			xtrader.log.append(action)
+			xt.log.append(action)
 		}
 	}
 	order := model.NewOrder(key.Coin).
@@ -395,53 +403,54 @@ func (xtrader *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price 
 		CreateTracked(model.Key{
 			Coin:     key.Coin,
 			Duration: key.Duration,
-			Strategy: key.ToString(),
+			Network:  key.Network,
+			Strategy: key.Strategy,
 		}, time, fmt.Sprintf("%+v", action))
 	order.RefID = close
 	order.Price = price
 	var err error = nil
 	if live {
-		order, _, err = xtrader.exchange.OpenOrder(order)
+		order, _, err = xt.exchange.OpenOrder(order)
 		if err != nil {
 			return nil, false, action, fmt.Errorf("could not send initial order: %w", err)
 		}
 	}
 	if close == "" {
-		err = xtrader.trader.add(key, order, live, network)
+		err = xt.trader.add(order, live)
 	} else {
-		err = xtrader.trader.close(key)
+		err = xt.trader.close(key)
 		// and ... open a new one ...
 		if open {
 			if live {
-				_, _, err = xtrader.exchange.OpenOrder(order)
+				_, _, err = xt.exchange.OpenOrder(order)
 				if err != nil {
 					return nil, false, action, fmt.Errorf("could not send reverse order: %w", err)
 				}
 			}
-			err = xtrader.trader.add(key, order, live, network)
+			err = xt.trader.add(order, live)
 		}
 	}
 	if err != nil {
 		log.Error().Err(err).Msg("could not store position")
 	}
-	xtrader.tracker.add(order.Coin, action.Network, action.Value)
-	action = xtrader.track(order.Coin, action)
+	xt.tracker.add(order.Coin, key.Network, action.Value, action.PnL)
+	action = xt.track(order.Key, action)
 	return order, true, action, err
 }
 
-func (xtrader *ExchangeTrader) track(coin model.Coin, action Event) Event {
-	action.Coin = xtrader.tracker.PnLPerCoin[coin]
-	action.Global = xtrader.tracker.Stats
-	action.TradeTracker.Network = xtrader.tracker.PnLPerNetwork[action.Network]
+func (xt *ExchangeTrader) track(key model.Key, action Event) Event {
+	action.Coin = xt.tracker.PnLPerCoin[key.Coin]
+	action.Global = xt.tracker.Stats
+	action.TradeTracker.Network = xt.tracker.PnLPerNetwork[key.Network]
 	return action
 }
 
-func (xtrader *ExchangeTrader) Reset(coins ...model.Coin) (int, error) {
-	pp, err := xtrader.trader.reset(coins...)
+func (xt *ExchangeTrader) Reset(coins ...model.Coin) (int, error) {
+	pp, err := xt.trader.reset(coins...)
 	return len(pp), err
 }
 
 // Actions returns the exchange actions so far
-func (xtrader *ExchangeTrader) Actions() map[model.Coin][]Event {
-	return xtrader.log.Events
+func (xt *ExchangeTrader) Actions() map[model.Coin][]Event {
+	return xt.log.Events
 }

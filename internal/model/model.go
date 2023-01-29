@@ -15,6 +15,7 @@ type Key struct {
 	Duration time.Duration `json:"duration"`
 	Index    int64         `json:"index"`
 	Strategy string        `json:"strategy"`
+	Network  string        `json:"network"`
 }
 
 func TempKey(c Coin, d time.Duration) Key {

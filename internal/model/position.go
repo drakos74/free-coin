@@ -69,7 +69,7 @@ type Stats struct {
 	Trend     map[time.Duration]Trend   `json:"-"`
 	Profit    map[time.Duration]*Profit `json:"-"`
 	PnL       float64                   `json:"pnl"`
-	Strategy  string                    `json:"strategy"`
+	Key       Key                       `json:"key"`
 }
 
 // Trend defines the position profit trend
@@ -271,7 +271,7 @@ func calculateTrend(currentValue, threshold, lastValue float64) (trend Type, shi
 }
 
 // OpenPosition creates a position from a given order.
-func OpenPosition(order *TrackedOrder, detail string, trackingConfig []*TrackingConfig) Position {
+func OpenPosition(order *TrackedOrder, trackingConfig []*TrackingConfig) Position {
 	profit := make(map[time.Duration]*Profit)
 	if trackingConfig != nil && len(trackingConfig) > 0 {
 		// if we are given a tracking config , apply the history to the order
@@ -291,9 +291,9 @@ func OpenPosition(order *TrackedOrder, detail string, trackingConfig []*Tracking
 			OpenTime: order.Time,
 		},
 		Stats: Stats{
-			Trend:    make(map[time.Duration]Trend),
-			Profit:   profit,
-			Strategy: detail,
+			Trend:  make(map[time.Duration]Trend),
+			Profit: profit,
+			Key:    order.Key,
 		},
 		Coin:      order.Coin,
 		Type:      order.Type,
