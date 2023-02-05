@@ -56,8 +56,8 @@ func (t *tracker) add(coin model.Coin, network string, value float64, pnl float6
 		tt.PnL += pnl
 		tt.Num += 1
 		nn.Profit += 1
-		nn.PnL += pnl
 		nn.Value += value
+		nn.PnL += pnl
 		nn.Num += 1
 		t.Stats.PnL += pnl
 		t.Stats.Value += value
@@ -242,29 +242,18 @@ func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 
 			//shift := position.Trend.Shift != model.NoType
 			//validShift := position.Trend.Shift != position.Type
-			// TODO : we have a trend ... any ... for now
-			validTrend := make([]model.Type, 2)
+			// TODO : NOT multi-position ready !!!
+			// we assume it s only one position thats relevant
 			for tt, trend := range position.Trend {
-				var hasTrend bool
 				// NOTE : Type here does not mean market , but Profit/Loss
-				if trend.Type[0] != model.NoType {
-					// valid-trend
-					validTrend[0] = trend.Type[0]
-					hasTrend = trend.Live
-				}
-				if trend.Type[1] != model.NoType {
-					// valid-trend
-					validTrend[1] = trend.Type[1]
-					hasTrend = trend.Live
-				}
-				if hasTrend {
+				if validTrend, ok := trend.Assess(); ok {
 					if _, ok := allTrend[k]; !ok {
 						allTrend[k] = make(map[time.Duration]model.Trend)
 					}
 					allTrend[k][tt] = trend
+					report.ValidTrend = validTrend
 				}
 			}
-			report.ValidTrend = validTrend
 			//if stopLossActivated {
 			//	// if we pass the stop-Loss threshold
 			//	positions[k] = position
@@ -277,7 +266,7 @@ func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 			//} else
 			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
 			if stopLossActivated || takeProfitActivated {
-				if (validTrend[0] == model.Sell) || (validTrend[1] == model.Sell) {
+				if (report.ValidTrend[0] == model.Sell) || (report.ValidTrend[1] == model.Sell) {
 					positions[k] = position
 				}
 			}
@@ -308,15 +297,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 	if ok {
 		// we found a position to close
 		volume = position.Volume
-		value := 0.0
-		// find out how much Profit we re making
-		switch position.Type {
-		case model.Buy:
-			value = (price - position.OpenPrice) * position.Volume
-		case model.Sell:
-			value = (position.OpenPrice - price) * position.Volume
-		}
-		action.Value = value
+		action.Value = position.Value
 		action.PnL = position.PnL
 		// if we had a position already ...
 		// TODO :review this ...
@@ -352,12 +333,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 					Msg("closing position")
 			} else {
 				pnl += p.PnL
-				switch p.Type {
-				case model.Buy:
-					value += (price - position.OpenPrice) * position.Volume
-				case model.Sell:
-					value += (position.OpenPrice - price) * position.Volume
-				}
+				value += p.Value
 			}
 		}
 		action.Value = value

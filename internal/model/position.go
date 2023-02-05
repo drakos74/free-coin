@@ -69,6 +69,7 @@ type Stats struct {
 	Trend     map[time.Duration]Trend   `json:"-"`
 	Profit    map[time.Duration]*Profit `json:"-"`
 	PnL       float64                   `json:"pnl"`
+	Value     float64                   `json:"value"`
 	Key       Key                       `json:"key"`
 }
 
@@ -82,6 +83,22 @@ type Trend struct {
 	CurrentDiff  []float64
 	Type         []Type
 	Shift        []Type
+}
+
+func (t Trend) Assess() ([]Type, bool) {
+	validTrend := make([]Type, 2)
+	hasTrend := false
+	if t.Type[0] != NoType {
+		// valid-trend
+		validTrend[0] = t.Type[0]
+		hasTrend = t.Live
+	}
+	if t.Type[1] != NoType {
+		// valid-trend
+		validTrend[1] = t.Type[1]
+		hasTrend = t.Live
+	}
+	return validTrend, hasTrend
 }
 
 type PositionState struct {
@@ -169,8 +186,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 		p.CurrentTime = trade.Range.To.Time
 	}
 
-	pnl, fees := PnL(p.Type, p.Volume, p.OpenPrice, p.CurrentPrice)
+	pnl, value, fees := PnL(p.Type, p.Volume, p.OpenPrice, p.CurrentPrice)
 	p.PnL = pnl
+	p.Value = value
 	p.Fees = fees
 
 	p.HasUpdate = false
@@ -243,6 +261,7 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 					trend := p.Trend[k]
 					trend.CurrentValue[0] = s[1]
 					trend.CurrentValue[1] = a[2]
+					trend.CurrentDiff[0] = math.Abs(trend.CurrentValue[0]) - profit.Config.Threshold[0]
 					trend.CurrentDiff[1] = math.Abs(trend.CurrentValue[1]) - profit.Config.Threshold[1]
 					trend.Threshold = profit.Config.Threshold
 					trend.Type[0], trend.Shift[0] = calculateTrend(trend.CurrentValue[0], profit.Config.Threshold[0], trend.LastValue[0])
@@ -260,11 +279,11 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 
 func calculateTrend(currentValue, threshold, lastValue float64) (trend Type, shift Type) {
 	if math.Abs(currentValue) > threshold {
-		// NOTE : we identify with type , the loss conditions for this position, not he market movement
+		// NOTE : we identify with type , the loss conditions for this position, not the market movement
 		trend = SignedType(currentValue)
 		if currentValue*lastValue < 0 {
 			//  we have a switch of direction
-			shift = SignedType(currentValue)
+			shift = trend
 		}
 	}
 	return trend, shift

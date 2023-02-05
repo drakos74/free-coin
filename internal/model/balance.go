@@ -14,7 +14,7 @@ func (b Balance) Value() float64 {
 }
 
 // PnL calculates the pnl of a current position based on the open price and current price.
-func PnL(t Type, volume, openPrice, currentPrice float64) (float64, float64) {
+func PnL(t Type, volume, openPrice, currentPrice float64) (float64, float64, float64) {
 	net := 0.0
 	switch t {
 	case Buy:
@@ -27,5 +27,5 @@ func PnL(t Type, volume, openPrice, currentPrice float64) (float64, float64) {
 
 	value := (net * volume) - fees
 	profit := value / (openPrice * volume)
-	return profit, fees
+	return profit, value, fees
 }

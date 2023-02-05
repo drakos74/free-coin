@@ -93,9 +93,9 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 		Apply()
 }
 
-func StatsConfig(gap float64) mlmodel.Stats {
+func StatsConfig(history int, gap float64) mlmodel.Stats {
 	return mlmodel.Stats{
-		LookBack:  3,
+		LookBack:  history,
 		LookAhead: 1,
 		Gap:       gap,
 	}
@@ -129,16 +129,16 @@ func ConfigKey(coin model.Coin, d int) model.Key {
 
 func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-		//sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
-		//	Stats:  StatsConfig(0.2),
-		//	Model:  ModelConfig(0.61),
-		//	Trader: TraderConfig(),
-		//}
-		sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
-			Stats:  StatsConfig(0.2),
+		sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
+			Stats:  StatsConfig(4, 0.2),
 			Model:  ModelConfig(0.65),
 			Trader: TraderConfig(true),
 		}
+		//sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
+		//	Stats:  StatsConfig(3, 0.2),
+		//	Model:  ModelConfig(0.65),
+		//	Trader: TraderConfig(true),
+		//}
 		return sgm
 	}
 }
@@ -169,11 +169,11 @@ func configML() *mlmodel.Config {
 			TakeProfit: 0.015,
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration: 30 * time.Second,
-				Samples:  3,
+				Samples:  5,
 				// TODO : investigate more what this does
 				//Threshold: []float64{0.00005, 0.000002},
 				//Threshold: []float64{0.00002, 0.000001},
-				Threshold: []float64{0.00003, 0.000002},
+				Threshold: []float64{0.0, 0.0},
 			}},
 		},
 		Option: mlmodel.Option{

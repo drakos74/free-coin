@@ -86,25 +86,23 @@ func formatTrendReport(log bool, k model.Key, report trader.TrendReport) string 
 func formatAction(log bool, action trader.Event, trend map[time.Duration]model.Trend, err error, ok bool) string {
 	if log {
 		return fmt.Sprintf("%s\n"+
-			"%s|%.fm|%s|%s %s %.2f \n"+
-			"%s %.4f %s\n"+
-			"%.2f %s\n"+
+			"%s|%.fm|%s|%s %.2f\n"+
+			"%s %s %.2f%s %.2f%s\n"+
 			"%s %s %s %s\n"+
 			"%v|%v\n"+
 			"%+v",
 			formatTime(action.Time),
+
 			action.Key.Coin,
 			action.Key.Duration.Minutes(),
 			action.Key.Strategy,
 			action.Key.Network,
-			emoji.MapType(action.Type),
 			action.Price,
 
+			emoji.MapType(action.Type),
 			emoji.MapToSign(action.Value),
-			action.Value,
-			model.EURO,
-			100*action.PnL,
-			"%",
+			100*action.PnL, "%",
+			action.Value, model.EURO,
 
 			formatStat("", action.TradeTracker.Network),
 			formatStat("", action.Coin),
@@ -134,30 +132,35 @@ func formatAction(log bool, action trader.Event, trend map[time.Duration]model.T
 func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
 	if log {
 		return fmt.Sprintf("%s\n"+
-			"%s|%.fm|%s-%d|%.2f %s\n"+
-			"%.4f %s %.2f%s\n"+
-			"%.2f%s\n"+
+			"%s|%.fm|%s-%d|%.2f %.4f\n"+
+			"%s %s %.2f%s %.2f%s\n"+
 			"%s %s %s %s (%.2f|%.2f)\n"+
 			"%v|%v",
+
+			// time
 			formatTime(signal.Time),
 
+			// coin / strategy
 			signal.Key.Coin,
 			signal.Key.Duration.Minutes(),
 			signal.Detail.Type,
 			signal.Detail.Index,
 			signal.Trend,
-			emoji.MapType(signal.Type),
-
 			signal.Price,
+
+			// coin / position data
+			emoji.MapType(signal.Type),
 			emoji.MapToSign(action.Value),
+			100*action.PnL, "%",
 			action.Value,
 			model.EURO,
-			100*action.PnL,
-			"%",
 
+			// stats
 			formatStat("", action.TradeTracker.Network),
 			formatStat("", action.Coin),
 			formatStat("", action.Global),
+
+			// action details
 			action.Reason,
 			signal.Precision,
 			signal.Gap,
