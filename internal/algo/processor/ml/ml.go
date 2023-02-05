@@ -118,7 +118,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		}
 		// add the velocity fit polynomials
 		ddv, err := fit(xx, dv, 2)
-		if err != nil && len(dv) > 0 && len(xx) == len(dv) {
+		if err != nil && len(dv) > 1 && len(xx) == len(dv) {
 			log.Error().
 				Err(err).
 				Str("dv", fmt.Sprintf("%+v", dv)).
