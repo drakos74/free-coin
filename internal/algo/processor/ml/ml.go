@@ -109,7 +109,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		min, max := last.Stats[0].Range()
 		// add the price fit polynomials
 		inp, err := fit(xx, yy, 1, 2)
-		if err != nil && len(yy) > 1 && len(xx) == len(yy) {
+		if err != nil && len(yy) > 2 && len(xx) == len(yy) {
 			log.Error().
 				Err(err).
 				Str("xx", fmt.Sprintf("%+v", xx)).
@@ -118,7 +118,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		}
 		// add the velocity fit polynomials
 		ddv, err := fit(xx, dv, 2)
-		if err != nil && len(dv) > 1 && len(xx) == len(dv) {
+		if err != nil && len(dv) > 2 && len(xx) == len(dv) {
 			log.Error().
 				Err(err).
 				Str("dv", fmt.Sprintf("%+v", dv)).
@@ -128,7 +128,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		inp = append(inp, ddv...)
 		// add the momentum fit polynomials
 		ddp, err := fit(xx, dp, 1, 2)
-		if err != nil && len(dp) > 1 && len(xx) == len(dp) {
+		if err != nil && len(dp) > 2 && len(xx) == len(dp) {
 			log.Error().
 				Err(err).
 				Str("dp", fmt.Sprintf("%+v", dp)).
