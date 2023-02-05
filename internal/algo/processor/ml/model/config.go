@@ -281,8 +281,8 @@ type Action struct {
 }
 
 func (a Action) eval(time time.Time, price float64) Action {
-	value, _ := model.PnL(a.Type, 1, a.Price, price)
-	a.PnL = value
+	pnl, _, _ := model.PnL(a.Type, 1, a.Price, price)
+	a.PnL = pnl
 	a.Duration = time.Sub(a.Time)
 	return a
 }
