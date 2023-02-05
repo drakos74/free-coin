@@ -90,11 +90,12 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 			Type: networkType(r),
 			Hash: r.tmpKey,
 		},
-		Features: features,
-		Type:     t,
-		Accuracy: acc,
-		Gap:      gap,
-		OK:       true,
+		Features:           newX,
+		FeaturesImportance: features,
+		Type:               t,
+		Accuracy:           acc,
+		Gap:                gap,
+		OK:                 true,
 	}
 
 	return result

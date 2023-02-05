@@ -98,6 +98,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								log.Info().
 									Str("coin", string(key.Coin)).
 									Floats64("features", result.Features).
+									Floats64("features-importance", result.FeaturesImportance).
 									Float64("profit", result.Profit).
 									Float64("accuracy", result.Accuracy).
 									Float64("trend", result.Trend).
@@ -105,7 +106,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									Floats64("yy", result.XY[1]).
 									Str("detail", fmt.Sprintf("%+v", result.Detail.Type)).
 									Str("signal", fmt.Sprintf("%+v", signal)).
-									Msg("features")
+									Msg("create-order")
 							}
 							// whatever happened , lets benchmark it
 							if config.Option.Benchmark {

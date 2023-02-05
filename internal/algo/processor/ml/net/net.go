@@ -159,16 +159,17 @@ func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork 
 }
 
 type ModelResult struct {
-	Detail   mlmodel.Detail
-	Type     model.Type
-	Gap      float64
-	Accuracy float64
-	Profit   float64
-	Trend    float64
-	XY       [][]float64
-	Features []float64
-	OK       bool
-	Reset    bool
+	Detail             mlmodel.Detail
+	Type               model.Type
+	Gap                float64
+	Accuracy           float64
+	Profit             float64
+	Trend              float64
+	XY                 [][]float64
+	Features           []float64
+	FeaturesImportance []float64
+	OK                 bool
+	Reset              bool
 }
 
 type modelResults []ModelResult
@@ -218,14 +219,15 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 
 		result := ModelResult{
-			Detail:   k,
-			Type:     res.Type,
-			Accuracy: res.Accuracy,
-			Features: res.Features,
-			Profit:   report.Profit,
-			Trend:    trend,
-			XY:       xy,
-			OK:       res.OK,
+			Detail:             k,
+			Type:               res.Type,
+			Accuracy:           res.Accuracy,
+			Features:           res.Features,
+			FeaturesImportance: res.FeaturesImportance,
+			Profit:             report.Profit,
+			Trend:              trend,
+			XY:                 xy,
+			OK:                 res.OK,
 		}
 		// TODO : make this configurable
 		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
