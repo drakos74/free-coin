@@ -212,7 +212,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 					internalOpen += ip.p.OpenPrice
 					internalValue += ip.p.OpenPrice * ip.p.Volume
 					internalPnl += ip.p.PnL
-					pnl, _ := model.PnL(ip.p.Type, externalVolume, externalOpen, ip.p.CurrentPrice)
+					pnl, _, _ := model.PnL(ip.p.Type, externalVolume, externalOpen, ip.p.CurrentPrice)
 					externalPnl += pnl
 					txtBuffer.WriteString(fmt.Sprintf("%s %s\n",
 						ip.k.Coin,
