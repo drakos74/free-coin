@@ -279,7 +279,8 @@ func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 }
 
 func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,
-	openType model.Type, open bool, volume float64, reason Reason, live bool) (*model.TrackedOrder, bool, Event, error) {
+	openType model.Type, open bool, volume float64, reason Reason, live bool,
+	decision *model.Decision) (*model.TrackedOrder, bool, Event, error) {
 	if volume == 0 {
 		volume = xt.settings.OpenValue / price
 	}
@@ -300,6 +301,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		volume = position.Volume
 		action.Value = position.Value
 		action.PnL = position.PnL
+		action.Decision = position.Decision
 		// if we had a position already ...
 		// TODO :review this ...
 		if position.Type == openType {
@@ -317,7 +319,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		// by overriding the type it allows us to close and open a new one directly
 		t = position.Type.Inv()
 		log.Debug().
-			Str("position", fmt.Sprintf("%+volume", position)).
+			Str("position", fmt.Sprintf("%+v", position)).
 			Str("type", t.String()).
 			Float64("volume", volume).
 			Msg("closing position")
@@ -326,6 +328,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		var ignore bool
 		pnl := 0.0
 		value := 0.0
+		dec := &model.Decision{}
 		for _, p := range positions {
 			if p.Type != openType {
 				// if it will be an opposite opening to the current position
@@ -335,13 +338,16 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			} else {
 				pnl += p.PnL
 				value += p.Value
+				// TODO : not multi-position ready. Very bad pattern, only works on single position
+				dec = p.Decision
 			}
 		}
 		action.Value = value
 		action.PnL = pnl
+		action.Decision = dec
 		if ignore {
 			log.Debug().
-				Str("positions", fmt.Sprintf("%+volume", positions)).
+				Str("positions", fmt.Sprintf("%+v", positions)).
 				Msg("ignoring conflicting signal")
 			action.Reason = VoidReasonConflict
 			xt.log.append(action)
@@ -393,7 +399,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		}
 	}
 	if close == "" {
-		err = xt.trader.add(order, live)
+		err = xt.trader.add(order, live, decision)
 	} else {
 		err = xt.trader.close(key)
 		// and ... open a new one ...
@@ -404,7 +410,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 					return nil, false, action, fmt.Errorf("could not send reverse order: %w", err)
 				}
 			}
-			err = xt.trader.add(order, live)
+			err = xt.trader.add(order, live, decision)
 		}
 	}
 	if err != nil {

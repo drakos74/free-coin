@@ -234,6 +234,15 @@ func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 	return txtBuffer.String()
 }
 
+func formatDecision(decision *model.Decision) string {
+	return fmt.Sprintf("%.2f %+v\n"+
+		"%+v\n"+
+		"%+v\v",
+		decision.Confidence, decision.Config,
+		decision.Features,
+		decision.Importance)
+}
+
 func encodeMessage(signal mlmodel.Signal) string {
 	bb, _ := json.Marshal(signal)
 	return fmt.Sprintf("%s", string(bb))

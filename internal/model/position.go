@@ -157,11 +157,12 @@ type Position struct {
 	Data
 	MetaData
 	Stats
-	Coin         Coin    `json:"coin"`
-	Type         Type    `json:"type"`
-	OpenPrice    float64 `json:"open_price"`
-	CurrentPrice float64 `json:"current_price"`
-	Volume       float64 `json:"volume"`
+	Decision     *Decision `json:"decision"`
+	Coin         Coin      `json:"coin"`
+	Type         Type      `json:"type"`
+	OpenPrice    float64   `json:"open_price"`
+	CurrentPrice float64   `json:"current_price"`
+	Volume       float64   `json:"volume"`
 }
 
 func (p *Position) Sync(pos Position) (Position, bool) {

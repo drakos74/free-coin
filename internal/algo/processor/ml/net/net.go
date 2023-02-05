@@ -172,6 +172,15 @@ type ModelResult struct {
 	Reset              bool
 }
 
+func (r ModelResult) Decision() *model.Decision {
+	return &model.Decision{
+		Confidence: r.Accuracy,
+		Features:   r.Features,
+		Importance: r.FeaturesImportance,
+		Config:     []float64{r.Gap, r.Profit, r.Trend},
+	}
+}
+
 type modelResults []ModelResult
 
 func (rr modelResults) Len() int           { return len(rr) }
