@@ -266,7 +266,8 @@ func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal
 			//} else
 			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
 			if stopLossActivated || takeProfitActivated {
-				if (report.ValidTrend[0] == model.Sell) || (report.ValidTrend[1] == model.Sell) {
+				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == model.Sell) ||
+					(len(report.ValidTrend) > 1 && report.ValidTrend[1] == model.Sell) {
 					positions[k] = position
 				}
 			}
