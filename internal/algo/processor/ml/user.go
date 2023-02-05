@@ -125,8 +125,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 
 						trend := networks.Trend[kk]
 						report := network.Report()
-						txtBuffer.WriteString(fmt.Sprintf("%+v - %d %.2f%s | %d (%.2f)\n",
-							kk, len(set.Vectors),
+						txtBuffer.WriteString(fmt.Sprintf("%.2f%s | %d (%.2f)\n",
 							report.Profit, emoji.Profit, report.Buy+report.Sell,
 							trend))
 
@@ -137,8 +136,8 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						}
 						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
 					}
-					txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Stats))
-					txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.CC))
+					//txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Stats))
+					//txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.CC))
 				}
 			}
 		case "start":

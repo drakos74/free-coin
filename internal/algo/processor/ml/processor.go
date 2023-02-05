@@ -98,6 +98,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								log.Info().
 									Str("coin", string(key.Coin)).
 									Floats64("features", result.Features).
+									Float64("profit", result.Profit).
+									Float64("accuracy", result.Accuracy).
+									Float64("trend", result.Trend).
+									Floats64("xx", result.XY[0]).
+									Floats64("yy", result.XY[1]).
 									Str("detail", fmt.Sprintf("%+v", result.Detail.Type)).
 									Str("signal", fmt.Sprintf("%+v", signal)).
 									Msg("features")

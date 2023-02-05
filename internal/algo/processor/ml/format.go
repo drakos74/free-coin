@@ -88,7 +88,7 @@ func formatAction(log bool, action trader.Event, trend map[time.Duration]model.T
 		return fmt.Sprintf("%s\n"+
 			"%s|%.fm|%s|%s %.2f\n"+
 			"%s %s %.2f%s %.2f%s\n"+
-			"%s %s %s %s\n"+
+			"%s%s%s%s\n"+
 			"%v|%v\n"+
 			"%+v",
 			formatTime(action.Time),
@@ -134,7 +134,7 @@ func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err erro
 		return fmt.Sprintf("%s\n"+
 			"%s|%.fm|%s-%d|%.2f %.4f\n"+
 			"%s %s %.2f%s %.2f%s\n"+
-			"%s %s %s %s (%.2f|%.2f)\n"+
+			"%s%s%s%s (%.2f|%.2f)\n"+
 			"%v|%v",
 
 			// time

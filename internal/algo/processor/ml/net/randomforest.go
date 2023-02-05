@@ -63,6 +63,7 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 		p = r.forest.Predict(newX)
 	} else {
 		log.Info().
+			Str("coin", string(ds.Coin)).
 			Int("xx", len(xx)).
 			Int("yy", len(yy)).
 			Str("newX", fmt.Sprintf("%+v", newX)).
