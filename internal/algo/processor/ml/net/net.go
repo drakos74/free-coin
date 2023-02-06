@@ -205,7 +205,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		res := net.Train(ds)
 
 		var trend float64
-		xy := make([][]float64, 2)
+		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
 		detail := mlmodel.NetworkDetail(k.Type)
 
 		if m.Evolution[k].Len() >= 3 {
@@ -262,7 +262,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Evolution[k] = newBuffer()
 		m.Trend[k] = 0.0
-		m.XY[k] = make([][]float64, 0)
+		m.XY[k] = [][]float64{make([]float64, 0), make([]float64, 0)}
 
 		log.Info().
 			Str("Index", fmt.Sprintf("%+v", k)).
