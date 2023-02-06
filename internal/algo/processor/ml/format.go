@@ -235,6 +235,9 @@ func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 }
 
 func formatDecision(decision *model.Decision) string {
+	if decision == nil {
+		return ""
+	}
 	return fmt.Sprintf("%.2f %+v\n"+
 		"%+v\n"+
 		"%+v\v",
