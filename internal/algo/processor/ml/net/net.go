@@ -271,8 +271,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
 			Float64("trend", tt[k].Trend).
-			Floats64("trend-xx", tt[k].XY[0]).
-			Floats64("trend-xx", tt[k].XY[1]).
+			Str("trend-xy", fmt.Sprintf("%+v", tt[k].XY)).
 			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("CC", fmt.Sprintf("%+v", m.CC)).
