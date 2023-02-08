@@ -241,9 +241,22 @@ func formatDecision(decision *model.Decision) string {
 	return fmt.Sprintf("%.2f %+v\n"+
 		"%+v\n"+
 		"%+v\v",
-		decision.Confidence, decision.Config,
-		decision.Features,
-		decision.Importance)
+		decision.Confidence, formatFloats(decision.Config),
+		formatFloats(decision.Features),
+		formatFloats(decision.Importance))
+}
+
+func formatFloats(ff []float64) string {
+	s := new(strings.Builder)
+	s.WriteString("[")
+	for i := 0; i < len(ff); i++ {
+		if i != 0 {
+			s.WriteString(",")
+		}
+		s.WriteString(fmt.Sprintf(" %.2f", ff[i]))
+	}
+	s.WriteString(" ]")
+	return s.String()
 }
 
 func encodeMessage(signal mlmodel.Signal) string {
