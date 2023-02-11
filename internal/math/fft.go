@@ -49,7 +49,7 @@ func (s *Spectrum) Mean() float64 {
 	return s.Amplitude / float64(len(s.Values))
 }
 
-// RNum defines a complex number attrinutes
+// RNum defines a complex number attributes
 type RNum struct {
 	Amplitude float64
 	Frequency int

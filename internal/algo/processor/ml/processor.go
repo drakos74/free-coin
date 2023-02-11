@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	coin_math "github.com/drakos74/free-coin/internal/math"
+
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
@@ -72,12 +74,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
 							result, tt := set.Train()
 							signal := mlmodel.Signal{
-								Key:    key,
-								Detail: result.Detail,
-								Time:   vv.Meta.Tick.Range.To.Time,
-								Price:  vv.Meta.Tick.Range.To.Price,
-								Type:   result.Type,
-								//Spectrum:  coin_math.FFT(vv.YY),
+								Key:      key,
+								Detail:   result.Detail,
+								Time:     vv.Meta.Tick.Range.To.Time,
+								Price:    vv.Meta.Tick.Range.To.Price,
+								Type:     result.Type,
+								Spectrum: coin_math.FFT(vv.NewIn),
 								//Buffer:    vv.YY,
 								Gap:       result.Gap,
 								Precision: result.Accuracy,
@@ -93,7 +95,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									} else if !ok {
 										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
-									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).AddLine(formatDecision(action.Decision)).AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
+									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
+										AddLine(formatDecision(action.Decision)).
+										AddLine(formatSpectrum(*signal.Spectrum)).
+										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 								log.Info().
 									Str("coin", string(key.Coin)).

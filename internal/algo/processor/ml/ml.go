@@ -108,6 +108,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		volume := last.Stats[1].Avg()
 		min, max := last.Stats[0].Range()
 		// add the price fit polynomials
+		// [ linear-price , quadratic-price ... ]
 		inp, err := fit(xx, yy, 1, 2)
 		if err != nil && len(yy) > 2 && len(xx) == len(yy) {
 			log.Error().
@@ -125,6 +126,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Str("ddv", fmt.Sprintf("%+v", ddv)).
 				Msg("could not fit velocity")
 		}
+		// [ (1) (2) quadratic velocity ... ]
 		inp = append(inp, ddv...)
 		// add the momentum fit polynomials
 		ddp, err := fit(xx, dp, 1, 2)
@@ -135,8 +137,10 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				Str("ddp", fmt.Sprintf("%+v", ddp)).
 				Msg("could not fit momentum")
 		}
+		// [ (1) (2) (3) linear-momentum quadratic-momentum ... ]
 		inp = append(inp, ddp...)
 		// add statistical data
+		// [ (1) (2)  (3) (4) (5) frequency-of-events standard-deviation ema ]
 		inp = append(inp, float64(count)/last.Duration.Seconds(), std, ema)
 		// build the next state
 		tracker := c.state[key]

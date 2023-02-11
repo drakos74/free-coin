@@ -9,6 +9,7 @@ import (
 	"github.com/drakos74/free-coin/client"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/emoji"
+	"github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/drakos74/free-coin/internal/trader"
@@ -246,6 +247,10 @@ func formatDecision(decision *model.Decision) string {
 		formatFloats(decision.Importance))
 }
 
+func formatSpectrum(spectrum math.Spectrum) string {
+	return fmt.Sprintf("%.2f (%.2f) %s", spectrum.Amplitude, spectrum.Mean(), formatRNums(spectrum.Values))
+}
+
 func formatFloats(ff []float64) string {
 	s := new(strings.Builder)
 	s.WriteString("[")
@@ -254,6 +259,19 @@ func formatFloats(ff []float64) string {
 			s.WriteString(",")
 		}
 		s.WriteString(fmt.Sprintf(" %.2f", ff[i]))
+	}
+	s.WriteString(" ]")
+	return s.String()
+}
+
+func formatRNums(ff []math.RNum) string {
+	s := new(strings.Builder)
+	s.WriteString("[")
+	for i := 0; i < len(ff); i++ {
+		if i != 0 {
+			s.WriteString(",")
+		}
+		s.WriteString(fmt.Sprintf(" %.2f|%d|%v ", ff[i].Amplitude, ff[i].Frequency, ff[i].Cos))
 	}
 	s.WriteString(" ]")
 	return s.String()
