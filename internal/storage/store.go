@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/rs/zerolog/log"
 )
@@ -95,4 +97,39 @@ func Add(registry Registry, key K, value interface{}) {
 			Err(err).
 			Msg("could not add")
 	}
+}
+
+func ToFile(path string, name string, ext string, content []fmt.Stringer) (string, error) {
+	fn, err := MakePath(path, fmt.Sprintf("%s.%s", name, ext))
+	if err != nil {
+		return "", err
+	}
+	file, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	defer file.Close()
+
+	if err != nil {
+		return "", fmt.Errorf("could not open file: %w", err)
+	}
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	// take only the last n samples
+	for _, line := range content {
+		_, _ = writer.WriteString(line.String() + "\n")
+	}
+	return fn, nil
+}
+
+func MakePath(parentDir string, fileName string) (string, error) {
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+		err := os.MkdirAll(parentDir, 0700) // Create your file
+		if err != nil {
+			return "", err
+		}
+	}
+	fileName = fmt.Sprintf("%s/%s", parentDir, fileName)
+	//file, _ := os.Create(fileName)
+	//defer file.Close()
+	return fileName, nil
 }

@@ -23,6 +23,10 @@ func (m *MockStorage) Load(k Key, value interface{}) error {
 	return nil
 }
 
+func (m *MockStorage) FileName() string {
+	return ""
+}
+
 func MockEventRegistry() EventRegistry {
 	return func(path string) (Registry, error) {
 		return NewMockRegistry(), nil

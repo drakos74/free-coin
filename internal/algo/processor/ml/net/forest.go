@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/drakos74/free-coin/internal/storage"
+
 	"github.com/sjwhitworth/golearn/base"
 
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
@@ -120,7 +122,7 @@ const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
 func toFeatureFile(parentPath string, description string, vectors []mlmodel.Vector, predict bool) (string, error) {
-	fn, err := makePath(parentPath, fmt.Sprintf("%s.csv", description))
+	fn, err := storage.MakePath(parentPath, fmt.Sprintf("%s.csv", description))
 	if err != nil {
 		return "", err
 	}
@@ -160,17 +162,4 @@ func toFeatureFile(parentPath string, description string, vectors []mlmodel.Vect
 		_, _ = writer.WriteString(pw.String() + "\n")
 	}
 	return fn, nil
-}
-
-func makePath(parentDir string, fileName string) (string, error) {
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		err := os.MkdirAll(parentDir, 0700) // Create your file
-		if err != nil {
-			return "", err
-		}
-	}
-	fileName = fmt.Sprintf("%s/%s", parentDir, fileName)
-	//file, _ := os.Create(fileName)
-	//defer file.Close()
-	return fileName, nil
 }

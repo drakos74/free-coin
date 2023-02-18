@@ -247,6 +247,10 @@ func formatDecision(decision *model.Decision) string {
 		formatFloats(decision.Importance))
 }
 
+func formatPrediction(cluster int, score float64, confidence map[int]float64) string {
+	return fmt.Sprintf("%.d | %.4f\n %+v", cluster, score, confidence)
+}
+
 func formatSpectrum(spectrum math.Spectrum) string {
 	return fmt.Sprintf("%.2f (%.2f) %s", spectrum.Amplitude, spectrum.Mean(), formatRNums(spectrum.Values))
 }

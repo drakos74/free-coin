@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/drakos74/free-coin/internal/math/ml"
+
 	coin_math "github.com/drakos74/free-coin/internal/math"
 
 	"github.com/drakos74/free-coin/internal/algo/processor"
@@ -40,7 +42,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 	benchmarks := mlmodel.NewBenchmarks()
 
 	ds := net.NewDataSets(shard, net.MultiNetworkConstructor(networks...))
-
+	cf := ml.NewKMeans("all", 8, 50)
 	strategy := newStrategy(config, ds)
 
 	return func(u api.User, e api.Exchange) api.Processor {
@@ -89,6 +91,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
+									cluster, score, confidence, err := cf.Predict(result.Decision().Importance)
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live, result.Decision())
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
@@ -97,7 +100,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									}
 									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
 										AddLine(formatDecision(action.Decision)).
-										AddLine(formatSpectrum(*signal.Spectrum)).
+										//AddLine(formatSpectrum(*signal.Spectrum)).
+										AddLine(formatPrediction(cluster, score, confidence)).
 										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 								log.Info().
@@ -154,12 +158,16 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					pp, profit, trend, _ := wallet.Update(config.Option.Trace, tradeSignal, config.Position.TrackingConfig)
 					if len(pp) > 0 {
 						for k, p := range pp {
+							value := 0.0
 							reason := trader.VoidReasonClose
 							if p.PnL > 0 {
 								reason = trader.TakeProfitReason
+								value = 1.0
 							} else if p.PnL < 0 {
 								reason = trader.StopLossReason
+								value = -1.0
 							}
+							trainErr := cf.Train(p.Decision.Importance, value, false)
 							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live, nil)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
@@ -169,7 +177,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									log.Error().Str("Index", k.ToString()).Msg("could not reset signal")
 								}
 							}
-							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).AddLine(fmt.Sprintf(formatDecision(p.Decision))).AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).
+								AddLine(fmt.Sprintf(formatDecision(p.Decision))).
+								AddLine(fmt.Errorf("train error = %w", trainErr).Error()).
+								AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 && config.Option.Trace[string(tradeSignal.Coin)] {
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)

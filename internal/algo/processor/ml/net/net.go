@@ -38,6 +38,12 @@ func NewStatsCollector(s int) *StatsCollector {
 	}
 }
 
+//Model defines a simplistic machine learning model
+type Model interface {
+	Train(x []float64, result int, train bool) error
+	Predict(x []float64) int
+}
+
 // Network defines the main interface for a network training.
 // TODO : split network and multi-network interface
 type Network interface {

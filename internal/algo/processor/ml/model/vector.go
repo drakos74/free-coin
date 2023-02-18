@@ -1,6 +1,11 @@
 package model
 
-import "github.com/drakos74/free-coin/internal/model"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/drakos74/free-coin/internal/model"
+)
 
 type Meta struct {
 	Key  model.Key  `json:"key"`
@@ -12,4 +17,19 @@ type Vector struct {
 	PrevIn  []float64 `json:"prev_in"`
 	PrevOut []float64 `json:"prev_out"`
 	NewIn   []float64 `json:"new_in"`
+}
+
+func (v Vector) String() string {
+	lw := new(strings.Builder)
+	for _, in := range v.PrevIn {
+		lw.WriteString(fmt.Sprintf("%f,", in))
+	}
+	if v.PrevOut[0] == 1.0 {
+		lw.WriteString(fmt.Sprintf("%s", model.Buy.String()))
+	} else if v.PrevOut[2] == 1.0 {
+		lw.WriteString(fmt.Sprintf("%s", model.Sell.String()))
+	} else {
+		lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
+	}
+	return lw.String()
 }

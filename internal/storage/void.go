@@ -14,6 +14,10 @@ func (d VoidStorage) Load(k Key, value interface{}) error {
 	return fmt.Errorf("not found '%v': %w", k, NotFoundErr)
 }
 
+func (d VoidStorage) FileName() string {
+	return ""
+}
+
 // NewVoidStorage creates a new noop storage
 func NewVoidStorage() *VoidStorage {
 	return &VoidStorage{}
