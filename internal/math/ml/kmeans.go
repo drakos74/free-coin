@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/drakos74/free-coin/internal/buffer"
-
-	"github.com/drakos74/free-coin/internal/storage/file/json"
-
 	"github.com/cdipaolo/goml/cluster"
+	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/storage"
+	"github.com/drakos74/free-coin/internal/storage/file/json"
 	"github.com/rs/zerolog/log"
 )
 
