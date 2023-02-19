@@ -10,6 +10,7 @@ import (
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/emoji"
 	"github.com/drakos74/free-coin/internal/math"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
 	cointime "github.com/drakos74/free-coin/internal/time"
 	"github.com/drakos74/free-coin/internal/trader"
@@ -247,8 +248,12 @@ func formatDecision(decision *model.Decision) string {
 		formatFloats(decision.Importance))
 }
 
-func formatPrediction(cluster int, score float64, confidence map[int]float64) string {
-	return fmt.Sprintf("%.d | %.4f\n %+v", cluster, score, confidence)
+func formatPrediction(cluster int, score float64, stats map[int]ml.Stats, err error) string {
+	s := new(strings.Builder)
+	for g, st := range stats {
+		s.WriteString(fmt.Sprintf("%d (%d | %.2f)\n", g, st.Size, st.Avg))
+	}
+	return fmt.Sprintf("%.d | %.4f | %s \n %s", cluster, score, fmt.Errorf("err = %w", err).Error(), s.String())
 }
 
 func formatSpectrum(spectrum math.Spectrum) string {

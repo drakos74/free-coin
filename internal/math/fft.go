@@ -23,7 +23,7 @@ func FFT(xx []float64) *Spectrum {
 		})
 	}
 
-	sort.Sort(sort.Reverse(spectrums(ss.Values)))
+	sort.Sort(spectrums(ss.Values))
 
 	return ss
 }
@@ -65,5 +65,5 @@ func (c coefficients) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 type spectrums []RNum
 
 func (s spectrums) Len() int           { return len(s) }
-func (s spectrums) Less(i, j int) bool { return s[i].Amplitude < s[j].Amplitude }
+func (s spectrums) Less(i, j int) bool { return s[i].Frequency < s[j].Frequency }
 func (s spectrums) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

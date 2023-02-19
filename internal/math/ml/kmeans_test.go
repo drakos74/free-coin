@@ -2,6 +2,7 @@ package ml
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -16,13 +17,13 @@ func TestKMeans(t *testing.T) {
 	for i := -10.0; i < -3; i += 1.0 {
 		for j := -10.0; j < 10; j += 1.0 {
 			double = append(double, []float64{i, j})
-			score = append(score, 1.0)
+			score = append(score, rand.Float64())
 		}
 	}
 	for i := 3.0; i < 10; i += 1.0 {
 		for j := -10.0; j < 10; j += 1.0 {
 			double = append(double, []float64{i, j})
-			score = append(score, 0.0)
+			score = append(score, -1*rand.Float64())
 		}
 	}
 	fmt.Printf("double = %+v\n", double)
