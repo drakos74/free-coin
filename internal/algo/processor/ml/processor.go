@@ -91,7 +91,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									cluster, score, stats, trainErr := cf.Predict(result.Decision().Importance)
+									cluster, score, metadata, trainErr := cf.Predict(result.Decision().Importance)
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live, result.Decision())
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
@@ -101,7 +101,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
 										AddLine(formatDecision(action.Decision)).
 										AddLine(formatSpectrum(*signal.Spectrum)).
-										AddLine(formatPrediction(cluster, score, stats, trainErr)).
+										AddLine(formatPrediction(cluster, score, metadata, trainErr)).
 										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 								log.Info().
@@ -167,7 +167,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								reason = trader.StopLossReason
 								value = -1.0
 							}
-							stats, trainErr := cf.Train(p.Decision.Importance, value, false)
+							metadata, trainErr := cf.Train(p.Decision.Importance, value, true)
 							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live, nil)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
@@ -179,7 +179,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).
 								AddLine(fmt.Sprintf(formatDecision(p.Decision))).
-								AddLine(formatPrediction(0, 0.0, stats, trainErr)).
+								AddLine(formatPrediction(0, 0.0, metadata, trainErr)).
 								AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 && config.Option.Trace[string(tradeSignal.Coin)] {

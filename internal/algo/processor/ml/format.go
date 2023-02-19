@@ -248,12 +248,12 @@ func formatDecision(decision *model.Decision) string {
 		formatFloats(decision.Importance))
 }
 
-func formatPrediction(cluster int, score float64, stats map[int]ml.Stats, err error) string {
+func formatPrediction(cluster int, score float64, metadata ml.Metadata, err error) string {
 	s := new(strings.Builder)
-	for g, st := range stats {
+	for g, st := range metadata.Stats {
 		s.WriteString(fmt.Sprintf("%d (%d | %.2f)\n", g, st.Size, st.Avg))
 	}
-	return fmt.Sprintf("%.d | %.4f | %s \n %s", cluster, score, fmt.Errorf("err = %w", err).Error(), s.String())
+	return fmt.Sprintf("%.d | %.4f | %s|%d \n %s", cluster, score, fmt.Errorf("err = %w", err).Error(), metadata.Samples, s.String())
 }
 
 func formatSpectrum(spectrum math.Spectrum) string {

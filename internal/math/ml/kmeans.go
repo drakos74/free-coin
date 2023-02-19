@@ -42,6 +42,11 @@ func NewKMeans(pair string, dim int, iterations int) *KMeans {
 	}
 }
 
+type Metadata struct {
+	Samples int
+	Stats   map[int]Stats
+}
+
 type Stats struct {
 	Size int
 	Avg  float64
@@ -58,8 +63,10 @@ func transform(stats map[int]*buffer.Stats) map[int]Stats {
 	return newStats
 }
 
-func (k *KMeans) Train(x []float64, y float64, train bool) (map[int]Stats, error) {
-	stats := make(map[int]Stats)
+func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
+	metadata := Metadata{
+		Stats: make(map[int]Stats),
+	}
 	// load all data
 	var data [][]float64
 	if err := k.store.Load(k.dataKey, &data); err != nil {
@@ -71,6 +78,7 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (map[int]Stats, error
 	}
 	// append new data to data
 	data = append(data, x)
+	metadata.Samples = len(data)
 	// load results
 	var results []float64
 	if err := k.store.Load(k.resultsKey, &results); err != nil {
@@ -88,7 +96,7 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (map[int]Stats, error
 			Str("key", fmt.Sprintf("%+v", k.dataKey)).
 			Int("data", len(data)).
 			Msg("could not store data set for k-means")
-		return stats, fmt.Errorf("could not store updated data set: %w", err)
+		return metadata, fmt.Errorf("could not store updated data set: %w", err)
 	}
 	if err := k.store.Store(k.resultsKey, results); err != nil {
 		log.Error().
@@ -96,21 +104,21 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (map[int]Stats, error
 			Str("key", fmt.Sprintf("%+v", k.resultsKey)).
 			Int("results", len(results)).
 			Msg("could not store result set for k-means")
-		return stats, fmt.Errorf("could not store updated results set: %w", err)
+		return metadata, fmt.Errorf("could not store updated results set: %w", err)
 	}
 	// train either on demand or based on intervals
-	if train && (len(data) >= k.dim) {
+	if train && len(data) >= k.dim {
 		k.model = cluster.NewKMeans(k.dim, k.iterations, data)
 		if err := k.model.Learn(); err != nil {
 			log.Error().
 				Err(err).
 				Str("key", fmt.Sprintf("%+v", k.dataKey)).
 				Msg("error during training on k-means")
-			return stats, fmt.Errorf("could not train: %w", err)
+			return metadata, fmt.Errorf("could not train: %w", err)
 		}
 		guesses := k.model.Guesses()
 		if len(guesses) != len(results) {
-			return stats, fmt.Errorf("could not align results with data [ %d | %d | %d ]", len(results), len(guesses), len(data))
+			return metadata, fmt.Errorf("could not align results with data [ %d | %d | %d ]", len(results), len(guesses), len(data))
 		}
 		//calculate score for each of the clusters
 		k.stats = make(map[int]*buffer.Stats, k.dim)
@@ -121,14 +129,17 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (map[int]Stats, error
 			}
 			k.stats[g].Push(results[i])
 		}
-		stats = transform(k.stats)
+		metadata.Stats = transform(k.stats)
 	}
-	return stats, nil
+	return metadata, nil
 }
 
-func (k *KMeans) Predict(x []float64) (int, float64, map[int]Stats, error) {
+func (k *KMeans) Predict(x []float64) (int, float64, Metadata, error) {
+	metadata := Metadata{
+		Stats: make(map[int]Stats),
+	}
 	if k.model == nil {
-		return 0, 0, map[int]Stats{}, fmt.Errorf("no model present")
+		return 0, 0.0, metadata, fmt.Errorf("no model present")
 	}
 	guess, err := k.model.Predict(x)
 	if err != nil {
@@ -136,13 +147,13 @@ func (k *KMeans) Predict(x []float64) (int, float64, map[int]Stats, error) {
 			Err(err).
 			Str("key", fmt.Sprintf("%+v", k.dataKey)).
 			Msg("could not predict for k-means")
-		return 0, 0, map[int]Stats{}, fmt.Errorf("could not predict: %w", err)
+		return 0, 0.0, metadata, fmt.Errorf("could not predict: %w", err)
 	}
 
 	f := int(math.Round(guess[0]))
 	score := k.stats[f].Avg()
 
-	ss := transform(k.stats)
+	metadata.Stats = transform(k.stats)
 
-	return f, score, ss, nil
+	return f, score, metadata, nil
 }
