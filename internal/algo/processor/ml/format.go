@@ -280,7 +280,7 @@ func formatRNums(ff []math.RNum) string {
 		if i != 0 {
 			s.WriteString(",")
 		}
-		s.WriteString(fmt.Sprintf(" %.2f|%d|%v ", ff[i].Amplitude, ff[i].Frequency, ff[i].Cos))
+		s.WriteString(fmt.Sprintf(" %d|%.2f ", ff[i].Frequency, ff[i].Amplitude))
 	}
 	s.WriteString(" ]")
 	return s.String()

@@ -42,7 +42,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 	benchmarks := mlmodel.NewBenchmarks()
 
 	ds := net.NewDataSets(shard, net.MultiNetworkConstructor(networks...))
-	cf := ml.NewKMeans("all", 5, 50)
+	cf := ml.NewKMeans("all", 5, 30)
 	strategy := newStrategy(config, ds)
 
 	return func(u api.User, e api.Exchange) api.Processor {
