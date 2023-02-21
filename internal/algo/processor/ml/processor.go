@@ -167,7 +167,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								reason = trader.StopLossReason
 								value = -1.0
 							}
-							metadata, trainErr := cf.Train(p.Decision.Importance, value, true)
+							metadata := ml.Metadata{}
+							var trainErr error
+							if p.Decision != nil {
+								metadata, trainErr = cf.Train(p.Decision.Importance, value, true)
+							}
 							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live, nil)
 							if err != nil || !ok {
 								log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
