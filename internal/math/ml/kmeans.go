@@ -3,6 +3,7 @@ package ml
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/cdipaolo/goml/cluster"
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -42,25 +43,19 @@ func NewKMeans(pair string, dim int, iterations int) *KMeans {
 	}
 }
 
-type Metadata struct {
-	Samples int
-	Stats   map[int]Stats
-}
-
-type Stats struct {
-	Size int
-	Avg  float64
-}
-
-func transform(stats map[int]*buffer.Stats) map[int]Stats {
+func transform(stats map[int]*buffer.Stats) (map[int]Stats, []float64) {
 	newStats := make(map[int]Stats)
+	// keep limit
+	limit := make([]float64, 0)
 	for g, st := range stats {
+		limit = append(limit, st.Avg())
 		newStats[g] = Stats{
 			Size: st.Count(),
 			Avg:  st.Avg(),
 		}
 	}
-	return newStats
+	sort.Sort(sort.Reverse(sort.Float64Slice(limit)))
+	return newStats, limit
 }
 
 func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
@@ -129,12 +124,12 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
 			}
 			k.stats[g].Push(results[i])
 		}
-		metadata.Stats = transform(k.stats)
+		metadata.Stats, _ = transform(k.stats)
 	}
 	return metadata, nil
 }
 
-func (k *KMeans) Predict(x []float64) (int, float64, Metadata, error) {
+func (k *KMeans) Predict(x []float64, leadingThreshold int) (int, float64, Metadata, error) {
 	metadata := Metadata{
 		Stats: make(map[int]Stats),
 	}
@@ -153,7 +148,11 @@ func (k *KMeans) Predict(x []float64) (int, float64, Metadata, error) {
 	f := int(math.Round(guess[0]))
 	score := k.stats[f].Avg()
 
-	metadata.Stats = transform(k.stats)
+	metadata.Stats, metadata.Scores = transform(k.stats)
+
+	if len(metadata.Scores) > leadingThreshold {
+		metadata.Limit = metadata.Scores[leadingThreshold-1]
+	}
 
 	return f, score, metadata, nil
 }

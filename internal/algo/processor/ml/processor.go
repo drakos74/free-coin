@@ -91,8 +91,13 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									cluster, score, metadata, trainErr := cf.Predict(result.Decision().Importance)
-									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, trader.SignalReason, s.Live, result.Decision())
+									cluster, score, metadata, trainErr := cf.Predict(result.Decision().Importance, 2)
+									reason := trader.SignalReason
+									if score < 0.5 && score < metadata.Limit {
+										// cancel move ...
+										reason = trader.BadHistoryReasonType
+									}
+									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, reason, s.Live, result.Decision())
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 									} else if !ok {

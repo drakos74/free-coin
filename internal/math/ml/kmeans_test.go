@@ -38,19 +38,22 @@ func TestKMeans(t *testing.T) {
 
 	for i := 0; i < len(double); i++ {
 		d := double[i]
-		err := kmeans.Train(d, score[i], false)
+		meta, err := kmeans.Train(d, score[i], false)
+		fmt.Printf("meta = %+v\n", meta)
 		assert.NoError(t, err)
 		if i == len(double)-1 {
-			err := kmeans.Train(d, score[i], true)
+			_, err := kmeans.Train(d, score[i], true)
 			assert.NoError(t, err)
 		}
 	}
 
-	c1, confidence, ss, err := kmeans.Predict([]float64{-7.5, 0})
+	c1, confidence, ss, err := kmeans.Predict([]float64{-7.5, 0}, 2)
+	fmt.Printf("ss = %+v\n", ss)
 	assert.NoError(t, err)
 	fmt.Printf("c1 = %+v | %+v | %+v \n", c1, confidence, ss)
 
-	c2, confidence, ss, err := kmeans.Predict([]float64{7.5, 0})
+	c2, confidence, ss, err := kmeans.Predict([]float64{7.5, 0}, 2)
+	fmt.Printf("ss = %+v\n", ss)
 	assert.NoError(t, err)
 	fmt.Printf("c2 = %+v | %+v| %+v \n", c2, confidence, ss)
 }
