@@ -10,3 +10,15 @@ type Dataset struct {
 	store storage.Persistence
 	key   storage.Key
 }
+
+type Metadata struct {
+	Samples int
+	Stats   map[int]Stats
+	Scores  []float64
+	Limit   float64
+}
+
+type Stats struct {
+	Size int
+	Avg  float64
+}
