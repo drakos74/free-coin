@@ -367,6 +367,11 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		action = xt.track(key, action)
 		return nil, false, action, fmt.Errorf("no clean type [%s %s:%v]", openType.String(), position.Type.String(), ok)
 	}
+	if action.Reason == BadHistoryReasonType {
+		xt.log.append(action)
+		action = xt.track(key, action)
+		return nil, false, action, fmt.Errorf("no consistent history [%s %s:%v]", openType.String(), position.Type.String(), ok)
+	}
 	if close == "" {
 		if !open {
 			action.Reason = VoidReasonClose
