@@ -11,6 +11,7 @@ import (
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/rs/zerolog/log"
 )
@@ -40,8 +41,8 @@ func NewStatsCollector(s int) *StatsCollector {
 
 //Model defines a simplistic machine learning model
 type Model interface {
-	Train(x []float64, result int, train bool) error
-	Predict(x []float64) int
+	Train(x []float64, y float64, train bool) (ml.Metadata, error)
+	Predict(x []float64, leadingThreshold int) (int, float64, ml.Metadata, error)
 }
 
 // Network defines the main interface for a network training.

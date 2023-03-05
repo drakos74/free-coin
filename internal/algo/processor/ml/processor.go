@@ -42,7 +42,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 	benchmarks := mlmodel.NewBenchmarks()
 
 	ds := net.NewDataSets(shard, net.MultiNetworkConstructor(networks...))
-	cf := ml.NewKMeans("all", 5, 30)
 	strategy := newStrategy(config, ds)
 
 	return func(u api.User, e api.Exchange) api.Processor {
@@ -91,7 +90,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									cluster, score, metadata, trainErr := cf.Predict(result.Decision().Importance, 2)
+									cluster, score, metadata, trainErr := ds.Eval(key, result.Decision().Importance, 2)
 									reason := trader.SignalReason
 									if score < 0.5 && score < metadata.Limit {
 										// cancel move ...
@@ -175,7 +174,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							metadata := ml.Metadata{}
 							var trainErr error
 							if p.Decision != nil {
-								metadata, trainErr = cf.Train(p.Decision.Importance, value, true)
+								metadata, trainErr = ds.Cluster(p.Key, p.Decision.Importance, value, true)
 							}
 							_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Type.Inv(), false, p.Volume, reason, p.Live, nil)
 							if err != nil || !ok {

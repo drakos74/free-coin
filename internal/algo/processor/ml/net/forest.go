@@ -6,15 +6,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drakos74/free-coin/internal/storage"
-
-	"github.com/sjwhitworth/golearn/base"
-
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	coinml "github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
+	"github.com/sjwhitworth/golearn/base"
 )
 
 type RandomForestNetwork struct {

@@ -5,11 +5,17 @@ import (
 	"time"
 
 	"github.com/drakos74/free-coin/client"
-
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
+)
+
+var (
+	allCoinsKey = model.Key{
+		Coin: model.AllCoins,
+	}
 )
 
 type Dataset struct {
@@ -33,9 +39,10 @@ func (s *Dataset) Eval(k mlmodel.Detail, report client.Report) {
 }
 
 type Datasets struct {
-	sets    map[model.Key]*Dataset
-	storage storage.Persistence
-	network ConstructMultiNetwork
+	sets      map[model.Key]*Dataset
+	decisions map[model.Key]Model
+	storage   storage.Persistence
+	network   ConstructMultiNetwork
 }
 
 func NewDataSets(shard storage.Shard, network ConstructMultiNetwork) *Datasets {
@@ -45,7 +52,10 @@ func NewDataSets(shard storage.Shard, network ConstructMultiNetwork) *Datasets {
 		persistence = storage.VoidStorage{}
 	}
 	return &Datasets{
-		sets:    make(map[model.Key]*Dataset),
+		sets: make(map[model.Key]*Dataset),
+		decisions: map[model.Key]Model{
+			allCoinsKey: ml.NewKMeans("all", 5, 30),
+		},
 		storage: persistence,
 		network: network,
 	}
@@ -103,6 +113,29 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 		return ds.sets[key], true
 	}
 	return &Dataset{}, false
+}
+
+func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int, float64, ml.Metadata, error) {
+	if _, ok := ds.decisions[key]; !ok {
+		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
+	}
+	cl, score, meta, err := ds.decisions[key].Predict(x, leadingThreshold)
+	if err != nil {
+		log.Debug().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("eval model fallback")
+		return ds.decisions[allCoinsKey].Predict(x, leadingThreshold)
+	}
+	return cl, score, meta, nil
+}
+
+func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (ml.Metadata, error) {
+	if _, ok := ds.decisions[key]; !ok {
+		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
+	}
+	meta, err := ds.decisions[key].Train(x, y, train)
+	if err != nil {
+		return ds.decisions[allCoinsKey].Train(x, y, train)
+	}
+	return meta, nil
 }
 
 func addVector(ss []mlmodel.Vector, s mlmodel.Vector, size int) []mlmodel.Vector {
