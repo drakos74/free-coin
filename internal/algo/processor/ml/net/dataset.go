@@ -117,6 +117,7 @@ func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*
 
 func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int, float64, ml.Metadata, error) {
 	if _, ok := ds.decisions[key]; !ok {
+		log.Warn().Str("method", "eval").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
 		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
 	}
 	cl, score, meta, err := ds.decisions[key].Predict(x, leadingThreshold)
@@ -129,6 +130,7 @@ func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int,
 
 func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (ml.Metadata, error) {
 	if _, ok := ds.decisions[key]; !ok {
+		log.Warn().Str("method", "cluster").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
 		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
 	}
 	meta, err := ds.decisions[key].Train(x, y, train)

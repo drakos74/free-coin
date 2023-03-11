@@ -318,6 +318,14 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		close = position.OrderID
 		// by overriding the type it allows us to close and open a new one directly
 		t = position.Type.Inv()
+		// pass in parameters for the position result
+		_, value := Assess(action.PnL)
+		if position.Decision != nil {
+			action.Result = Result{
+				X: position.Decision.Importance,
+				Y: value,
+			}
+		}
 		log.Debug().
 			Str("position", fmt.Sprintf("%+v", position)).
 			Str("type", t.String()).

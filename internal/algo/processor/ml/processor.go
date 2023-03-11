@@ -102,6 +102,9 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									} else if !ok {
 										log.Debug().Str("action", fmt.Sprintf("%+v", action)).Str("signal", fmt.Sprintf("%+v", s)).Bool("open", open).Bool("ok", ok).Err(err).Msg("error submitting order")
 									}
+									if action.Result.Y != 0.0 {
+										metadata, trainErr = ds.Cluster(k, action.Result.X, action.Result.Y, true)
+									}
 									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
 										AddLine(formatDecision(action.Decision)).
 										AddLine(formatSpectrum(*signal.Spectrum)).
@@ -162,15 +165,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 					pp, profit, trend, _ := wallet.Update(config.Option.Trace, tradeSignal, config.Position.TrackingConfig)
 					if len(pp) > 0 {
 						for k, p := range pp {
-							value := 0.0
-							reason := trader.VoidReasonClose
-							if p.PnL > 0 {
-								reason = trader.TakeProfitReason
-								value = 1.0
-							} else if p.PnL < 0 {
-								reason = trader.StopLossReason
-								value = -1.0
-							}
+							reason, value := trader.Assess(p.PnL)
 							metadata := ml.Metadata{}
 							var trainErr error
 							if p.Decision != nil {

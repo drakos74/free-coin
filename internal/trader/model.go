@@ -89,7 +89,26 @@ type Event struct {
 	Decision *model.Decision `json:"decision"`
 	Reason   Reason          `json:"reason"`
 	PnL      float64         `json:"PnL"`
+	Result   Result          `json:"result"`
 	TradeTracker
+}
+
+type Result struct {
+	X []float64 `json:"x"`
+	Y float64   `json:"y"`
+}
+
+func Assess(pnl float64) (Reason, float64) {
+	value := 0.0
+	reason := VoidReasonClose
+	if pnl > 0 {
+		reason = TakeProfitReason
+		value = 1.0
+	} else if pnl < 0 {
+		reason = StopLossReason
+		value = -1.0
+	}
+	return reason, value
 }
 
 type TradeTracker struct {
