@@ -148,6 +148,12 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
 					metrics.Observer.NoteLag(f, string(coin), "socket", "ticker")
 					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
+					logger.Info().
+						Timestamp().
+						Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+						Str("coin", string(signal.Coin)).
+						Str("tick", fmt.Sprintf("%+v", signal.Tick)).
+						Msg("trade")
 					out <- &signal
 					<-process
 				}
