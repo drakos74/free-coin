@@ -5,15 +5,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/math/ml"
-
-	coin_math "github.com/drakos74/free-coin/internal/math"
-
 	"github.com/drakos74/free-coin/internal/algo/processor"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
 	"github.com/drakos74/free-coin/internal/api"
 	"github.com/drakos74/free-coin/internal/emoji"
+	coin_math "github.com/drakos74/free-coin/internal/math"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/metrics"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage"
@@ -157,10 +155,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			start := time.Now()
 			metrics.Observer.NoteLag(f, coin, Name, "batch")
 			metrics.Observer.IncrementTrades(coin, Name, "batch")
-			log.Info().
-				Timestamp().
-				Str("signal", fmt.Sprintf("%+v", tradeSignal.Tick.Level)).
-				Msg("signal=debug")
+			// TODO : highlight the data flow better
+			//log.Info().
+			//	Timestamp().
+			//	Str("signal", fmt.Sprintf("%+v", tradeSignal.Tick.Level)).
+			//	Msg("signal=debug")
 			col.push(tradeSignal)
 			if live, first := strategy.isLive(tradeSignal.Coin, tradeSignal.Tick); live || config.Option.Debug {
 				startStrategy := time.Now()

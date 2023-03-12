@@ -56,6 +56,8 @@ func (s *Socket) Run(process <-chan api.Signal) (chan *model.TradeSignal, error)
 	return out, nil
 }
 
+// connect will receive and transform each message from the socket appropriately
+// and propagate it to the next layer. Responsibility is to ensure common data structures amongst different connectors.
 func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal) (cErr error) {
 	defer func() {
 		logger.Error().Err(cErr).Msg("error during connect, reconnecting ... ")
@@ -148,12 +150,13 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
 					metrics.Observer.NoteLag(f, string(coin), "socket", "ticker")
 					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
-					logger.Info().
-						Timestamp().
-						//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
-						Str("coin", string(signal.Coin)).
-						Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
-						Msg("trade=debug")
+					// TODO : highlight the data flow better
+					//logger.Info().
+					//	Timestamp().
+					//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+					//Str("coin", string(signal.Coin)).
+					//Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
+					//Msg("trade=debug")
 					out <- &signal
 					<-process
 				}

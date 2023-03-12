@@ -93,12 +93,13 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			if err != nil {
 				log.Error().Err(err).Msg("error during trade signal processing")
 			}
-			log.Info().
-				Timestamp().
-				Str("meta", fmt.Sprintf("%+v", signal.Meta)).
-				Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
-				Str("signal", string(signal.Coin)).
-				Msg("buffer=debug")
+			// TODO : highlight the data flow better
+			//log.Info().
+			//	Timestamp().
+			//	Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+			//	Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
+			//	Str("signal", string(signal.Coin)).
+			//	Msg("buffer=debug")
 		}
 	}(trades)
 
@@ -113,11 +114,12 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 		// aggregation of signals happens here
 		for trade := range in {
 			metrics.Observer.IncrementTrades(string(trade.Coin), name, "source")
-			log.Info().
-				Timestamp().
-				Str("meta", fmt.Sprintf("%+v", trade.Meta)).
-				Str("tick", fmt.Sprintf("%+v", trade.Tick.Level)).
-				Msg("source=debug")
+			// TODO : highlight the data flow better
+			//log.Info().
+			//	Timestamp().
+			//	Str("meta", fmt.Sprintf("%+v", trade.Meta)).
+			//	Str("tick", fmt.Sprintf("%+v", trade.Tick.Level)).
+			//	Msg("source=debug")
 			signalBuffer.Push(trade)
 			out <- trade
 		}
@@ -141,11 +143,12 @@ func Deriv() Enrich {
 	buf := buffer.NewMultiBuffer(2)
 
 	return func(trade *model.TradeSignal) *model.TradeSignal {
-		log.Info().
-			Timestamp().
-			Str("tick.level", fmt.Sprintf("%+v", trade.Tick.Level)).
-			Str("meta", fmt.Sprintf("%+v", trade.Meta)).
-			Msg("deriv=debug")
+		// TODO : highlight the data flow better
+		//log.Info().
+		//	Timestamp().
+		//	Str("tick.level", fmt.Sprintf("%+v", trade.Tick.Level)).
+		//	Str("meta", fmt.Sprintf("%+v", trade.Meta)).
+		//	Msg("deriv=debug")
 		if _, ok := buf.Push(float64(trade.Tick.Time.Unix()), trade.Tick.Price, trade.Tick.Volume); ok {
 			vv := buf.Get()
 			velocity := 0.0

@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -59,10 +58,11 @@ func (sb *SignalBuffer) Close() {
 func bufferedProcessor(coin model.Coin, trades <-chan buffer.StatsMessage, signals chan<- *model.TradeSignal) {
 	var lastSignal model.TradeSignal
 	for bucket := range trades {
-		log.Info().
-			Timestamp().
-			Str("ok", fmt.Sprintf("%+v", bucket.OK)).
-			Msg("bucket=debug")
+		// TODO : highlight the data flow better
+		//log.Info().
+		//	Timestamp().
+		//	Str("ok", fmt.Sprintf("%+v", bucket.OK)).
+		//	Msg("bucket=debug")
 		if bucket.OK {
 			min, max := bucket.Stats[0].Range()
 			size := bucket.Stats[0].Count()
@@ -92,11 +92,23 @@ func bufferedProcessor(coin model.Coin, trades <-chan buffer.StatsMessage, signa
 				Price:  bucket.Stats[0].Avg(),
 				Volume: bucket.Stats[1].Avg(),
 			}
-			lastSignal = *signal
+			lastSignal = flatten(signal)
 			signals <- signal
 		} else if lastSignal.Coin != model.NoCoin {
-			lastSignal.Meta.Size = 0
 			signals <- &lastSignal
 		}
 	}
+}
+
+func flatten(signal *model.TradeSignal) model.TradeSignal {
+	flatSignal := *signal
+	flatSignal.Meta.Size = 0
+
+	flatSignal.Tick.Range.To.Price = flatSignal.Tick.Level.Price
+	flatSignal.Tick.Range.From.Price = flatSignal.Tick.Level.Price
+
+	flatSignal.Tick.Move.Momentum = 0
+	flatSignal.Tick.Move.Velocity = 0
+
+	return flatSignal
 }
