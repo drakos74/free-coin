@@ -79,6 +79,7 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 
 	signalBuffer, trades := NewSignalBuffer(duration)
 
+	// buffered signal processing happens here
 	go func(trades <-chan *model.TradeSignal) {
 		for signal := range trades {
 			coin := string(signal.Coin)
@@ -108,8 +109,13 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			close(out)
 			shutdown()
 		}()
+		// aggregation of signals happens here
 		for trade := range in {
 			metrics.Observer.IncrementTrades(string(trade.Coin), name, "source")
+			log.Info().
+				Timestamp().
+				Str("tick", fmt.Sprintf("%+v", trade.Tick.Level)).
+				Msg("source=debug")
 			signalBuffer.Push(trade)
 			out <- trade
 		}
