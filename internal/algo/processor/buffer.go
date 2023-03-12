@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/buffer"
@@ -35,8 +36,10 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 		// start consuming for the new created window
 		go func(coin model.Coin, signals chan<- *model.TradeSignal) {
 			for bucket := range trades {
+				log.Info().Str("ok", fmt.Sprintf("%+v", bucket.OK)).Msg("bucket=debug")
 				if bucket.OK {
 					min, max := bucket.Stats[0].Range()
+					size := bucket.Stats[0].Count()
 					signal := &model.TradeSignal{
 						Coin: coin,
 						Tick: model.Tick{
@@ -56,6 +59,7 @@ func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 						Meta: model.Meta{
 							Time: bucket.Time,
 							Live: bucket.OK,
+							Size: size,
 						},
 					}
 					signal.Tick.Level = model.Level{
