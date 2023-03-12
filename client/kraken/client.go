@@ -197,6 +197,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 			Coin: trade.Coin,
 			Meta: coinmodel.Meta{
 				Time:     trade.Meta.Time,
+				Size:     batchSize,
 				Exchange: trade.Meta.Exchange,
 			},
 			Tick: trade.Tick,

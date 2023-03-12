@@ -63,6 +63,7 @@ type Spread struct {
 type Meta struct {
 	ID       string    `json:"id"`
 	Time     time.Time `json:"time"`
+	Size     int       `json:"size"`
 	Live     bool      `json:"live"`
 	Exchange string    `json:"exchange"`
 }

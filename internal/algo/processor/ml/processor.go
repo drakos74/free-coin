@@ -68,8 +68,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
 				log.Info().
 					Str("x", fmt.Sprintf("%+v", vv.NewIn)).
-					Str("meta", fmt.Sprintf("%+v", vv.Meta)).
-					Msg("vector")
+					Str("tick.level", fmt.Sprintf("%+v", vv.Meta.Tick.Level)).
+					Msg("vector-debug")
 				configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 				for key, segmentConfig := range configSegments {
 					// do our training here ...

@@ -93,10 +93,10 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			}
 			log.Info().
 				Timestamp().
-				Str("meta", fmt.Sprintf("%+v", signal.Meta)).
-				Str("tick", fmt.Sprintf("%+v", signal.Tick)).
+				//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+				Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
 				Str("signal", string(signal.Coin)).
-				Msg("buffer")
+				Msg("buffer-debug")
 		}
 	}(trades)
 

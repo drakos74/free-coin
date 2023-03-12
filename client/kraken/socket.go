@@ -150,10 +150,10 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
 					logger.Info().
 						Timestamp().
-						Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+						//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
 						Str("coin", string(signal.Coin)).
-						Str("tick", fmt.Sprintf("%+v", signal.Tick)).
-						Msg("trade")
+						Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
+						Msg("trade=debug")
 					out <- &signal
 					<-process
 				}
