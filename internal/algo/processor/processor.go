@@ -78,6 +78,7 @@ func ProcessWithClose(name string, p func(trade *model.TradeSignal) error, shutd
 func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade *model.TradeSignal) error, shutdown func(), enrich ...Enrich) api.Processor {
 
 	signalBuffer, trades := NewSignalBuffer(duration)
+	//signalBuffer.WithEcho()
 
 	// buffered signal processing happens here
 	go func(trades <-chan *model.TradeSignal) {
@@ -133,6 +134,8 @@ func NoProcess(name string) api.Processor {
 // Enrich defines a function that will enrich the trade
 type Enrich func(trade *model.TradeSignal) *model.TradeSignal
 
+// Deriv defines a processor that will calculate derived values for the trade
+// in this case it is the derivative of first and last value
 func Deriv() Enrich {
 
 	buf := buffer.NewMultiBuffer(2)
