@@ -53,11 +53,11 @@ func (c config) String() string {
 func FromString(k string) model.Key {
 	ss := strings.Split(k, model.Delimiter)
 	if len(ss) < 2 {
-		panic(fmt.Sprintf("%s : invalid key", k))
+		panic(any(fmt.Sprintf("%s : invalid key", k)))
 	}
 	m, err := strconv.Atoi(ss[1])
 	if err != nil {
-		panic(err.Error())
+		panic(any(err.Error()))
 	}
 	return model.Key{
 		Coin:     model.Coin(ss[0]),

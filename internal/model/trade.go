@@ -52,6 +52,28 @@ type Tick struct {
 	Active bool      `json:"active"`
 }
 
+func NewTick(price float64, volume float64, t Type, time time.Time) Tick {
+	return Tick{
+		Level: Level{
+			Price:  price,
+			Volume: volume,
+		},
+		Range: Range{
+			From: Event{
+				Price: price,
+				Time:  time,
+			},
+			To: Event{
+				Price: price,
+				Time:  time,
+			},
+		},
+		Type:   t,
+		Time:   time,
+		Active: true,
+	}
+}
+
 // Spread defines the current spread
 type Spread struct {
 	Bid   Level
@@ -95,7 +117,7 @@ type TradeSignal struct {
 //	Price    float64   `json:"Value"`
 //	Volume   float64   `json:"Volume"`
 //	Time     time.Time `json:"time"`
-//	Type     Type      `json:"Type"`
+//	t     t      `json:"t"`
 //	Active   bool      `json:"active"`
 //	Live     bool      `json:"live"`
 //	Meta     Batch     `json:"batch"`

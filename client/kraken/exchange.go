@@ -38,12 +38,12 @@ func NewExchange(user account.Name) api.Exchange {
 
 	key := os.Getenv(format.Key())
 	if key == "" {
-		panic(fmt.Sprintf("key not found for %s", format.Key()))
+		panic(any(fmt.Sprintf("key not found for %s", format.Key())))
 	}
 
 	secret := os.Getenv(format.Secret())
 	if secret == "" {
-		panic(fmt.Sprintf("secret not found for %s", format.Secret()))
+		panic(any(fmt.Sprintf("secret not found for %s", format.Secret())))
 	}
 
 	exchange := &Exchange{

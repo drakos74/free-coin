@@ -165,5 +165,4 @@ func TestStats_Push(t *testing.T) {
 			assert.Equal(t, tt.ema, math.Round(stats.EMA()))
 		})
 	}
-
 }

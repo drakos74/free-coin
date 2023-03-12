@@ -146,6 +146,9 @@ func NewProfit(config *TrackingConfig) *Profit {
 	if config == nil {
 		return nil
 	}
+	if len(config.Threshold) < 2 {
+		config.Threshold = []float64{0.0, 0.0}
+	}
 	return &Profit{
 		Config: *config,
 		Window: buffer.NewHistoryWindow(config.Duration, config.Samples),
@@ -288,6 +291,68 @@ func calculateTrend(currentValue, threshold, lastValue float64) (trend Type, shi
 		}
 	}
 	return trend, shift
+}
+
+type TrendReport struct {
+	Profit           float64
+	StopLossActive   bool
+	TakeProfitActive bool
+	ValidTrend       []Type
+}
+
+// AssessTrend assesses the current position trend
+func AssessTrend(pp map[Key]Position, takeProfit, stopLoss float64) (map[Key]Position, []float64, map[Key]map[time.Duration]Trend, map[Key]TrendReport) {
+	positions := make(map[Key]Position)
+	allProfit := make([]float64, 0)
+	allTrend := make(map[Key]map[time.Duration]Trend)
+	reports := make(map[Key]TrendReport, 0)
+	if len(pp) > 0 {
+		for k, position := range pp {
+			profit := position.PnL
+			stopLossActivated := position.PnL <= -1*stopLoss
+			takeProfitActivated := position.PnL >= takeProfit
+			report := TrendReport{
+				Profit:           profit,
+				StopLossActive:   stopLossActivated,
+				TakeProfitActive: takeProfitActivated,
+			}
+
+			//shift := position.Trend.Shift != model.NoType
+			//validShift := position.Trend.Shift != position.t
+			// TODO : NOT multi-position ready !!!
+			// we assume it s only one position thats relevant
+			for tt, trend := range position.Trend {
+				// NOTE : t here does not mean market , but Profit/Loss
+				if validTrend, ok := trend.Assess(); ok {
+					if _, ok := allTrend[k]; !ok {
+						allTrend[k] = make(map[time.Duration]Trend)
+					}
+					allTrend[k][tt] = trend
+					report.ValidTrend = validTrend
+				}
+			}
+			//if stopLossActivated {
+			//	// if we pass the stop-Loss threshold
+			//	positions[k] = position
+			//	delete(xt.Profit, k)
+			//} else
+			//if shift && validShift {
+			//	// if there is a shift in the opposite direction of the position
+			//	positions[k] = position
+			//	delete(xt.Profit, k)
+			//} else
+			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
+			if stopLossActivated || takeProfitActivated {
+				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == Sell) ||
+					(len(report.ValidTrend) > 1 && report.ValidTrend[1] == Sell) {
+					positions[k] = position
+				}
+			}
+			reports[k] = report
+			allProfit = append(allProfit, profit)
+		}
+	}
+	return positions, allProfit, allTrend, reports
 }
 
 // OpenPosition creates a position from a given order.

@@ -20,7 +20,7 @@ type Strategy struct {
 func NewStrategy(name string) *Strategy {
 	u, err := user.NewUser(name)
 	if err != nil {
-		panic(fmt.Sprintf("could not init local user: %s", err.Error()))
+		panic(any(fmt.Sprintf("could not init local user: %s", err.Error())))
 	}
 	return &Strategy{
 		User:     u,

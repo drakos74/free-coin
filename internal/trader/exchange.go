@@ -33,13 +33,6 @@ type Stats struct {
 	Profit int
 }
 
-type TrendReport struct {
-	Profit           float64
-	StopLossActive   bool
-	TakeProfitActive bool
-	ValidTrend       []model.Type
-}
-
 func newTracker() *tracker {
 	return &tracker{
 		PnLPerCoin:    make(map[model.Coin]Stats),
@@ -211,71 +204,15 @@ func (xt *ExchangeTrader) UpstreamPositions(ctx context.Context) ([]model.Positi
 }
 
 // Update updates the positions and returns the ones over the stop Loss and take Profit thresholds
-func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal, cfg []*model.TrackingConfig) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]TrendReport) {
+func (xt *ExchangeTrader) Update(trace map[string]bool, trade *model.TradeSignal, cfg []*model.TrackingConfig) (map[model.Key]model.Position, []float64, map[model.Key]map[time.Duration]model.Trend, map[model.Key]model.TrendReport) {
 	pp := xt.trader.update(trace, trade, cfg)
-
 	if xt.settings.TakeProfit == 0.0 {
 		xt.settings.TakeProfit = math.MaxFloat64
 	}
 	if xt.settings.StopLoss == 0.0 {
 		xt.settings.StopLoss = math.MaxFloat64
 	}
-
-	positions := make(map[model.Key]model.Position)
-
-	allProfit := make([]float64, 0)
-
-	allTrend := make(map[model.Key]map[time.Duration]model.Trend)
-
-	reports := make(map[model.Key]TrendReport, 0)
-
-	if len(pp) > 0 {
-		for k, position := range pp {
-			profit := position.PnL
-			stopLossActivated := position.PnL <= -1*xt.settings.StopLoss
-			takeProfitActivated := position.PnL >= xt.settings.TakeProfit
-			report := TrendReport{
-				Profit:           profit,
-				StopLossActive:   stopLossActivated,
-				TakeProfitActive: takeProfitActivated,
-			}
-
-			//shift := position.Trend.Shift != model.NoType
-			//validShift := position.Trend.Shift != position.Type
-			// TODO : NOT multi-position ready !!!
-			// we assume it s only one position thats relevant
-			for tt, trend := range position.Trend {
-				// NOTE : Type here does not mean market , but Profit/Loss
-				if validTrend, ok := trend.Assess(); ok {
-					if _, ok := allTrend[k]; !ok {
-						allTrend[k] = make(map[time.Duration]model.Trend)
-					}
-					allTrend[k][tt] = trend
-					report.ValidTrend = validTrend
-				}
-			}
-			//if stopLossActivated {
-			//	// if we pass the stop-Loss threshold
-			//	positions[k] = position
-			//	delete(xt.Profit, k)
-			//} else
-			//if shift && validShift {
-			//	// if there is a shift in the opposite direction of the position
-			//	positions[k] = position
-			//	delete(xt.Profit, k)
-			//} else
-			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
-			if stopLossActivated || takeProfitActivated {
-				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == model.Sell) ||
-					(len(report.ValidTrend) > 1 && report.ValidTrend[1] == model.Sell) {
-					positions[k] = position
-				}
-			}
-			reports[k] = report
-			allProfit = append(allProfit, profit)
-		}
-	}
-	return positions, allProfit, allTrend, reports
+	return model.AssessTrend(pp, xt.settings.TakeProfit, xt.settings.StopLoss)
 }
 
 func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float64,

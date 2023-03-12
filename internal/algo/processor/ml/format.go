@@ -74,7 +74,7 @@ func formatReport(report client.Report) string {
 		report.Fees)
 }
 
-func formatTrendReport(log bool, k model.Key, report trader.TrendReport) string {
+func formatTrendReport(log bool, k model.Key, report model.TrendReport) string {
 	return fmt.Sprintf("%s %.2f (loss=%v , profit=%v)\n"+
 		"[%s , %s]",
 		formatKey(k),

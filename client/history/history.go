@@ -201,9 +201,9 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 		for trade := range in {
 			if h.readonly == nil {
 				// store the trade
-				exchange := trade.Exchange
+				exchange := trade.Meta.Exchange
 				coin := trade.Coin
-				k := h.key(trade.Time)
+				k := h.key(trade.Meta.Time)
 
 				// structure : {Exchange}_{Coin}_{time-hash}
 				key := Key{
@@ -213,7 +213,7 @@ func (h *History) Trades(process <-chan api.Signal) (model.TradeSource, error) {
 				}
 
 				if kk != k {
-					fmt.Printf("trade.Time = %+v | %+v\n", trade.Time, key)
+					fmt.Printf("trade.Time = %+v | %+v\n", trade.Meta.Time, key)
 					kk = k
 				}
 

@@ -17,6 +17,21 @@ type Stats struct {
 	ema            float64
 }
 
+func MockStats(count int, sum float64, first float64, last float64) Stats {
+	min := math.Min(first, last)
+	max := math.Max(first, last)
+	mean := (first + last) / 2
+	return Stats{
+		count: count,
+		sum:   sum,
+		first: first,
+		last:  last,
+		min:   min,
+		max:   max,
+		mean:  mean,
+	}
+}
+
 // NewStats creates a new Stats.
 func NewStats() *Stats {
 	return &Stats{
@@ -72,6 +87,9 @@ func (s Stats) Avg() float64 {
 
 // EMA is the exponential moving average of the set.
 func (s Stats) EMA() float64 {
+	if math.IsNaN(s.ema) {
+		return 0
+	}
 	return s.ema
 }
 
@@ -92,6 +110,9 @@ func (s Stats) Diff() float64 {
 
 // Variance is the mathematical variance of the set.
 func (s Stats) Variance() float64 {
+	if s.count == 0 {
+		return 0
+	}
 	return s.dSquared / float64(s.count)
 }
 
@@ -137,7 +158,7 @@ func NewStatsCollector(dim int) *StatsCollector {
 // Push pushes each value to the corresponding dimension.
 func (sc *StatsCollector) Push(v ...float64) {
 	if len(v) != sc.dim {
-		panic(fmt.Sprintf("inconsistent dimensions %d vs %d", len(v), sc.dim))
+		panic(any(fmt.Sprintf("inconsistent dimensions %d vs %d", len(v), sc.dim)))
 	}
 	for i := 0; i < len(sc.stats); i++ {
 		sc.stats[i].Push(v[i])
@@ -203,18 +224,30 @@ func (b Bucket) Index() int64 {
 }
 
 // Flush flushes the current stats of the bucket.
-func (b Bucket) Flush() []Stats {
+func (b Bucket) Flush() ([]Stats, []Stats) {
 	l := len(b.stats.Stats())
+	// gather the stats
 	ss := make([]Stats, l)
+	// gather the stats as if it is a single event for echo purposes
+	ff := make([]Stats, l)
 	for i := 0; i < l; i++ {
 		ss[i] = *b.stats.stats[i]
+		ff[i] = Stats{
+			sum:   b.stats.stats[i].mean,
+			first: b.stats.stats[i].mean,
+			last:  b.stats.stats[i].mean,
+			min:   b.stats.stats[i].mean,
+			max:   b.stats.stats[i].mean,
+			mean:  b.stats.stats[i].mean,
+		}
 	}
-	return ss
+	return ss, ff
 }
 
 // Window is a helper struct allowing grouping together Buckets of StatsCollectors for the given Index.
 type Window struct {
 	size      int64
+	dim       int
 	lastIndex int64
 	bucket    Bucket
 }
@@ -228,6 +261,7 @@ func (w Window) String() string {
 func NewWindow(size int64, dim int) *Window {
 	return &Window{
 		size:   size,
+		dim:    dim,
 		bucket: NewBucket(0, dim),
 	}
 }
@@ -248,7 +282,7 @@ func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 	if index == 0 {
 		// new start ...
 		w.lastIndex = index
-		w.bucket = NewBucket(index, len(value))
+		w.bucket = NewBucket(index, w.dim)
 	} else if w.size > 0 && index >= w.lastIndex+w.size {
 		// start a new one
 		if w.bucket.Size() > 0 {
@@ -257,7 +291,7 @@ func (w *Window) Push(index int64, value ...float64) (int64, Bucket, bool) {
 			ready = true
 		}
 
-		w.bucket = NewBucket(index, len(value))
+		w.bucket = NewBucket(index, w.dim)
 		w.lastIndex = index
 	}
 

@@ -43,6 +43,7 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *mlmodel.C
 
 	for k, cfg := range config.Segments {
 		bw, trades := buffer.NewBatchWindow(string(k.Coin), dim, k.Duration, cfg.Stats.LookBack+cfg.Stats.LookAhead)
+		bw.WithEcho()
 		windows[k] = bw
 		states[k] = &state{
 			buffer: buffer.NewMultiBuffer(cfg.Stats.LookBack),

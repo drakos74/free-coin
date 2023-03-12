@@ -22,6 +22,7 @@ type Vector struct {
 
 func (v Vector) String() string {
 	lw := new(strings.Builder)
+	lw.WriteString("prev:")
 	for _, in := range v.PrevIn {
 		lw.WriteString(fmt.Sprintf("%f,", in))
 	}
@@ -32,5 +33,9 @@ func (v Vector) String() string {
 	} else {
 		lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
 	}
+	//lw.WriteString("\nnewI:")
+	//for _, in := range v.NewIn {
+	//	lw.WriteString(fmt.Sprintf("%f,", in))
+	//}
 	return lw.String()
 }

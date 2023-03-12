@@ -80,7 +80,7 @@ func NewTimeWindow(duration time.Duration) TimeWindow {
 func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 	// TODO : provide a inverse hash operation
-	index := t.Unix() // / tw.Duration
+	index := t.Unix() / tw.Duration
 
 	index, bucket, closed := tw.window.Push(index, v...)
 
@@ -229,20 +229,23 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 	if err != nil {
 		return nil, fmt.Errorf("could not extarct series: %w", err)
 	}
-	if trace {
-		log.Info().
-			Str("xx", fmt.Sprintf("%+v", xx)).
-			Str("yy", fmt.Sprintf("%+v", yy)).
-			Str("index", fmt.Sprintf("%+v", degree)).
-			Msg("fit")
-	}
 	if len(yy) < degree+1 {
 		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
 			len(yy),
 			degree+1,
 			degree)
 	}
-	return math.Fit(xx, yy, degree)
+	aa, err := math.Fit(xx, yy, degree)
+	if trace {
+		log.Info().
+			Err(err).
+			Str("xx", fmt.Sprintf("%+v", xx)).
+			Str("yy", fmt.Sprintf("%+v", yy)).
+			Str("ff", fmt.Sprintf("%+v", aa)).
+			Str("index", fmt.Sprintf("%+v", degree)).
+			Msg("fit")
+	}
+	return aa, err
 }
 
 // Values returns the values of the time window in a slice
@@ -281,7 +284,8 @@ func WindowDensity() TimeBucketTransform {
 	}
 }
 
-// StatsMessage defines a stats instance
+// StatsMessage defines a stats message instance.
+// It gathers stats and metadata for the aggregation of the provided values.
 type StatsMessage struct {
 	OK       bool          `json:"ok"`
 	Time     time.Time     `json:"Time"`
@@ -291,16 +295,24 @@ type StatsMessage struct {
 	Stats    []Stats       `json:"-"`
 }
 
+// IntervalWindow defines a struct that returns the stats for the given interval.
+// It gathers events for the given interval and flushes them at the predefined duration.
+// If no events are gathered the window will return a StatsMessage with the flag OK set to false.
+// The WithEcho method can control the window behaviour to flush a valid StatsMessage even without an event,
+// in this case the value of the last StatsMessage will be echoed with count of `0`
 type IntervalWindow struct {
-	ID       string
-	Time     time.Time     `json:"Time"`
-	Duration time.Duration `json:"Duration"`
-	Dim      int           `json:"Dimensions"`
-	window   *Window
-	stats    chan StatsMessage
-	lock     *sync.RWMutex
-	count    int
-	limit    int
+	ID          string
+	Time        time.Time     `json:"Time"`
+	Duration    time.Duration `json:"Duration"`
+	Dim         int           `json:"Dimensions"`
+	window      *Window
+	lastMessage StatsMessage
+	stats       chan StatsMessage
+	lock        *sync.RWMutex
+	count       int
+	limit       int
+	echo        bool
+	closed      bool
 }
 
 // NewIntervalWindow creates a new IntervalWindow with the given Duration.
@@ -312,7 +324,10 @@ func NewIntervalWindow(id string, dim int, duration time.Duration) (*IntervalWin
 		Duration: duration,
 		Dim:      dim,
 		stats:    stats,
-		lock:     new(sync.RWMutex),
+		lastMessage: StatsMessage{
+			Stats: make([]Stats, dim),
+		},
+		lock: new(sync.RWMutex),
 	}
 
 	go iw.exec()
@@ -322,6 +337,11 @@ func NewIntervalWindow(id string, dim int, duration time.Duration) (*IntervalWin
 
 func (iw *IntervalWindow) WithLimit(limit int) *IntervalWindow {
 	iw.limit = limit
+	return iw
+}
+
+func (iw *IntervalWindow) WithEcho() *IntervalWindow {
+	iw.echo = true
 	return iw
 }
 
@@ -348,14 +368,22 @@ func (iw *IntervalWindow) Flush() {
 
 	// if we did not have any event
 	if iw.count == 0 || iw.window == nil {
-		iw.stats <- StatsMessage{}
+		if iw.echo {
+			// this will allow processing because OK will be true
+			lastMessage := iw.lastMessage
+			lastMessage.Time = lastMessage.Time.Add(iw.Duration)
+			iw.lastMessage = lastMessage
+			iw.stats <- iw.lastMessage
+		} else {
+			// this will signal to ignore for processing because Ok will be false
+			iw.stats <- StatsMessage{}
+		}
 		return
 	}
-
-	stats := iw.window.bucket.Flush()
+	stats, flatStats := iw.window.bucket.Flush()
 	iw.window = nil
 	iw.count = 0
-	iw.stats <- StatsMessage{
+	message := StatsMessage{
 		OK:       true,
 		Time:     iw.Time,
 		ID:       iw.ID,
@@ -363,29 +391,42 @@ func (iw *IntervalWindow) Flush() {
 		Dim:      iw.Dim,
 		Stats:    stats,
 	}
+	iw.stats <- message
+	iw.lastMessage = StatsMessage{
+		OK:       true,
+		Time:     message.Time,
+		ID:       message.ID,
+		Duration: message.Duration,
+		Dim:      message.Dim,
+		Stats:    flatStats,
+	}
 }
 
 // exec initiates the execution
 func (iw *IntervalWindow) exec() {
 	if iw.limit == 0 {
 		<-time.After(iw.Duration)
-		iw.Flush()
-		iw.exec()
+		if !iw.closed {
+			iw.Flush()
+			iw.exec()
+		}
 	}
 }
 
 // Close closes the channel
 func (iw *IntervalWindow) Close() error {
 	close(iw.stats)
+	iw.closed = true
 	return nil
 }
 
+// BatchWindow is a window struct that gathers the passed `x` elements from an IntervalWindow.
 type BatchWindow struct {
 	Window  *IntervalWindow `json:"Window"`
 	buckets *Ring           `json:"-"`
 }
 
-// NewBatchWindow creates a new batch Window.
+// NewBatchWindow creates a new batch window.
 func NewBatchWindow(id string, dim int, duration time.Duration, size int) (*BatchWindow, <-chan []StatsMessage) {
 	stats := make(chan []StatsMessage)
 	iw, stat := NewIntervalWindow(id, dim, duration)
@@ -407,6 +448,11 @@ func NewBatchWindow(id string, dim int, duration time.Duration, size int) (*Batc
 	}(stats, stat)
 
 	return &bw, stats
+}
+
+func (bw *BatchWindow) WithEcho() *BatchWindow {
+	bw.Window.WithEcho()
+	return bw
 }
 
 // TODO : make this a channel in order to time the bucket correctly

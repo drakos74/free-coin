@@ -216,5 +216,5 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 }
 
 func (c *Client) CurrentPrice(ctx context.Context) (map[coinmodel.Coin]coinmodel.CurrentPrice, error) {
-	panic("implement me")
+	panic(any("implement me"))
 }
