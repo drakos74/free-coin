@@ -94,7 +94,7 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			}
 			log.Info().
 				Timestamp().
-				//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+				Str("meta", fmt.Sprintf("%+v", signal.Meta)).
 				Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
 				Str("signal", string(signal.Coin)).
 				Msg("buffer=debug")
@@ -114,6 +114,7 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			metrics.Observer.IncrementTrades(string(trade.Coin), name, "source")
 			log.Info().
 				Timestamp().
+				Str("meta", fmt.Sprintf("%+v", trade.Meta)).
 				Str("tick", fmt.Sprintf("%+v", trade.Tick.Level)).
 				Msg("source=debug")
 			signalBuffer.Push(trade)
@@ -140,6 +141,7 @@ func Deriv() Enrich {
 		log.Info().
 			Timestamp().
 			Str("tick.level", fmt.Sprintf("%+v", trade.Tick.Level)).
+			Str("meta", fmt.Sprintf("%+v", trade.Meta)).
 			Msg("deriv=debug")
 		if _, ok := buf.Push(float64(trade.Tick.Time.Unix()), trade.Tick.Price, trade.Tick.Volume); ok {
 			vv := buf.Get()
