@@ -66,6 +66,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				coin := string(vv.Meta.Key.Coin)
 				duration := vv.Meta.Key.Duration.String()
 				metrics.Observer.IncrementEvents(coin, duration, "poly", Name)
+				log.Info().
+					Str("x", fmt.Sprintf("%+v", vv.NewIn)).
+					Str("meta", fmt.Sprintf("%+v", vv.Meta)).
+					Msg("vector")
 				configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 				for key, segmentConfig := range configSegments {
 					// do our training here ...

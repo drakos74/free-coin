@@ -91,6 +91,12 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 			if err != nil {
 				log.Error().Err(err).Msg("error during trade signal processing")
 			}
+			log.Info().
+				Timestamp().
+				Str("meta", fmt.Sprintf("%+v", signal.Meta)).
+				Str("tick", fmt.Sprintf("%+v", signal.Tick)).
+				Str("signal", string(signal.Coin)).
+				Msg("buffer")
 		}
 	}(trades)
 

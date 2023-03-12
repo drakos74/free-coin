@@ -8,8 +8,9 @@ import (
 )
 
 type Meta struct {
-	Key  model.Key  `json:"key"`
-	Tick model.Tick `json:"tick"`
+	Key    model.Key  `json:"key"`
+	Tick   model.Tick `json:"tick"`
+	Active bool       `json:"active"`
 }
 
 type Vector struct {
