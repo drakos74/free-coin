@@ -69,7 +69,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 				log.Info().
 					Str("x", fmt.Sprintf("%+v", vv.NewIn)).
 					Str("tick.level", fmt.Sprintf("%+v", vv.Meta.Tick.Level)).
-					Msg("vector-debug")
+					Msg("vector=debug")
 				configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 				for key, segmentConfig := range configSegments {
 					// do our training here ...
@@ -157,6 +157,10 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 			start := time.Now()
 			metrics.Observer.NoteLag(f, coin, Name, "batch")
 			metrics.Observer.IncrementTrades(coin, Name, "batch")
+			log.Info().
+				Timestamp().
+				Str("signal", fmt.Sprintf("%+v", tradeSignal.Tick.Level)).
+				Msg("signal=debug")
 			col.push(tradeSignal)
 			if live, first := strategy.isLive(tradeSignal.Coin, tradeSignal.Tick); live || config.Option.Debug {
 				startStrategy := time.Now()

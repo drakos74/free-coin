@@ -96,7 +96,7 @@ func ProcessBufferedWithClose(name string, duration time.Duration, p func(trade 
 				//Str("meta", fmt.Sprintf("%+v", signal.Meta)).
 				Str("tick.level", fmt.Sprintf("%+v", signal.Tick.Level)).
 				Str("signal", string(signal.Coin)).
-				Msg("buffer-debug")
+				Msg("buffer=debug")
 		}
 	}(trades)
 
@@ -131,6 +131,10 @@ func Deriv() Enrich {
 	buf := buffer.NewMultiBuffer(2)
 
 	return func(trade *model.TradeSignal) *model.TradeSignal {
+		log.Info().
+			Timestamp().
+			Str("tick.level", fmt.Sprintf("%+v", trade.Tick.Level)).
+			Msg("deriv=debug")
 		if _, ok := buf.Push(float64(trade.Tick.Time.Unix()), trade.Tick.Price, trade.Tick.Volume); ok {
 			vv := buf.Get()
 			velocity := 0.0
