@@ -131,7 +131,7 @@ func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentCon
 	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 		sgm[ConfigKey(coin, 15)] = mlmodel.Segments{
 			Stats:  StatsConfig(3, 0.15),
-			Model:  ModelConfig(0.65),
+			Model:  ModelConfig(0.61),
 			Trader: TraderConfig(true),
 		}
 		//sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
@@ -148,18 +148,18 @@ func configML() *mlmodel.Config {
 	cfg := mlmodel.SegmentConfig(make(map[model.Key]mlmodel.Segments))
 
 	cfg = cfg.
-		//AddConfig(forCoin(model.BTC)).
-		//AddConfig(forCoin(model.DOT)).
-		//AddConfig(forCoin(model.ETH)).
-		//AddConfig(forCoin(model.LINK)).
-		//AddConfig(forCoin(model.SOL)).
-		//AddConfig(forCoin(model.FLOW)).
-		AddConfig(forCoin(model.MATIC))
-		//AddConfig(forCoin(model.AAVE)).
-		//AddConfig(forCoin(model.KSM)).
-		//AddConfig(forCoin(model.XRP)).
-		//AddConfig(forCoin(model.ADA)).
-		//AddConfig(forCoin(model.KAVA))
+		AddConfig(forCoin(model.BTC)).
+		AddConfig(forCoin(model.DOT)).
+		AddConfig(forCoin(model.ETH)).
+		AddConfig(forCoin(model.LINK)).
+		AddConfig(forCoin(model.SOL)).
+		AddConfig(forCoin(model.FLOW)).
+		AddConfig(forCoin(model.MATIC)).
+		AddConfig(forCoin(model.AAVE)).
+		AddConfig(forCoin(model.KSM)).
+		AddConfig(forCoin(model.XRP)).
+		AddConfig(forCoin(model.ADA)).
+		AddConfig(forCoin(model.KAVA))
 
 	return &mlmodel.Config{
 		Segments: cfg,
