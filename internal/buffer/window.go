@@ -293,6 +293,35 @@ type StatsMessage struct {
 	Duration time.Duration `json:"Duration"`
 	Dim      int           `json:"Dimensions"`
 	Stats    []Stats       `json:"-"`
+	Data     []Data        `json:"data"`
+}
+
+type Data struct {
+	Count int     `json:"count"`
+	Mean  float64 `json:"value"`
+	Ratio float64 `json:"ratio"`
+	First float64 `json:"first"`
+	Last  float64 `json:"last"`
+	StDev float64 `json:"std"`
+	EMA   float64 `json:"ema"`
+}
+
+type StackOfStats []Stats
+
+func (sos StackOfStats) ToData() []Data {
+	dd := make([]Data, len(sos))
+	for i := 0; i < len(sos); i++ {
+		dd[i] = Data{
+			Count: sos[i].Count(),
+			Mean:  sos[i].Avg(),
+			Ratio: sos[i].Ratio(),
+			First: sos[i].first,
+			Last:  sos[i].last,
+			StDev: sos[i].StDev(),
+			EMA:   sos[i].EMA(),
+		}
+	}
+	return dd
 }
 
 // IntervalWindow defines a struct that returns the stats for the given interval.
@@ -326,6 +355,7 @@ func NewIntervalWindow(id string, dim int, duration time.Duration) (*IntervalWin
 		stats:    stats,
 		lastMessage: StatsMessage{
 			Stats: make([]Stats, dim),
+			Data:  make([]Data, dim),
 		},
 		lock: new(sync.RWMutex),
 	}
@@ -390,6 +420,7 @@ func (iw *IntervalWindow) Flush() {
 		Duration: iw.Duration,
 		Dim:      iw.Dim,
 		Stats:    stats,
+		Data:     StackOfStats(stats).ToData(),
 	}
 	iw.stats <- message
 	iw.lastMessage = StatsMessage{
@@ -399,6 +430,7 @@ func (iw *IntervalWindow) Flush() {
 		Duration: message.Duration,
 		Dim:      message.Dim,
 		Stats:    flatStats,
+		Data:     StackOfStats(flatStats).ToData(),
 	}
 }
 

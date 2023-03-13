@@ -162,7 +162,7 @@ func (c *HMM) Add(s string, label string) (map[Sequence]Predictions, Status) {
 
 	// We cant allow our delimiter char to be used within the values.
 	if strings.Contains(s, Delimiter) {
-		panic(fmt.Sprintf("illegal character found '%s' in '%s'", Delimiter, s))
+		panic(any(fmt.Sprintf("illegal character found '%s' in '%s'", Delimiter, s)))
 	}
 
 	c.Status.Count++
