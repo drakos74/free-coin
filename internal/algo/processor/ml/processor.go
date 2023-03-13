@@ -92,7 +92,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									cluster, score, metadata, trainErr := ds.Eval(key, result.Decision().Importance, 2)
+									cluster, score, metadata, trainErr := ds.Eval(k, result.Decision().Importance, 2)
 									reason := trader.SignalReason
 									if score < 0.5 && score < metadata.Limit {
 										// cancel move ...
