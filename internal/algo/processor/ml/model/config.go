@@ -69,6 +69,7 @@ type Option struct {
 
 type Buffer struct {
 	Interval time.Duration
+	History  bool
 }
 
 type Position struct {

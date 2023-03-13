@@ -186,6 +186,7 @@ func configML() *mlmodel.Config {
 		},
 		Buffer: mlmodel.Buffer{
 			Interval: 10 * time.Second,
+			History:  true,
 		},
 	}
 }

@@ -3,6 +3,8 @@ package ml
 import (
 	"fmt"
 
+	"github.com/drakos74/free-coin/internal/storage/file/json"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
@@ -15,6 +17,7 @@ import (
 
 type collector struct {
 	store   storage.Persistence
+	history storage.Persistence
 	windows map[model.Key]*buffer.BatchWindow
 	state   map[model.Key]*state
 	vectors chan mlmodel.Vector
@@ -32,11 +35,18 @@ func newCollector(dim int, shard storage.Shard, _ *ff.Network, config *mlmodel.C
 		store = storage.NewVoidStorage()
 	}
 
+	// keep the events for history purposes
+	var history storage.Persistence
+	if config.Buffer.History {
+		history = json.NewJsonBlob("ml", "history", false)
+	}
+
 	windows := make(map[model.Key]*buffer.BatchWindow)
 	states := make(map[model.Key]*state)
 
 	col := &collector{
 		store:   store,
+		history: history,
 		config:  config,
 		vectors: make(chan mlmodel.Vector),
 	}
@@ -68,7 +78,36 @@ func (c *collector) push(trade *model.TradeSignal) {
 
 func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 	metrics.Observer.IncrementEvents(string(key.Coin), key.Hash(), "window", Name)
+	var history [][]buffer.StatsMessage
+	k := storage.Key{
+		Pair:  string(key.Coin),
+		Label: fmt.Sprintf("%+v", key.Duration.Minutes()),
+	}
+	if c.history != nil {
+		if err := c.history.Load(k, &history); err != nil {
+			log.Warn().Err(err).
+				Str("pair", k.Pair).
+				Str("label", k.Label).
+				Int64("hash", k.Hash).
+				Msg("no previous data for history")
+		}
+	}
+
 	for messages := range batch {
+		// keep track of history
+		if c.history != nil {
+			// append new data to data
+			history = append(history, messages)
+			// store into the list
+			if err := c.history.Store(k, history); err != nil {
+				log.Error().
+					Err(err).
+					Str("key", fmt.Sprintf("%+v", k)).
+					Int("data", len(history)).
+					Msg("could not store data set for history")
+			}
+		}
+
 		xx := make([]float64, 0)
 		yy := make([]float64, 0)
 		dv := make([]float64, 0)

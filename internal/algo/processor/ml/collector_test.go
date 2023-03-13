@@ -82,9 +82,6 @@ func TestCollector_Process_MissingEvent(t *testing.T) {
 				},
 			},
 		},
-		Position: mlmodel.Position{},
-		Option:   mlmodel.Option{},
-		Buffer:   mlmodel.Buffer{},
 	})
 	assert.NoError(t, err)
 
