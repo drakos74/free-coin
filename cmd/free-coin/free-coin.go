@@ -189,7 +189,7 @@ func configML() *mlmodel.Config {
 			TakeProfit: 0.015,
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration: 30 * time.Second,
-				Samples:  5,
+				Samples:  3,
 				// TODO : investigate more what this does
 				//Threshold: []float64{0.00005, 0.000002},
 				//Threshold: []float64{0.00002, 0.000001},
