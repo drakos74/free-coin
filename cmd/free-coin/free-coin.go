@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// get config
-	f := "free-coin.cfg"
+	f := "free-coin.json"
 	dat, err := os.ReadFile(f)
 	if err != nil {
 		panic(any(fmt.Sprintf("could not load config file: %s", f)))
