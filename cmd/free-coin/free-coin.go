@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/drakos74/free-coin/internal/algo/processor/ml/net"
@@ -25,6 +27,11 @@ import (
 func init() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
+
+const (
+	exchange = "exchange"
+	bot      = "bot"
+)
 
 func main() {
 	config := configML()
@@ -48,9 +55,21 @@ func main() {
 		log.Fatalf("error creating engine: %s", err.Error())
 	}
 
+	// get config
+	f := "free-coin.cfg"
+	dat, err := os.ReadFile(f)
+	if err != nil {
+		panic(any(fmt.Sprintf("could not load config file: %s", f)))
+	}
+	var cfg map[string]string
+	err = json.Unmarshal(dat, &cfg)
+	if err != nil {
+		panic(any(fmt.Sprintf("could not decode config file: %s", f)))
+	}
+
 	// position tracker for kraken
-	exchange := kraken.NewExchange(account.Drakos)
-	u, err := telegram.NewBot(api.FreeCoin)
+	exchange := kraken.NewExchange(account.Name(cfg[exchange])) //account.Drakos
+	u, err := telegram.NewBot(api.Index(cfg[bot]))              //api.FreeCoin
 	if err != nil {
 		log.Fatalf("error creating user: %s", err.Error())
 	}
