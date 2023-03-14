@@ -271,7 +271,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			OK:                 res.OK,
 		}
 		// TODO : make this configurable
-		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
+		if res.OK && result.Profit > 1.0 && result.Trend > -0.1 {
 			log.Info().
 				Str("type", string(result.Type)).
 				Str("detail", fmt.Sprintf("%+v", result.Detail)).
