@@ -119,6 +119,7 @@ type MultiNetwork struct {
 	construct map[mlmodel.Detail]ConstructNetwork
 	Networks  map[mlmodel.Detail]Network
 	Evolution map[mlmodel.Detail]*buffer.MultiBuffer
+	Slope     map[mlmodel.Detail]float64
 	Trend     map[mlmodel.Detail]float64
 	XY        map[mlmodel.Detail][][]float64
 	cfg       mlmodel.Model
@@ -135,6 +136,7 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 	cc := make(map[mlmodel.Detail]ConstructNetwork)
 	ev := make(map[mlmodel.Detail]*buffer.MultiBuffer)
 	tt := make(map[mlmodel.Detail]float64)
+	ss := make(map[mlmodel.Detail]float64)
 	xy := make(map[mlmodel.Detail][][]float64)
 	for i, net := range network {
 		nnet := net(cfg)
@@ -152,6 +154,7 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 		construct: cc,
 		Evolution: ev,
 		Trend:     tt,
+		Slope:     ss,
 		XY:        xy,
 		cfg:       cfg,
 		Stats:     make(map[mlmodel.Detail]Stat),
@@ -172,6 +175,7 @@ type ModelResult struct {
 	Accuracy           float64
 	Profit             float64
 	Trend              float64
+	Slope              float64
 	XY                 [][]float64
 	Features           []float64
 	FeaturesImportance []float64
@@ -212,6 +216,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		res := net.Train(ds)
 
 		var trend float64
+		var slope float64
 		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
 		detail := mlmodel.NetworkDetail(k.Type)
 
@@ -224,11 +229,14 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 					xx = append(xx, float64(i))
 					yy = append(yy, math.Round(v[1]))
 				}
-				a, err := coinmath.Fit(xx, yy, 1)
-				if err == nil {
+				if a, err := coinmath.Fit(xx, yy, 1); err == nil {
 					trend = a[1]
 					m.Trend[k] = trend
 					xy = [][]float64{xx, yy}
+				}
+				if b, err := coinmath.Fit(xx, yy, 2); err == nil {
+					slope = b[2]
+					m.Slope[k] = slope
 				}
 			}
 			m.XY[k] = xy
@@ -242,6 +250,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			FeaturesImportance: res.FeaturesImportance,
 			Profit:             report.Profit,
 			Trend:              trend,
+			Slope:              slope,
 			XY:                 xy,
 			OK:                 res.OK,
 		}
@@ -254,13 +263,14 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 				Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 				Str("config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 				Float64("trend", result.Trend).
+				Float64("slope", result.Slope).
 				Float64("profit", result.Profit).
 				Float64("accuracy", result.Accuracy).
 				Msg("accept network")
 			results = append(results, result)
 			// add the config to the winners
 			m.assessPerformance(detail, result, net.Model().ToSlice())
-		} else if res.OK && result.Trend < -0.1 {
+		} else if res.OK && result.Slope < -0.1 {
 			kk[k] = report
 			result.Reset = true
 		}
@@ -288,6 +298,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
 			Float64("trend", tt[k].Trend).
+			Float64("slope", tt[k].Slope).
 			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", m.CC)).
