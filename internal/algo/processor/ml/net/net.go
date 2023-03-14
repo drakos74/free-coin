@@ -215,18 +215,18 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
 		detail := mlmodel.NetworkDetail(k.Type)
 
-		if m.Evolution[k].Len() >= 3 {
+		if m.Evolution[k].Len() >= 5 {
 			vv := m.Evolution[k].Get()
-			if len(vv) >= 2 {
+			if len(vv) >= 5 {
 				xx := make([]float64, 0)
 				yy := make([]float64, 0)
 				for i, v := range vv {
 					xx = append(xx, float64(i))
 					yy = append(yy, math.Round(v[1]))
 				}
-				a, err := coinmath.Fit(xx, yy, 2)
+				a, err := coinmath.Fit(xx, yy, 1)
 				if err == nil {
-					trend = a[2]
+					trend = a[1]
 					m.Trend[k] = trend
 					xy = [][]float64{xx, yy}
 				}
@@ -247,6 +247,16 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 		// TODO : make this configurable
 		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
+			log.Info().
+				Str("type", string(result.Type)).
+				Str("detail", fmt.Sprintf("%+v", result.Detail)).
+				Str("coin", string(ds.Coin)).
+				Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+				Str("config", fmt.Sprintf("%+v", m.Networks[k].Model())).
+				Float64("trend", result.Trend).
+				Float64("profit", result.Profit).
+				Float64("accuracy", result.Accuracy).
+				Msg("accept network")
 			results = append(results, result)
 			// add the config to the winners
 			m.assessPerformance(detail, result, net.Model().ToSlice())
@@ -272,16 +282,15 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		m.XY[k] = [][]float64{make([]float64, 0), make([]float64, 0)}
 
 		log.Info().
-			Str("Index", fmt.Sprintf("%+v", k)).
+			Str("detail", fmt.Sprintf("%+v", k)).
 			Str("coin", string(ds.Coin)).
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
 			Float64("trend", tt[k].Trend).
-			Str("trend-xy", fmt.Sprintf("%+v", tt[k].XY)).
 			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
-			Str("CC", fmt.Sprintf("%+v", m.CC)).
+			Str("cc", fmt.Sprintf("%+v", m.CC)).
 			Msg("replace network")
 	}
 
