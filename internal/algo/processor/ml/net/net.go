@@ -233,10 +233,26 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 					trend = a[1]
 					m.Trend[k] = trend
 					xy = [][]float64{xx, yy}
+				} else {
+					log.Error().
+						Err(err).
+						Str("coin", string(ds.Coin)).
+						Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+						Floats64("xx", xx).
+						Floats64("yy", yy).
+						Msg("could not fit trend to 1st degree")
 				}
 				if b, err := coinmath.Fit(xx, yy, 2); err == nil {
 					slope = b[2]
 					m.Slope[k] = slope
+				} else {
+					log.Error().
+						Err(err).
+						Str("coin", string(ds.Coin)).
+						Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+						Floats64("xx", xx).
+						Floats64("yy", yy).
+						Msg("could not fit trend to 2nd degree")
 				}
 			}
 			m.XY[k] = xy

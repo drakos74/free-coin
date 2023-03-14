@@ -64,10 +64,12 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 	} else {
 		log.Info().
 			Str("coin", string(ds.Coin)).
+			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("xx", len(xx)).
 			Int("yy", len(yy)).
 			Str("newX", fmt.Sprintf("%+v", newX)).
-			Msg("malformed entry")
+			Str("config", fmt.Sprintf("%+v", r.config)).
+			Msg("cannot predict random forest")
 	}
 
 	gap := 0.0
