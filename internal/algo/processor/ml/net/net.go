@@ -16,6 +16,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const benchmarkSamples = 5
+
 func networkType(net Network) string {
 	return reflect.TypeOf(net).Elem().String()
 }
@@ -118,7 +120,7 @@ type MultiNetwork struct {
 	ID        string
 	construct map[mlmodel.Detail]ConstructNetwork
 	Networks  map[mlmodel.Detail]Network
-	Evolution map[mlmodel.Detail]*buffer.MultiBuffer
+	Benchmark map[mlmodel.Detail]*buffer.MultiBuffer
 	Slope     map[mlmodel.Detail]float64
 	Trend     map[mlmodel.Detail]float64
 	XY        map[mlmodel.Detail][][]float64
@@ -127,8 +129,8 @@ type MultiNetwork struct {
 	CC        map[mlmodel.Detail][]mlmodel.Performance
 }
 
-func newBuffer() *buffer.MultiBuffer {
-	return buffer.NewMultiBuffer(3)
+func newBuffer(size int) *buffer.MultiBuffer {
+	return buffer.NewMultiBuffer(size)
 }
 
 func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwork {
@@ -146,13 +148,13 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 		}
 		cc[k] = net
 		nn[k] = nnet
-		ev[k] = newBuffer()
+		ev[k] = newBuffer(benchmarkSamples)
 	}
 	return &MultiNetwork{
 		ID:        coinmath.String(5),
 		Networks:  nn,
 		construct: cc,
-		Evolution: ev,
+		Benchmark: ev,
 		Trend:     tt,
 		Slope:     ss,
 		XY:        xy,
@@ -220,8 +222,8 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
 		detail := mlmodel.NetworkDetail(k.Type)
 
-		if m.Evolution[k].Len() >= 5 {
-			vv := m.Evolution[k].Get()
+		if m.Benchmark[k].Len() >= benchmarkSamples {
+			vv := m.Benchmark[k].Get()
 			if len(vv) >= 5 {
 				xx := make([]float64, 0)
 				yy := make([]float64, 0)
@@ -303,7 +305,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 
 		m.Networks[k] = m.construct[k](m.cfg)
-		m.Evolution[k] = newBuffer()
+		m.Benchmark[k] = newBuffer(benchmarkSamples)
 		m.Trend[k] = 0.0
 		m.XY[k] = [][]float64{make([]float64, 0), make([]float64, 0)}
 
@@ -371,7 +373,7 @@ func (m *MultiNetwork) trackStats(detail mlmodel.Detail, profit float64, reset b
 func (m *MultiNetwork) Eval(k mlmodel.Detail, report client.Report) {
 	for key, n := range m.Networks {
 		if k == key {
-			m.Evolution[key].Push(float64(time.Now().Unix()), report.Profit)
+			m.Benchmark[key].Push(float64(time.Now().Unix()), report.Profit)
 			n.Eval(report)
 		}
 	}

@@ -168,6 +168,10 @@ func EvolveInt(i int, r float64) int {
 	return i
 }
 
+// EvolveFloat evolves a float number
+// f is the number to be used as base
+// r is the bias for producing a bigger or smaller number than the initial
+// limit is the highest possible value for the new generated float. It acts as a cap
 func EvolveFloat(f float64, r float64, limit float64) float64 {
 	ff := f * evolvePerc
 	if r == 0.0 {

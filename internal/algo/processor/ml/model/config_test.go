@@ -27,7 +27,7 @@ func TestEvolveFloat(t *testing.T) {
 	value := 0.05
 
 	for i := 0; i < 100; i++ {
-		v := EvolveFloat(value, 0.0)
-		fmt.Printf("v = %+v\n", v)
+		value = EvolveFloat(value, 0.0, 1)
+		fmt.Printf("v = %+v\n", value)
 	}
 }
