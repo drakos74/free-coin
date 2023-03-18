@@ -172,18 +172,23 @@ func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork 
 }
 
 type ModelResult struct {
+	Benchmark
 	Detail             mlmodel.Detail
 	Type               model.Type
 	Gap                float64
 	Accuracy           float64
-	Profit             float64
-	Trend              float64
-	Slope              float64
-	XY                 [][]float64
 	Features           []float64
 	FeaturesImportance []float64
 	OK                 bool
 	Reset              bool
+}
+
+type Benchmark struct {
+	Profit  float64
+	Trend   float64
+	Slope   float64
+	Actions int
+	XY      [][]float64
 }
 
 func (r ModelResult) Decision() *model.Decision {
@@ -267,11 +272,14 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Accuracy:           res.Accuracy,
 			Features:           res.Features,
 			FeaturesImportance: res.FeaturesImportance,
-			Profit:             report.Profit,
-			Trend:              trend,
-			Slope:              slope,
-			XY:                 xy,
-			OK:                 res.OK,
+			Benchmark: Benchmark{
+				Profit:  report.Profit,
+				Trend:   trend,
+				Slope:   slope,
+				XY:      xy,
+				Actions: report.Sell + report.Buy,
+			},
+			OK: res.OK,
 		}
 		// TODO : make this configurable
 		if res.OK && result.Profit > 1.0 && result.Trend > -0.1 {
@@ -284,7 +292,10 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 				Float64("trend", result.Trend).
 				Float64("slope", result.Slope).
 				Float64("profit", result.Profit).
+				Int("mock-trades", result.Actions).
 				Float64("accuracy", result.Accuracy).
+				Int("benchmark-size", m.Benchmark[k].Len()).
+				Str("benchmarks", fmt.Sprintf("%+v", m.Benchmark[k].Get())).
 				Msg("accept network")
 			results = append(results, result)
 			// add the config to the winners
