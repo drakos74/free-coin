@@ -55,9 +55,14 @@ func (r *RandomForest) Train(ds *Dataset) ModelResult {
 		yy = append(yy, y)
 		newX = v.NewIn
 	}
-	acc, features := r.forest.Train(xx, yy)
+
 	var t model.Type
 	var p []float64
+	var acc float64
+	var features []float64
+	if len(xx) > 0 && len(yy) > 0 {
+		acc, features = r.forest.Train(xx, yy)
+	}
 
 	if len(newX) == r.config.Features {
 		p = r.forest.Predict(newX)
