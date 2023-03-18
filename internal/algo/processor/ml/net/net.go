@@ -144,6 +144,7 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 		nnet := net(cfg)
 		k := mlmodel.Detail{
 			Type:  networkType(nnet),
+			Hash:  coinmath.String(3),
 			Index: i,
 		}
 		cc[k] = net
@@ -304,6 +305,8 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			m.cfg = mlmodel.EvolveModel(m.CC[mlmodel.NetworkDetail(k.Type)])
 		}
 
+		k.Hash = coinmath.String(3)
+
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Benchmark[k] = newBuffer(benchmarkSamples)
 		m.Trend[k] = 0.0
@@ -327,6 +330,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		return ModelResult{}, tt
 	}
 
+	// pick the result with the highest trend
 	sort.Sort(sort.Reverse(modelResults(results)))
 
 	return results[0], tt
