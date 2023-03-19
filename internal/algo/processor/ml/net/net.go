@@ -117,16 +117,16 @@ type Stat struct {
 }
 
 type MultiNetwork struct {
-	ID        string
-	construct map[mlmodel.Detail]ConstructNetwork
-	Networks  map[mlmodel.Detail]Network
-	Benchmark map[mlmodel.Detail]*buffer.MultiBuffer
-	Slope     map[mlmodel.Detail]float64
-	Trend     map[mlmodel.Detail]float64
-	XY        map[mlmodel.Detail][][]float64
-	cfg       mlmodel.Model
-	Stats     map[mlmodel.Detail]Stat
-	CC        map[mlmodel.Detail][]mlmodel.Performance
+	ID          string
+	construct   map[mlmodel.Detail]ConstructNetwork
+	Networks    map[mlmodel.Detail]Network
+	Benchmark   map[mlmodel.Detail]*buffer.MultiBuffer
+	Slope       map[mlmodel.Detail]float64
+	Trend       map[mlmodel.Detail]float64
+	XY          map[mlmodel.Detail][][]float64
+	cfg         mlmodel.Model
+	Stats       map[mlmodel.Detail]Stat
+	Performance map[mlmodel.Detail][]mlmodel.Performance
 }
 
 func newBuffer(size int) *buffer.MultiBuffer {
@@ -152,16 +152,16 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 		ev[k] = newBuffer(benchmarkSamples)
 	}
 	return &MultiNetwork{
-		ID:        coinmath.String(5),
-		Networks:  nn,
-		construct: cc,
-		Benchmark: ev,
-		Trend:     tt,
-		Slope:     ss,
-		XY:        xy,
-		cfg:       cfg,
-		Stats:     make(map[mlmodel.Detail]Stat),
-		CC:        make(map[mlmodel.Detail][]mlmodel.Performance),
+		ID:          coinmath.String(5),
+		Networks:    nn,
+		construct:   cc,
+		Benchmark:   ev,
+		Trend:       tt,
+		Slope:       ss,
+		XY:          xy,
+		cfg:         cfg,
+		Stats:       make(map[mlmodel.Detail]Stat),
+		Performance: make(map[mlmodel.Detail][]mlmodel.Performance),
 	}
 }
 
@@ -203,16 +203,16 @@ func (r ModelResult) Decision() *model.Decision {
 type modelResults []ModelResult
 
 func (rr modelResults) Len() int           { return len(rr) }
-func (rr modelResults) Less(i, j int) bool { return rr[i].Trend < rr[j].Trend }
+func (rr modelResults) Less(i, j int) bool { return rr[i].Slope < rr[j].Slope }
 func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
 
 func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]ModelResult) {
 
 	results := make([]ModelResult, 0)
 
-	tt := make(map[mlmodel.Detail]ModelResult)
-	kk := make(map[mlmodel.Detail]client.Report, 0)
-	cfgs := make(map[mlmodel.Detail]mlmodel.Model, 0)
+	networkResults := make(map[mlmodel.Detail]ModelResult)
+	networkReports := make(map[mlmodel.Detail]client.Report, 0)
+	networkConfigs := make(map[mlmodel.Detail]mlmodel.Model, 0)
 
 	for k, net := range m.Networks {
 		// make sure we train only models fit for the dataset
@@ -228,43 +228,49 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
 		detail := mlmodel.NetworkDetail(k.Type)
 
-		if m.Benchmark[k].Len() >= benchmarkSamples {
-			vv := m.Benchmark[k].Get()
-			if len(vv) >= 5 {
-				xx := make([]float64, 0)
-				yy := make([]float64, 0)
-				for i, v := range vv {
-					xx = append(xx, float64(i))
-					yy = append(yy, math.Round(v[1]))
-				}
-				if a, err := coinmath.Fit(xx, yy, 1); err == nil {
-					trend = a[1]
-					m.Trend[k] = trend
-					xy = [][]float64{xx, yy}
-				} else {
-					log.Error().
-						Err(err).
-						Str("coin", string(ds.Coin)).
-						Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-						Floats64("xx", xx).
-						Floats64("yy", yy).
-						Msg("could not fit trend to 1st degree")
-				}
-				if b, err := coinmath.Fit(xx, yy, 2); err == nil {
-					slope = b[2]
-					m.Slope[k] = slope
-				} else {
-					log.Error().
-						Err(err).
-						Str("coin", string(ds.Coin)).
-						Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-						Floats64("xx", xx).
-						Floats64("yy", yy).
-						Msg("could not fit trend to 2nd degree")
-				}
+		// create the set
+		vv := m.Benchmark[k].Get()
+		xx := make([]float64, 0)
+		yy := make([]float64, 0)
+		for i, v := range vv {
+			if len(v) > 1 {
+				xx = append(xx, float64(i))
+				yy = append(yy, math.Round(v[1]))
 			}
-			m.XY[k] = xy
+
 		}
+		// fit on 1st degree
+		if len(xx) > 1 && len(yy) > 1 {
+			if a, err := coinmath.Fit(xx, yy, 1); err == nil {
+				trend = a[1]
+				m.Trend[k] = trend
+				xy = [][]float64{xx, yy}
+			} else {
+				log.Error().
+					Err(err).
+					Str("coin", string(ds.Coin)).
+					Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+					Floats64("xx", xx).
+					Floats64("yy", yy).
+					Msg("could not fit trend to 1st degree")
+			}
+		}
+		// fit on 2nd degree
+		if len(xx) > 1 && len(yy) > 2 {
+			if b, err := coinmath.Fit(xx, yy, 2); err == nil {
+				slope = b[2]
+				m.Slope[k] = slope
+			} else {
+				log.Error().
+					Err(err).
+					Str("coin", string(ds.Coin)).
+					Str("duration", fmt.Sprintf("%+v", ds.Duration)).
+					Floats64("xx", xx).
+					Floats64("yy", yy).
+					Msg("could not fit trend to 2nd degree")
+			}
+		}
+		m.XY[k] = xy
 
 		result := ModelResult{
 			Detail:             k,
@@ -282,7 +288,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			OK: res.OK,
 		}
 		// TODO : make this configurable
-		if res.OK && result.Profit > 1.0 && result.Trend > -0.1 {
+		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
 			log.Info().
 				Str("type", string(result.Type)).
 				Str("detail", fmt.Sprintf("%+v", result.Detail)).
@@ -301,23 +307,23 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			// add the config to the winners
 			m.assessPerformance(detail, result, net.Model().ToSlice())
 		} else if res.OK && result.Slope < -0.1 {
-			kk[k] = report
+			networkReports[k] = report
 			result.Reset = true
 		}
 		m.trackStats(detail, result.Profit, result.Reset)
 		if res.Type != model.NoType {
-			tt[k] = result
-			cfgs[k] = net.Model()
+			networkResults[k] = result
+			networkConfigs[k] = net.Model()
 		}
 	}
 
-	for k, report := range kk {
-		if len(m.CC[mlmodel.NetworkDetail(k.Type)]) > 0 {
-			m.cfg = mlmodel.EvolveModel(m.CC[mlmodel.NetworkDetail(k.Type)])
+	// replace the networks where applicable
+	for k, report := range networkReports {
+		if len(m.Performance[mlmodel.NetworkDetail(k.Type)]) > 0 {
+			m.cfg = mlmodel.EvolveModel(m.Performance[mlmodel.NetworkDetail(k.Type)])
 		}
 
 		k.Hash = coinmath.String(3)
-
 		m.Networks[k] = m.construct[k](m.cfg)
 		m.Benchmark[k] = newBuffer(benchmarkSamples)
 		m.Trend[k] = 0.0
@@ -329,29 +335,28 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
-			Float64("trend", tt[k].Trend).
-			Float64("slope", tt[k].Slope).
-			Str("old_config", fmt.Sprintf("%+v", cfgs[k])).
+			Float64("trend", networkResults[k].Trend).
+			Float64("slope", networkResults[k].Slope).
+			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
-			Str("cc", fmt.Sprintf("%+v", m.CC)).
+			Str("cc", fmt.Sprintf("%+v", m.Performance)).
 			Msg("replace network")
 	}
 
 	if len(results) == 0 {
-		return ModelResult{}, tt
+		return ModelResult{}, networkResults
 	}
 
 	// pick the result with the highest trend
 	sort.Sort(sort.Reverse(modelResults(results)))
-
-	return results[0], tt
+	return results[0], networkResults
 }
 
 func (m *MultiNetwork) assessPerformance(detail mlmodel.Detail, result ModelResult, config []float64) {
-	if _, ok := m.CC[detail]; !ok {
-		m.CC[detail] = make([]mlmodel.Performance, 0)
+	if _, ok := m.Performance[detail]; !ok {
+		m.Performance[detail] = make([]mlmodel.Performance, 0)
 	}
-	cc := m.CC[detail]
+	cc := m.Performance[detail]
 	cc = append(cc, mlmodel.Performance{
 		Config: config,
 		Score:  result.Profit,
@@ -360,7 +365,7 @@ func (m *MultiNetwork) assessPerformance(detail mlmodel.Detail, result ModelResu
 	if len(cc) > 5 {
 		cc = cc[1:]
 	}
-	m.CC[detail] = cc
+	m.Performance[detail] = cc
 }
 
 func (m *MultiNetwork) trackStats(detail mlmodel.Detail, profit float64, reset bool) {

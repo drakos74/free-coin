@@ -153,6 +153,22 @@ func EvolveModel(cc []Performance) Model {
 	return NewModel(mm)
 }
 
+func MergeModels(cc []Performance) Model {
+	mm := make([]float64, 4)
+	for _, c := range cc {
+		mm[0] += c.Config[0]
+		mm[1] += c.Config[1]
+		mm[2] += c.Config[2]
+		mm[3] += c.Config[3]
+	}
+
+	for i, m := range mm {
+		mm[i] = m / float64(len(cc))
+	}
+
+	return NewModel(mm)
+}
+
 const evolvePerc = 0.05
 
 func EvolveInt(i int, r float64) int {
