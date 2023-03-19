@@ -152,9 +152,10 @@ func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwo
 			Hash:  coinmath.String(3),
 			Index: i,
 		}
-		cc[k] = net
 		nn[k] = nnet
 		ev[k] = newBuffer(benchmarkSamples)
+		// assign only the network type to the constructor, as the hash will change
+		cc[mlmodel.NetworkDetail(k.Type)] = net
 	}
 	return &MultiNetwork{
 		ID:          coinmath.String(5),
@@ -329,7 +330,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 
 		k.Hash = coinmath.String(3)
-		m.Networks[k] = m.construct[k](m.cfg)
+		m.Networks[k] = m.construct[mlmodel.NetworkDetail(k.Type)](m.cfg)
 		m.Benchmark[k] = newBuffer(benchmarkSamples)
 		m.Trend[k] = 0.0
 		m.XY[k] = [][]float64{make([]float64, 0), make([]float64, 0)}
@@ -345,6 +346,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", m.Performance)).
+			Str("network-detail", fmt.Sprintf("%+v", mlmodel.NetworkDetail(k.Type))).
 			Msg("replace network")
 	}
 
