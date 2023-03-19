@@ -16,7 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const benchmarkSamples = 5
+const (
+	// benchmarkSamples defines how many samples of history to keep for model selection scores
+	benchmarkSamples = 5
+	// evolutionThreshold defines how many winner models to store and use for model evolution
+	evolutionThreshold = 3
+)
 
 func networkType(net Network) string {
 	return reflect.TypeOf(net).Elem().String()
@@ -352,6 +357,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 	return results[0], networkResults
 }
 
+// assessPerformance keeps track of the winning models in order to support with evolution
 func (m *MultiNetwork) assessPerformance(detail mlmodel.Detail, result ModelResult, config []float64) {
 	if _, ok := m.Performance[detail]; !ok {
 		m.Performance[detail] = make([]mlmodel.Performance, 0)
@@ -362,7 +368,7 @@ func (m *MultiNetwork) assessPerformance(detail mlmodel.Detail, result ModelResu
 		Score:  result.Profit,
 	})
 	sort.Sort(mlmodel.ByScore(cc))
-	if len(cc) > 5 {
+	if len(cc) > evolutionThreshold {
 		cc = cc[1:]
 	}
 	m.Performance[detail] = cc
