@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, benchmarks *mlmodel.Benchmark, config *mlmodel.Config) {
+func trackUserActions(index api.Index, user api.User, collector *collector, strategy *strategy, wallet *trader.ExchangeTrader, config *mlmodel.Config) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -57,27 +57,6 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 		txtBuffer := new(strings.Builder)
 
 		switch action {
-		case "":
-			_, positions := wallet.CurrentPositions()
-			for k, bench := range benchmarks.Profit {
-				if key.Coin == model.NoCoin || key.Match(k.Coin) {
-					for _, report := range bench {
-						pString := ""
-						if p, ok := positions[k]; ok {
-							pString = fmt.Sprintf("%s\n", formatPosition(p))
-						} else {
-							pString = "<none>"
-						}
-						txtBuffer.WriteString(fmt.Sprintf("%s|%s %s(%s)\n%s\n%s\n",
-							report.Stamp.Format(time.Stamp),
-							k.ToString(),
-							emoji.MapOpen(strategy.config.Segments[k].Trader.Live),
-							emoji.MapToSign(report.Profit),
-							pString,
-							formatReport(report)))
-					}
-				}
-			}
 		case "wallet":
 			settings := wallet.Settings()
 			txtBuffer.WriteString(formatSettings(settings))

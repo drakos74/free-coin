@@ -212,13 +212,11 @@ func (rr modelResults) Len() int           { return len(rr) }
 func (rr modelResults) Less(i, j int) bool { return rr[i].Slope < rr[j].Slope }
 func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
 
-func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]ModelResult) {
+func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
 
 	results := make([]ModelResult, 0)
 
-	networkResults := make(map[mlmodel.Detail]ModelResult)
 	networkReports := make(map[mlmodel.Detail]client.Report, 0)
-	networkConfigs := make(map[mlmodel.Detail]mlmodel.Model, 0)
 
 	for k, net := range m.Networks {
 		// make sure we train only models fit for the dataset
@@ -317,10 +315,6 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			result.Reset = true
 		}
 		m.trackStats(networkDetailKey, result.Profit, result.Reset)
-		if res.Type != model.NoType {
-			networkResults[k] = result
-			networkConfigs[k] = net.Model()
-		}
 	}
 
 	// replace the networks where applicable
@@ -331,11 +325,6 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 
 		// note : first
-		oldKey := mlmodel.Detail{
-			Type:  k.Type,
-			Hash:  k.Hash,
-			Index: k.Index,
-		}
 		k.Hash = coinmath.String(3)
 		m.Networks[k] = m.construct[networkDetailKey](m.cfg)
 		m.Benchmark[k] = newBuffer(benchmarkSamples)
@@ -348,9 +337,6 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
-			Float64("trend", networkResults[oldKey].Trend).
-			Float64("slope", networkResults[oldKey].Slope).
-			Str("old_config", fmt.Sprintf("%+v", networkConfigs[oldKey])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", m.Performance)).
 			Str("network-detail", fmt.Sprintf("%+v", networkDetailKey)).
@@ -359,12 +345,12 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 	}
 
 	if len(results) == 0 {
-		return ModelResult{}, networkResults
+		return ModelResult{}
 	}
 
 	// pick the result with the highest trend
 	sort.Sort(sort.Reverse(modelResults(results)))
-	return results[0], networkResults
+	return results[0]
 }
 
 // assessPerformance keeps track of the winning models in order to support with evolution

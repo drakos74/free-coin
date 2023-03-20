@@ -35,10 +35,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		}
 	}
 
-	//network := math.NewML(net)
-
-	benchmarks := mlmodel.NewBenchmarks()
-
 	ds := net.NewDataSets(shard, net.MultiNetworkConstructor(networks...))
 	strategy := newStrategy(config, ds)
 
@@ -55,7 +51,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		}
 
 		// init the user interactions
-		go trackUserActions(index, u, col, strategy, wallet, benchmarks, config)
+		go trackUserActions(index, u, col, strategy, wallet, config)
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		// process the collector vectors
@@ -75,7 +71,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 						if set, ok := ds.Push(key, vv, segmentConfig.Model); ok {
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
-							result, tt := set.Train()
+							result := set.Train()
 							signal := mlmodel.Signal{
 								Key:      key,
 								Detail:   result.Detail,
@@ -125,23 +121,6 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									Str("detail", fmt.Sprintf("%+v", result.Detail.Type)).
 									Str("signal", fmt.Sprintf("%+v", signal)).
 									Msg("create-order")
-							}
-							// whatever happened , lets benchmark it
-							if config.Option.Benchmark {
-								for k, res := range tt {
-									kk := key
-									kk.Strategy = k.Type
-									if res.Reset {
-										benchmarks.Reset(kk.Coin, kk)
-									} else {
-										s := signal
-										s.Type = res.Type
-										report, ok, _ := benchmarks.Add(kk, vv.Meta.Tick, s, config)
-										if ok {
-											set.Eval(k, report)
-										}
-									}
-								}
 							}
 						}
 					}
