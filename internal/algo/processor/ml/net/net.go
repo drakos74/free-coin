@@ -232,7 +232,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		var trend float64
 		var slope float64
 		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
-		detail := mlmodel.NetworkDetail(k.Type)
+		networkDetailKey := mlmodel.NetworkDetail(k.Type)
 
 		// create the set
 		vv := m.Benchmark[k].Get()
@@ -311,12 +311,12 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 				Msg("accept network")
 			results = append(results, result)
 			// add the config to the winners
-			m.assessPerformance(detail, result, net.Model().ToSlice())
+			m.assessPerformance(networkDetailKey, result, net.Model().ToSlice())
 		} else if res.OK && result.Slope < -0.1 {
 			networkReports[k] = report
 			result.Reset = true
 		}
-		m.trackStats(detail, result.Profit, result.Reset)
+		m.trackStats(networkDetailKey, result.Profit, result.Reset)
 		if res.Type != model.NoType {
 			networkResults[k] = result
 			networkConfigs[k] = net.Model()
@@ -325,12 +325,19 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 
 	// replace the networks where applicable
 	for k, report := range networkReports {
-		if len(m.Performance[mlmodel.NetworkDetail(k.Type)]) > 0 {
-			m.cfg = mlmodel.EvolveModel(m.Performance[mlmodel.NetworkDetail(k.Type)])
+		networkDetailKey := mlmodel.NetworkDetail(k.Type)
+		if len(m.Performance[networkDetailKey]) > 0 {
+			m.cfg = mlmodel.EvolveModel(m.Performance[networkDetailKey])
 		}
 
+		// note : first
+		oldKey := mlmodel.Detail{
+			Type:  k.Type,
+			Hash:  k.Hash,
+			Index: k.Index,
+		}
 		k.Hash = coinmath.String(3)
-		m.Networks[k] = m.construct[mlmodel.NetworkDetail(k.Type)](m.cfg)
+		m.Networks[k] = m.construct[networkDetailKey](m.cfg)
 		m.Benchmark[k] = newBuffer(benchmarkSamples)
 		m.Trend[k] = 0.0
 		m.XY[k] = [][]float64{make([]float64, 0), make([]float64, 0)}
@@ -341,13 +348,14 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
-			Float64("trend", networkResults[k].Trend).
-			Float64("slope", networkResults[k].Slope).
-			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
+			Float64("trend", networkResults[oldKey].Trend).
+			Float64("slope", networkResults[oldKey].Slope).
+			Str("old_config", fmt.Sprintf("%+v", networkConfigs[oldKey])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", m.Performance)).
-			Str("network-detail", fmt.Sprintf("%+v", mlmodel.NetworkDetail(k.Type))).
+			Str("network-detail", fmt.Sprintf("%+v", networkDetailKey)).
 			Msg("replace network")
+
 	}
 
 	if len(results) == 0 {
