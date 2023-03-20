@@ -173,12 +173,12 @@ func configML() *mlmodel.Config {
 		AddConfig(forCoin(model.ETH)).
 		AddConfig(forCoin(model.LINK)).
 		AddConfig(forCoin(model.SOL)).
-		AddConfig(forCoin(model.FLOW)).
+		//AddConfig(forCoin(model.FLOW)).
 		AddConfig(forCoin(model.MATIC)).
 		AddConfig(forCoin(model.AAVE)).
-		AddConfig(forCoin(model.KSM)).
+		//AddConfig(forCoin(model.KSM)).
 		AddConfig(forCoin(model.XRP)).
-		AddConfig(forCoin(model.ADA)).
+		//AddConfig(forCoin(model.ADA)).
 		AddConfig(forCoin(model.KAVA))
 
 	return &mlmodel.Config{
