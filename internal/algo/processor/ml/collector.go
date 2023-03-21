@@ -129,6 +129,11 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				dv = append(dv, 100*bucket.Stats[2].Avg())
 				dp = append(dp, 100*bucket.Stats[3].Avg())
 				last = bucket
+			} else {
+				log.
+					Error().
+					Str("bucket", fmt.Sprintf("%+v", bucket)).
+					Msg("missed bucket")
 			}
 		}
 
@@ -153,6 +158,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		if err != nil && len(yy) > 2 && len(xx) == len(yy) {
 			log.Error().
 				Err(err).
+				Time("bucket-time", last.Time).
+				Str("coin", string(key.Coin)).
 				Str("xx", fmt.Sprintf("%+v", xx)).
 				Str("yy", fmt.Sprintf("%+v", yy)).
 				Msg("could not fit price")
@@ -162,6 +169,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		if err != nil && len(dv) > 2 && len(xx) == len(dv) {
 			log.Error().
 				Err(err).
+				Time("bucket-time", last.Time).
+				Str("coin", string(key.Coin)).
 				Str("dv", fmt.Sprintf("%+v", dv)).
 				Str("ddv", fmt.Sprintf("%+v", ddv)).
 				Msg("could not fit velocity")
@@ -173,6 +182,8 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 		if err != nil && len(dp) > 2 && len(xx) == len(dp) {
 			log.Error().
 				Err(err).
+				Time("bucket-time", last.Time).
+				Str("coin", string(key.Coin)).
 				Str("dp", fmt.Sprintf("%+v", dp)).
 				Str("ddp", fmt.Sprintf("%+v", ddp)).
 				Msg("could not fit momentum")
