@@ -212,16 +212,26 @@ func (rr modelResults) Len() int           { return len(rr) }
 func (rr modelResults) Less(i, j int) bool { return rr[i].Slope < rr[j].Slope }
 func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
 
-func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
+func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]ModelResult) {
 
 	results := make([]ModelResult, 0)
 
+	networkResults := make(map[mlmodel.Detail]ModelResult)
 	networkReports := make(map[mlmodel.Detail]client.Report, 0)
+	networkConfigs := make(map[mlmodel.Detail]mlmodel.Model, 0)
 
 	for k, net := range m.Networks {
+
 		// make sure we train only models fit for the dataset
 		if len(ds.Vectors) < net.Model().BufferSize {
 			continue
+		} else {
+			log.Info().
+				Str("coin", string(ds.Coin)).
+				Str("net", fmt.Sprintf("%+v", k)).
+				Int("vectors", len(ds.Vectors)).
+				Int("buffer-size", net.Model().BufferSize).
+				Msg("not enough vectors to train")
 		}
 
 		report := net.Report()
@@ -260,7 +270,7 @@ func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
 			}
 		}
 		// fit on 2nd degree
-		if len(xx) > 1 && len(yy) > 2 {
+		if len(xx) > 2 && len(yy) > 2 {
 			if b, err := coinmath.Fit(xx, yy, 2); err == nil {
 				slope = b[2]
 				m.Slope[k] = slope
@@ -315,6 +325,10 @@ func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
 			result.Reset = true
 		}
 		m.trackStats(networkDetailKey, result.Profit, result.Reset)
+		if res.Type != model.NoType {
+			networkResults[k] = result
+			networkConfigs[k] = net.Model()
+		}
 	}
 
 	// replace the networks where applicable
@@ -337,6 +351,9 @@ func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
 			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
 			Int("trades", report.Buy+report.Sell).
 			Float64("profit", report.Profit).
+			Float64("trend", networkResults[k].Trend).
+			Float64("slope", networkResults[k].Slope).
+			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[k].Model())).
 			Str("cc", fmt.Sprintf("%+v", m.Performance)).
 			Str("network-detail", fmt.Sprintf("%+v", networkDetailKey)).
@@ -345,12 +362,12 @@ func (m *MultiNetwork) Train(ds *Dataset) ModelResult {
 	}
 
 	if len(results) == 0 {
-		return ModelResult{}
+		return ModelResult{}, networkResults
 	}
 
 	// pick the result with the highest trend
 	sort.Sort(sort.Reverse(modelResults(results)))
-	return results[0]
+	return results[0], networkResults
 }
 
 // assessPerformance keeps track of the winning models in order to support with evolution

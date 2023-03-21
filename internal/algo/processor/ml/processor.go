@@ -35,6 +35,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 		}
 	}
 
+	benchmarks := mlmodel.NewBenchmarks()
+
 	ds := net.NewDataSets(shard, net.MultiNetworkConstructor(networks...))
 	strategy := newStrategy(config, ds)
 
@@ -71,7 +73,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 						if set, ok := ds.Push(key, vv, segmentConfig.Model); ok {
 							metrics.Observer.IncrementEvents(coin, duration, "train_buffer", Name)
-							result := set.Train()
+							result, tt := set.Train()
 							signal := mlmodel.Signal{
 								Key:      key,
 								Detail:   result.Detail,
@@ -88,7 +90,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							if ok && signal.Type != model.NoType {
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
-									cluster, score, metadata, trainErr := ds.Eval(k, result.Decision().Importance, 2)
+									cluster, score, metadata, trainErr := ds.Eval(key, result.Decision().Importance, 2)
 									reason := trader.SignalReason
 									if score < 0.5 && score < metadata.Limit {
 										// cancel move ...
@@ -121,6 +123,23 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									Str("detail", fmt.Sprintf("%+v", result.Detail.Type)).
 									Str("signal", fmt.Sprintf("%+v", signal)).
 									Msg("create-order")
+							}
+							// whatever happened , lets benchmark it
+							if config.Option.Benchmark {
+								for k, res := range tt {
+									kk := key
+									kk.Strategy = k.Type
+									if res.Reset {
+										benchmarks.Reset(kk.Coin, kk)
+									} else {
+										s := signal
+										s.Type = res.Type
+										report, ok, _ := benchmarks.Add(kk, vv.Meta.Tick, s, config)
+										if ok {
+											set.Eval(k, report)
+										}
+									}
+								}
 							}
 						}
 					}

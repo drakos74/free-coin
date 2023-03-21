@@ -30,7 +30,7 @@ func (s Dataset) getDescription(postfix string) string {
 	return fmt.Sprintf("%s_%s_%.2f_%s", s.Coin, s.Duration, s.config.PrecisionThreshold, postfix)
 }
 
-func (s *Dataset) Train() ModelResult {
+func (s *Dataset) Train() (ModelResult, map[mlmodel.Detail]ModelResult) {
 	return s.Network.Train(s)
 }
 

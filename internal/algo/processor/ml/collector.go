@@ -132,6 +132,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 			} else {
 				log.
 					Error().
+					Str("coin", string(key.Coin)).
 					Str("bucket", fmt.Sprintf("%+v", bucket)).
 					Msg("missed bucket")
 			}
@@ -139,6 +140,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 
 		if !last.OK {
 			log.Debug().
+				Str("coin", string(key.Coin)).
 				Str("Index", fmt.Sprintf("%+v", key)).
 				Int("batch-size", len(batch)).
 				Msg("no batch")
