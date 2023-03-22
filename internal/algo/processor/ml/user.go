@@ -115,7 +115,7 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 						}
 						txtBuffer.WriteString(fmt.Sprintf("(%d) %+v\n", stats.Iterations, aa))
 					}
-					//txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Stats))
+					//txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Stat))
 					//txtBuffer.WriteString(fmt.Sprintf("%+v\n", set.Network.Performance))
 				}
 			}

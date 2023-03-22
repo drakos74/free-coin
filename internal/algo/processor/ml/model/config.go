@@ -266,13 +266,14 @@ type Signal struct {
 	Spectrum  *coin_math.Spectrum `json:"-"`
 }
 
+// Detail defines the network details to distinguish between different objects
 type Detail struct {
 	Type  string `json:"type"`
 	Hash  string `json:"hash"`
 	Index int    `json:"index"`
 }
 
-func NetworkDetail(n string) Detail {
+func NetworkType(n string) Detail {
 	return Detail{
 		Type: n,
 	}
