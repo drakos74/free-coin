@@ -21,6 +21,7 @@ type RandomForest struct {
 
 func ConstructRandomForest(debug bool) func(cfg mlmodel.Model) Network {
 	return func(cfg mlmodel.Model) Network {
+		// NOTE : by default randomise the construction
 		config := cfg.Evolve()
 		return NewRandomForest(config, coinmath.String(10), debug)
 	}

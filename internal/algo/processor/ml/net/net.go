@@ -363,7 +363,8 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 	// replace the networks where applicable
 	for k, report := range networkReports {
 		if len(m.Config[k.Type].Performance) > 0 {
-			// TODO : make this internal method
+			// TODO : make this internal method ...
+			// NOTE :no randomisation needed here, the constructor should randomise already
 			m.Config[k.Type].config = mlmodel.EvolveModel(m.Config[k.Type].Performance)
 		}
 

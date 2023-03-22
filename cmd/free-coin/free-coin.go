@@ -107,7 +107,7 @@ func mlProcessor(u api.User, e api.Exchange, shard storage.Shard, registry stora
 			//net.ConstructRandomForestNetwork(false),
 			net.ConstructRandomForest(false),
 			net.ConstructRandomForest(false),
-			//net.ConstructRandomForest(false),
+			net.ConstructRandomForest(false),
 			//net.ConstructHMM(),
 		)).
 		Apply()
@@ -155,7 +155,7 @@ func forCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentCon
 			Trader: TraderConfig(true),
 		}
 		//sgm[ConfigKey(coin, 30)] = mlmodel.Segments{
-		//	Stats:  StatsConfig(3, 0.2),
+		//	Stat:  StatsConfig(3, 0.2),
 		//	Model:  ModelConfig(0.65),
 		//	Trader: TraderConfig(true),
 		//}
