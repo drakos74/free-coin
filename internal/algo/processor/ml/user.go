@@ -97,18 +97,18 @@ func trackUserActions(index api.Index, user api.User, collector *collector, stra
 			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(sets)))
 			for k, set := range sets {
 				if model.IsAnyCoin(key.Coin) || k.Match(key.Coin) {
-					networks := set.Network
+					multiNetwork := set.Network
 					txtBuffer.WriteString(fmt.Sprintf("%+v\n", k.ToString()))
-					for kk, network := range networks.Networks {
-						txtBuffer.WriteString(fmt.Sprintf("%+v\n", network.Model().Format()))
+					for _, net := range multiNetwork.Networks {
+						txtBuffer.WriteString(fmt.Sprintf("%+v\n", net.Network.Model().Format()))
 
-						trend := networks.Trend[kk]
-						report := network.Report()
+						trend := net.Trend
+						report := net.Network.Report()
 						txtBuffer.WriteString(fmt.Sprintf("%.2f%s | %d (%.2f)\n",
 							report.Profit, emoji.Profit, report.Buy+report.Sell,
 							trend))
 
-						stats := network.Stats()
+						stats := net.Network.Stats()
 						aa := make([]string, len(stats.Accuracy))
 						for i, acc := range stats.Accuracy {
 							aa[i] = fmt.Sprintf("%.2f|%s", acc, emoji.MapType(model.Type(stats.Decisions[i])))
