@@ -215,7 +215,7 @@ func (m Model) Format() string {
 
 func (m Model) Evolve() Model {
 	m.BufferSize = EvolveInt(m.BufferSize, 0.0)
-	m.PrecisionThreshold = EvolveFloat(m.PrecisionThreshold, 0.0, 0.55)
+	m.PrecisionThreshold = EvolveFloat(m.PrecisionThreshold, 0.0, 0.75)
 	m.ModelSize = EvolveInt(m.ModelSize, 0.0)
 	return m
 }
