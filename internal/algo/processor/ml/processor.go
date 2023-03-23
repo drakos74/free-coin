@@ -111,7 +111,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										AddLine(formatPrediction(cluster, score, metadata, trainErr)).
 										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
-								log.Info().
+								// TODO : enable disable logging from user
+								log.Debug().
 									Str("coin", string(key.Coin)).
 									Floats64("features", result.Features).
 									Floats64("features-importance", result.FeaturesImportance).
