@@ -14,5 +14,7 @@ type Report struct {
 	Profit     float64   `json:"profit"`
 	Fees       float64   `json:"fees"`
 	LastPrice  float64   `json:"last_price"`
+	Start      time.Time `json:"start"`
 	Stamp      time.Time `json:"stamp"`
+	Stop       time.Time `json:"stop"`
 }
