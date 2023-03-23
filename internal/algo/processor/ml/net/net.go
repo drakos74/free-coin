@@ -332,6 +332,9 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 		}
 		// TODO : make this configurable
 		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
+			if report.Start.Unix() == 0 {
+				report.Start = time.Now()
+			}
 			log.Info().
 				Str("type", string(result.Type)).
 				Str("detail", fmt.Sprintf("%+v", result.Detail)).
@@ -345,11 +348,13 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 				Float64("accuracy", result.Accuracy).
 				Int("benchmark-size", net.Benchmark.Len()).
 				Str("benchmarks", fmt.Sprintf("%+v", net.Benchmark.Get())).
+				Str("age", fmt.Sprintf("%+v", time.Now().Sub(report.Start).Minutes())).
 				Msg("accept network")
 			results = append(results, result)
 			// add the config to the winners
 			m.assessPerformance(detail.Type, result, net.Network.Model().ToSlice())
 		} else if res.OK && result.Slope < -0.1 {
+			report.Stop = time.Now()
 			networkReports[detail] = report
 			result.Reset = true
 		}
@@ -388,6 +393,7 @@ func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]Model
 			Float64("slope", networkResults[k].Slope).
 			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
 			Str("new_config", fmt.Sprintf("%+v", m.Networks[newDetail].Network.Model())).
+			Str("age", fmt.Sprintf("%+v", report.Stop.Sub(report.Start).Minutes())).
 			Msg("replace network")
 
 	}
