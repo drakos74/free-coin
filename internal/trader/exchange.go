@@ -250,6 +250,16 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			xt.log.append(action)
 			action = xt.track(key, action)
 			return nil, false, action, nil
+		} else if open {
+			// we don't want to let the model move us back and forth at this stage ...
+			// lets close at take-profit or stop-loss
+			log.Debug().
+				Str("position", fmt.Sprintf("%+v", position)).
+				Msg("ignoring signal")
+			action.Reason = VoidReasonOpen
+			xt.log.append(action)
+			action = xt.track(key, action)
+			return nil, false, action, nil
 		}
 		// we need to close the position
 		close = position.OrderID

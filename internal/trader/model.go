@@ -76,6 +76,7 @@ const (
 	VoidReasonType       Reason = "void-type"
 	BadHistoryReasonType Reason = "bad-history"
 	VoidReasonClose      Reason = "void-close"
+	VoidReasonOpen       Reason = "void-open"
 	ForceResetReason     Reason = "reset"
 )
 
