@@ -2,6 +2,7 @@ package ml
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/drakos74/free-coin/internal/storage/file/json"
 
@@ -133,7 +134,7 @@ func (c *collector) process(key model.Key, batch <-chan []buffer.StatsMessage) {
 				log.
 					Error().
 					Str("coin", string(key.Coin)).
-					Str("bucket", fmt.Sprintf("%+v", bucket)).
+					Time("now", time.Now()).
 					Msg("missed bucket")
 			}
 		}
