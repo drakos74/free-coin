@@ -251,16 +251,20 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			action = xt.track(key, action)
 			return nil, false, action, nil
 		} else if decision != nil {
+			// TODO : not the best condition here, but for now should be ok :)
 			// we don't want to let the model move us back and forth at this stage ...
 			// lets close at take-profit or stop-loss
-			// TODO : not the best condition here, but for now should be ok :)
-			log.Debug().
-				Str("position", fmt.Sprintf("%+v", position)).
-				Msg("ignoring signal")
-			action.Reason = VoidReasonOpen
-			xt.log.append(action)
-			action = xt.track(key, action)
-			return nil, false, action, nil
+			// ... except if it s a profit trade :D
+			if position.PnL < decision.Position.TakeProfit {
+				// we only so for the prpfit, as we want to trade as little as possible due to the feed ;)
+				log.Debug().
+					Str("position", fmt.Sprintf("%+v", position)).
+					Msg("ignoring signal")
+				action.Reason = VoidReasonOpen
+				xt.log.append(action)
+				action = xt.track(key, action)
+				return nil, false, action, nil
+			}
 		}
 		// we need to close the position
 		close = position.OrderID
