@@ -216,7 +216,7 @@ type ModelResult struct {
 	Accuracy           float64
 	Features           []float64
 	FeaturesImportance []float64
-	Position           mlmodel.Position
+	Position           model.Close
 	OK                 bool
 	Reset              bool
 }

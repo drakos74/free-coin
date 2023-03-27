@@ -96,8 +96,11 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										// cancel move ...
 										reason = trader.BadHistoryReasonType
 									}
-									// TODO : find a better wayt o incorporate this into the result
-									result.Position = config.Position
+									// TODO : find a better way to incorporate this into the result
+									result.Position = model.Close{
+										TakeProfit: config.Position.TakeProfit,
+										StopLoss:   config.Position.StopLoss,
+									}
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, reason, s.Live, result.Decision())
 									if err != nil {
 										log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
