@@ -256,7 +256,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				p.HasUpdate = true
-				s, xx, yy, err := profit.Window.Polynomial(0, buffer.Avg, 1, trace)
+				s, xx, yy, err := profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+					return 100 * buffer.Avg(b)
+				}, 1, trace)
 				if err != nil {
 					log.Warn().
 						Str("coin", string(p.Coin)).Err(err).
@@ -264,7 +266,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 						Floats64("yy", yy).
 						Msg("could not complete polynomial '2' fit for position")
 				}
-				a, xx, yy, err := profit.Window.Polynomial(0, buffer.Avg, 2, trace)
+				a, xx, yy, err := profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+					return 100 * buffer.Avg(b)
+				}, 2, trace)
 				if err != nil {
 					log.Warn().Str("coin", string(p.Coin)).Err(err).
 						Floats64("xx", xx).
@@ -356,7 +360,8 @@ func AssessTrend(pp map[Key]Position, takeProfit, stopLoss float64) (map[Key]Pos
 			//} else
 			//fmt.Printf("[ valid = %v  , take-Profit = %v, stop-Loss = %v : %+v ]\n", validTrend, takeProfitActivated, stopLossActivated, Profit)
 			if stopLossActivated || takeProfitActivated {
-				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == Sell) ||
+				// both signals for the trend need to be negative to produce a close signal
+				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == Sell) &&
 					(len(report.ValidTrend) > 1 && report.ValidTrend[1] == Sell) {
 					positions[k] = position
 				}

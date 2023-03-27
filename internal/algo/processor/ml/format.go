@@ -53,9 +53,11 @@ func formatPosition(p model.Position) string {
 	// gather the trends
 	buffer := new(strings.Builder)
 	for k, tr := range p.Trend {
-		buffer.WriteString(fmt.Sprintf("%v:value:%+v:type=%+v:shift=%+v\n"+
+		buffer.WriteString(fmt.Sprintf("%v:cur-value:%+v:last-value:%+v\n"+
+			"type=%+v:shift=%+v\n"+
 			"%s:%+v:%+v",
-			k, tr.CurrentValue, tr.Type, tr.Shift,
+			k, tr.CurrentValue, tr.LastValue,
+			tr.Type, tr.Shift,
 			tr.Stamp.Format(time.Stamp), tr.XX, tr.YY))
 	}
 
