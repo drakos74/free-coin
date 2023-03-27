@@ -6,9 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/cdipaolo/goml/cluster"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestKMeans(t *testing.T) {

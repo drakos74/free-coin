@@ -6,6 +6,7 @@ require (
 	github.com/adshao/go-binance/v2 v2.2.1
 	github.com/aopoltorzhicky/go_kraken/websocket v0.1.8
 	github.com/beldur/kraken-go-api-client v0.0.0-20210113103835-3f11c80eba1a
+	github.com/cdipaolo/goml v0.0.0-20220715001353-00e0c845ae1c
 	github.com/drakos74/go-ex-machina v0.0.0-20211107134813-9131c4153fda
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/uuid v1.1.1
@@ -22,13 +23,10 @@ require (
 	github.com/aopoltorzhicky/go_kraken/rest v0.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
-	github.com/cdipaolo/goml v0.0.0-20220715001353-00e0c845ae1c // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac // indirect
-	github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9 // indirect
-	github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/guptarohit/asciigraph v0.5.1 // indirect

@@ -48,12 +48,6 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/gonum/blas v0.0.0-20181208220705-f22b278b28ac
 ## explicit
 github.com/gonum/blas
-# github.com/gonum/lapack v0.0.0-20181123203213-e4cdc5a0bff9
-## explicit
-github.com/gonum/lapack
-# github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9
-## explicit
-github.com/gonum/matrix
 # github.com/google/go-cmp v0.5.5
 ## explicit; go 1.8
 github.com/google/go-cmp/cmp
@@ -128,13 +122,9 @@ github.com/sjwhitworth/golearn/base
 github.com/sjwhitworth/golearn/ensemble
 github.com/sjwhitworth/golearn/evaluation
 github.com/sjwhitworth/golearn/filters
-github.com/sjwhitworth/golearn/kdtree
-github.com/sjwhitworth/golearn/knn
 github.com/sjwhitworth/golearn/linear_models
 github.com/sjwhitworth/golearn/meta
-github.com/sjwhitworth/golearn/metrics/pairwise
 github.com/sjwhitworth/golearn/trees
-github.com/sjwhitworth/golearn/utilities
 # github.com/stretchr/testify v1.7.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
