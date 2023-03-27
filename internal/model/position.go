@@ -253,13 +253,20 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				p.HasUpdate = true
-				s, err := profit.Window.Polynomial(0, buffer.Avg, 1, trace)
+				s, xx, yy, err := profit.Window.Polynomial(0, buffer.Avg, 1, trace)
 				if err != nil {
-					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '2' fit for position")
+					log.Warn().
+						Str("coin", string(p.Coin)).Err(err).
+						Floats64("xx", xx).
+						Floats64("yy", yy).
+						Msg("could not complete polynomial '2' fit for position")
 				}
-				a, err := profit.Window.Polynomial(0, buffer.Avg, 2, trace)
+				a, xx, yy, err := profit.Window.Polynomial(0, buffer.Avg, 2, trace)
 				if err != nil {
-					log.Debug().Str("coin", string(p.Coin)).Err(err).Msg("could not complete polynomial '3' fit for position")
+					log.Debug().Str("coin", string(p.Coin)).Err(err).
+						Floats64("xx", xx).
+						Floats64("yy", yy).
+						Msg("could not complete polynomial '3' fit for position")
 				}
 				if len(s) >= 1 && len(a) >= 2 {
 					trend := p.Trend[k]

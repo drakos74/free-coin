@@ -186,7 +186,7 @@ func configML() *mlmodel.Config {
 		Position: mlmodel.Position{
 			OpenValue:  250,
 			StopLoss:   0.02,
-			TakeProfit: 0.015,
+			TakeProfit: 0.01,
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration: 30 * time.Second,
 				Samples:  3,
@@ -200,7 +200,7 @@ func configML() *mlmodel.Config {
 			Trace: map[string]bool{
 				//string(model.BTC): true,
 			},
-			Log:       true,
+			Log:       false,
 			Debug:     true,
 			Benchmark: true,
 		},

@@ -122,7 +122,7 @@ func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int,
 	}
 	cl, score, meta, err := ds.decisions[key].Predict(x, leadingThreshold)
 	if err != nil {
-		log.Debug().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("eval model fallback")
+		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("eval model fallback")
 		return ds.decisions[allCoinsKey].Predict(x, leadingThreshold)
 	}
 	return cl, score, meta, nil
@@ -135,7 +135,7 @@ func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (
 	}
 	meta, err := ds.decisions[key].Train(x, y, train)
 	if err != nil {
-		log.Debug().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("cluster model fallback")
+		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("cluster model fallback")
 		return ds.decisions[allCoinsKey].Train(x, y, train)
 	}
 	return meta, nil

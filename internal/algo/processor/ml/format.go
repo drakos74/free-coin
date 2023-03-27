@@ -49,13 +49,22 @@ func formatConfig(config mlmodel.Config) string {
 	)
 }
 func formatPosition(p model.Position) string {
-	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s (%.0f)",
+
+	// gather the trends
+	buffer := new(strings.Builder)
+	for k, tr := range p.Trend {
+		buffer.WriteString(fmt.Sprintf("%v:value:%+v:type=%+v:shift=%+v", k, tr.CurrentValue, tr.Type, tr.Shift))
+	}
+
+	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s (%.0f)"+
+		"\n%s",
 		emoji.MapType(p.Type),
 		p.OpenPrice*p.Volume,
 		emoji.MapToSign(p.PnL),
 		100*p.PnL,
 		"%",
 		p.CurrentTime.Format(time.Stamp), cointime.ToNow(p.CurrentTime),
+		buffer.String(),
 	)
 }
 

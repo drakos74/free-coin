@@ -74,14 +74,14 @@ func (s *statsCollector) push(k model.Key, signal *model.TradeSignal) ([]interfa
 	trade := signal.Tick
 	if b, ok := s.windows[k].W.Push(trade.Time, trade.Price, trade.Price*trade.Volume); ok {
 		poly := make(map[int][]float64)
-		poly2, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+		poly2, _, _, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 			return 10000 * b.Ratio
 		}, 2, false)
 		if err != nil {
 			log.Debug().Int("degree", 2).Msg("could not fit polynomial")
 		}
 		poly[2] = poly2
-		poly3, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
+		poly3, _, _, err := s.windows[k].W.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 			return 10000 * b.Ratio
 		}, 3, false)
 		poly[3] = poly3

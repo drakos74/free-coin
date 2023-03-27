@@ -111,8 +111,8 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 										metadata, trainErr = ds.Cluster(k, action.Result.X, action.Result.Y, true)
 									}
 									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
-										AddLine(formatDecision(action.Decision)).
-										AddLine(formatSpectrum(*signal.Spectrum)).
+										//AddLine(formatDecision(action.Decision)).
+										//AddLine(formatSpectrum(*signal.Spectrum)).
 										AddLine(formatPrediction(cluster, score, metadata, trainErr)).
 										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
@@ -192,7 +192,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								}
 							}
 							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).
-								AddLine(fmt.Sprintf(formatDecision(p.Decision))).
+								//AddLine(fmt.Sprintf(formatDecision(p.Decision))).
 								AddLine(formatPrediction(0, 0.0, metadata, trainErr)).
 								AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}

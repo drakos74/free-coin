@@ -224,13 +224,13 @@ func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64
 // for the given polynomial degree
 // and based on the value extracted from the TimeBucket
 // scaled at the corresponding time duration.
-func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int, trace bool) ([]float64, error) {
+func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int, trace bool) ([]float64, []float64, []float64, error) {
 	xx, yy, err := h.Extract(index, extract)
 	if err != nil {
-		return nil, fmt.Errorf("could not extarct series: %w", err)
+		return nil, nil, nil, fmt.Errorf("could not extarct series: %w", err)
 	}
 	if len(yy) < degree+1 {
-		return nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
+		return nil, nil, nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
 			len(yy),
 			degree+1,
 			degree)
@@ -245,7 +245,7 @@ func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) floa
 			Str("index", fmt.Sprintf("%+v", degree)).
 			Msg("fit")
 	}
-	return aa, err
+	return aa, xx, yy, err
 }
 
 // Values returns the values of the time window in a slice
