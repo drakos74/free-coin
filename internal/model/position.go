@@ -77,12 +77,15 @@ type Stats struct {
 type Trend struct {
 	State        PositionState
 	Live         bool
+	Stamp        time.Time
 	LastValue    []float64
 	CurrentValue []float64
 	Threshold    []float64
 	CurrentDiff  []float64
 	Type         []Type
 	Shift        []Type
+	XX           []float64
+	YY           []float64
 }
 
 func (t Trend) Assess() ([]Type, bool) {
@@ -263,13 +266,17 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 				}
 				a, xx, yy, err := profit.Window.Polynomial(0, buffer.Avg, 2, trace)
 				if err != nil {
-					log.Debug().Str("coin", string(p.Coin)).Err(err).
+					log.Warn().Str("coin", string(p.Coin)).Err(err).
 						Floats64("xx", xx).
 						Floats64("yy", yy).
 						Msg("could not complete polynomial '3' fit for position")
 				}
+				trend := p.Trend[k]
+				trend.Stamp = time.Now()
+				trend.Live = true
+				trend.XX = xx
+				trend.YY = yy
 				if len(s) >= 1 && len(a) >= 2 {
-					trend := p.Trend[k]
 					trend.CurrentValue[0] = s[1]
 					trend.CurrentValue[1] = a[2]
 					trend.CurrentDiff[0] = math.Abs(trend.CurrentValue[0]) - profit.Config.Threshold[0]
@@ -279,7 +286,6 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 					trend.Type[1], trend.Shift[1] = calculateTrend(trend.CurrentValue[1], profit.Config.Threshold[1], trend.LastValue[1])
 					trend.LastValue[0] = s[1]
 					trend.LastValue[1] = a[2]
-					trend.Live = true
 					p.Trend[k] = trend
 				}
 			}

@@ -227,10 +227,10 @@ func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64
 func (h HistoryWindow) Polynomial(index int, extract func(b TimeWindowView) float64, degree int, trace bool) ([]float64, []float64, []float64, error) {
 	xx, yy, err := h.Extract(index, extract)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not extarct series: %w", err)
+		return nil, xx, yy, fmt.Errorf("could not extarct series: %w", err)
 	}
 	if len(yy) < degree+1 {
-		return nil, nil, nil, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
+		return nil, xx, yy, fmt.Errorf("not enough buckets (%d out of %d) to apply polynomial regression for %d",
 			len(yy),
 			degree+1,
 			degree)
