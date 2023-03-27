@@ -81,7 +81,6 @@ func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 
 	// TODO : provide a inverse hash operation
 	index := t.Unix() / tw.Duration
-	fmt.Printf("index = %+v\n", index)
 
 	index, bucket, closed := tw.window.Push(index, v...)
 
