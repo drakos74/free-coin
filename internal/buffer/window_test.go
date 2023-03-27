@@ -8,6 +8,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestTimeWindow(t *testing.T) {
+	window := NewTimeWindow(30 * time.Second)
+	now := time.Now()
+	c := 0
+	for i := 0; i < 100; i++ {
+		if _, ok := window.Push(now.Add(time.Duration(i)*time.Second), float64(i)); ok {
+			c++
+		}
+	}
+	assert.Equal(t, c, 3, "expecting only floor(100/30) events")
+	fmt.Printf("c = %+v\n", c)
+}
+
+func TestTimeWindowRareEvents(t *testing.T) {
+	window := NewTimeWindow(30 * time.Second)
+	now := time.Now()
+	c := 0
+	for i := 0; i < 100; i++ {
+		if _, ok := window.Push(now.Add(time.Duration(i)*time.Minute), float64(i)); ok {
+			c++
+		}
+	}
+	assert.Equal(t, c, 99, "expecting max number of events out of the 100. Which should be 99")
+	fmt.Printf("c = %+v\n", c)
+}
+
 func TestHistoryWindow_Push(t *testing.T) {
 
 	type test struct {

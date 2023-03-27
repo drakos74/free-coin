@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -165,4 +166,15 @@ func TestStats_Push(t *testing.T) {
 			assert.Equal(t, tt.ema, math.Round(stats.EMA()))
 		})
 	}
+}
+
+func TestWindow(t *testing.T) {
+	window := NewWindow(3, 1)
+	c := 0
+	for i := 0; i < 100; i++ {
+		if _, _, ok := window.Push(int64(i), float64(i)); ok {
+			c++
+		}
+	}
+	assert.Equal(t, c, 33, fmt.Sprintf("expecting only 33 events, due to the size of the window"))
 }
