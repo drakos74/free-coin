@@ -254,7 +254,7 @@ func formatTrend(trend map[model.Key]map[time.Duration]model.Trend) string {
 func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 	txtBuffer := new(strings.Builder)
 	for k, t := range tt {
-		txtBuffer.WriteString(formatPositionState(t.State))
+		txtBuffer.WriteString(fmt.Sprintf("%s\n", formatPositionState(t.State)))
 		txtBuffer.WriteString(formatTrendValue(k, t))
 	}
 	return txtBuffer.String()

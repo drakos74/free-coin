@@ -319,6 +319,7 @@ type TrendReport struct {
 	StopLossActive   bool
 	TakeProfitActive bool
 	ValidTrend       []Type
+	ValidShift       []Type
 }
 
 // AssessTrend assesses the current position trend
@@ -350,6 +351,7 @@ func AssessTrend(pp map[Key]Position, takeProfit, stopLoss float64) (map[Key]Pos
 					}
 					allTrend[k][tt] = trend
 					report.ValidTrend = validTrend
+					report.ValidShift = trend.Shift
 				}
 			}
 			//if stopLossActivated {
@@ -367,6 +369,9 @@ func AssessTrend(pp map[Key]Position, takeProfit, stopLoss float64) (map[Key]Pos
 				// both signals for the trend need to be negative to produce a close signal
 				if (len(report.ValidTrend) > 0 && report.ValidTrend[0] == Sell) &&
 					(len(report.ValidTrend) > 1 && report.ValidTrend[1] == Sell) {
+					positions[k] = position
+				} else if (len(report.ValidTrend) > 0 && report.ValidShift[0] == Sell) ||
+					(len(report.ValidTrend) > 1 && report.ValidShift[1] == Sell) {
 					positions[k] = position
 				}
 			}

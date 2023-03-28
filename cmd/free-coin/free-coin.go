@@ -198,7 +198,7 @@ func configML() *mlmodel.Config {
 		},
 		Option: mlmodel.Option{
 			Trace: map[string]bool{
-				string(model.AllCoins): true,
+				//string(model.AllCoins): true,
 				//string(model.BTC): true,
 			},
 			Log:       false,
