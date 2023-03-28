@@ -73,26 +73,26 @@ func TestTrainKMeans(t *testing.T) {
 	fmt.Printf("double = %+v\n", double)
 	model := cluster.NewKMeans(2, 30, double)
 	if model.Learn() != nil {
-		panic("Oh NO!!! There was an error learning!!")
+		panic(any("Oh NO!!! There was an error learning!!"))
 	}
 	// now predict with the same training set and
 	// make sure the classes are the same within
 	// each block
 	c1, err := model.Predict([]float64{-7.5, 0})
 	if err != nil {
-		panic("prediction error")
+		panic(any("prediction error"))
 	}
 	fmt.Printf("c1 = %+v\n", c1)
 	c2, err := model.Predict([]float64{7.5, 0})
 	if err != nil {
-		panic("prediction error")
+		panic(any("prediction error"))
 	}
 	fmt.Printf("c2 = %+v\n", c2)
 	// now you can predict like normal!
 	guess, err := model.Predict([]float64{-3, 6})
 	fmt.Printf("guess = %+v\n", guess)
 	if err != nil {
-		panic("prediction error")
+		panic(any("prediction error"))
 	}
 	// or if you want to get the clustering
 	// results from the data
@@ -103,18 +103,18 @@ func TestTrainKMeans(t *testing.T) {
 	// (if you wanted to plot it or something)
 	err = model.SaveClusteredData("/tmp/.goml/KMeansResults.csv")
 	if err != nil {
-		panic("file save error")
+		panic(any("file save error"))
 	}
 	// you can also persist the model to a
 	// file
 	err = model.PersistToFile("/tmp/.goml/KMeans.json")
 	if err != nil {
-		panic("file save error")
+		panic(any("file save error"))
 	}
 	// and also restore from file (at a
 	// later time if you want)
 	err = model.RestoreFromFile("/tmp/.goml/KMeans.json")
 	if err != nil {
-		panic("file save error")
+		panic(any("file save error"))
 	}
 }

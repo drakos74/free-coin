@@ -239,6 +239,7 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 		action.Value = position.Value
 		action.PnL = position.PnL
 		action.Decision = position.Decision
+		action.Trend = position.Trend
 		// if we had a position already ...
 		// TODO :review this ...
 		if position.Type == openType {

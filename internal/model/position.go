@@ -108,6 +108,8 @@ type PositionState struct {
 	Coin         Coin
 	OpenPrice    float64
 	CurrentPrice float64
+	PnL          float64
+	Value        float64
 	Type         Type
 }
 
@@ -230,6 +232,8 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 			Type:         p.Type,
 			OpenPrice:    p.OpenPrice,
 			CurrentPrice: trade.Price,
+			Value:        p.Value,
+			PnL:          p.PnL,
 		}
 		// try to ingest the new value to the window stats
 

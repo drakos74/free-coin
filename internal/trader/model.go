@@ -82,15 +82,16 @@ const (
 
 // Event defines a trading action for reference and debugging.
 type Event struct {
-	Key      model.Key       `json:"key"`
-	Time     time.Time       `json:"time"`
-	Type     model.Type      `json:"type"`
-	Price    float64         `json:"price"`
-	Value    float64         `json:"value"`
-	Decision *model.Decision `json:"decision"`
-	Reason   Reason          `json:"reason"`
-	PnL      float64         `json:"PnL"`
-	Result   Result          `json:"result"`
+	Key      model.Key                     `json:"key"`
+	Time     time.Time                     `json:"time"`
+	Type     model.Type                    `json:"type"`
+	Price    float64                       `json:"price"`
+	Value    float64                       `json:"value"`
+	Decision *model.Decision               `json:"decision"`
+	Reason   Reason                        `json:"reason"`
+	PnL      float64                       `json:"PnL"`
+	Result   Result                        `json:"result"`
+	Trend    map[time.Duration]model.Trend `json:"trend"`
 	TradeTracker
 }
 

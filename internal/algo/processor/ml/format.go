@@ -48,19 +48,9 @@ func formatConfig(config mlmodel.Config) string {
 		config.Option.Benchmark,
 	)
 }
+
 func formatPosition(p model.Position) string {
-
 	// gather the trends
-	buffer := new(strings.Builder)
-	for k, tr := range p.Trend {
-		buffer.WriteString(fmt.Sprintf("%v:cur-value:%+v:last-value:%+v\n"+
-			"type=%+v:shift=%+v\n"+
-			"%s:%+v:%+v",
-			k, tr.CurrentValue, tr.LastValue,
-			tr.Type, tr.Shift,
-			tr.Stamp.Format(time.Stamp), tr.XX, tr.YY))
-	}
-
 	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s (%.0f)"+
 		"\n%s",
 		emoji.MapType(p.Type),
@@ -69,8 +59,31 @@ func formatPosition(p model.Position) string {
 		100*p.PnL,
 		"%",
 		p.CurrentTime.Format(time.Stamp), cointime.ToNow(p.CurrentTime),
-		buffer.String(),
+		formatPositionTrend(p.Trend),
 	)
+}
+
+func formatPositionTrend(trend map[time.Duration]model.Trend) string {
+	buffer := new(strings.Builder)
+	for k, tr := range trend {
+		buffer.WriteString(formatTrendValue(k, tr))
+	}
+	return buffer.String()
+}
+
+func formatTrendValue(k time.Duration, trend model.Trend) string {
+	return fmt.Sprintf("%v:%+v\n"+
+		"t=%+v:s=%+v\n"+
+		"%+v\n%+v",
+		k, formatFloats(trend.CurrentValue, func(f float64) string {
+			return fmt.Sprintf(" %.4f", f)
+		}),
+		formatTypes(trend.Type, emoji.MapToTrend), formatTypes(trend.Shift, emoji.MapToTrend),
+		formatFloats(trend.XX, func(f float64) string {
+			return fmt.Sprintf(" %.2f", f)
+		}), formatFloats(trend.YY, func(f float64) string {
+			return fmt.Sprintf(" %.2f", f)
+		}))
 }
 
 func formatKey(k model.Key) string {
@@ -129,20 +142,21 @@ func formatAction(log bool, action trader.Event, trend map[time.Duration]model.T
 			err,
 			formatTimeTrend(trend))
 	}
-	return fmt.Sprintf("(%.0f) %s %s %s\n"+
-		"%.2f%s %s %v",
+	return fmt.Sprintf("(%.0f) %s\n"+
+		"%s %v\n"+
+		"%s\n%s\n"+
+		"%s",
 
 		cointime.ToNow(action.Time),
 
-		emoji.MapType(action.Type),
-		action.Key.Coin,
-
-		emoji.MapToSign(action.Value),
-		100*action.PnL,
-		"%",
+		formatCoinPosition(action.Key.Coin, action.Type, 0, action.Value, action.PnL),
 
 		action.Reason,
-		emoji.MapToAction(ok))
+		emoji.MapToAction(ok),
+		formatStat("", action.Coin),
+		formatStat("", action.Global),
+		formatPositionTrend(action.Trend),
+	)
 }
 
 func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err error, ok bool) string {
@@ -192,23 +206,34 @@ func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err erro
 		//♻|<nil>
 		//🚛
 	}
-	return fmt.Sprintf("(%.0f) %s|%.2f|%s %s\n"+
-		"%.2f%s %s (%.2f|%.2f) %v",
+	return fmt.Sprintf("(%.0f) %s\n"+
+		"%s (%.2f|%.2f) %v\n"+
+		"%s\n%s\n"+
+		"%s",
 
 		cointime.ToNow(signal.Time),
 
-		emoji.MapType(signal.Type),
-		signal.Trend,
-		signal.Key.Coin,
-
-		emoji.MapToSign(action.Value),
-		100*action.PnL,
-		"%",
+		formatCoinPosition(signal.Key.Coin, signal.Type, signal.Trend, action.Value, action.PnL),
 
 		action.Reason,
 		signal.Precision,
 		signal.Gap,
-		emoji.MapToAction(ok))
+		emoji.MapToAction(ok),
+		formatStat("", action.Coin),
+		formatStat("", action.Global),
+		formatPositionTrend(action.Trend),
+	)
+}
+
+func formatCoinPosition(c model.Coin, t model.Type, trend float64, value float64, pnl float64) string {
+	return fmt.Sprintf("%s|%.2f|%s %s %.2f%s",
+		emoji.MapType(t),
+		trend,
+		c,
+		emoji.MapToSign(value),
+		100*pnl,
+		"%",
+	)
 }
 
 func formatTime(t time.Time) string {
@@ -219,8 +244,8 @@ func formatTime(t time.Time) string {
 
 func formatTrend(trend map[model.Key]map[time.Duration]model.Trend) string {
 	txtBuffer := new(strings.Builder)
-	for k, tt := range trend {
-		txtBuffer.WriteString(fmt.Sprintf("%s ", k.Coin))
+	for _, tt := range trend {
+		//txtBuffer.WriteString(fmt.Sprintf("%s ", k.Coin))
 		txtBuffer.WriteString(formatTimeTrend(tt))
 	}
 	return txtBuffer.String()
@@ -228,26 +253,15 @@ func formatTrend(trend map[model.Key]map[time.Duration]model.Trend) string {
 
 func formatTimeTrend(tt map[time.Duration]model.Trend) string {
 	txtBuffer := new(strings.Builder)
-	for _, t := range tt {
-		value := 0.0
-		switch t.State.Type {
-		case model.Buy:
-			value = t.State.CurrentPrice - t.State.OpenPrice
-		case model.Sell:
-			value = t.State.OpenPrice - t.State.CurrentPrice
-		}
-
-		txtBuffer.WriteString(fmt.Sprintf("%.3f %s %s ",
-			value/t.State.OpenPrice,
-			emoji.MapToSign(value),
-			emoji.MapType(t.State.Type),
-		))
-		txtBuffer.WriteString(fmt.Sprintf("[%s %s]",
-			emoji.MapToTrend(t.Type[0]),
-			emoji.MapToTrend(t.Type[1]),
-		))
+	for k, t := range tt {
+		txtBuffer.WriteString(formatPositionState(t.State))
+		txtBuffer.WriteString(formatTrendValue(k, t))
 	}
 	return txtBuffer.String()
+}
+
+func formatPositionState(state model.PositionState) string {
+	return formatCoinPosition(state.Coin, state.Type, 0, state.Value, state.PnL)
 }
 
 func formatDecision(decision *model.Decision) string {
@@ -257,9 +271,15 @@ func formatDecision(decision *model.Decision) string {
 	return fmt.Sprintf("%.2f %+v\n"+
 		"%+v\n"+
 		"%+v\v",
-		decision.Confidence, formatFloats(decision.Config),
-		formatFloats(decision.Features),
-		formatFloats(decision.Importance))
+		decision.Confidence, formatFloats(decision.Config, func(f float64) string {
+			return fmt.Sprintf(" %.2f", f)
+		}),
+		formatFloats(decision.Features, func(f float64) string {
+			return fmt.Sprintf(" %.2f", f)
+		}),
+		formatFloats(decision.Importance, func(f float64) string {
+			return fmt.Sprintf(" %.2f", f)
+		}))
 }
 
 func formatPrediction(cluster int, score float64, metadata ml.Metadata, err error) string {
@@ -274,14 +294,27 @@ func formatSpectrum(spectrum math.Spectrum) string {
 	return fmt.Sprintf("%.2f (%.2f) %s", spectrum.Amplitude, spectrum.Mean(), formatRNums(spectrum.Values))
 }
 
-func formatFloats(ff []float64) string {
+func formatFloats(ff []float64, format func(f float64) string) string {
 	s := new(strings.Builder)
 	s.WriteString("[")
 	for i := 0; i < len(ff); i++ {
 		if i != 0 {
 			s.WriteString(",")
 		}
-		s.WriteString(fmt.Sprintf(" %.2f", ff[i]))
+		s.WriteString(format(ff[i]))
+	}
+	s.WriteString(" ]")
+	return s.String()
+}
+
+func formatTypes(ff []model.Type, format func(i model.Type) string) string {
+	s := new(strings.Builder)
+	s.WriteString("[")
+	for i := 0; i < len(ff); i++ {
+		if i != 0 {
+			s.WriteString(",")
+		}
+		s.WriteString(format(ff[i]))
 	}
 	s.WriteString(" ]")
 	return s.String()

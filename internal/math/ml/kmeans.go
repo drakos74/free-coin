@@ -33,7 +33,7 @@ func NewKMeans(pair string, dim int, iterations int) *KMeans {
 		Label: "results",
 	}
 	stats := make(map[int]*buffer.Stats, dim)
-	return &KMeans{
+	k := &KMeans{
 		dataKey:    dataKey,
 		resultsKey: resultKey,
 		stats:      stats,
@@ -41,6 +41,13 @@ func NewKMeans(pair string, dim int, iterations int) *KMeans {
 		iterations: iterations,
 		store:      json.NewJsonBlob("ml", "kmeans", false),
 	}
+	// do  the first train if we have data ready ;) So we re prepared for the first signals
+	meta, err := k.init()
+	log.Info().Err(err).
+		Str("coin", dataKey.Pair).
+		Int("meta", meta.Samples).
+		Msg("init kmeans")
+	return k
 }
 
 func transform(stats map[int]*buffer.Stats) (map[int]Stats, []float64) {
@@ -58,51 +65,9 @@ func transform(stats map[int]*buffer.Stats) (map[int]Stats, []float64) {
 	return newStats, limit
 }
 
-func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
-	metadata := Metadata{
-		Stats: make(map[int]Stats),
-	}
-	// load all data
-	var data [][]float64
-	if err := k.store.Load(k.dataKey, &data); err != nil {
-		log.Warn().Err(err).
-			Str("pair", k.dataKey.Pair).
-			Str("label", k.dataKey.Label).
-			Int64("hash", k.dataKey.Hash).
-			Msg("no previous data for k-means")
-	}
-	// append new data to data
-	data = append(data, x)
-	metadata.Samples = len(data)
-	// load results
-	var results []float64
-	if err := k.store.Load(k.resultsKey, &results); err != nil {
-		log.Warn().Err(err).
-			Str("pair", k.resultsKey.Pair).
-			Str("label", k.resultsKey.Label).
-			Int64("hash", k.resultsKey.Hash).
-			Msg("no previous results for k-means")
-	}
-	results = append(results, y)
-	// store back
-	if err := k.store.Store(k.dataKey, data); err != nil {
-		log.Error().
-			Err(err).
-			Str("key", fmt.Sprintf("%+v", k.dataKey)).
-			Int("data", len(data)).
-			Msg("could not store data set for k-means")
-		return metadata, fmt.Errorf("could not store updated data set: %w", err)
-	}
-	if err := k.store.Store(k.resultsKey, results); err != nil {
-		log.Error().
-			Err(err).
-			Str("key", fmt.Sprintf("%+v", k.resultsKey)).
-			Int("results", len(results)).
-			Msg("could not store result set for k-means")
-		return metadata, fmt.Errorf("could not store updated results set: %w", err)
-	}
+func (k *KMeans) train(data [][]float64, results []float64, metadata Metadata) (Metadata, error) {
 	// train either on demand or based on intervals
-	if train && len(data) >= k.dim {
+	if len(data) >= k.dim {
 		k.model = cluster.NewKMeans(k.dim, k.iterations, data)
 		if err := k.model.Learn(); err != nil {
 			log.Error().
@@ -125,8 +90,70 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
 			k.stats[g].Push(results[i])
 		}
 		metadata.Stats, _ = transform(k.stats)
+	} else {
+		return metadata, fmt.Errorf("cannot train: samples = %d vs required = %d", len(data), k.dim)
 	}
 	return metadata, nil
+}
+
+func (k *KMeans) load() ([][]float64, []float64, Metadata) {
+	metadata := Metadata{
+		Stats: make(map[int]Stats),
+	}
+	var data [][]float64
+	if err := k.store.Load(k.dataKey, &data); err != nil {
+		log.Warn().Err(err).
+			Str("pair", k.dataKey.Pair).
+			Str("label", k.dataKey.Label).
+			Int64("hash", k.dataKey.Hash).
+			Msg("no previous data for k-means")
+	}
+	metadata.Samples = len(data)
+	// load results
+	var results []float64
+	if err := k.store.Load(k.resultsKey, &results); err != nil {
+		log.Warn().Err(err).
+			Str("pair", k.resultsKey.Pair).
+			Str("label", k.resultsKey.Label).
+			Int64("hash", k.resultsKey.Hash).
+			Msg("no previous results for k-means")
+	}
+	return data, results, metadata
+}
+
+func (k *KMeans) init() (Metadata, error) {
+	data, results, metadata := k.load()
+	return k.train(data, results, metadata)
+}
+
+func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
+	data, results, metadata := k.load()
+	// append new data to data
+	data = append(data, x)
+	metadata.Samples = len(data)
+	results = append(results, y)
+	// store back
+	if err := k.store.Store(k.dataKey, data); err != nil {
+		log.Error().
+			Err(err).
+			Str("key", fmt.Sprintf("%+v", k.dataKey)).
+			Int("data", len(data)).
+			Msg("could not store data set for k-means")
+		return metadata, fmt.Errorf("could not store updated data set: %w", err)
+	}
+	if err := k.store.Store(k.resultsKey, results); err != nil {
+		log.Error().
+			Err(err).
+			Str("key", fmt.Sprintf("%+v", k.resultsKey)).
+			Int("results", len(results)).
+			Msg("could not store result set for k-means")
+		return metadata, fmt.Errorf("could not store updated results set: %w", err)
+	}
+	// train either on demand or based on intervals
+	if train {
+		return k.train(data, results, metadata)
+	}
+	return metadata, fmt.Errorf("train disabled on false flag")
 }
 
 func (k *KMeans) Predict(x []float64, leadingThreshold int) (int, float64, Metadata, error) {

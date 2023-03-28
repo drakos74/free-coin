@@ -196,7 +196,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								AddLine(formatPrediction(0, 0.0, metadata, trainErr)).
 								AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
-					} else if len(trend) > 0 && config.Option.Trace[string(tradeSignal.Coin)] {
+					} else if len(trend) > 0 && (config.Option.Trace[string(tradeSignal.Coin)] || config.Option.Trace[string(model.AllCoins)]) {
 						u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)
 					}
 					// print the reports for trace reasons
