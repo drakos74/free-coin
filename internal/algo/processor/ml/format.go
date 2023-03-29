@@ -72,13 +72,16 @@ func formatPositionTrend(trend map[time.Duration]model.Trend) string {
 }
 
 func formatTrendValue(k time.Duration, trend model.Trend) string {
-	return fmt.Sprintf("%v:%+v\n"+
-		"t=%+v:s=%+v\n"+
+	return fmt.Sprintf("%v:%+v|%+v\n"+
+		"%+v\n%+v\n"+
 		"%+v\n%+v",
-		k, formatFloats(trend.CurrentValue, func(f float64) string {
+		k, formatTypes(trend.Type, emoji.MapToTrend), formatTypes(trend.Shift, emoji.MapToTrend),
+		formatFloats(trend.LastValue, func(f float64) string {
 			return fmt.Sprintf(" %.4f", f)
 		}),
-		formatTypes(trend.Type, emoji.MapToTrend), formatTypes(trend.Shift, emoji.MapToTrend),
+		formatFloats(trend.CurrentValue, func(f float64) string {
+			return fmt.Sprintf(" %.4f", f)
+		}),
 		formatFloats(trend.XX, func(f float64) string {
 			return fmt.Sprintf(" %.2f", f)
 		}), formatFloats(trend.YY, func(f float64) string {
@@ -208,7 +211,7 @@ func formatSignal(log bool, signal mlmodel.Signal, action trader.Event, err erro
 	}
 	return fmt.Sprintf("(%.0f) %s\n"+
 		"%s (%.2f|%.2f) %v\n"+
-		"%s\n%s\n"+
+		"%s%s"+
 		"%s",
 
 		cointime.ToNow(signal.Time),
@@ -282,12 +285,17 @@ func formatDecision(decision *model.Decision) string {
 		}))
 }
 
-func formatPrediction(cluster int, score float64, metadata ml.Metadata, err error) string {
-	s := new(strings.Builder)
-	for g, st := range metadata.Stats {
-		s.WriteString(fmt.Sprintf("%d (%d | %.2f)\n", g, st.Size, st.Avg))
+func formatPrediction(trace bool, cluster int, score float64, metadata ml.Metadata, err error) string {
+	if trace {
+		s := new(strings.Builder)
+		for g, st := range metadata.Stats {
+			s.WriteString(fmt.Sprintf("%d (%d | %.2f)\n", g, st.Size, st.Avg))
+		}
+		return fmt.Sprintf("%.d | %.4f | %s|%d \n %s", cluster, score, fmt.Errorf("%w", err).Error(), metadata.Samples, s.String())
+	} else if err != nil {
+		return fmt.Sprintf("%.d | %.4f | %s|%d", cluster, score, fmt.Errorf("err = %w", err).Error(), metadata.Samples)
 	}
-	return fmt.Sprintf("%.d | %.4f | %s|%d \n %s", cluster, score, fmt.Errorf("err = %w", err).Error(), metadata.Samples, s.String())
+	return fmt.Sprintf("%.d | %.4f (%.4f) | %d", cluster, score, metadata.Limit, metadata.Samples)
 }
 
 func formatSpectrum(spectrum math.Spectrum) string {

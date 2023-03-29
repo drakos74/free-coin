@@ -236,13 +236,16 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 			PnL:          p.PnL,
 		}
 		// try to ingest the new value to the window stats
-
 		for k, profit := range p.Profit {
 			if trend, ok := p.Trend[k]; !ok {
 				p.Trend[k] = newTrend(state)
 			} else {
 				trend.Live = false
 				trend.State = state
+				if len(trend.CurrentValue) > 1 {
+					//pass over the previous value
+					trend.LastValue = []float64{trend.CurrentValue[0], trend.CurrentValue[1]}
+				}
 				p.Trend[k] = trend
 			}
 
@@ -292,8 +295,6 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 					trend.Threshold = profit.Config.Threshold
 					trend.Type[0], trend.Shift[0] = calculateTrend(trend.CurrentValue[0], profit.Config.Threshold[0], trend.LastValue[0])
 					trend.Type[1], trend.Shift[1] = calculateTrend(trend.CurrentValue[1], profit.Config.Threshold[1], trend.LastValue[1])
-					trend.LastValue[0] = s[1]
-					trend.LastValue[1] = a[2]
 					p.Trend[k] = trend
 				}
 			}

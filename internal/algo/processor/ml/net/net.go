@@ -216,7 +216,7 @@ type ModelResult struct {
 	Accuracy           float64
 	Features           []float64
 	FeaturesImportance []float64
-	Position           model.Close
+	Position           model.Boundary
 	OK                 bool
 	Reset              bool
 }
@@ -235,7 +235,7 @@ func (r ModelResult) Decision() *model.Decision {
 		Features:   r.Features,
 		Importance: r.FeaturesImportance,
 		Config:     []float64{r.Gap, r.Profit, r.Trend},
-		Position:   r.Position,
+		Boundary:   r.Position,
 	}
 }
 

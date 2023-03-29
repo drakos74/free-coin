@@ -68,16 +68,16 @@ func FromString(k string) model.Key {
 type Reason string
 
 const (
-	SignalReason         Reason = "signal"
-	StopLossReason       Reason = "stop-Loss"
-	TakeProfitReason     Reason = "take-Profit"
-	VoidReasonIgnore     Reason = "void-ignore"
-	VoidReasonConflict   Reason = "void-conflict"
-	VoidReasonType       Reason = "void-type"
-	BadHistoryReasonType Reason = "bad-history"
-	VoidReasonClose      Reason = "void-close"
-	VoidReasonOpen       Reason = "void-open"
-	ForceResetReason     Reason = "reset"
+	SignalReason          Reason = "signal"
+	StopLossReason        Reason = "stop-poss"
+	TakeProfitReason      Reason = "take-profit"
+	VoidReasonIgnore      Reason = "void-ignore"
+	VoidReasonConflict    Reason = "void-conflict"
+	VoidReasonType        Reason = "void-type"
+	VoidHistoryReasonType Reason = "void-history"
+	VoidReasonClose       Reason = "void-close"
+	VoidReasonReverse     Reason = "void-reverse"
+	ForceResetReason      Reason = "reset"
 )
 
 // Event defines a trading action for reference and debugging.

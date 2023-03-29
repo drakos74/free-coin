@@ -92,14 +92,12 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 								if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
 									cluster, score, metadata, trainErr := ds.Eval(key, result.Decision().Importance, 2)
 									reason := trader.SignalReason
-									if score < 0.5 && score < metadata.Limit {
-										// cancel move ...
-										reason = trader.BadHistoryReasonType
-									}
 									// TODO : find a better way to incorporate this into the result
-									result.Position = model.Close{
+									result.Position = model.Boundary{
 										TakeProfit: config.Position.TakeProfit,
 										StopLoss:   config.Position.StopLoss,
+										Score:      score,
+										Limit:      metadata.Limit,
 									}
 									_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Type, open, 0, reason, s.Live, result.Decision())
 									if err != nil {
@@ -113,7 +111,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 									u.Send(index, api.NewMessage(formatSignal(config.Option.Log, s, action, err, ok)).
 										//AddLine(formatDecision(action.Decision)).
 										//AddLine(formatSpectrum(*signal.Spectrum)).
-										AddLine(formatPrediction(cluster, score, metadata, trainErr)).
+										AddLine(formatPrediction(false, cluster, score, metadata, trainErr)).
 										AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
 								}
 								// TODO : enable disable logging from user
@@ -193,7 +191,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							}
 							u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).
 								//AddLine(fmt.Sprintf(formatDecision(p.Decision))).
-								AddLine(formatPrediction(0, 0.0, metadata, trainErr)).
+								AddLine(formatPrediction(false, 0, 0.0, metadata, trainErr)).
 								AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
 						}
 					} else if len(trend) > 0 && (config.Option.Trace[string(tradeSignal.Coin)] || config.Option.Trace[string(model.AllCoins)]) {

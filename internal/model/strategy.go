@@ -6,10 +6,12 @@ type Decision struct {
 	Features   []float64 `json:"features"`
 	Importance []float64 `json:"importance"`
 	Config     []float64 `json:"config"`
-	Position   Close     `json:"close"`
+	Boundary   Boundary  `json:"boundary"`
 }
 
-type Close struct {
+type Boundary struct {
 	TakeProfit float64 `json:"take-profit"`
 	StopLoss   float64 `json:"stop-loss"`
+	Score      float64 `json:"score"`
+	Limit      float64 `json:"limit"`
 }

@@ -256,12 +256,12 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			// we don't want to let the model move us back and forth at this stage ...
 			// lets close at take-profit or stop-loss
 			// ... except if it s a profit trade :D
-			if position.PnL < decision.Position.TakeProfit {
+			if position.PnL < decision.Boundary.TakeProfit {
 				// we only so for the prpfit, as we want to trade as little as possible due to the feed ;)
 				log.Debug().
 					Str("position", fmt.Sprintf("%+v", position)).
 					Msg("ignoring signal")
-				action.Reason = VoidReasonOpen
+				action.Reason = VoidReasonReverse
 				xt.log.append(action)
 				action = xt.track(key, action)
 				return nil, false, action, nil
@@ -322,13 +322,22 @@ func (xt *ExchangeTrader) CreateOrder(key model.Key, time time.Time, price float
 			Float64("volume", volume).
 			Msg("opening position")
 	}
+	if decision != nil {
+		if decision.Boundary.Score < 0.5 && decision.Boundary.Score < decision.Boundary.Limit {
+			// cancel move ...
+			reason = VoidHistoryReasonType
+			xt.log.append(action)
+			action = xt.track(key, action)
+			return nil, false, action, fmt.Errorf("bad position history [%v,%v]", decision.Boundary.Score, decision.Boundary.Limit)
+		}
+	}
 	if t == 0 {
 		action.Reason = VoidReasonType
 		xt.log.append(action)
 		action = xt.track(key, action)
 		return nil, false, action, fmt.Errorf("no clean type [%s %s:%v]", openType.String(), position.Type.String(), ok)
 	}
-	if action.Reason == BadHistoryReasonType {
+	if action.Reason == VoidHistoryReasonType {
 		xt.log.append(action)
 		action = xt.track(key, action)
 		return nil, false, action, fmt.Errorf("no consistent history [%s %s:%v]", openType.String(), position.Type.String(), ok)

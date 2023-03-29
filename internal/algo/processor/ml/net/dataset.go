@@ -52,12 +52,10 @@ func NewDataSets(shard storage.Shard, network ConstructMultiNetwork) *Datasets {
 		persistence = storage.VoidStorage{}
 	}
 	return &Datasets{
-		sets: make(map[model.Key]*Dataset),
-		decisions: map[model.Key]Model{
-			allCoinsKey: ml.NewKMeans("all", 5, 30),
-		},
-		storage: persistence,
-		network: network,
+		sets:      make(map[model.Key]*Dataset),
+		decisions: make(map[model.Key]Model),
+		storage:   persistence,
+		network:   network,
 	}
 }
 
@@ -120,12 +118,7 @@ func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int,
 		log.Warn().Str("method", "eval").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
 		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
 	}
-	cl, score, meta, err := ds.decisions[key].Predict(x, leadingThreshold)
-	if err != nil {
-		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("eval model fallback")
-		return ds.decisions[allCoinsKey].Predict(x, leadingThreshold)
-	}
-	return cl, score, meta, nil
+	return ds.decisions[key].Predict(x, leadingThreshold)
 }
 
 func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (ml.Metadata, error) {
@@ -133,12 +126,7 @@ func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (
 		log.Warn().Str("method", "cluster").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
 		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
 	}
-	meta, err := ds.decisions[key].Train(x, y, train)
-	if err != nil {
-		log.Warn().Err(err).Str("key", fmt.Sprintf("%+v", key)).Msg("cluster model fallback")
-		return ds.decisions[allCoinsKey].Train(x, y, train)
-	}
-	return meta, nil
+	return ds.decisions[key].Train(x, y, train)
 }
 
 func addVector(ss []mlmodel.Vector, s mlmodel.Vector, size int) []mlmodel.Vector {
