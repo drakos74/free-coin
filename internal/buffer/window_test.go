@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -25,13 +26,39 @@ func TestTimeWindowRareEvents(t *testing.T) {
 	window := NewTimeWindow(30 * time.Second)
 	now := time.Now()
 	c := 0
+	bucket := TimeBucket{}
 	for i := 0; i < 100; i++ {
-		if _, ok := window.Push(now.Add(time.Duration(i)*time.Minute), float64(i)); ok {
+		ti := now.Add(time.Duration(i) * time.Minute)
+		if w, ok := window.Push(ti, float64(i)); ok {
+			bucket = w
 			c++
 		}
 	}
 	assert.Equal(t, c, 99, "expecting max number of events out of the 100. Which should be 99")
 	fmt.Printf("c = %+v\n", c)
+	b := window.Bucket()
+	assert.True(t, b.index > bucket.index, fmt.Sprintf("%v > %v", b.index, bucket.index))
+}
+
+func TestHistoryWindow_Extract(t *testing.T) {
+
+	s := 3
+	window := NewHistoryWindow(30*time.Second, s)
+	now := time.Now()
+	// note extracted series will always be one size bigger , because we add always also the current bucket
+	c := 1
+	for i := 0; i < 100; i++ {
+		if _, ok := window.Push(now.Add(time.Duration(i)*time.Second), float64(i)); ok {
+			c++
+			xx, yy, err := window.Extract(0, func(b TimeWindowView) float64 {
+				return b.Value
+			})
+			assert.NoError(t, err)
+			l := math.Min(float64(c), float64(s+1))
+			assert.Equal(t, len(xx), int(l))
+			assert.Equal(t, len(yy), int(l))
+		}
+	}
 }
 
 func TestHistoryWindow_Push(t *testing.T) {

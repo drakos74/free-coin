@@ -158,7 +158,7 @@ func NewStatsCollector(dim int) *StatsCollector {
 // Push pushes each value to the corresponding dimension.
 func (sc *StatsCollector) Push(v ...float64) {
 	if len(v) != sc.dim {
-		panic(any(fmt.Sprintf("inconsistent dimensions %d vs %d", len(v), sc.dim)))
+		panic(any(fmt.Sprintf("inconsistent dimensions of input vector %d vs config of %d", len(v), sc.dim)))
 	}
 	for i := 0; i < len(sc.stats); i++ {
 		sc.stats[i].Push(v[i])
@@ -309,4 +309,9 @@ func (w *Window) Current() int64 {
 // Next is the next Index at which a new bucket will be created
 func (w *Window) Next() int64 {
 	return w.lastIndex + w.size
+}
+
+// Bucket returns the current active bucket for the window.
+func (w *Window) Bucket() Bucket {
+	return w.bucket
 }

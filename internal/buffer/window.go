@@ -93,7 +93,15 @@ func (tw *TimeWindow) Push(t time.Time, v ...float64) (TimeBucket, bool) {
 	}
 
 	return TimeBucket{}, false
+}
 
+// Bucket returns the current active bucket stats from the window.
+func (tw *TimeWindow) Bucket() TimeBucket {
+	bucket := tw.window.Bucket()
+	return TimeBucket{
+		Bucket: bucket,
+		Time:   time.Unix(bucket.index*tw.Duration, 0),
+	}
 }
 
 // Next returns the next timestamp for the coming Window.
@@ -202,7 +210,9 @@ func (h HistoryWindow) Extract(index int, extract func(b TimeWindowView) float64
 		}
 		return bucket
 	})
-
+	// add the last bucket to it to get the most recent stats
+	buckets = append(buckets, NewView(h.Window.Bucket(), index))
+	// transform the bucket values to 2-d points
 	for i, bucket := range buckets {
 		if view, ok := bucket.(TimeWindowView); ok {
 			if i == 0 {

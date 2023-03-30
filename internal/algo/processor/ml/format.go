@@ -64,6 +64,9 @@ func formatPosition(p model.Position) string {
 }
 
 func formatPositionTrend(trend map[time.Duration]model.Trend) string {
+	if len(trend) == 0 {
+		return ""
+	}
 	buffer := new(strings.Builder)
 	for k, tr := range trend {
 		buffer.WriteString(formatTrendValue(k, tr))

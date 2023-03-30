@@ -51,7 +51,7 @@ func (r *Ring) Push(v interface{}) bool {
 	}
 
 	if r.t != tv {
-		panic(fmt.Sprintf("unepxected type added to ring %v vs %v", r.t, tv))
+		panic(any(fmt.Sprintf("unepxected type added to ring %v vs %v", r.t, tv)))
 	}
 
 	r.values[r.index] = v
