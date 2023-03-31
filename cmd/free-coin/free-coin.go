@@ -185,7 +185,7 @@ func configML() *mlmodel.Config {
 		Segments: cfg,
 		Position: mlmodel.Position{
 			OpenValue:  250,
-			StopLoss:   0.15,
+			StopLoss:   0.015,
 			TakeProfit: 0.015,
 			TrackingConfig: []*model.TrackingConfig{{
 				Duration: 30 * time.Second,
