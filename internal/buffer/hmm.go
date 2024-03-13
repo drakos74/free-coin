@@ -1,7 +1,6 @@
 package buffer
 
 import (
-	"container/ring"
 	"fmt"
 	"math"
 	"sort"
@@ -11,12 +10,21 @@ import (
 	cointime "github.com/drakos74/free-coin/internal/time"
 )
 
-const Delimiter = ":"
+const Delimiter = "|"
 
 // HMMConfig defines the configuration for the hidden markov model analysis.
 type HMMConfig struct {
-	LookBack  int `json:"lookback"`
-	LookAhead int `json:"lookahead"`
+	IgnoreValues []string `json:"ignore"`
+	LookBack     int      `json:"lookback"`
+	LookAhead    int      `json:"lookahead"`
+}
+
+func NewHMMConfig(back, ahead int, ignoreValues ...string) HMMConfig {
+	return HMMConfig{
+		IgnoreValues: ignoreValues,
+		LookBack:     back,
+		LookAhead:    ahead,
+	}
 }
 
 type State struct {
@@ -25,23 +33,23 @@ type State struct {
 }
 
 func (s State) sum() float64 {
-	return float64(s.Count) + s.EMP
+	return float64(s.Count)
 }
 
 // NewMultiHMM creates a new State.
 func NewMultiHMM(config ...HMMConfig) *HMM {
-	var max int
+	var m int
 	for _, s := range config {
-		if s.LookBack+s.LookAhead > max {
-			max = s.LookBack + s.LookAhead
+		if s.LookBack+s.LookAhead > m {
+			m = s.LookBack + s.LookAhead
 		}
 	}
 	return &HMM{
-		max:      max,
-		sequence: ring.New(max + 1),
-		Config:   config,
-		State:    make(map[Sequence]map[Sequence]State),
-		Status:   newStatus(),
+		max:    m,
+		buffer: NewBuffer(m),
+		Config: config,
+		State:  make(map[Sequence]map[Sequence]State),
+		Status: newStatus(),
 	}
 }
 
@@ -54,22 +62,22 @@ func HMMFromState(hmm HMM) *HMM {
 		}
 	}
 	return &HMM{
-		max:      max,
-		sequence: ring.New(max + 1),
-		Config:   hmm.Config,
-		State:    hmm.State,
-		Status:   hmm.Status,
+		max:    max,
+		buffer: NewBuffer(max + 1),
+		Config: hmm.Config,
+		State:  hmm.State,
+		Status: hmm.Status,
 	}
 }
 
 // HMM counts occurrences in a sequence of strings.
 // It implements effectively several hidden markov model of the n-grams lengths provided in the Config.
 type HMM struct {
-	max      int                             `json:"-"`
-	sequence *ring.Ring                      `json:"-"`
-	Config   []HMMConfig                     `json:"config"`
-	State    map[Sequence]map[Sequence]State `json:"state"`
-	Status   Status                          `json:"status"`
+	max    int                             `json:"-"`
+	buffer *Buffer                         `json:"-"`
+	Config []HMMConfig                     `json:"config"`
+	State  map[Sequence]map[Sequence]State `json:"state"`
+	Status Status                          `json:"status"`
 }
 
 // Prediction defines a prediction result with the computed Probability
@@ -119,6 +127,7 @@ type Predictions struct {
 	Label string
 }
 
+// NewPrediction
 // TODO : maybe better to choose a uuid, for now the unix second should be enough
 func NewPrediction(s Sequence, st State) *Prediction {
 	return &Prediction{
@@ -137,83 +146,64 @@ func (p PredictionList) Len() int           { return len(p) }
 func (p PredictionList) Less(i, j int) bool { return p[i].state.sum() < p[j].state.sum() }
 func (p PredictionList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-type Sample struct {
-	Key    Sequence
-	Events int
-}
-
-// Status reflects the bucket Status of the HMM
+// Status reflects the bucket Status of the HMM it is the inverse map of the state
 type Status struct {
-	Count   int64                          `json:"count"`
-	Samples map[string]map[Sequence]Sample `json:"sample"`
+	Count   int                           `json:"count"`
+	Samples map[Sequence]map[Sequence]int `json:"sample"`
 }
 
 func newStatus() Status {
 	return Status{
-		Samples: make(map[string]map[Sequence]Sample),
+		Samples: make(map[Sequence]map[Sequence]int),
 	}
 }
 
 // Add adds a string to the State sequence.
 // TODO : reverse the logic by accepting the result instead of the input.
-// (This should allow us to filter out irrelevant data adn save space,
+// (This should allow us to filter out irrelevant data and save space,
 // Note : State is expensive in terms of memory storage )
-func (c *HMM) Add(s string, label string) (map[Sequence]Predictions, Status) {
-
+func (c *HMM) Add(s string) Status {
 	// We cant allow our delimiter char to be used within the values.
 	if strings.Contains(s, Delimiter) {
 		panic(any(fmt.Sprintf("illegal character found '%s' in '%s'", Delimiter, s)))
 	}
-
 	c.Status.Count++
-
-	// gather the previous values
-	ring := make([]string, 0)
-	c.sequence.Do(func(i interface{}) {
-		ring = append(ring, fmt.Sprintf("%v", i))
-	})
-
-	prediction := make(map[Sequence]Predictions)
-
-	for _, cfg := range c.Config {
-		if k, predict, ss, cc := c.addKey(cfg, ring, s); len(predict.Values) > 0 {
-			predict.Label = label
-			predict.Groups = cc
-			predict.Sample = ss
-			predict.Key = k
-			predict.Count = int(c.Status.Count)
-			prediction[k] = predict
-			// TODO : Do we really need the Samples ?
-			s := fmt.Sprintf("%d -> %d", cfg.LookBack, cfg.LookAhead)
-			if _, ok := c.Status.Samples[s]; !ok {
-				c.Status.Samples[s] = make(map[Sequence]Sample)
-			}
-			c.Status.Samples[s][k] = Sample{
-				Key:    k,
-				Events: cc,
-			}
+	if _, ok := c.buffer.Push(s); ok {
+		for _, cfg := range c.Config {
+			c.digest(cfg, c.buffer.GetAsStrings(false))
 		}
 	}
-
-	// add the new OpenValue at the end
-	c.sequence.Value = s
-	c.sequence = c.sequence.Next()
-
-	return prediction, c.Status
+	return c.Status
 }
 
-func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predictions, int, int) {
-	// gather all available values
-	vv := append(values, s)
-	// we want to extract the value from the given values + the new one
-	k := vv[len(vv)-(cfg.LookBack+cfg.LookAhead) : len(vv)-cfg.LookAhead]
-	key := NewSequence(k)
+//func (c *HMM) predict(){
+//	predict.Label = label
+//	predict.Groups = cc
+//	predict.Sample = ss
+//	predict.Key = k
+//	predict.Count = int(c.Status.Count)
+//	prediction[k] = predict
+//	// TODO : Do we really need the Samples ?
+//	s := fmt.Sprintf("%d -> %d", cfg.LookBack, cfg.LookAhead)
+//	if _, ok := c.Status.Samples[s]; !ok {
+//		c.Status.Samples[s] = make(map[Sequence]Sample)
+//	}
+//	c.Status.Samples[s][k] = Sample{
+//		Key:    k,
+//		Events: cc,
+//	}
+//}
 
+func (c *HMM) digest(cfg HMMConfig, vv []string) int {
+	// we want to extract the value from the given values + the new one
+	k := vv[len(vv)-(cfg.LookAhead+cfg.LookBack) : len(vv)-cfg.LookAhead]
+	key := NewSequence(k)
 	v := vv[len(vv)-cfg.LookAhead:]
 	value := NewSequence(v)
-	// if we have not encountered that meany values yet ... just skip
+
+	// if we have not encountered that many values yet ... just skip
 	if strings.Contains(string(key), "<nil>") {
-		return "", Predictions{Values: []*Prediction{}}, 0, 0
+		return 0
 	}
 
 	// init the counter map for this key, if it s not there
@@ -222,15 +212,6 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 	}
 	if _, ok := c.State[key][value]; !ok {
 		c.State[key][value] = State{}
-	}
-
-	// work to make the prediction by shifting the key for the desired target size
-	kk := vv[len(vv)-cfg.LookBack:]
-	pKey := NewSequence(kk)
-	var predictions Predictions
-	var sample int
-	if !strings.Contains(string(pKey), "<nil>") {
-		predictions, sample = c.predict(pKey)
 	}
 
 	// add the value to the counter map, note we do this after we make the prediction
@@ -243,34 +224,55 @@ func (c *HMM) addKey(cfg HMMConfig, values []string, s string) (Sequence, Predic
 	// increment the counter
 	st := c.State[key][value]
 	st.Count++
-	// lets put some more weight on the recent results.
-	// TODO : quantify and parametrise
+	// let's put some more weight on the recent results.
+	// TODO : but do this in a more sophisticated way
 	st.EMP += 2 * float64(count)
 	c.State[key][value] = st
-
+	// ignore the irrelevant values to save space in the status history
+	for _, ignoredValue := range cfg.IgnoreValues {
+		if ignoredValue == string(value) {
+			return len(c.State[key])
+		}
+	}
+	if _, ok := c.Status.Samples[value]; !ok {
+		c.Status.Samples[value] = make(map[Sequence]int)
+	}
+	if _, ok := c.Status.Samples[value][key]; !ok {
+		c.Status.Samples[value][key] = 0
+	}
+	c.Status.Samples[value][key] = c.Status.Samples[value][key] + 1
 	// we also return how many samples we have for the given key
 	// return also the number of other options for this sequence
-	return pKey, predictions, sample, len(c.State[key])
+	return len(c.State[key])
 }
 
-func (c *HMM) predict(key Sequence) (Predictions, int) {
-	predictions := Predictions{
-		Values: make([]*Prediction, 0),
+func (c *HMM) Predict(key Sequence) map[Sequence]Predictions {
+	predictions := make(map[Sequence]Predictions)
+	// strip down key to our length
+	for _, cfg := range c.Config {
+		vv := key.Values()
+		kk := NewSequence(vv[len(vv)-cfg.LookBack:])
+		prediction := Predictions{
+			Key:    kk,
+			Values: make([]*Prediction, 0),
+		}
+		var s int
+		if count, ok := c.State[kk]; ok {
+			// s is the number of events
+			// TODO : make sure we find a better way to preserve the order in executions
+			for v, cc := range count {
+				prediction.Values = append(prediction.Values, NewPrediction(v, cc))
+				s += cc.Count
+			}
+			sort.Sort(sort.Reverse(prediction.Values))
+			for _, pred := range prediction.Values {
+				pred.Probability = float64(pred.state.Count) / float64(s)
+				pred.EMP = pred.state.EMP / math.Pow(float64(s), 2)
+			}
+		}
+		prediction.Sample = s
+		predictions[kk] = prediction
 	}
-	var s int
-	if count, ok := c.State[key]; ok {
-		// s is the number of events
 
-		// TODO : make sure we find a better way to preserve the order in executions
-		for v, cc := range count {
-			predictions.Values = append(predictions.Values, NewPrediction(v, cc))
-			s += cc.Count
-		}
-		sort.Sort(sort.Reverse(predictions.Values))
-		for _, pred := range predictions.Values {
-			pred.Probability = float64(pred.state.Count) / float64(s)
-			pred.EMP = pred.state.EMP / math.Pow(float64(s), 2)
-		}
-	}
-	return predictions, s
+	return predictions
 }

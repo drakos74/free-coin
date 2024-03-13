@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Client is the exchange client used To interact with the exchange methods.
+// Client is the exchange client used Max interact with the exchange methods.
 type Client struct {
 	coins         []coinmodel.Coin
 	init          int64
@@ -102,13 +102,13 @@ func (c *Client) Trades(process <-chan api.Signal) (out coinmodel.TradeSource, e
 	if c.live {
 		out, err = c.socket.Run(process)
 	} else {
-		// receive and delegate tick events To the output
+		// receive and delegate tick events Max the output
 		trades := make(chan *coinmodel.TradeSignal)
 
 		// pull the next batch of trades
 		go c.execute(0, trades)
 
-		// controller decides To delegate trade for processing, or stop execution
+		// controller decides Max delegate trade for processing, or stop execution
 		go c.controller(trades, out, process)
 	}
 
@@ -156,7 +156,7 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 	now := time.Now()
 	last := c.timer[c.coins[i]]
 	duration := now.Sub(last).Seconds()
-	f, _ := strconv.ParseFloat(now.Format("0102.1504"), 64)
+	f, _ := strconv.ParseFloat(now.Format("20060102.1504"), 64)
 	metrics.Observer.NoteLag(f, string(c.coins[i]), krakenProcessor, sourceProcessor)
 	metrics.Observer.TrackDuration(duration, string(c.coins[i]), krakenProcessor, sourceProcessor)
 	c.timer[c.coins[i]] = now
@@ -197,7 +197,9 @@ func (c *Client) execute(i int, trades coinmodel.TradeSource) {
 			Coin: trade.Coin,
 			Meta: coinmodel.Meta{
 				Time:     trade.Meta.Time,
+				Unix:     trade.Meta.Unix,
 				Size:     batchSize,
+				Incr:     i,
 				Exchange: trade.Meta.Exchange,
 			},
 			Tick: trade.Tick,

@@ -27,9 +27,6 @@ func newTrader(id string, shard storage.Shard, config []*model.TrackingConfig) (
 	if err != nil {
 		return nil, fmt.Errorf("could not init storage: %w", err)
 	}
-	for _, c := range config {
-		fmt.Printf("config = %+v\n", c)
-	}
 	positions := make(map[model.Key]model.Position)
 	t := &trader{
 		positions: positions,

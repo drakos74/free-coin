@@ -1,7 +1,6 @@
 package model
 
 import (
-	"sort"
 	"time"
 )
 
@@ -26,6 +25,12 @@ type Level struct {
 	Volume float64 `json:"volume"`
 }
 
+// Depth defines a trading level.
+type Depth struct {
+	Count  float64 `json:"count"`
+	Volume float64 `json:"volume"`
+}
+
 // Move describes the price move
 type Move struct {
 	Velocity float64 `json:"velocity"`
@@ -38,18 +43,26 @@ type Event struct {
 }
 
 type Range struct {
-	From Event `json:"from"`
-	To   Event `json:"to"`
+	Min Event `json:"min"`
+	Max Event `json:"max"`
 }
 
 // Tick defines a tick in the price
 type Tick struct {
-	Level  `json:"level"`
-	Move   Move      `json:"move"`
-	Range  Range     `json:"range"`
-	Type   Type      `json:"type"`
-	Time   time.Time `json:"time"`
-	Active bool      `json:"active"`
+	Level     `json:"level"`
+	StatsData StatsData `json:"stats_data"`
+	Move      Move      `json:"move"`
+	Range     Range     `json:"range"`
+	Type      Type      `json:"type"`
+	Time      time.Time `json:"time"`
+	Active    bool      `json:"active"`
+}
+
+type StatsData struct {
+	Std   Level `json:"std"`
+	Trend Level `json:"trend"`
+	Buy   Depth `json:"buy"`
+	Sell  Depth `json:"sell"`
 }
 
 func NewTick(price float64, volume float64, t Type, time time.Time) Tick {
@@ -59,11 +72,11 @@ func NewTick(price float64, volume float64, t Type, time time.Time) Tick {
 			Volume: volume,
 		},
 		Range: Range{
-			From: Event{
+			Min: Event{
 				Price: price,
 				Time:  time,
 			},
-			To: Event{
+			Max: Event{
 				Price: price,
 				Time:  time,
 			},
@@ -84,7 +97,11 @@ type Spread struct {
 
 type Meta struct {
 	ID       string    `json:"id"`
+	Init     time.Time `json:"init"`
+	First    time.Time `json:"first"`
 	Time     time.Time `json:"time"`
+	Unix     int64     `json:"unix"`
+	Incr     int       `json:"incr"`
 	Size     int       `json:"size"`
 	Live     bool      `json:"live"`
 	Exchange string    `json:"exchange"`
@@ -102,8 +119,8 @@ type TradeSignal struct {
 	Coin   Coin   `json:"coin"`
 	Meta   Meta   `json:"meta"`
 	Tick   Tick   `json:"tick"`
-	Book   Book   `json:"stats"`
-	Spread Spread `json:"spread"`
+	Book   Book   `json:"-"`
+	Spread Spread `json:"-"`
 }
 
 //// Trade represents a trade object with all necessary details.
@@ -135,55 +152,4 @@ type Batch struct {
 type TradeBatch struct {
 	Trades []TradeSignal
 	Index  int64
-}
-
-// TradeMap defines a generic grouping of trades
-type TradeMap struct {
-	Trades map[string]TradeSignal
-	From   time.Time
-	To     time.Time
-	Order  []string
-}
-
-// NewTradeMap creates a new trade map from the given trades.
-func NewTradeMap(trades ...TradeSignal) *TradeMap {
-	m := make(map[string]TradeSignal, len(trades))
-
-	// Sort by age, keeping original order or equal elements.
-	sort.SliceStable(trades, func(i, j int) bool {
-		return trades[i].Meta.Time.Before(trades[j].Meta.Time)
-	})
-	var from time.Time
-	var to time.Time
-	order := make([]string, len(trades))
-	for i, trade := range trades {
-		order[i] = trade.Meta.ID
-		m[trade.Meta.ID] = trade
-		if i == 0 {
-			from = trade.Meta.Time
-		}
-		to = trade.Meta.Time
-	}
-	return &TradeMap{
-		Trades: m,
-		From:   from,
-		To:     to,
-		Order:  order,
-	}
-}
-
-func (t *TradeMap) Append(m *TradeMap) {
-	var newOrder []string
-	// find the first in order
-	if t.From.Before(m.From) {
-		t.To = m.To
-		newOrder = append(t.Order, m.Order...)
-	} else {
-		t.From = m.From
-		newOrder = append(m.Order, t.Order...)
-	}
-	for id, trade := range m.Trades {
-		t.Trades[id] = trade
-	}
-	t.Order = newOrder
 }

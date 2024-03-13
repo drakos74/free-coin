@@ -3,12 +3,14 @@ package ml
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/sjwhitworth/golearn/base"
 	"github.com/sjwhitworth/golearn/ensemble"
 	"github.com/sjwhitworth/golearn/evaluation"
 	"github.com/sjwhitworth/golearn/filters"
+	"github.com/sjwhitworth/golearn/trees"
 )
 
 func NewRandomForest(size, features int) *ensemble.RandomForest {
@@ -31,6 +33,9 @@ func PreProcessAttributes(iris *base.DenseInstances) (*base.LazilyFilteredInstan
 
 func RandomForestTrain(tree base.Classifier, fileName string, size, features int, debug bool) (base.Classifier, *base.DenseInstances, float64, error) {
 	rand.Seed(time.Now().Unix())
+	if tree == nil {
+		tree = NewRandomForest(size, features)
+	}
 
 	// Load in the iris dataset
 	iris, err := base.ParseCSVToInstances(fileName, false)
@@ -43,12 +48,12 @@ func RandomForestTrain(tree base.Classifier, fileName string, size, features int
 		return nil, nil, 0.0, fmt.Errorf("could not pre-process: %w", err)
 	}
 
+	// make it an ID3DecisionTree
+	tree = trees.NewID3DecisionTree(0.6)
+
 	// Create a 60-40 training-test split
 	trainData, testData := base.InstancesTrainTestSplit(irisf, 0.60)
 
-	if tree == nil {
-		tree = NewRandomForest(size, features)
-	}
 	err = tree.Fit(trainData)
 	if err != nil {
 		return nil, nil, 0.0, fmt.Errorf("could not fit: %w", err)
@@ -71,25 +76,27 @@ func RandomForestTrain(tree base.Classifier, fileName string, size, features int
 	return tree, iris, evaluation.GetAccuracy(cf), nil
 }
 
-func RandomForestPredict(tree base.Classifier, fileName string, debug bool) (base.FixedDataGrid, error) {
+func RandomForestPredict(tree base.Classifier, fileName string, template *base.DenseInstances, debug bool) (base.FixedDataGrid, error) {
 
 	// Load in the dataset
-	ds, err := base.ParseCSVToInstances(fileName, false)
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	ds, err := base.ParseCSVToTemplatedInstancesFromReader(f, false, template)
+	//ds, err := base.ParseCSVToInstances(fileName, false)
 	if err != nil {
 		return nil, err
 	}
 
-	dsf, err := PreProcessAttributes(ds)
+	iris, err := PreProcessAttributes(ds)
 	if err != nil {
 		return nil, err
 	}
 
-	err = tree.Fit(dsf)
-	if err != nil {
-		return nil, err
-	}
-
-	predictions, err := tree.Predict(dsf)
+	predictions, err := tree.Predict(iris)
 	if err != nil {
 		return nil, err
 	}

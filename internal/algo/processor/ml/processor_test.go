@@ -664,7 +664,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -685,7 +685,7 @@ func testUniformML(bufferSize, modelSize, features int, precisionThreshold float
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -732,7 +732,7 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -753,7 +753,7 @@ func testVaryingML(duration, bufferSize, modelSize, features int, precisionThres
 				LookAhead: 1,
 				Gap:       0.01,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -800,7 +800,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -821,7 +821,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -842,7 +842,7 @@ func testMultiML(bufferSize, modelSize, features int, precisionThreshold float64
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,
@@ -889,7 +889,7 @@ func testMultiVaryingML(bufferSize, modelSize, features int, precisionThreshold 
 				LookAhead: 1,
 				Gap:       0.05,
 			},
-			Model: mlmodel.Model{
+			Model: mlmodel.MLConfig{
 				BufferSize:         bufferSize,
 				PrecisionThreshold: precisionThreshold,
 				ModelSize:          modelSize,

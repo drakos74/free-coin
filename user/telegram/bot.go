@@ -33,6 +33,10 @@ type bot struct {
 	id int64
 }
 
+func (b bot) String() string {
+	return fmt.Sprintf("b = %+v | id = %+v\n", b.b, b.id)
+}
+
 // Bot defines the telegram bot coinapi.User api implementation.
 type Bot struct {
 	chat            map[api.Index]*bot
@@ -65,6 +69,8 @@ func NewBot(idxs ...api.Index) (*Bot, error) {
 		}
 		log.Info().Str("index", string(idx)).Msg("bot started")
 	}
+
+	fmt.Printf("chat = %+v\n", chat)
 
 	return &Bot{
 		chat:            chat,
@@ -107,6 +113,7 @@ func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 
 // Send sends the given message with the attached details to the specified telegram chat.
 func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger) int {
+	fmt.Printf("send private = %+v\n", private)
 	msg, err := b.newMessage(private, message)
 	if err != nil {
 		log.Err(err).Msg("could not create message")

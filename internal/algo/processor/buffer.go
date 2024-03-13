@@ -13,6 +13,7 @@ type SignalBuffer struct {
 	duration time.Duration
 	windows  map[string]*buffer.IntervalWindow
 	trades   chan *model.TradeSignal
+	live     bool
 	echo     bool
 }
 
@@ -23,8 +24,14 @@ func NewSignalBuffer(duration time.Duration) (*SignalBuffer, <-chan *model.Trade
 		windows:  make(map[string]*buffer.IntervalWindow),
 		duration: duration,
 		trades:   trades,
+		live:     true,
 	}
 	return sb, trades
+}
+
+func (sb *SignalBuffer) NoLive() *SignalBuffer {
+	sb.live = false
+	return sb
 }
 
 func (sb *SignalBuffer) WithEcho() *SignalBuffer {
@@ -36,12 +43,22 @@ func (sb *SignalBuffer) WithEcho() *SignalBuffer {
 func (sb *SignalBuffer) Push(trade *model.TradeSignal) {
 	coin := string(trade.Coin)
 	if _, ok := sb.windows[coin]; !ok {
-		bf, trades := buffer.NewIntervalWindow(coin, 2, sb.duration)
+		bf, trades := buffer.NewIntervalWindow(coin, 5, sb.duration)
+		if !sb.live {
+			bf = bf.WithInterval(int(sb.duration.Seconds()))
+		}
 		sb.windows[coin] = bf
 		// start consuming for the new created window
 		go bufferedProcessor(trade.Coin, trades, sb.trades)
 	}
-	sb.windows[coin].Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume)
+	buy := 0.0
+	sell := 0.0
+	if trade.Tick.Type == model.Buy {
+		buy = trade.Tick.Volume
+	} else {
+		sell = trade.Tick.Volume
+	}
+	sb.windows[coin].Push(trade.Tick.Time, trade.Tick.Price, trade.Tick.Volume, buy, sell, float64(trade.Meta.Size))
 }
 
 func (sb *SignalBuffer) Close() {
@@ -65,32 +82,53 @@ func bufferedProcessor(coin model.Coin, trades <-chan buffer.StatsMessage, signa
 		//	Msg("bucket=debug")
 		if bucket.OK {
 			min, max := bucket.Stats[0].Range()
-			size := bucket.Stats[0].Count()
+			size := int(bucket.Stats[4].Sum()) // bucket.Stats[0].Count()
 			signal := &model.TradeSignal{
 				Coin: coin,
 				Tick: model.Tick{
-					Time:   bucket.Time.Add(bucket.Duration),
+					Time:   bucket.First.Add(bucket.Duration),
 					Active: bucket.OK,
 					Range: model.Range{
-						From: model.Event{
+						Min: model.Event{
 							Price: min,
-							Time:  bucket.Time,
+							Time:  bucket.First,
 						},
-						To: model.Event{
+						Max: model.Event{
 							Price: max,
-							Time:  bucket.Time.Add(bucket.Duration),
+							Time:  bucket.Last,
 						},
 					},
+					Type: model.SignedType(bucket.Stats[0].Diff()),
 				},
 				Meta: model.Meta{
-					Time: bucket.Time,
-					Live: bucket.OK,
-					Size: size,
+					First: bucket.First,
+					Time:  bucket.Last,
+					Init:  bucket.Init,
+					Live:  bucket.OK,
+					Size:  size,
 				},
 			}
 			signal.Tick.Level = model.Level{
 				Price:  bucket.Stats[0].Avg(),
 				Volume: bucket.Stats[1].Avg(),
+			}
+			signal.Tick.StatsData = model.StatsData{
+				Std: model.Level{
+					Price:  bucket.Stats[0].StDev(),
+					Volume: bucket.Stats[1].StDev(),
+				},
+				Trend: model.Level{
+					Price:  bucket.Stats[0].Diff(),
+					Volume: bucket.Stats[1].Diff(),
+				},
+				Buy: model.Depth{
+					Count:  float64(bucket.Stats[2].Size()),
+					Volume: bucket.Stats[2].Sum(),
+				},
+				Sell: model.Depth{
+					Count:  float64(bucket.Stats[3].Size()),
+					Volume: bucket.Stats[3].Sum(),
+				},
 			}
 			lastSignal = flatten(signal)
 			signals <- signal
@@ -104,8 +142,8 @@ func flatten(signal *model.TradeSignal) model.TradeSignal {
 	flatSignal := *signal
 	flatSignal.Meta.Size = 0
 
-	flatSignal.Tick.Range.To.Price = flatSignal.Tick.Level.Price
-	flatSignal.Tick.Range.From.Price = flatSignal.Tick.Level.Price
+	flatSignal.Tick.Range.Max.Price = flatSignal.Tick.Level.Price
+	flatSignal.Tick.Range.Min.Price = flatSignal.Tick.Level.Price
 
 	flatSignal.Tick.Move.Momentum = 0
 	flatSignal.Tick.Move.Velocity = 0

@@ -16,6 +16,33 @@ import (
 	"github.com/drakos74/free-coin/internal/trader"
 )
 
+func formatOutPredictions(t time.Time, key model.Key, p float64, out map[mlmodel.Detail][][]float64, performance map[mlmodel.Detail]Performance) string {
+	buffer := new(strings.Builder)
+
+	for detail, p := range out {
+		buffer.WriteString(fmt.Sprintf("%v %+v (%+v)\n",
+			formatDetail(detail),
+			emoji.MapToSign(p[len(p)-1][0]),
+			performance[detail]))
+	}
+
+	return fmt.Sprintf("%v | %s | %.2f \n%s", t, formatKey(key), p, buffer.String())
+}
+
+func formatDetail(detail mlmodel.Detail) string {
+	return fmt.Sprintf("%s (%s)", detail.Type, detail.Hash)
+}
+
+func formatRecentData(dd [][]float64) string {
+	one := make([]float64, len(dd))
+	two := make([]float64, len(dd))
+	for i, d := range dd {
+		one[i] = d[0]
+		two[i] = d[1]
+	}
+	return fmt.Sprintf("%+v\n%+v", one, two)
+}
+
 func formatSettings(settings trader.Settings) string {
 	return fmt.Sprintf("%.2f [take-profit = %.3f | stop-loss = %.3f]",
 		settings.OpenValue,
@@ -32,10 +59,10 @@ func formatConfig(config mlmodel.Config) string {
 	buffer := new(strings.Builder)
 
 	for k, segment := range config.Segments {
-		buffer.WriteString(fmt.Sprintf("%+v\n%s %s - %s\n",
+		buffer.WriteString(fmt.Sprintf("%+v\n%s %s\n",
 			k.ToString(),
-			segment.Model.Format(),
-			segment.Stats.Format(), segment.Trader.Format()))
+			formatModelConfig(segment.Stats.Model),
+			segment.Stats.Format()))
 	}
 
 	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
@@ -47,6 +74,14 @@ func formatConfig(config mlmodel.Config) string {
 		config.Option.Debug,
 		config.Option.Benchmark,
 	)
+}
+
+func formatModelConfig(models []mlmodel.Model) string {
+	formattedStrings := make([]string, len(models))
+	for i, m := range models {
+		formattedStrings[i] = m.Format()
+	}
+	return fmt.Sprintf("%+v", formattedStrings)
 }
 
 func formatPosition(p model.Position) string {
@@ -148,12 +183,13 @@ func formatAction(log bool, action trader.Event, trend map[time.Duration]model.T
 			err,
 			formatTimeTrend(trend))
 	}
-	return fmt.Sprintf("(%.0f) %s\n"+
+	return fmt.Sprintf("(%.0f|%.0f) %s\n"+
 		"%s %v\n"+
-		"%s\n%s\n"+
+		"%s%s"+
 		"%s",
 
 		cointime.ToNow(action.Time),
+		cointime.ToNow(action.SourceTime),
 
 		formatCoinPosition(action.Key.Coin, action.Type, 0, action.Value, action.PnL),
 
@@ -291,14 +327,14 @@ func formatDecision(decision *model.Decision) string {
 func formatPrediction(trace bool, cluster int, score float64, metadata ml.Metadata, err error) string {
 	if trace {
 		s := new(strings.Builder)
-		for g, st := range metadata.Stats {
+		for g, st := range metadata.Clusters {
 			s.WriteString(fmt.Sprintf("%d (%d | %.2f)\n", g, st.Size, st.Avg))
 		}
 		return fmt.Sprintf("%.d | %.4f | %s|%d \n %s", cluster, score, fmt.Errorf("%w", err).Error(), metadata.Samples, s.String())
 	} else if err != nil {
 		return fmt.Sprintf("%.d | %.4f | %s|%d", cluster, score, fmt.Errorf("err = %w", err).Error(), metadata.Samples)
 	}
-	return fmt.Sprintf("%.d | %.4f (%.4f) | %d", cluster, score, metadata.Limit, metadata.Samples)
+	return fmt.Sprintf("%.d | %.4f (%.4f) | %d", cluster, score, metadata.Accuracy, metadata.Samples)
 }
 
 func formatSpectrum(spectrum math.Spectrum) string {

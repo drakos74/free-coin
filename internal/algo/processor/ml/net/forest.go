@@ -7,119 +7,98 @@ import (
 	"strings"
 
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-	coinmath "github.com/drakos74/free-coin/internal/math"
-	coinml "github.com/drakos74/free-coin/internal/math/ml"
-	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/buffer"
+	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/storage"
 	"github.com/rs/zerolog/log"
 	"github.com/sjwhitworth/golearn/base"
 )
 
-type RandomForestNetwork struct {
-	SingleNetwork
-	debug  bool
-	tmpKey string
-	tree   base.Classifier
+const FOREST_KEY string = "net.RandomForest"
+
+type RandomForest struct {
+	tree     base.Classifier
+	template *base.DenseInstances
+	metadata ml.Metadata
+	cfg      mlmodel.Model
+	buffer   *buffer.MultiBuffer
+	debug    bool
+	tmpKey   string
 }
 
-func ConstructRandomForestNetwork(debug bool) func(cfg mlmodel.Model) Network {
-	return func(cfg mlmodel.Model) Network {
-		config := cfg.Evolve()
-		return NewRandomForestNetwork(debug, coinmath.String(10), config)
+func NewRandomForest(cfg mlmodel.Model) *RandomForest {
+	var tree base.Classifier
+	return &RandomForest{
+		tree:     tree,
+		metadata: ml.NewMetadata(),
+		cfg:      cfg,
+		buffer:   buffer.NewMultiBuffer(cfg.BufferSize),
 	}
 }
 
-func NewRandomForestNetwork(debug bool, key string, cfg mlmodel.Model) *RandomForestNetwork {
-	return &RandomForestNetwork{
-		SingleNetwork: NewSingleNetwork(cfg),
-		debug:         debug,
-		tmpKey:        key,
-	}
-}
-
-func (r *RandomForestNetwork) Train(ds *Dataset) ModelResult {
-	config := r.SingleNetwork.config
-	acc, err := r.Fit(ds)
-
-	r.statsCollector.Iterations++
-	if err != nil {
-		log.Error().Err(err).Msg("could not train online")
-	} else if acc > config.PrecisionThreshold {
-		t := r.Predict(ds)
-		if t != model.NoType {
-			r.statsCollector.History.Push(acc, float64(t))
-			return ModelResult{
-				Detail: mlmodel.Detail{
-					Type: networkType(r),
-					Hash: r.tmpKey,
-				},
-				Type:     t,
-				Accuracy: acc,
-				OK:       true,
-			}
+func (r *RandomForest) Train(x [][]float64, y [][]float64) (ml.Metadata, error) {
+	v := lastAt(0, y)
+	w := append(last(x)[:r.cfg.Features[0]], quantify(v, r.cfg.Spread))
+	if _, ok := r.buffer.Push(w...); ok {
+		hash := r.tmpKey
+		fn, err := toFeatureFile(trainDataSetPath, fmt.Sprintf("forest_%s_%s", hash, "tmp_train"), r.buffer.Get(), false)
+		if err != nil {
+			log.Error().Err(err).Msg("could not create Dataset file")
+			return r.metadata, err
 		}
+
+		tree, template, _, err := ml.RandomForestTrain(r.tree, fn, r.cfg.Size[0], r.cfg.Features[0], r.debug)
+		if err != nil {
+			log.Error().Err(err).Msg("could not train with random forest")
+			return r.metadata, err
+		}
+		r.template = template
+		r.tree = tree
 	} else {
-		r.tree = nil
+		return r.metadata, fmt.Errorf("not enough samples to train tree : %d of %d", r.buffer.Len(), r.cfg.BufferSize)
 	}
-	r.statsCollector.History.Push(acc, 0)
-	return ModelResult{}
+	return r.metadata, nil
 }
 
-func (r *RandomForestNetwork) Fit(ds *Dataset) (float64, error) {
-	config := r.SingleNetwork.config
+func (r *RandomForest) Predict(x [][]float64) ([][]float64, ml.Metadata, error) {
 	hash := r.tmpKey
-	vv := ds.Vectors
-	if len(vv) > config.BufferSize {
-		vv = vv[len(ds.Vectors)-config.BufferSize:]
-	}
-	fn, err := toFeatureFile(trainDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_train")), vv, false)
+	// add a new layer
+	xx := append(make([][]float64, 0), append(last(x)[:r.cfg.Features[0]], 0))
+	fmt.Printf("xx = %+v\n", xx)
+	fn, err := toFeatureFile(predictDataSetPath, fmt.Sprintf("forest_%s_%s", hash, "tmp_predict"), xx, true)
 	if err != nil {
 		log.Error().Err(err).Msg("could not create Dataset file")
-		return 0.0, err
-	}
-
-	tree, _, prec, err := coinml.RandomForestTrain(r.tree, fn, config.ModelSize, config.Features, r.debug)
-	if err != nil {
-		log.Error().Err(err).Msg("could not train with random forest")
-		return 0.0, err
-	}
-	r.tree = tree
-	return prec, nil
-}
-
-func (r *RandomForestNetwork) Predict(ds *Dataset) model.Type {
-	config := r.SingleNetwork.config
-	hash := r.tmpKey
-	vv := ds.Vectors
-	if len(vv) > config.BufferSize {
-		vv = vv[len(ds.Vectors)-config.BufferSize:]
-	}
-	fn, err := toFeatureFile(predictDataSetPath, ds.getDescription(fmt.Sprintf("forest_%s_%s", hash, "tmp_predict")), vv, true)
-	if err != nil {
-		log.Error().Err(err).Msg("could not create Dataset file")
-		return model.NoType
+		return nil, r.metadata, err
 	}
 
 	if r.tree == nil {
 		log.Error().Err(err).Msg("no tree trained")
-		return model.NoType
+		return nil, r.metadata, fmt.Errorf("no tree trained")
 	}
 
-	predictions, err := coinml.RandomForestPredict(r.tree, fn, false)
+	predictions, err := ml.RandomForestPredict(r.tree, fn, r.template, false)
 	if err != nil {
 		log.Error().Err(err).Msg("could not train with isolation forest")
-		return model.NoType
+		return nil, r.metadata, err
 	}
 	_, a := predictions.Size()
 	lastPrediction := predictions.RowString(a - 1)
-	return model.TypeFromString(lastPrediction)
+	return [][]float64{{fromEmoji(lastPrediction)}}, r.metadata, nil
+}
+
+func (r *RandomForest) Loss(actual, predicted [][]float64) []float64 {
+	return SV(last(actual)).Diff(SV(last(predicted)))
+}
+
+func (r *RandomForest) Config() mlmodel.Model {
+	return r.cfg
 }
 
 const benchmarkModelPath = "file-storage/ml/models"
 const trainDataSetPath = "file-storage/ml/datasets"
 const predictDataSetPath = "file-storage/ml/tmp"
 
-func toFeatureFile(parentPath string, description string, vectors []mlmodel.Vector, predict bool) (string, error) {
+func toFeatureFile(parentPath string, description string, vectors [][]float64, predict bool) (string, error) {
 	fn, err := storage.MakePath(parentPath, fmt.Sprintf("%s.csv", description))
 	if err != nil {
 		return "", err
@@ -137,27 +116,14 @@ func toFeatureFile(parentPath string, description string, vectors []mlmodel.Vect
 	// take only the last n samples
 	for _, vector := range vectors {
 		lw := new(strings.Builder)
-		for _, in := range vector.PrevIn {
-			lw.WriteString(fmt.Sprintf("%f,", in))
-		}
-		if vector.PrevOut[0] == 1.0 {
-			lw.WriteString(fmt.Sprintf("%s", model.Buy.String()))
-		} else if vector.PrevOut[2] == 1.0 {
-			lw.WriteString(fmt.Sprintf("%s", model.Sell.String()))
-		} else {
-			lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
+		for i, v := range vector {
+			if i >= len(vector)-1 {
+				lw.WriteString(fmt.Sprintf("%s", toEmoji(v)))
+			} else {
+				lw.WriteString(fmt.Sprintf("%.4f,", v))
+			}
 		}
 		_, _ = writer.WriteString(lw.String() + "\n")
-	}
-	if predict {
-		// for the last one add also the new value ...
-		lastVector := vectors[len(vectors)-1]
-		pw := new(strings.Builder)
-		for _, in := range lastVector.NewIn {
-			pw.WriteString(fmt.Sprintf("%f,", in))
-		}
-		pw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
-		_, _ = writer.WriteString(pw.String() + "\n")
 	}
 	return fn, nil
 }

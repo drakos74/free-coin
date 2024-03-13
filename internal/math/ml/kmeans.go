@@ -50,13 +50,13 @@ func NewKMeans(pair string, dim int, iterations int) *KMeans {
 	return k
 }
 
-func transform(stats map[int]*buffer.Stats) (map[int]Stats, []float64) {
-	newStats := make(map[int]Stats)
+func transform(stats map[int]*buffer.Stats) (map[int]Cluster, []float64) {
+	newStats := make(map[int]Cluster)
 	// keep limit
 	limit := make([]float64, 0)
 	for g, st := range stats {
 		limit = append(limit, st.Avg())
-		newStats[g] = Stats{
+		newStats[g] = Cluster{
 			Size: st.Count(),
 			Avg:  st.Avg(),
 		}
@@ -89,7 +89,7 @@ func (k *KMeans) train(data [][]float64, results []float64, metadata Metadata) (
 			}
 			k.stats[g].Push(results[i])
 		}
-		metadata.Stats, _ = transform(k.stats)
+		metadata.Clusters, _ = transform(k.stats)
 	} else {
 		return metadata, fmt.Errorf("cannot train: samples = %d vs required = %d", len(data), k.dim)
 	}
@@ -98,7 +98,7 @@ func (k *KMeans) train(data [][]float64, results []float64, metadata Metadata) (
 
 func (k *KMeans) load() ([][]float64, []float64, Metadata) {
 	metadata := Metadata{
-		Stats: make(map[int]Stats),
+		Clusters: make(map[int]Cluster),
 	}
 	var data [][]float64
 	if err := k.store.Load(k.dataKey, &data); err != nil {
@@ -158,7 +158,7 @@ func (k *KMeans) Train(x []float64, y float64, train bool) (Metadata, error) {
 
 func (k *KMeans) Predict(x []float64, leadingThreshold int) (int, float64, Metadata, error) {
 	metadata := Metadata{
-		Stats: make(map[int]Stats),
+		Clusters: make(map[int]Cluster),
 	}
 	if k.model == nil {
 		return 0, 0.0, metadata, fmt.Errorf("no model present")
@@ -175,10 +175,10 @@ func (k *KMeans) Predict(x []float64, leadingThreshold int) (int, float64, Metad
 	f := int(math.Round(guess[0]))
 	score := k.stats[f].Avg()
 
-	metadata.Stats, metadata.Scores = transform(k.stats)
+	metadata.Clusters, metadata.Features = transform(k.stats)
 
-	if len(metadata.Scores) > leadingThreshold {
-		metadata.Limit = metadata.Scores[leadingThreshold-1]
+	if len(metadata.Features) > leadingThreshold {
+		metadata.Accuracy = metadata.Features[leadingThreshold-1]
 	}
 
 	return f, score, metadata, nil

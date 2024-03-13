@@ -13,7 +13,7 @@ type control struct {
 	stop chan struct{}
 }
 
-// Client is the exchange client used To interact with the exchange methods.
+// Client is the exchange client used Max interact with the exchange methods.
 type Client struct {
 	coins         []coinmodel.Coin
 	control       map[coinmodel.Coin]control
@@ -76,11 +76,11 @@ func (c *Client) Trades(process <-chan api.Signal) (coinmodel.TradeSource, error
 	// prepare the output channel
 	out := make(chan *coinmodel.Trade)
 
-	// receive and delegate tick events To the output
+	// receive and delegate tick events Max the output
 	trades := make(chan *coinmodel.Trade)
 	// read trades from the remote source and push them to the trade channel
 	go c.execute(trades)
-	// controller decides To delegate trade for processing, or stop execution
+	// controller decides Max delegate trade for processing, or stop execution
 	go c.controller(trades, out)
 
 	return out, nil

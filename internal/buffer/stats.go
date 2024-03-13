@@ -9,7 +9,8 @@ import (
 
 // Stats is a set of statistical properties of a set of numbers.
 type Stats struct {
-	count          int
+	count          int // all events
+	size           int // all non-zero events
 	sum            float64
 	first, last    float64
 	min, max       float64
@@ -21,8 +22,10 @@ func MockStats(count int, sum float64, first float64, last float64) Stats {
 	min := math.Min(first, last)
 	max := math.Max(first, last)
 	mean := (first + last) / 2
+	size := count
 	return Stats{
 		count: count,
+		size:  size,
 		sum:   sum,
 		first: first,
 		last:  last,
@@ -42,6 +45,9 @@ func NewStats() *Stats {
 // Push adds another element to the set.
 func (s *Stats) Push(v float64) {
 	s.count++
+	if v != 0.0 {
+		s.size++
+	}
 	s.sum += v
 	diff := (v - s.mean) / float64(s.count)
 	mean := s.mean + diff
@@ -101,6 +107,11 @@ func (s Stats) Sum() float64 {
 // Count returns the number of elements.
 func (s Stats) Count() int {
 	return s.count
+}
+
+// Size returns the number of non-zero elements.
+func (s Stats) Size() int {
+	return s.size
 }
 
 // Diff returns the difference of max and min.

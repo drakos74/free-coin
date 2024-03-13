@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drakos74/free-coin/internal/emoji"
-
 	"github.com/drakos74/free-coin/client"
 	"github.com/drakos74/free-coin/client/local"
+	"github.com/drakos74/free-coin/internal/emoji"
 	coin_math "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/free-coin/internal/storage/file/json"
@@ -19,6 +18,8 @@ import (
 )
 
 type SegmentConfig map[model.Key]Segments
+
+type ConfigSegment func(coin model.Coin) func(cfg SegmentConfig) SegmentConfig
 
 func (sgm SegmentConfig) AddConfig(add ...func(cfg SegmentConfig) SegmentConfig) SegmentConfig {
 	cfg := sgm
@@ -30,10 +31,17 @@ func (sgm SegmentConfig) AddConfig(add ...func(cfg SegmentConfig) SegmentConfig)
 
 // Config defines the configuration for the collector.
 type Config struct {
+	// Segments defines the configuration for different segments of analysis
+	// it can relate to same coin with different observation intervals or different coins
 	Segments SegmentConfig
+	// Position defines the configuration for the position tracking and closing decisions
 	Position Position
-	Option   Option
-	Buffer   Buffer
+	// Option defines the algorithm running config options like logging level etc ...
+	Option Option
+	// Buffer defines the minimal grouping interval for observing positions
+	Buffer Buffer
+	// Segment defines the minimal grouping interval for market analysis
+	Segment Buffer
 }
 
 func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
@@ -48,16 +56,157 @@ func (c *Config) SetGap(coin model.Coin, gap float64) *Config {
 	return c
 }
 
-func (c *Config) SetPrecisionThreshold(coin model.Coin, precision float64) *Config {
+func (c *Config) SetPrecisionThreshold(coin model.Coin, network string, precision float64) *Config {
 	newSegments := make(map[model.Key]Segments)
 	for k, segment := range c.Segments {
 		if coin == model.AllCoins || coin == k.Coin {
-			segment.Model.PrecisionThreshold = precision
+			models := make([]Model, len(segment.Stats.Model))
+			for i, m := range segment.Stats.Model {
+				if m.Detail.Type == network || network == "all" {
+					m.Threshold = precision
+					models[i] = m
+				}
+			}
+			segment.Stats.Model = models
 		}
 		newSegments[k] = segment
 	}
 	c.Segments = newSegments
 	return c
+}
+
+// Model defines the ml model config.
+// BufferSize defines the size of the history buffer for the model
+// reducing the buffer size will make the model more reactiv
+// Threshold defines the model precision in order to make use of it
+// increasing the threshold will reduce trading activity, but make the trading decisions more accurate
+// Spread is used to quantize outputs of the model to make the output more simple
+// Size defines the internal size of the model
+// reducing the size will make the model more reactive
+// Features defines the number of features to be used by the model
+// depends strictly on the stats output
+// MaxEpochs defines the maximmum epochs for the training process
+// LearningRate defines the learning rate for the model
+type Model struct {
+	Detail       Detail  `json:"type"`
+	BufferSize   int     `json:"buffer"`
+	Threshold    float64 `json:"threshold"`
+	Spread       float64 `json:"spread"`
+	Size         []int   `json:"size"`
+	Features     []int   `json:"features"`
+	MaxEpochs    int     `json:"max_epochs"`
+	LearningRate float64 `json:"learning_rate"`
+	Live         bool    `json:"live"`
+}
+
+// NewConfig defines a numeric way to initialise the config
+// we will use it mostly to do hyperparameter tuning
+func NewConfig(p ...[]float64) Model {
+	return Model{
+		BufferSize:   int(p[0][0]),
+		Threshold:    p[1][0],
+		Size:         coin_math.ToInt(p[2]),
+		Features:     coin_math.ToInt(p[3]),
+		MaxEpochs:    int(p[4][0]),
+		LearningRate: p[5][0],
+	}
+}
+
+type Performance struct {
+	Config [][]float64
+	Score  float64
+}
+
+type ByScore []Performance
+
+func (p ByScore) Len() int           { return len(p) }
+func (p ByScore) Less(i, j int) bool { return p[i].Score < p[j].Score }
+func (p ByScore) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+//func EvolveModel(cc []Performance, evolution []bool) Config {
+//	mm := make([][]float64, 6)
+//	for _, c := range cc {
+//		mm[0] = EvolveInt(c.Config[0][0])
+//		mm[1] += c.Config[1]
+//		mm[2] += c.Config[2]
+//		mm[3] += c.Config[3]
+//	}
+//
+//	for i, m := range mm {
+//		mm[i] = m / float64(len(cc))
+//	}
+//
+//	return NewConfig(mm)
+//}
+//
+//func MergeModels(cc []Performance) Config {
+//	mm := make([]float64, 4)
+//	for _, c := range cc {
+//		mm[0] += c.Config[0]
+//		mm[1] += c.Config[1]
+//		mm[2] += c.Config[2]
+//		mm[3] += c.Config[3]
+//	}
+//
+//	for i, m := range mm {
+//		mm[i] = m / float64(len(cc))
+//	}
+//
+//	return NewMLConfig(mm)
+//}
+
+const evolvePerc = 0.05
+
+func EvolveAsInt(i int, r float64) int {
+	if r == 0.0 {
+		r = rand.Float64()
+	}
+	ii := float64(i) * evolvePerc
+	if r > 0.5 {
+		i += int(ii)
+	} else {
+		i -= int(ii)
+	}
+	return i
+}
+
+// EvolveFloat evolves a float number
+// f is the number to be used as base
+// r is the bias for producing a bigger or smaller number than the initial
+// limit is the highest possible value for the new generated float. It acts as a cap
+func EvolveFloat(f float64, r float64, limit float64) float64 {
+	ff := f * evolvePerc
+	if r == 0.0 {
+		r = rand.Float64()
+	}
+	if r > 0.5 {
+		f += ff
+	} else {
+		f -= ff
+	}
+	res := math.Round(1000*f) / 1000
+	if res > limit {
+		return limit
+	}
+	return res
+}
+
+func (m Model) Format() string {
+	return fmt.Sprintf("[%d|%.2f|%d|%d]",
+		m.BufferSize,
+		m.Threshold,
+		m.Size,
+		m.Features)
+}
+
+func (m Model) ToSlice() [][]float64 {
+	return [][]float64{
+		{float64(m.BufferSize)},
+		{m.Threshold},
+		coin_math.ToFloat(m.Size),
+		coin_math.ToFloat(m.Features),
+		{float64(m.MaxEpochs)},
+		{m.LearningRate}}
 }
 
 type Option struct {
@@ -95,133 +244,12 @@ type Stats struct {
 	LookBack  int     `json:"prev"`
 	LookAhead int     `json:"next"`
 	Gap       float64 `json:"gap"`
+	Live      bool    `json:"live"`
+	Model     []Model `json:"model"`
 }
 
 func (s Stats) Format() string {
 	return fmt.Sprintf("[%d:%d] %.2f", s.LookBack, s.LookAhead, s.Gap)
-}
-
-// Model defines the ml model config.
-// BufferSize defines the size of the history buffer for the model
-// reducing the buffer size will make the model more reactiv
-// PrecisionThreshold defines the model precision in order to make use of it
-// increasing the threshold will reduce trading activity, but make the trading decisions more accurate
-// ModelSize defines the internal size of the model
-// reducing the size will make the model more reactive
-// Features defines the number of features to be used by the model
-// depends strictly on the stats output
-type Model struct {
-	BufferSize         int     `json:"buffer"`
-	PrecisionThreshold float64 `json:"precision_threshold"`
-	ModelSize          int     `json:"model_size"`
-	Features           int     `json:"features"`
-}
-
-func NewModel(p []float64) Model {
-	return Model{
-		BufferSize:         int(p[0]),
-		PrecisionThreshold: p[1],
-		ModelSize:          int(p[2]),
-		Features:           int(p[3]),
-	}
-}
-
-type Performance struct {
-	Config []float64
-	Score  float64
-}
-
-type ByScore []Performance
-
-func (p ByScore) Len() int           { return len(p) }
-func (p ByScore) Less(i, j int) bool { return p[i].Score < p[j].Score }
-func (p ByScore) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-func EvolveModel(cc []Performance) Model {
-	mm := make([]float64, 4)
-	for _, c := range cc {
-		mm[0] += c.Config[0]
-		mm[1] += c.Config[1]
-		mm[2] += c.Config[2]
-		mm[3] += c.Config[3]
-	}
-
-	for i, m := range mm {
-		mm[i] = m / float64(len(cc))
-	}
-
-	return NewModel(mm)
-}
-
-func MergeModels(cc []Performance) Model {
-	mm := make([]float64, 4)
-	for _, c := range cc {
-		mm[0] += c.Config[0]
-		mm[1] += c.Config[1]
-		mm[2] += c.Config[2]
-		mm[3] += c.Config[3]
-	}
-
-	for i, m := range mm {
-		mm[i] = m / float64(len(cc))
-	}
-
-	return NewModel(mm)
-}
-
-const evolvePerc = 0.05
-
-func EvolveInt(i int, r float64) int {
-	if r == 0.0 {
-		r = rand.Float64()
-	}
-	ii := float64(i) * evolvePerc
-	if r > 0.5 {
-		i += int(ii)
-	} else {
-		i -= int(ii)
-	}
-	return i
-}
-
-// EvolveFloat evolves a float number
-// f is the number to be used as base
-// r is the bias for producing a bigger or smaller number than the initial
-// limit is the highest possible value for the new generated float. It acts as a cap
-func EvolveFloat(f float64, r float64, limit float64) float64 {
-	ff := f * evolvePerc
-	if r == 0.0 {
-		r = rand.Float64()
-	}
-	if r > 0.5 {
-		f += ff
-	} else {
-		f -= ff
-	}
-	res := math.Round(1000*f) / 1000
-	if res > limit {
-		return limit
-	}
-	return res
-}
-
-func (m Model) Format() string {
-	return fmt.Sprintf("[%d|%.2f|%d|%d]",
-		m.BufferSize,
-		m.PrecisionThreshold,
-		m.ModelSize,
-		m.Features)
-}
-
-func (m Model) Evolve() Model {
-	m.BufferSize = EvolveInt(m.BufferSize, 0.0)
-	m.PrecisionThreshold = EvolveFloat(m.PrecisionThreshold, 0.0, 0.75)
-	m.ModelSize = EvolveInt(m.ModelSize, 0.0)
-	return m
-}
-
-func (m Model) ToSlice() []float64 {
-	return []float64{float64(m.BufferSize), m.PrecisionThreshold, float64(m.ModelSize), float64(m.Features)}
 }
 
 // Trader defines the trading configuration for signals
@@ -245,7 +273,6 @@ func (t Trader) Format() string {
 // Gap : the numeric threshold for the price movement in regard to the current segment.
 type Segments struct {
 	Stats  Stats  `json:"stats"`
-	Model  Model  `json:"model"`
 	Trader Trader `json:"log"`
 }
 

@@ -3,11 +3,16 @@ package time
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
+
+func ToString(t time.Time) string {
+	return fmt.Sprintf("%d_%d_%d_%d", t.Year(), t.Month(), t.Day(), t.Hour())
+}
 
 func ToNow(t time.Time) float64 {
 	return t.Sub(time.Now()).Seconds()
@@ -80,6 +85,10 @@ func LastXHours(h int) int64 {
 // ThisInstant returns the current time in nanoseconds.
 func ThisInstant() int64 {
 	return time.Now().Unix() * time.Second.Nanoseconds()
+}
+
+func At(year, month, day, hour int) int64 {
+	return time.Date(year, time.Month(month), day, hour, 0, 0, 0, time.UTC).Unix()
 }
 
 // Hash is a time hash helper

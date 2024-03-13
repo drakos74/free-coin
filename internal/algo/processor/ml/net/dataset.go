@@ -2,148 +2,154 @@ package net
 
 import (
 	"fmt"
-	"time"
+	math2 "math"
 
-	"github.com/drakos74/free-coin/client"
+	"github.com/drakos74/go-ex-machina/xmath"
+
+	"github.com/drakos74/free-coin/internal/emoji"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
-	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
-	"github.com/drakos74/free-coin/internal/storage"
-	"github.com/rs/zerolog/log"
 )
 
-var (
-	allCoinsKey = model.Key{
-		Coin: model.AllCoins,
-	}
-)
-
-type Dataset struct {
-	Coin     model.Coin
-	Duration time.Duration
-	Vectors  []mlmodel.Vector
-	config   mlmodel.Model
-	Network  *MultiNetwork
+// DataSet is a single training segment of several input and output tensors
+type DataSet struct {
+	Key     model.Key
+	in      int
+	out     int
+	In      [][]float64
+	Out     [][]float64
+	PrevOut [][]float64
 }
 
-func (s Dataset) getDescription(postfix string) string {
-	return fmt.Sprintf("%s_%s_%.2f_%s", s.Coin, s.Duration, s.config.PrecisionThreshold, postfix)
-}
-
-func (s *Dataset) Train() (ModelResult, map[mlmodel.Detail]ModelResult) {
-	return s.Network.Train(s)
-}
-
-func (s *Dataset) Eval(k mlmodel.Detail, report client.Report) {
-	s.Network.Eval(k, report)
-}
-
-type Datasets struct {
-	sets      map[model.Key]*Dataset
-	decisions map[model.Key]Model
-	storage   storage.Persistence
-	network   ConstructMultiNetwork
-}
-
-func NewDataSets(shard storage.Shard, network ConstructMultiNetwork) *Datasets {
-	persistence, err := shard("vectors")
-	if err != nil {
-		log.Error().Err(err).Msg("could not crete vector storage")
-		persistence = storage.VoidStorage{}
-	}
-	return &Datasets{
-		sets:      make(map[model.Key]*Dataset),
-		decisions: make(map[model.Key]Model),
-		storage:   persistence,
-		network:   network,
+func NewDataSet(in, out int) DataSet {
+	return DataSet{
+		in:  in,
+		out: out,
+		In:  make([][]float64, 0),
+		Out: make([][]float64, 0),
 	}
 }
 
-func (ds *Datasets) Sets() map[model.Key]*Dataset {
-	return ds.sets
+func (ds *DataSet) String() string {
+	return fmt.Sprintf("%v->%v\nin :%+v\nout:%+v\n",
+		ds.in, ds.out,
+		ds.In,
+		ds.Out)
 }
 
-func (ds *Datasets) saveVectors(key model.Key, vectors []mlmodel.Vector) error {
-	return ds.storage.Store(stKey(key), vectors)
-}
-
-func (ds *Datasets) loadVectors(key model.Key) ([]mlmodel.Vector, error) {
-	vectors := make([]mlmodel.Vector, 0)
-	err := ds.storage.Load(stKey(key), &vectors)
-	return vectors, err
-}
-
-func stKey(key model.Key) storage.Key {
-	return storage.Key{
-		Pair:  fmt.Sprintf("%v_%v", key.Coin, key.Duration),
-		Hash:  key.Index,
-		Label: key.Strategy,
-	}
-}
-
-func (ds *Datasets) Push(key model.Key, vv mlmodel.Vector, cfg mlmodel.Model) (*Dataset, bool) {
-	if _, ok := ds.sets[key]; !ok {
-		vectors := make([]mlmodel.Vector, 0)
-		vv, err := ds.loadVectors(key)
-		if err == nil {
-			vectors = vv
-			log.Info().Str("Index", key.ToString()).Int("vv", len(vv)).Msg("loaded vectors")
-		} else {
-			log.Error().Err(err).Str("Index", key.ToString()).Msg("could not load vectors")
+func (ds *DataSet) Push(k model.Key, vv mlmodel.Vector) ([][]float64, bool, error) {
+	if ds.Key.Coin != "" {
+		if k.Hash() != ds.Key.Hash() {
+			return nil, false, fmt.Errorf("wrong key (%+v) for tensor (%+v)", k, ds.Key)
 		}
-		ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, vectors, ds.network(cfg))
-	}
-	// keep only the last Vectors based on the buffer size + 10% to cover for the Max
-	bufferSize := mlmodel.EvolveInt(cfg.BufferSize, 1.0)
-	newVectors := addVector(ds.sets[key].Vectors, vv, bufferSize)
-	err := ds.saveVectors(key, newVectors)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("vectors", fmt.Sprintf("%+v", newVectors)).
-			Str("Index", key.ToString()).
-			Msg("could not save vectors")
 	}
 
-	ds.sets[key] = newDataSet(key.Coin, key.Duration, cfg, newVectors, ds.sets[key].Network)
+	filled := false
 
-	if len(ds.sets[key].Vectors) >= bufferSize {
-		return ds.sets[key], true
+	ds.In = append(ds.In, vv.PrevIn)
+	if len(ds.In) > ds.in {
+		ds.In = ds.In[1:]
+		filled = true
 	}
-	return &Dataset{}, false
+
+	ds.Out = append(ds.Out, vv.PrevOut)
+	if len(ds.Out) > ds.out {
+		ds.Out = ds.Out[1:]
+	} else {
+		filled = false
+	}
+
+	input := append(ds.In, vv.NewIn)
+
+	return input, filled, nil
 }
 
-func (ds *Datasets) Eval(key model.Key, x []float64, leadingThreshold int) (int, float64, ml.Metadata, error) {
-	if _, ok := ds.decisions[key]; !ok {
-		log.Warn().Str("method", "eval").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
-		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
+func toSeries(index int, x, y [][]float64) []float64 {
+	series := make([]float64, len(x))
+	for i := range x {
+		series[i] = x[i][index]
 	}
-	return ds.decisions[key].Predict(x, leadingThreshold)
+	if y != nil {
+		series = append(series, y[len(y)-1][index])
+	}
+	return series
 }
 
-func (ds *Datasets) Cluster(key model.Key, x []float64, y float64, train bool) (ml.Metadata, error) {
-	if _, ok := ds.decisions[key]; !ok {
-		log.Warn().Str("method", "cluster").Str("key", fmt.Sprintf("%+v", key)).Msg("new decision record for key")
-		ds.decisions[key] = ml.NewKMeans(string(key.Coin), 5, 30)
-	}
-	return ds.decisions[key].Train(x, y, train)
+func lastAt(index int, y [][]float64) float64 {
+	return y[len(y)-1][index]
 }
 
-func addVector(ss []mlmodel.Vector, s mlmodel.Vector, size int) []mlmodel.Vector {
-	newVectors := append(ss, s)
-	l := len(newVectors)
-	if l > size {
-		newVectors = newVectors[l-size:]
-	}
-	return newVectors
+func last(y [][]float64) []float64 {
+	return y[len(y)-1]
 }
 
-func newDataSet(coin model.Coin, duration time.Duration, cfg mlmodel.Model, vv []mlmodel.Vector, network *MultiNetwork) *Dataset {
-	return &Dataset{
-		Coin:     coin,
-		Duration: duration,
-		Vectors:  vv,
-		config:   cfg,
-		Network:  network,
+func strip(in, out [][]float64) ([][]float64, [][]float64) {
+	l := int(math2.Min(float64(len(in)), float64(len(out))))
+	return in[len(in)-l:], out[len(out)-l:]
+}
+
+func toEmoji(v float64) string {
+	if v > 0.5 {
+		return emoji.DotFire
+	} else if v < -0.5 {
+		return emoji.DotWater
 	}
+	return emoji.DotSnow
+}
+
+func fromEmoji(s string) float64 {
+	switch s {
+	case emoji.DotSnow:
+		return 0
+	case emoji.DotFire:
+		return 1
+	case emoji.DotWater:
+		return -1
+	}
+	return 0
+}
+
+func toEmojis(v []float64) []string {
+	s := make([]string, len(v))
+	for i, _ := range v {
+		s[i] = toEmoji(v[i])
+	}
+	return s
+}
+
+func fromEmojis(s []string) []float64 {
+	v := make([]float64, len(s))
+	for i, _ := range s {
+		v[i] = fromEmoji(s[i])
+	}
+	return v
+}
+
+func V(v []float64) xmath.Vector {
+	return xmath.Vec(len(v)).With(v...)
+}
+
+func SV(v []float64) xmath.Vector {
+	return V([]float64{v[0]})
+}
+
+func sameOrNothing(v []float64) float64 {
+	value := v[0]
+	for i := range v {
+		if v[i] != value {
+			return 0
+		}
+	}
+	return value
+}
+
+func converge(v []float64) [][]float64 {
+	value := v[0]
+	for i := range v {
+		if v[i] != value {
+			return [][]float64{{0}}
+		}
+	}
+	return [][]float64{{value}}
 }

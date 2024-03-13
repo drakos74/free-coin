@@ -4,449 +4,257 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"sort"
-	"time"
+	"strings"
 
-	"github.com/drakos74/free-coin/client"
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	coinmath "github.com/drakos74/free-coin/internal/math"
 	"github.com/drakos74/free-coin/internal/math/ml"
 	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/go-ex-machina/xmath"
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	// benchmarkSamples defines how many samples of history to keep for model selection scores
-	benchmarkSamples = 5
-	// evolutionThreshold defines how many winner models to store and use for model evolution
-	evolutionThreshold = 3
-)
+func NewNetwork(s string, cfg mlmodel.Model) Network {
+	switch s {
+	case GRU_KEY:
+		return NewGRU(cfg)
+	case HMM_KEY:
+		return NewHMM(cfg)
+	case POLY_KEY:
+		return NewPolynomial(cfg)
+	case FOREST_KEY:
+		return NewRandomForest(cfg)
+	case NN_KEY:
+		return NewNeuralNet(cfg)
+	}
+	panic(fmt.Sprintf("unknown network detail : %v", s))
+	return nil
+}
+
+func quantify(y float64, gap float64) float64 {
+	if y > gap {
+		return 1
+	} else if y < -1*gap {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func quantifyAll(v []float64, gap float64) []float64 {
+	vv := make([]float64, len(v))
+	for i := range v {
+		vv[i] = quantify(v[i], gap)
+	}
+	return vv
+}
 
 func networkType(net Network) string {
 	return reflect.TypeOf(net).Elem().String()
 }
 
-// Stats defines generic network Stats.
-type Stats struct {
-	Iterations int
-	Accuracy   []float64
-	Decisions  []int
-}
-
-type StatsCollector struct {
-	Iterations int
-	History    *buffer.MultiBuffer
-}
-
-// NewStatsCollector creates a new Stats struct.
-func NewStatsCollector(s int) *StatsCollector {
-	return &StatsCollector{
-		History: buffer.NewMultiBuffer(s),
-	}
-}
-
-//Model defines a simplistic machine learning model
-type Model interface {
-	Train(x []float64, y float64, train bool) (ml.Metadata, error)
-	Predict(x []float64, leadingThreshold int) (int, float64, ml.Metadata, error)
-}
-
-// Network defines the main interface for a network training.
-// TODO : split network and multi-network interface
+// Network is a generic network interface that receives a list of tensors and input an output
 type Network interface {
-	Train(ds *Dataset) ModelResult
-	Eval(report client.Report)
-	Report() client.Report
-	Stats() Stats
-	Model() mlmodel.Model
+	Train(x [][]float64, y [][]float64) (ml.Metadata, error)
+	Predict(x [][]float64) ([][]float64, ml.Metadata, error)
+	Loss(actual, predicted [][]float64) []float64
+	Config() mlmodel.Model
 }
 
 // ConstructNetwork defines a network constructor func.
-type ConstructNetwork func(cfg mlmodel.Model) Network
+type ConstructNetwork func() (Network, mlmodel.Model)
 
-// ConstructMultiNetwork defines a multi-network constructor func.
-type ConstructMultiNetwork func(cfg mlmodel.Model) *MultiNetwork
-
-// SingleNetwork defines a base network implementation
-type SingleNetwork struct {
-	report         client.Report
-	config         mlmodel.Model
-	statsCollector *StatsCollector
+// Stats defines generic network Stats.
+type Stats struct {
+	Accuracy   *buffer.Buffer
+	Loss       *buffer.Buffer
+	Prediction [][]float64
+	Decisions  []int
 }
 
-// NewSingleNetwork creates a new single network
-func NewSingleNetwork(cfg mlmodel.Model) SingleNetwork {
-	return SingleNetwork{
-		statsCollector: NewStatsCollector(3),
-		config:         cfg,
-	}
-}
-
-func (bn *SingleNetwork) Eval(report client.Report) {
-	bn.report = report
-}
-
-func (bn *SingleNetwork) Report() client.Report {
-	return bn.report
-}
-
-func (bn *SingleNetwork) Model() mlmodel.Model {
-	return bn.config
-}
-
-func (bn *SingleNetwork) Stats() Stats {
-
-	history := bn.statsCollector.History.Get()
-
-	acc := make([]float64, len(history))
-	dec := make([]int, len(history))
-
-	for i, h := range history {
-		acc[i] = h[0]
-		dec[i] = int(h[1])
-	}
-
+func NewStats(s int) Stats {
 	return Stats{
-		Iterations: bn.statsCollector.Iterations,
-		Accuracy:   acc,
-		Decisions:  dec,
+		Accuracy:  buffer.NewBuffer(s),
+		Loss:      buffer.NewBuffer(s),
+		Decisions: make([]int, s),
 	}
 }
 
-type Stat struct {
-	Use   int
-	Reset int
-	Least float64
-	Max   float64
+// BaseNetwork represents the basic network flow logic
+type BaseNetwork struct {
+	set    DataSet
+	net    map[mlmodel.Detail]Network
+	config map[mlmodel.Detail]mlmodel.Model
+	track  map[mlmodel.Detail]*Tracker
 }
 
-type Net struct {
-	Network   Network
-	Benchmark *buffer.MultiBuffer
-	Slope     float64
-	Trend     float64
-	XY        [][]float64
-}
-
-func newNet(cfg mlmodel.Model, network ConstructNetwork) *Net {
-	return &Net{
-		Network:   network(cfg),
-		Benchmark: newBuffer(benchmarkSamples),
-		Slope:     0,
-		Trend:     0,
-		XY:        make([][]float64, 0),
+func BaseNetworkConstructor(in, out int) func(segments mlmodel.Segments) *BaseNetwork {
+	return func(segments mlmodel.Segments) *BaseNetwork {
+		gen := make([]ConstructNetwork, len(segments.Stats.Model))
+		for i, segment := range segments.Stats.Model {
+			gen[i] = func() (Network, mlmodel.Model) {
+				return NewNetwork(segment.Detail.Type, segment), segment
+			}
+		}
+		return NewBaseNetwork(in, out, gen...)
 	}
 }
 
-func (n *Net) setSlope(slope float64) {
-	n.Slope = slope
-}
+func NewBaseNetwork(in, out int, gen ...ConstructNetwork) *BaseNetwork {
 
-func (n *Net) setTrend(trend float64) {
-	n.Trend = trend
-}
+	trackers := make(map[mlmodel.Detail]*Tracker)
+	networks := make(map[mlmodel.Detail]Network)
+	config := make(map[mlmodel.Detail]mlmodel.Model)
 
-func (n *Net) setXY(xy [][]float64) {
-	n.XY = xy
-}
-
-type Config struct {
-	config      mlmodel.Model
-	construct   ConstructNetwork
-	Stat        Stat
-	Performance []mlmodel.Performance
-}
-
-func newConfig(cfg mlmodel.Model, network ConstructNetwork) *Config {
-	return &Config{
-		config:    cfg,
-		construct: network,
-		Stat: Stat{
-			Least: math.MaxFloat64,
-		},
-		Performance: make([]mlmodel.Performance, 0),
-	}
-}
-
-type MultiNetwork struct {
-	ID       string
-	Networks map[mlmodel.Detail]*Net
-	Config   map[string]*Config
-}
-
-func newBuffer(size int) *buffer.MultiBuffer {
-	return buffer.NewMultiBuffer(size)
-}
-
-func NewMultiNetwork(cfg mlmodel.Model, network ...ConstructNetwork) *MultiNetwork {
-
-	config := make(map[string]*Config)
-	nets := make(map[mlmodel.Detail]*Net)
-
-	for i, net := range network {
-		nnet := net(cfg)
+	multi := make([]Network, 0)
+	multiHash := make([]string, 0)
+	multiType := make([]string, 0)
+	for i, net := range gen {
+		nw, cfg := net()
+		if cfg.Live {
+			nvw, _ := net()
+			multi = append(multi, nvw)
+			multiType = append(multiType, cfg.Detail.Type)
+			multiHash = append(multiHash, cfg.Detail.Hash)
+		}
+		hash := cfg.Detail.Hash
+		if hash == "" {
+			hash = coinmath.String(5)
+		}
 		detail := mlmodel.Detail{
-			Type:  networkType(nnet),
-			Hash:  coinmath.String(3),
+			Type:  networkType(nw),
+			Hash:  hash,
 			Index: i,
 		}
-		nets[detail] = newNet(cfg, net)
-		// assign only the network type to the constructor, as the hash will change
-		config[detail.Type] = newConfig(cfg, net)
+		networks[detail] = nw
+		config[detail] = cfg
+		trackers[detail] = NewTracker(12)
 	}
-	return &MultiNetwork{
-		ID:       coinmath.String(5),
-		Networks: nets,
-		Config:   config,
+
+	multiDetail := mlmodel.Detail{
+		Type:  strings.Join(multiType, ":"),
+		Hash:  strings.Join(multiHash, "|"),
+		Index: len(gen),
 	}
-}
+	networks[multiDetail] = NewMultiNetwork(multi...)
+	config[multiDetail] = mlmodel.Model{}
+	trackers[multiDetail] = NewTracker(12)
 
-func MultiNetworkConstructor(network ...ConstructNetwork) ConstructMultiNetwork {
-	return func(cfg mlmodel.Model) *MultiNetwork {
-		return NewMultiNetwork(cfg, network...)
-	}
-}
-
-type ModelResult struct {
-	Benchmark
-	Detail             mlmodel.Detail
-	Type               model.Type
-	Gap                float64
-	Accuracy           float64
-	Features           []float64
-	FeaturesImportance []float64
-	Position           model.Boundary
-	OK                 bool
-	Reset              bool
-}
-
-type Benchmark struct {
-	Profit  float64
-	Trend   float64
-	Slope   float64
-	Actions int
-	XY      [][]float64
-}
-
-func (r ModelResult) Decision() *model.Decision {
-	return &model.Decision{
-		Confidence: r.Accuracy,
-		Features:   r.Features,
-		Importance: r.FeaturesImportance,
-		Config:     []float64{r.Gap, r.Profit, r.Trend},
-		Boundary:   r.Position,
+	return &BaseNetwork{
+		set:    NewDataSet(in, out),
+		config: config,
+		net:    networks,
+		track:  trackers,
 	}
 }
 
-type modelResults []ModelResult
-
-func (rr modelResults) Len() int           { return len(rr) }
-func (rr modelResults) Less(i, j int) bool { return rr[i].Slope < rr[j].Slope }
-func (rr modelResults) Swap(i, j int)      { rr[i], rr[j] = rr[j], rr[i] }
-
-func (m *MultiNetwork) Train(ds *Dataset) (ModelResult, map[mlmodel.Detail]ModelResult) {
-
-	results := make([]ModelResult, 0)
-
-	networkResults := make(map[mlmodel.Detail]ModelResult)
-	networkReports := make(map[mlmodel.Detail]client.Report, 0)
-	networkConfigs := make(map[mlmodel.Detail]mlmodel.Model, 0)
-
-	for detail, net := range m.Networks {
-
-		// make sure we train only models fit for the dataset
-		if len(ds.Vectors) < net.Network.Model().BufferSize {
-			log.Warn().
-				Str("coin", string(ds.Coin)).
-				Str("net", fmt.Sprintf("%+v", detail)).
-				Int("vectors", len(ds.Vectors)).
-				Int("buffer-size", net.Network.Model().BufferSize).
-				Msg("not enough vectors to train")
-			continue
-		}
-
-		report := net.Network.Report()
-		res := net.Network.Train(ds)
-
-		var trend float64
-		var slope float64
-		xy := [][]float64{make([]float64, 0), make([]float64, 0)}
-
-		// create the set
-		vv := net.Benchmark.Get()
-		xx := make([]float64, 0)
-		yy := make([]float64, 0)
-		for i, v := range vv {
-			if len(v) > 1 {
-				xx = append(xx, float64(i))
-				yy = append(yy, math.Round(v[1]))
-			}
-
-		}
-		// fit on 1st degree
-		if len(xx) > 1 && len(yy) > 1 {
-			if a, err := coinmath.Fit(xx, yy, 1); err == nil {
-				trend = a[1]
-				m.Networks[detail].setTrend(trend)
-				xy = [][]float64{xx, yy}
+// Push receives a vector event and processes it with the provided network as a input-output tensor
+func (b *BaseNetwork) Push(k model.Key, vv mlmodel.Vector) (map[mlmodel.Detail][][]float64, bool, error) {
+	in, ready, _ := b.set.Push(k, vv)
+	if ready {
+		out := make(map[mlmodel.Detail][][]float64, len(b.net))
+		minLoss := math.MaxFloat64
+		for detail, net := range b.net {
+			// append the detail now to have it for later ...
+			trainDetails, trainErr := net.Train(b.set.In, b.set.Out)
+			if trainErr != nil {
+				log.Warn().
+					Str("key", k.ToString()).
+					Str("details", fmt.Sprintf("%+v", trainDetails)).
+					Str("detail", fmt.Sprintf("%+v", detail)).
+					Err(trainErr).
+					Msg("training failed")
 			} else {
-				log.Error().
-					Err(err).
-					Str("coin", string(ds.Coin)).
-					Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-					Floats64("xx", xx).
-					Floats64("yy", yy).
-					Msg("could not fit trend to 1st degree")
+				// assess the performance
+				lastPrediction := b.track[detail].stats.Prediction
+				if lastPrediction != nil && len(lastPrediction) > 0 {
+					lossVec := net.Loss(b.set.Out, lastPrediction)
+					loss := xmath.Vec(len(lossVec)).With(lossVec...).Norm()
+					if _, ok := b.track[detail].stats.Loss.Push(loss); ok {
+						//lossHistory := b.track[detail].stats.Loss.GetAsFloats(true)[0]
+						b.track[detail].metrics.Total += 1
+						isRelevant := math.Abs(lastPrediction[len(lastPrediction)-1][0]) > 0.5
+						if isRelevant {
+							if loss < 0.5 {
+								b.track[detail].metrics.Match += 1
+							} else if loss > 0.5 {
+								b.track[detail].metrics.False += 1
+							}
+						}
+
+						// TODD : naive logic for choosing the best network
+						b.track[detail].metrics.Loss = loss
+						if loss < minLoss {
+							minLoss = loss
+						}
+						//fmt.Printf("b.track[%v].metrics = %+v\n", detail, b.track[detail].metrics)
+					}
+				}
+				// do the next prediction
+				thisOut, predictDetails, predictErr := net.Predict(in)
+				b.track[detail].SetLast(thisOut)
+				if predictErr != nil {
+					log.Warn().
+						Str("key", k.ToString()).
+						Str("details", fmt.Sprintf("%+v", predictDetails)).
+						Str("detail", fmt.Sprintf("%+v", detail)).
+						Err(predictErr).
+						Msg("prediction failed")
+				} else {
+					out[detail] = thisOut
+					if minLoss == math.MaxFloat64 {
+						// init the first to have something to work with in the first iterations
+					}
+					// set a default accuracy if nothing is there ...
+					if b.track[detail].metrics.Loss == 0.0 {
+						b.track[detail].metrics.Loss = 0.01
+					}
+				}
 			}
 		}
-		// fit on 2nd degree
-		if len(xx) > 2 && len(yy) > 2 {
-			if b, err := coinmath.Fit(xx, yy, 2); err == nil {
-				slope = b[2]
-				m.Networks[detail].setSlope(slope)
-			} else {
-				log.Error().
-					Err(err).
-					Str("coin", string(ds.Coin)).
-					Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-					Floats64("xx", xx).
-					Floats64("yy", yy).
-					Msg("could not fit trend to 2nd degree")
-			}
-		}
-		m.Networks[detail].setXY(xy)
-
-		result := ModelResult{
-			Detail:             detail,
-			Type:               res.Type,
-			Accuracy:           res.Accuracy,
-			Features:           res.Features,
-			FeaturesImportance: res.FeaturesImportance,
-			Benchmark: Benchmark{
-				Profit:  report.Profit,
-				Trend:   trend,
-				Slope:   slope,
-				XY:      xy,
-				Actions: report.Sell + report.Buy,
-			},
-			OK: res.OK,
-		}
-		// TODO : make this configurable
-		if res.OK && result.Profit > 1.0 && result.Trend > 0.1 {
-			if report.Start.Unix() == 0 {
-				report.Start = time.Now()
-			}
-			log.Info().
-				Str("type", string(result.Type)).
-				Str("detail", fmt.Sprintf("%+v", result.Detail)).
-				Str("coin", string(ds.Coin)).
-				Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-				Str("config", fmt.Sprintf("%+v", net.Network.Model())).
-				Float64("trend", result.Trend).
-				Float64("slope", result.Slope).
-				Float64("profit", result.Profit).
-				Int("mock-trades", result.Actions).
-				Float64("accuracy", result.Accuracy).
-				Int("benchmark-size", net.Benchmark.Len()).
-				Str("benchmarks", fmt.Sprintf("%+v", net.Benchmark.Get())).
-				Str("age", fmt.Sprintf("%+v", time.Now().Sub(report.Start).Minutes())).
-				Msg("accept network")
-			results = append(results, result)
-			// add the config to the winners
-			m.assessPerformance(detail.Type, result, net.Network.Model().ToSlice())
-		} else if res.OK && result.Slope < -0.1 {
-			report.Stop = time.Now()
-			networkReports[detail] = report
-			result.Reset = true
-		}
-		m.trackStats(detail.Type, result.Profit, result.Reset)
-		if res.Type != model.NoType {
-			networkResults[detail] = result
-			networkConfigs[detail] = net.Network.Model()
-		}
+		// pick the best detail
+		return out, true, nil
 	}
+	return nil, false, nil
 
-	// replace the networks where applicable
-	for k, report := range networkReports {
-		if len(m.Config[k.Type].Performance) > 0 {
-			// TODO : make this internal method ...
-			// NOTE :no randomisation needed here, the constructor should randomise already
-			m.Config[k.Type].config = mlmodel.EvolveModel(m.Config[k.Type].Performance)
-		}
-
-		newDetail := mlmodel.Detail{
-			Type:  k.Type,
-			Hash:  coinmath.String(5),
-			Index: k.Index,
-		}
-		// note : first insert the new network
-		m.Networks[newDetail] = newNet(m.Config[k.Type].config, m.Config[k.Type].construct)
-		// clean up the old one
-		delete(m.Networks, k)
-
-		log.Info().
-			Str("detail", fmt.Sprintf("%+v", k)).
-			Str("coin", string(ds.Coin)).
-			Str("duration", fmt.Sprintf("%+v", ds.Duration)).
-			Int("trades", report.Buy+report.Sell).
-			Float64("profit", report.Profit).
-			Float64("trend", networkResults[k].Trend).
-			Float64("slope", networkResults[k].Slope).
-			Str("old_config", fmt.Sprintf("%+v", networkConfigs[k])).
-			Str("new_config", fmt.Sprintf("%+v", m.Networks[newDetail].Network.Model())).
-			Str("age", fmt.Sprintf("%+v", report.Stop.Sub(report.Start).Minutes())).
-			Msg("replace network")
-
-	}
-
-	if len(results) == 0 {
-		return ModelResult{}, networkResults
-	}
-
-	// pick the result with the highest trend
-	sort.Sort(sort.Reverse(modelResults(results)))
-	return results[0], networkResults
 }
 
-// assessPerformance keeps track of the winning models in order to support with evolution
-func (m *MultiNetwork) assessPerformance(detail string, result ModelResult, config []float64) {
-	cc := m.Config[detail].Performance
-	cc = append(cc, mlmodel.Performance{
-		Config: config,
-		Score:  result.Profit,
-	})
-	sort.Sort(mlmodel.ByScore(cc))
-	if len(cc) > evolutionThreshold {
-		cc = cc[1:]
-	}
-	m.Config[detail].Performance = cc
+// Tracker defines a base network implementation
+type Tracker struct {
+	stats   Stats
+	metrics Performance
 }
 
-func (m *MultiNetwork) trackStats(detail string, profit float64, reset bool) {
-	st := m.Config[detail].Stat
-	if profit < st.Least {
-		st.Least = profit
+// NewTracker creates a new single network
+func NewTracker(size int) *Tracker {
+	return &Tracker{
+		stats:   NewStats(size),
+		metrics: Performance{},
 	}
-	if profit > st.Max {
-		st.Max = profit
-	}
-	if reset {
-		st.Reset = st.Reset + 1
-	} else {
-		st.Use = st.Use + 1
-	}
-
-	m.Config[detail].Stat = st
 }
 
-// Eval is called from outside to bring in the latest stats and updates on the performance of the networks
-// TODO : clean up usage and clarify calling party reason ... if this is missing, networks cant evolve ...
-func (m *MultiNetwork) Eval(detail mlmodel.Detail, report client.Report) {
-	for d, net := range m.Networks {
-		if detail == d {
-			net.Benchmark.Push(float64(time.Now().Unix()), report.Profit)
-			net.Network.Eval(report)
-		}
-	}
+func (bn *Tracker) SetLast(last [][]float64) {
+	bn.stats.Prediction = last
+}
+
+type Performance struct {
+	Total    int
+	Match    int
+	False    int
+	Detail   mlmodel.Detail
+	Accuracy float64
+	Loss     float64
+}
+
+type Performances []Performance
+
+func (u Performances) Len() int {
+	return len(u)
+}
+func (u Performances) Swap(i, j int) {
+	u[i], u[j] = u[j], u[i]
+}
+func (u Performances) Less(i, j int) bool {
+	return u[i].Accuracy > u[j].Accuracy
 }

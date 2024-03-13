@@ -132,7 +132,7 @@ func group(extract func(b windowView) float64, group func(f float64) int) func(b
 //func openPositionTrigger(p *model.Trade, client api.Exchange) api.TriggerFunc {
 //	return func(command api.Command) (string, error) {
 //		// TODO: pars optionally the volume
-//		var t model.Type
+//		var t model.Detail
 //		switch command.Content {
 //		case "buy":
 //			t = model.Buy

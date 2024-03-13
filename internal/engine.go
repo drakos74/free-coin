@@ -71,6 +71,7 @@ func (e *Engine) Run() error {
 	return nil
 }
 
+// first is the base processor . it only keeps track of some metrics and propagates the trade to the next
 func (e *Engine) first() api.Processor {
 	return func(in <-chan *model.TradeSignal, out chan<- *model.TradeSignal) {
 		log.Info().Str("processor", "init").Msg("started processor")

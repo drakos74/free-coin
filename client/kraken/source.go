@@ -159,7 +159,7 @@ func (r *baseSource) transform(pair string, interval time.Duration, response *kr
 			Index:  response.Last,
 		}, nil
 	}
-	//last := cointime.FromNano(response.Last)
+	//last := cointime.FromNano(response.Time)
 	//var live bool
 	//if time.Since(last) < interval {
 	//	live = true
@@ -204,6 +204,7 @@ func (r *baseSource) newTrade(pair string, active bool, live bool, trade krakena
 		},
 		Meta: coinmodel.Meta{
 			Time:     time.Unix(trade.Time, 0),
+			Unix:     trade.Time,
 			Live:     live,
 			Exchange: "kraken",
 		},

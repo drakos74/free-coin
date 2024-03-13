@@ -298,7 +298,9 @@ func WindowDensity() TimeBucketTransform {
 // It gathers stats and metadata for the aggregation of the provided values.
 type StatsMessage struct {
 	OK       bool          `json:"ok"`
-	Time     time.Time     `json:"Time"`
+	First    time.Time     `json:"first"`
+	Init     time.Time     `json:"init"`
+	Last     time.Time     `json:"last"`
 	ID       string        `json:"id"`
 	Duration time.Duration `json:"Duration"`
 	Dim      int           `json:"Dimensions"`
@@ -339,17 +341,22 @@ func (sos StackOfStats) ToData() []Data {
 // If no events are gathered the window will return a StatsMessage with the flag OK set to false.
 // The WithEcho method can control the window behaviour to flush a valid StatsMessage even without an event,
 // in this case the value of the last StatsMessage will be echoed with count of `0`
+// WithLimit sets a limit for the window in terms of number of event
+// WithInterval sets the interval for the window based on the time dimension
+// The window can either operate as 'live' , with a limit or with an interval (TODO : enforce)
 type IntervalWindow struct {
 	ID          string
-	Time        time.Time     `json:"Time"`
-	Duration    time.Duration `json:"Duration"`
-	Dim         int           `json:"Dimensions"`
+	First       time.Time     `json:"first"`
+	Last        time.Time     `json:"last"`
+	Duration    time.Duration `json:"duration"`
+	Dim         int           `json:"dimensions"`
 	window      *Window
 	lastMessage StatsMessage
 	stats       chan StatsMessage
 	lock        *sync.RWMutex
 	count       int
 	limit       int
+	interval    float64
 	echo        bool
 	closed      bool
 }
@@ -375,8 +382,15 @@ func NewIntervalWindow(id string, dim int, duration time.Duration) (*IntervalWin
 	return iw, stats
 }
 
+// WithLimit sets a limit on the number of events for a window to flush
 func (iw *IntervalWindow) WithLimit(limit int) *IntervalWindow {
 	iw.limit = limit
+	return iw
+}
+
+// WithInterval sets a duration limit on the time dimension for a window to flush
+func (iw *IntervalWindow) WithInterval(interval int) *IntervalWindow {
+	iw.interval = float64(interval)
 	return iw
 }
 
@@ -388,12 +402,27 @@ func (iw *IntervalWindow) WithEcho() *IntervalWindow {
 // Push adds an element to the interval Window.
 func (iw *IntervalWindow) Push(t time.Time, v ...float64) {
 	iw.lock.Lock()
+	// flag to create new window
 	if iw.window == nil {
 		iw.window = NewWindow(int64(iw.Duration.Seconds()), iw.Dim)
-		iw.Time = t
+		iw.First = t
+		iw.Last = t
 	}
 	iw.lock.Unlock()
+
+	// now that we released the lock, we can check on the interval flushing case
+	if iw.interval > 0 {
+		if t.Sub(iw.First).Seconds() > iw.interval {
+			iw.Flush()
+			// and dont lose the current event that's outside the interval
+			iw.Push(t, v...)
+			// stop processing anything else
+			return
+		}
+	}
+
 	iw.window.Push(1, v...)
+	iw.Last = t
 	iw.count++
 
 	if iw.limit > 0 && iw.count > iw.limit {
@@ -411,7 +440,8 @@ func (iw *IntervalWindow) Flush() {
 		if iw.echo {
 			// this will allow processing because OK will be true
 			lastMessage := iw.lastMessage
-			lastMessage.Time = lastMessage.Time.Add(iw.Duration)
+			lastMessage.Init = time.Now()
+			lastMessage.Last = lastMessage.First.Add(iw.Duration)
 			iw.lastMessage = lastMessage
 			iw.stats <- iw.lastMessage
 		} else {
@@ -425,7 +455,9 @@ func (iw *IntervalWindow) Flush() {
 	iw.count = 0
 	message := StatsMessage{
 		OK:       true,
-		Time:     iw.Time,
+		Init:     time.Now(),
+		First:    iw.First,
+		Last:     iw.Last,
 		ID:       iw.ID,
 		Duration: iw.Duration,
 		Dim:      iw.Dim,
@@ -435,7 +467,9 @@ func (iw *IntervalWindow) Flush() {
 	iw.stats <- message
 	iw.lastMessage = StatsMessage{
 		OK:       true,
-		Time:     message.Time,
+		First:    message.First,
+		Last:     message.Last,
+		Init:     message.Init,
 		ID:       message.ID,
 		Duration: message.Duration,
 		Dim:      message.Dim,
@@ -446,7 +480,7 @@ func (iw *IntervalWindow) Flush() {
 
 // exec initiates the execution
 func (iw *IntervalWindow) exec() {
-	if iw.limit == 0 {
+	if iw.limit == 0 && iw.interval == 0 {
 		<-time.After(iw.Duration)
 		if !iw.closed {
 			iw.Flush()

@@ -64,3 +64,19 @@ func invScale(m, i int) int {
 	d := float64(i) - n
 	return int(n - d)
 }
+
+func ToInt(ff []float64) []int {
+	ii := make([]int, len(ff))
+	for i, f := range ff {
+		ii[i] = int(f)
+	}
+	return ii
+}
+
+func ToFloat(ii []int) []float64 {
+	ff := make([]float64, len(ii))
+	for f, i := range ii {
+		ff[f] = float64(i)
+	}
+	return ff
+}

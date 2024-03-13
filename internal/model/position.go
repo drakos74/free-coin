@@ -191,8 +191,8 @@ func (p *Position) Sync(pos Position) (Position, bool) {
 func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Position {
 
 	if trade.Active {
-		p.CurrentPrice = trade.Range.To.Price
-		p.CurrentTime = trade.Range.To.Time
+		p.CurrentPrice = trade.Range.Max.Price
+		p.CurrentTime = trade.Range.Max.Time
 	}
 
 	pnl, value, fees := PnL(p.Type, p.Volume, p.OpenPrice, p.CurrentPrice)

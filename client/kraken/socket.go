@@ -147,7 +147,7 @@ func (s *Socket) connect(out chan *model.TradeSignal, process <-chan api.Signal)
 				spread[coin] = buffer.NewWindow(0, 2)
 				s.signals[coin] = signal
 				if signal.Tick.Active {
-					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("0102.1504"), 64)
+					f, _ := strconv.ParseFloat(signal.Meta.Time.Format("20060102.1504"), 64)
 					metrics.Observer.NoteLag(f, string(coin), "socket", "ticker")
 					metrics.Observer.IncrementEvents(string(coin), "_", "ticker", "socket")
 					// TODO : highlight the data flow better

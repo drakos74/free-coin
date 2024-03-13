@@ -155,7 +155,7 @@ func (s *Server) handle(route Route) func(w http.ResponseWriter, r *http.Request
 			}
 		case OPTIONS:
 			w.Header().Set("Access-Control-Allow-Methods", "GET,POST")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Detail")
 			s.respond(w, []byte{})
 		default:
 			w.WriteHeader(http.StatusNotImplemented)

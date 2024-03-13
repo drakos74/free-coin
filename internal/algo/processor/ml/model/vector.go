@@ -22,20 +22,18 @@ type Vector struct {
 
 func (v Vector) String() string {
 	lw := new(strings.Builder)
-	lw.WriteString("prev:")
+	lw.WriteString(fmt.Sprintf("%+v", v.Meta))
+	lw.WriteString("\npreI:")
 	for _, in := range v.PrevIn {
 		lw.WriteString(fmt.Sprintf("%f,", in))
 	}
-	if v.PrevOut[0] == 1.0 {
-		lw.WriteString(fmt.Sprintf("%s", model.Buy.String()))
-	} else if v.PrevOut[2] == 1.0 {
-		lw.WriteString(fmt.Sprintf("%s", model.Sell.String()))
-	} else {
-		lw.WriteString(fmt.Sprintf("%s", model.NoType.String()))
+	lw.WriteString("\npreO:")
+	for _, in := range v.PrevOut {
+		lw.WriteString(fmt.Sprintf("%f,", in))
 	}
-	//lw.WriteString("\nnewI:")
-	//for _, in := range v.NewIn {
-	//	lw.WriteString(fmt.Sprintf("%f,", in))
-	//}
+	lw.WriteString("\nnewI:")
+	for _, in := range v.NewIn {
+		lw.WriteString(fmt.Sprintf("%f,", in))
+	}
 	return lw.String()
 }
