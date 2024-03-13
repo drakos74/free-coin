@@ -1,6 +1,6 @@
 module github.com/drakos74/free-coin
 
-go 1.20
+go 1.22
 
 require (
 	github.com/adshao/go-binance/v2 v2.2.1
