@@ -10,12 +10,12 @@ require (
 	github.com/drakos74/go-ex-machina v0.0.0-20211107134813-9131c4153fda
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/uuid v1.1.1
-	github.com/malaschitz/randomForest v0.0.0-20211016204141-298ff580d6a9
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rs/zerolog v1.21.0
 	github.com/sjwhitworth/golearn v0.0.0-20211014193759-a8b69c276cd8
 	github.com/stretchr/testify v1.7.0
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	gonum.org/v1/gonum v0.14.0
 )
 
@@ -41,7 +41,6 @@ require (
 	github.com/rocketlaunchr/dataframe-go v0.0.0-20201007021539-67b046771f0b // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.1.0 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
