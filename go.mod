@@ -16,7 +16,7 @@ require (
 	github.com/sjwhitworth/golearn v0.0.0-20211014193759-a8b69c276cd8
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	gonum.org/v1/gonum v0.8.1
+	gonum.org/v1/gonum v0.14.0
 )
 
 require (
