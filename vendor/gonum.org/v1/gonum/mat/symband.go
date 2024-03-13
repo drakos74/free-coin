@@ -7,8 +7,6 @@ package mat
 import (
 	"gonum.org/v1/gonum/blas"
 	"gonum.org/v1/gonum/blas/blas64"
-	"gonum.org/v1/gonum/lapack"
-	"gonum.org/v1/gonum/lapack/lapack64"
 )
 
 var (
@@ -36,8 +34,8 @@ type SymBandDense struct {
 type SymBanded interface {
 	Banded
 
-	// SymmetricDim returns the number of rows/columns in the matrix.
-	SymmetricDim() int
+	// Symmetric returns the number of rows/columns in the matrix.
+	Symmetric() int
 
 	// SymBand returns the number of rows/columns in the matrix, and the size of
 	// the bandwidth.
@@ -67,23 +65,19 @@ type RawSymBander interface {
 // The data must be arranged in row-major order constructed by removing the zeros
 // from the rows outside the band and aligning the diagonals. SymBandDense matrices
 // are stored in the upper triangle. For example, the matrix
-//
-//	1  2  3  0  0  0
-//	2  4  5  6  0  0
-//	3  5  7  8  9  0
-//	0  6  8 10 11 12
-//	0  0  9 11 13 14
-//	0  0  0 12 14 15
-//
+//    1  2  3  0  0  0
+//    2  4  5  6  0  0
+//    3  5  7  8  9  0
+//    0  6  8 10 11 12
+//    0  0  9 11 13 14
+//    0  0  0 12 14 15
 // becomes (* entries are never accessed)
-//
-//	 1  2  3
-//	 4  5  6
-//	 7  8  9
-//	10 11 12
-//	13 14  *
-//	15  *  *
-//
+//     1  2  3
+//     4  5  6
+//     7  8  9
+//    10 11 12
+//    13 14  *
+//    15  *  *
 // which is passed to NewSymBandDense as []float64{1, 2, ..., 15, *, *, *} with k=2.
 // Only the values in the band portion of the matrix are used.
 func NewSymBandDense(n, k int, data []float64) *SymBandDense {
@@ -119,8 +113,8 @@ func (s *SymBandDense) Dims() (r, c int) {
 	return s.mat.N, s.mat.N
 }
 
-// SymmetricDim returns the size of the receiver.
-func (s *SymBandDense) SymmetricDim() int {
+// Symmetric returns the size of the receiver.
+func (s *SymBandDense) Symmetric() int {
 	return s.mat.N
 }
 
@@ -182,7 +176,7 @@ func (s *SymBandDense) Reset() {
 	s.mat.K = 0
 	s.mat.Stride = 0
 	s.mat.Uplo = 0
-	s.mat.Data = s.mat.Data[:0]
+	s.mat.Data = s.mat.Data[:0:0]
 }
 
 // Zero sets all of the matrix elements to zero.
@@ -248,34 +242,8 @@ func (s *SymBandDense) DoColNonZero(j int, fn func(i, j int, v float64)) {
 	}
 }
 
-// Norm returns the specified norm of the receiver. Valid norms are:
-//
-//	1 - The maximum absolute column sum
-//	2 - The Frobenius norm, the square root of the sum of the squares of the elements
-//	Inf - The maximum absolute row sum
-//
-// Norm will panic with ErrNormOrder if an illegal norm is specified and with
-// ErrZeroLength if the matrix has zero size.
-func (s *SymBandDense) Norm(norm float64) float64 {
-	if s.IsEmpty() {
-		panic(ErrZeroLength)
-	}
-	lnorm := normLapack(norm, false)
-	if lnorm == lapack.MaxColumnSum || lnorm == lapack.MaxRowSum {
-		work := getFloat64s(s.mat.N, false)
-		defer putFloat64s(work)
-		return lapack64.Lansb(lnorm, s.mat, work)
-	}
-	return lapack64.Lansb(lnorm, s.mat, nil)
-}
-
-// Trace returns the trace of the matrix.
-//
-// Trace will panic with ErrZeroLength if the matrix has zero size.
+// Trace returns the trace.
 func (s *SymBandDense) Trace() float64 {
-	if s.IsEmpty() {
-		panic(ErrZeroLength)
-	}
 	rb := s.RawSymBand()
 	var tr float64
 	for i := 0; i < rb.N; i++ {
@@ -298,15 +266,15 @@ func (s *SymBandDense) MulVecTo(dst *VecDense, _ bool, x Vector) {
 			dst.checkOverlap(xVec.mat)
 			blas64.Sbmv(1, s.mat, xVec.mat, 0, dst.mat)
 		} else {
-			xCopy := getVecDenseWorkspace(n, false)
+			xCopy := getWorkspaceVec(n, false)
 			xCopy.CloneFromVec(xVec)
 			blas64.Sbmv(1, s.mat, xCopy.mat, 0, dst.mat)
-			putVecDenseWorkspace(xCopy)
+			putWorkspaceVec(xCopy)
 		}
 	} else {
-		xCopy := getVecDenseWorkspace(n, false)
+		xCopy := getWorkspaceVec(n, false)
 		xCopy.CloneFromVec(x)
 		blas64.Sbmv(1, s.mat, xCopy.mat, 0, dst.mat)
-		putVecDenseWorkspace(xCopy)
+		putWorkspaceVec(xCopy)
 	}
 }

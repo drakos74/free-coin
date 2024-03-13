@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !amd64 || noasm || gccgo || safe
-// +build !amd64 noasm gccgo safe
+// +build !amd64 noasm appengine safe
 
 package f64
 
 import "math"
 
 // L1Norm is
-//
-//	for _, v := range x {
-//		sum += math.Abs(v)
-//	}
-//	return sum
+//  for _, v := range x {
+//  	sum += math.Abs(v)
+//  }
+//  return sum
 func L1Norm(x []float64) (sum float64) {
 	for _, v := range x {
 		sum += math.Abs(v)
@@ -23,11 +21,10 @@ func L1Norm(x []float64) (sum float64) {
 }
 
 // L1NormInc is
-//
-//	for i := 0; i < n*incX; i += incX {
-//		sum += math.Abs(x[i])
-//	}
-//	return sum
+//  for i := 0; i < n*incX; i += incX {
+//  	sum += math.Abs(x[i])
+//  }
+//  return sum
 func L1NormInc(x []float64, n, incX int) (sum float64) {
 	for i := 0; i < n*incX; i += incX {
 		sum += math.Abs(x[i])
@@ -36,10 +33,9 @@ func L1NormInc(x []float64, n, incX int) (sum float64) {
 }
 
 // Add is
-//
-//	for i, v := range s {
-//		dst[i] += v
-//	}
+//  for i, v := range s {
+//  	dst[i] += v
+//  }
 func Add(dst, s []float64) {
 	for i, v := range s {
 		dst[i] += v
@@ -47,10 +43,9 @@ func Add(dst, s []float64) {
 }
 
 // AddConst is
-//
-//	for i := range x {
-//		x[i] += alpha
-//	}
+//  for i := range x {
+//  	x[i] += alpha
+//  }
 func AddConst(alpha float64, x []float64) {
 	for i := range x {
 		x[i] += alpha
@@ -58,15 +53,14 @@ func AddConst(alpha float64, x []float64) {
 }
 
 // CumSum is
-//
-//	if len(s) == 0 {
-//		return dst
-//	}
-//	dst[0] = s[0]
-//	for i, v := range s[1:] {
-//		dst[i+1] = dst[i] + v
-//	}
-//	return dst
+//  if len(s) == 0 {
+//  	return dst
+//  }
+//  dst[0] = s[0]
+//  for i, v := range s[1:] {
+//  	dst[i+1] = dst[i] + v
+//  }
+//  return dst
 func CumSum(dst, s []float64) []float64 {
 	if len(s) == 0 {
 		return dst
@@ -79,15 +73,14 @@ func CumSum(dst, s []float64) []float64 {
 }
 
 // CumProd is
-//
-//	if len(s) == 0 {
-//		return dst
-//	}
-//	dst[0] = s[0]
-//	for i, v := range s[1:] {
-//		dst[i+1] = dst[i] * v
-//	}
-//	return dst
+//  if len(s) == 0 {
+//  	return dst
+//  }
+//  dst[0] = s[0]
+//  for i, v := range s[1:] {
+//  	dst[i+1] = dst[i] * v
+//  }
+//  return dst
 func CumProd(dst, s []float64) []float64 {
 	if len(s) == 0 {
 		return dst
@@ -100,10 +93,9 @@ func CumProd(dst, s []float64) []float64 {
 }
 
 // Div is
-//
-//	for i, v := range s {
-//		dst[i] /= v
-//	}
+//  for i, v := range s {
+//  	dst[i] /= v
+//  }
 func Div(dst, s []float64) {
 	for i, v := range s {
 		dst[i] /= v
@@ -111,11 +103,10 @@ func Div(dst, s []float64) {
 }
 
 // DivTo is
-//
-//	for i, v := range s {
-//		dst[i] = v / t[i]
-//	}
-//	return dst
+//  for i, v := range s {
+//  	dst[i] = v / t[i]
+//  }
+//  return dst
 func DivTo(dst, s, t []float64) []float64 {
 	for i, v := range s {
 		dst[i] = v / t[i]
@@ -124,12 +115,11 @@ func DivTo(dst, s, t []float64) []float64 {
 }
 
 // L1Dist is
-//
-//	var norm float64
-//	for i, v := range s {
-//		norm += math.Abs(t[i] - v)
-//	}
-//	return norm
+//  var norm float64
+//  for i, v := range s {
+//  	norm += math.Abs(t[i] - v)
+//  }
+//  return norm
 func L1Dist(s, t []float64) float64 {
 	var norm float64
 	for i, v := range s {
@@ -139,19 +129,18 @@ func L1Dist(s, t []float64) float64 {
 }
 
 // LinfDist is
-//
-//	var norm float64
-//	if len(s) == 0 {
-//		return 0
-//	}
-//	norm = math.Abs(t[0] - s[0])
-//	for i, v := range s[1:] {
-//		absDiff := math.Abs(t[i+1] - v)
-//		if absDiff > norm || math.IsNaN(norm) {
-//			norm = absDiff
-//		}
-//	}
-//	return norm
+//  var norm float64
+//  if len(s) == 0 {
+//  	return 0
+//  }
+//  norm = math.Abs(t[0] - s[0])
+//  for i, v := range s[1:] {
+//  	absDiff := math.Abs(t[i+1] - v)
+//  	if absDiff > norm || math.IsNaN(norm) {
+//  		norm = absDiff
+//  	}
+//  }
+//  return norm
 func LinfDist(s, t []float64) float64 {
 	var norm float64
 	if len(s) == 0 {
@@ -168,11 +157,10 @@ func LinfDist(s, t []float64) float64 {
 }
 
 // Sum is
-//
-//	var sum float64
-//	for i := range x {
-//	    sum += x[i]
-//	}
+//  var sum float64
+//  for i := range x {
+//      sum += x[i]
+//  }
 func Sum(x []float64) float64 {
 	var sum float64
 	for _, v := range x {

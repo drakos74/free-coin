@@ -21,8 +21,7 @@ const minNormalFloat64 = 0x1p-1022
 
 // EqualWithinRel returns true when the difference between a and b
 // is not greater than tol times the greater absolute value of a and b,
-//
-//	abs(a-b) <= tol * max(abs(a), abs(b)).
+//  abs(a-b) <= tol * max(abs(a), abs(b)).
 func EqualWithinRel(a, b, tol float64) bool {
 	if a == b {
 		return true
@@ -106,10 +105,9 @@ func ParseWithNA(s, missing string) (value, weight float64, err error) {
 // Round returns the half away from zero rounded value of x with prec precision.
 //
 // Special cases are:
-//
-//	Round(±0) = +0
-//	Round(±Inf) = ±Inf
-//	Round(NaN) = NaN
+// 	Round(±0) = +0
+// 	Round(±Inf) = ±Inf
+// 	Round(NaN) = NaN
 func Round(x float64, prec int) float64 {
 	if x == 0 {
 		// Make sure zero is returned
@@ -125,7 +123,11 @@ func Round(x float64, prec int) float64 {
 	if math.IsInf(intermed, 0) {
 		return x
 	}
-	x = math.Round(intermed)
+	if x < 0 {
+		x = math.Ceil(intermed - 0.5)
+	} else {
+		x = math.Floor(intermed + 0.5)
+	}
 
 	if x == 0 {
 		return 0
@@ -137,10 +139,9 @@ func Round(x float64, prec int) float64 {
 // RoundEven returns the half even rounded value of x with prec precision.
 //
 // Special cases are:
-//
-//	RoundEven(±0) = +0
-//	RoundEven(±Inf) = ±Inf
-//	RoundEven(NaN) = NaN
+// 	RoundEven(±0) = +0
+// 	RoundEven(±Inf) = ±Inf
+// 	RoundEven(NaN) = NaN
 func RoundEven(x float64, prec int) float64 {
 	if x == 0 {
 		// Make sure zero is returned
@@ -156,13 +157,33 @@ func RoundEven(x float64, prec int) float64 {
 	if math.IsInf(intermed, 0) {
 		return x
 	}
-	x = math.RoundToEven(intermed)
+	if isHalfway(intermed) {
+		correction, _ := math.Modf(math.Mod(intermed, 2))
+		intermed += correction
+		if intermed > 0 {
+			x = math.Floor(intermed)
+		} else {
+			x = math.Ceil(intermed)
+		}
+	} else {
+		if x < 0 {
+			x = math.Ceil(intermed - 0.5)
+		} else {
+			x = math.Floor(intermed + 0.5)
+		}
+	}
 
 	if x == 0 {
 		return 0
 	}
 
 	return x / pow
+}
+
+func isHalfway(x float64) bool {
+	_, frac := math.Modf(x)
+	frac = math.Abs(frac)
+	return frac == 0.5 || (math.Nextafter(frac, math.Inf(-1)) < 0.5 && math.Nextafter(frac, math.Inf(1)) > 0.5)
 }
 
 // Same returns true when the inputs have the same value, allowing NaN equality.

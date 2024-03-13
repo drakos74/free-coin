@@ -62,11 +62,9 @@ func (gsvd *GSVD) succFact() bool {
 // input kind.
 //
 // The full singular value decomposition (kind == GSVDAll) deconstructs A and B as
+//  A = U * Σ₁ * [ 0 R ] * Qᵀ
 //
-//	A = U * Σ₁ * [ 0 R ] * Qᵀ
-//
-//	B = V * Σ₂ * [ 0 R ] * Qᵀ
-//
+//  B = V * Σ₂ * [ 0 R ] * Qᵀ
 // where Σ₁ and Σ₂ are r×(k+l) and p×(k+l) diagonal matrices of singular values, and
 // U, V and Q are r×r, p×p and c×c orthogonal matrices of singular vectors. k+l is the
 // effective numerical rank of the matrix [ Aᵀ Bᵀ ]ᵀ.
@@ -74,7 +72,7 @@ func (gsvd *GSVD) succFact() bool {
 // It is frequently not necessary to compute the full GSVD. Computation time and
 // storage costs can be reduced using the appropriate kind. Either only the singular
 // values can be computed (kind == SVDNone), or in conjunction with specific singular
-// vectors (kind bit set according to GSVDU, GSVDV and GSVDQ).
+// vectors (kind bit set according to matrix.GSVDU, matrix.GSVDV and matrix.GSVDQ).
 //
 // Factorize returns whether the decomposition succeeded. If the decomposition
 // failed, routines that require a successful factorization will panic.
@@ -166,7 +164,7 @@ func (gsvd *GSVD) Rank() (k, l int) {
 // GeneralizedValues returns the generalized singular values of the factorized matrices.
 // If the input slice is non-nil, the values will be stored in-place into the slice.
 // In this case, the slice must have length min(r,c)-k, and GeneralizedValues will
-// panic with ErrSliceLengthMismatch otherwise. If the input slice is nil,
+// panic with matrix.ErrSliceLengthMismatch otherwise. If the input slice is nil,
 // a new slice of the appropriate length will be allocated and returned.
 //
 // GeneralizedValues will panic if the receiver does not contain a successful factorization.
@@ -191,7 +189,7 @@ func (gsvd *GSVD) GeneralizedValues(v []float64) []float64 {
 // ValuesA returns the singular values of the factorized A matrix.
 // If the input slice is non-nil, the values will be stored in-place into the slice.
 // In this case, the slice must have length min(r,c)-k, and ValuesA will panic with
-// ErrSliceLengthMismatch otherwise. If the input slice is nil,
+// matrix.ErrSliceLengthMismatch otherwise. If the input slice is nil,
 // a new slice of the appropriate length will be allocated and returned.
 //
 // ValuesA will panic if the receiver does not contain a successful factorization.
@@ -216,7 +214,7 @@ func (gsvd *GSVD) ValuesA(s []float64) []float64 {
 // ValuesB returns the singular values of the factorized B matrix.
 // If the input slice is non-nil, the values will be stored in-place into the slice.
 // In this case, the slice must have length min(r,c)-k, and ValuesB will panic with
-// ErrSliceLengthMismatch otherwise. If the input slice is nil,
+// matrix.ErrSliceLengthMismatch otherwise. If the input slice is nil,
 // a new slice of the appropriate length will be allocated and returned.
 //
 // ValuesB will panic if the receiver does not contain a successful factorization.

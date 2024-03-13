@@ -106,20 +106,23 @@ func (impl Implementation) Dlansy(norm lapack.MatrixNorm, uplo blas.Uplo, n int,
 	default:
 		// lapack.Frobenius:
 		scale := 0.0
-		sum := 1.0
+		ssq := 1.0
 		// Sum off-diagonals.
 		if uplo == blas.Upper {
 			for i := 0; i < n-1; i++ {
-				scale, sum = impl.Dlassq(n-i-1, a[i*lda+i+1:], 1, scale, sum)
+				rowscale, rowssq := impl.Dlassq(n-i-1, a[i*lda+i+1:], 1, 0, 1)
+				scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 			}
 		} else {
 			for i := 1; i < n; i++ {
-				scale, sum = impl.Dlassq(i, a[i*lda:], 1, scale, sum)
+				rowscale, rowssq := impl.Dlassq(i, a[i*lda:], 1, 0, 1)
+				scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 			}
 		}
-		sum *= 2
+		ssq *= 2
 		// Sum diagonal.
-		scale, sum = impl.Dlassq(n, a, lda+1, scale, sum)
-		return scale * math.Sqrt(sum)
+		dscale, dssq := impl.Dlassq(n, a, lda+1, 0, 1)
+		scale, ssq = impl.Dcombssq(scale, ssq, dscale, dssq)
+		return scale * math.Sqrt(ssq)
 	}
 }

@@ -164,46 +164,50 @@ func (impl Implementation) Dlantb(norm lapack.MatrixNorm, uplo blas.Uplo, diag b
 			}
 		}
 	case lapack.Frobenius:
-		var scale, sum float64
+		var scale, ssq float64
 		switch uplo {
 		case blas.Upper:
 			if diag == blas.Unit {
 				scale = 1
-				sum = float64(n)
+				ssq = float64(n)
 				if k > 0 {
 					for i := 0; i < n-1; i++ {
 						ilen := min(n-i-1, k)
-						scale, sum = impl.Dlassq(ilen, a[i*lda+1:], 1, scale, sum)
+						rowscale, rowssq := impl.Dlassq(ilen, a[i*lda+1:], 1, 0, 1)
+						scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 					}
 				}
 			} else {
 				scale = 0
-				sum = 1
+				ssq = 1
 				for i := 0; i < n; i++ {
 					ilen := min(n-i, k+1)
-					scale, sum = impl.Dlassq(ilen, a[i*lda:], 1, scale, sum)
+					rowscale, rowssq := impl.Dlassq(ilen, a[i*lda:], 1, 0, 1)
+					scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 				}
 			}
 		case blas.Lower:
 			if diag == blas.Unit {
 				scale = 1
-				sum = float64(n)
+				ssq = float64(n)
 				if k > 0 {
 					for i := 1; i < n; i++ {
 						ilen := min(i, k)
-						scale, sum = impl.Dlassq(ilen, a[i*lda+k-ilen:], 1, scale, sum)
+						rowscale, rowssq := impl.Dlassq(ilen, a[i*lda+k-ilen:], 1, 0, 1)
+						scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 					}
 				}
 			} else {
 				scale = 0
-				sum = 1
+				ssq = 1
 				for i := 0; i < n; i++ {
 					ilen := min(i, k) + 1
-					scale, sum = impl.Dlassq(ilen, a[i*lda+k+1-ilen:], 1, scale, sum)
+					rowscale, rowssq := impl.Dlassq(ilen, a[i*lda+k+1-ilen:], 1, 0, 1)
+					scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 				}
 			}
 		}
-		value = scale * math.Sqrt(sum)
+		value = scale * math.Sqrt(ssq)
 	}
 	return value
 }

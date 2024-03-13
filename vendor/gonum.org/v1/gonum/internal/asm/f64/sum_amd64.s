@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !noasm,!gccgo,!safe
+// +build !noasm,!appengine,!safe
 
 #include "textflag.h"
 
@@ -36,7 +36,8 @@ TEXT ·Sum(SB), NOSPLIT, $0
 	ADDSD (X_PTR), X0 // X0 += x[0]
 	INCQ  IDX         // i++
 	DECQ  LEN         // LEN--
-	JZ    sum_end     // if LEN == 0 { return }
+	DECQ  TAIL        // TAIL--
+	JZ    sum_end     // if TAIL == 0 { return }
 
 no_trim:
 	MOVQ LEN, TAIL
@@ -44,26 +45,26 @@ no_trim:
 	JZ   sum_tail8 // if LEN == 0 { goto sum_tail8 }
 
 sum_loop: // sum 16x wide do {
-	ADDPD (X_PTR)(IDX*8), SUM      // sum_i += x[i:i+2]
-	ADDPD 16(X_PTR)(IDX*8), SUM_1
-	ADDPD 32(X_PTR)(IDX*8), SUM_2
-	ADDPD 48(X_PTR)(IDX*8), SUM_3
-	ADDPD 64(X_PTR)(IDX*8), SUM
-	ADDPD 80(X_PTR)(IDX*8), SUM_1
-	ADDPD 96(X_PTR)(IDX*8), SUM_2
-	ADDPD 112(X_PTR)(IDX*8), SUM_3
-	ADDQ  $16, IDX                 // i += 16
+	ADDPD (SI)(AX*8), SUM      // sum_i += x[i:i+2]
+	ADDPD 16(SI)(AX*8), SUM_1
+	ADDPD 32(SI)(AX*8), SUM_2
+	ADDPD 48(SI)(AX*8), SUM_3
+	ADDPD 64(SI)(AX*8), SUM
+	ADDPD 80(SI)(AX*8), SUM_1
+	ADDPD 96(SI)(AX*8), SUM_2
+	ADDPD 112(SI)(AX*8), SUM_3
+	ADDQ  $16, IDX             // i += 16
 	DECQ  LEN
-	JNZ   sum_loop                 // } while --LEN > 0
+	JNZ   sum_loop             // } while --CX > 0
 
 sum_tail8:
 	TESTQ $8, TAIL
 	JZ    sum_tail4
 
-	ADDPD (X_PTR)(IDX*8), SUM     // sum_i += x[i:i+2]
-	ADDPD 16(X_PTR)(IDX*8), SUM_1
-	ADDPD 32(X_PTR)(IDX*8), SUM_2
-	ADDPD 48(X_PTR)(IDX*8), SUM_3
+	ADDPD (SI)(AX*8), SUM     // sum_i += x[i:i+2]
+	ADDPD 16(SI)(AX*8), SUM_1
+	ADDPD 32(SI)(AX*8), SUM_2
+	ADDPD 48(SI)(AX*8), SUM_3
 	ADDQ  $8, IDX
 
 sum_tail4:
@@ -73,8 +74,8 @@ sum_tail4:
 	TESTQ $4, TAIL
 	JZ    sum_tail2
 
-	ADDPD (X_PTR)(IDX*8), SUM     // sum_i += x[i:i+2]
-	ADDPD 16(X_PTR)(IDX*8), SUM_1
+	ADDPD (SI)(AX*8), SUM     // sum_i += x[i:i+2]
+	ADDPD 16(SI)(AX*8), SUM_1
 	ADDQ  $4, IDX
 
 sum_tail2:
@@ -83,7 +84,7 @@ sum_tail2:
 	TESTQ $2, TAIL
 	JZ    sum_tail1
 
-	ADDPD (X_PTR)(IDX*8), SUM // sum_i += x[i:i+2]
+	ADDPD (SI)(AX*8), SUM // sum_i += x[i:i+2]
 	ADDQ  $2, IDX
 
 sum_tail1:
@@ -92,7 +93,7 @@ sum_tail1:
 	TESTQ $1, TAIL
 	JZ    sum_end
 
-	ADDSD (X_PTR)(IDX*8), SUM
+	ADDSD (SI)(IDX*8), SUM
 
 sum_end: // return sum
 	MOVSD SUM, ret+24(FP)

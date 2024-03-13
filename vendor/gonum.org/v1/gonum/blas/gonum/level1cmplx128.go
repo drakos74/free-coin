@@ -14,9 +14,7 @@ import (
 var _ blas.Complex128Level1 = Implementation{}
 
 // Dzasum returns the sum of the absolute values of the elements of x
-//
-//	\sum_i |Re(x[i])| + |Im(x[i])|
-//
+//  \sum_i |Re(x[i])| + |Im(x[i])|
 // Dzasum returns 0 if incX is negative.
 func (Implementation) Dzasum(n int, x []complex128, incX int) float64 {
 	if n < 0 {
@@ -49,9 +47,7 @@ func (Implementation) Dzasum(n int, x []complex128, incX int) float64 {
 }
 
 // Dznrm2 computes the Euclidean norm of the complex vector x,
-//
-//	‖x‖_2 = sqrt(\sum_i x[i] * conj(x[i])).
-//
+//  ‖x‖_2 = sqrt(\sum_i x[i] * conj(x[i])).
 // This function returns 0 if incX is negative.
 func (Implementation) Dznrm2(n int, x []complex128, incX int) float64 {
 	if incX < 1 {
@@ -168,8 +164,7 @@ func (Implementation) Izamax(n int, x []complex128, incX int) int {
 }
 
 // Zaxpy adds alpha times x to y:
-//
-//	y[i] += alpha * x[i] for all i
+//  y[i] += alpha * x[i] for all i
 func (Implementation) Zaxpy(n int, alpha complex128, x []complex128, incX int, y []complex128, incY int) {
 	if incX == 0 {
 		panic(zeroIncX)
@@ -245,9 +240,7 @@ func (Implementation) Zcopy(n int, x []complex128, incX int, y []complex128, inc
 }
 
 // Zdotc computes the dot product
-//
-//	xᴴ · y
-//
+//  xᴴ · y
 // of two complex vectors x and y.
 func (Implementation) Zdotc(n int, x []complex128, incX int, y []complex128, incY int) complex128 {
 	if incX == 0 {
@@ -288,9 +281,7 @@ func (Implementation) Zdotc(n int, x []complex128, incX int, y []complex128, inc
 }
 
 // Zdotu computes the dot product
-//
-//	xᵀ · y
-//
+//  xᵀ · y
 // of two complex vectors x and y.
 func (Implementation) Zdotu(n int, x []complex128, incX int, y []complex128, incY int) complex128 {
 	if incX == 0 {

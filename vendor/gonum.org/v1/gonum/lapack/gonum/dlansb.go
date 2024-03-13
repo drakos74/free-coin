@@ -100,31 +100,35 @@ func (impl Implementation) Dlansb(norm lapack.MatrixNorm, uplo blas.Uplo, n, kd 
 		}
 	case lapack.Frobenius:
 		scale := 0.0
-		sum := 1.0
+		ssq := 1.0
 		if uplo == blas.Upper {
 			if kd > 0 {
 				// Sum off-diagonals.
 				for i := 0; i < n-1; i++ {
 					ilen := min(n-i-1, kd)
-					scale, sum = impl.Dlassq(ilen, ab[i*ldab+1:], 1, scale, sum)
+					rowscale, rowssq := impl.Dlassq(ilen, ab[i*ldab+1:], 1, 0, 1)
+					scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 				}
-				sum *= 2
+				ssq *= 2
 			}
 			// Sum diagonal.
-			scale, sum = impl.Dlassq(n, ab, ldab, scale, sum)
+			dscale, dssq := impl.Dlassq(n, ab, ldab, 0, 1)
+			scale, ssq = impl.Dcombssq(scale, ssq, dscale, dssq)
 		} else {
 			if kd > 0 {
 				// Sum off-diagonals.
 				for i := 1; i < n; i++ {
 					ilen := min(i, kd)
-					scale, sum = impl.Dlassq(ilen, ab[i*ldab+kd-ilen:], 1, scale, sum)
+					rowscale, rowssq := impl.Dlassq(ilen, ab[i*ldab+kd-ilen:], 1, 0, 1)
+					scale, ssq = impl.Dcombssq(scale, ssq, rowscale, rowssq)
 				}
-				sum *= 2
+				ssq *= 2
 			}
 			// Sum diagonal.
-			scale, sum = impl.Dlassq(n, ab[kd:], ldab, scale, sum)
+			dscale, dssq := impl.Dlassq(n, ab[kd:], ldab, 0, 1)
+			scale, ssq = impl.Dcombssq(scale, ssq, dscale, dssq)
 		}
-		value = scale * math.Sqrt(sum)
+		value = scale * math.Sqrt(ssq)
 	}
 
 	return value

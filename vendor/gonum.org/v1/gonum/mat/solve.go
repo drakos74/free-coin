@@ -11,13 +11,10 @@ import (
 )
 
 // Solve solves the linear least squares problem
-//
-//	minimize over x |b - A*x|_2
-//
-// where A is an m×n matrix, b is a given m element vector and x is n element
+//  minimize over x |b - A*x|_2
+// where A is an m×n matrix A, b is a given m element vector and x is n element
 // solution vector. Solve assumes that A has full rank, that is
-//
-//	rank(A) = min(m,n)
+//  rank(A) = min(m,n)
 //
 // If m >= n, Solve finds the unique least squares solution of an overdetermined
 // system.
@@ -55,10 +52,10 @@ func (m *Dense) Solve(a, b Matrix) error {
 		case RawMatrixer:
 			if m != bU || bTrans {
 				if m == bU || m.checkOverlap(rm.RawMatrix()) {
-					tmp := getDenseWorkspace(br, bc, false)
+					tmp := getWorkspace(br, bc, false)
 					tmp.Copy(b)
 					m.Copy(tmp)
-					putDenseWorkspace(tmp)
+					putWorkspace(tmp)
 					break
 				}
 				m.Copy(b)
@@ -68,19 +65,19 @@ func (m *Dense) Solve(a, b Matrix) error {
 				m.Copy(b)
 			} else if bTrans {
 				// m and b share data so Copy cannot be used directly.
-				tmp := getDenseWorkspace(br, bc, false)
+				tmp := getWorkspace(br, bc, false)
 				tmp.Copy(b)
 				m.Copy(tmp)
-				putDenseWorkspace(tmp)
+				putWorkspace(tmp)
 			}
 		}
 
 		rm := rma.RawTriangular()
 		blas64.Trsm(side, tA, 1, rm, m.mat)
-		work := getFloat64s(3*rm.N, false)
+		work := getFloats(3*rm.N, false)
 		iwork := getInts(rm.N, false)
 		cond := lapack64.Trcon(CondNorm, rm, work, iwork)
-		putFloat64s(work)
+		putFloats(work)
 		putInts(iwork)
 		if cond > ConditionTolerance {
 			return Condition(cond)
@@ -118,13 +115,10 @@ func (m *Dense) Solve(a, b Matrix) error {
 }
 
 // SolveVec solves the linear least squares problem
-//
-//	minimize over x |b - A*x|_2
-//
-// where A is an m×n matrix, b is a given m element vector and x is n element
+//  minimize over x |b - A*x|_2
+// where A is an m×n matrix A, b is a given m element vector and x is n element
 // solution vector. Solve assumes that A has full rank, that is
-//
-//	rank(A) = min(m,n)
+//  rank(A) = min(m,n)
 //
 // If m >= n, Solve finds the unique least squares solution of an overdetermined
 // system.

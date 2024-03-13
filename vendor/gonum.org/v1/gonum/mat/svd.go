@@ -57,9 +57,7 @@ func (svd *SVD) succFact() bool {
 //
 // The full singular value decomposition (kind == SVDFull) is a factorization
 // of an m×n matrix A of the form
-//
-//	A = U * Σ * Vᵀ
-//
+//  A = U * Σ * Vᵀ
 // where Σ is an m×n diagonal matrix, U is an m×m orthogonal matrix, and V is an
 // n×n orthogonal matrix. The diagonal elements of Σ are the singular values of A.
 // The first min(m,n) columns of U and V are, respectively, the left and right
@@ -68,9 +66,7 @@ func (svd *SVD) succFact() bool {
 // Significant storage space can be saved by using the thin representation of
 // the SVD (kind == SVDThin) instead of the full SVD, especially if
 // m >> n or m << n. The thin SVD finds
-//
-//	A = U~ * Σ * V~ᵀ
-//
+//  A = U~ * Σ * V~ᵀ
 // where U~ is of size m×min(m,n), Σ is a diagonal matrix of size min(m,n)×min(m,n)
 // and V~ is of size n×min(m,n).
 //
@@ -135,9 +131,9 @@ func (svd *SVD) Factorize(a Matrix, kind SVDKind) (ok bool) {
 
 	work := []float64{0}
 	lapack64.Gesvd(jobU, jobVT, aCopy.mat, svd.u, svd.vt, svd.s, work, -1)
-	work = getFloat64s(int(work[0]), false)
+	work = getFloats(int(work[0]), false)
 	ok = lapack64.Gesvd(jobU, jobVT, aCopy.mat, svd.u, svd.vt, svd.s, work, len(work))
-	putFloat64s(work)
+	putFloats(work)
 	if !ok {
 		svd.kind = 0
 	}
@@ -277,14 +273,10 @@ func (svd *SVD) VTo(dst *Dense) {
 }
 
 // SolveTo calculates the minimum-norm solution to a linear least squares problem
-//
-//	minimize over n-element vectors x: |b - A*x|_2 and |x|_2
-//
+//  minimize over n-element vectors x: |b - A*x|_2 and |x|_2
 // where b is a given m-element vector, using the SVD of m×n matrix A stored in
 // the receiver. A may be rank-deficient, that is, the given effective rank can be
-//
-//	rank ≤ min(m,n)
-//
+//  rank ≤ min(m,n)
 // The rank can be computed using SVD.Rank.
 //
 // Several right-hand side vectors b and solution vectors x can be handled in a
@@ -326,12 +318,12 @@ func (svd *SVD) SolveTo(dst *Dense, b Matrix, rank int) []float64 {
 	s := svd.s[:rank]
 
 	_, bc := b.Dims()
-	c := getDenseWorkspace(svd.u.Cols, bc, false)
-	defer putDenseWorkspace(c)
+	c := getWorkspace(svd.u.Cols, bc, false)
+	defer putWorkspace(c)
 	c.Mul(u.T(), b)
 
-	y := getDenseWorkspace(rank, bc, false)
-	defer putDenseWorkspace(y)
+	y := getWorkspace(rank, bc, false)
+	defer putWorkspace(y)
 	y.DivElem(c.slice(0, rank, 0, bc), repVector{vec: s, cols: bc})
 	dst.Mul(vt.slice(0, rank, 0, svd.vt.Cols).T(), y)
 
@@ -361,14 +353,10 @@ func (m repVector) At(i, j int) float64 {
 func (m repVector) T() Matrix { return Transpose{m} }
 
 // SolveVecTo calculates the minimum-norm solution to a linear least squares problem
-//
-//	minimize over n-element vectors x: |b - A*x|_2 and |x|_2
-//
+//  minimize over n-element vectors x: |b - A*x|_2 and |x|_2
 // where b is a given m-element vector, using the SVD of m×n matrix A stored in
 // the receiver. A may be rank-deficient, that is, the given effective rank can be
-//
-//	rank ≤ min(m,n)
-//
+//  rank ≤ min(m,n)
 // The rank can be computed using SVD.Rank.
 //
 // The resulting vector x will be stored in dst. dst must be either empty or
@@ -407,12 +395,12 @@ func (svd *SVD) SolveVecTo(dst *VecDense, b Vector, rank int) float64 {
 	}
 	s := svd.s[:rank]
 
-	c := getVecDenseWorkspace(svd.u.Cols, false)
-	defer putVecDenseWorkspace(c)
+	c := getWorkspaceVec(svd.u.Cols, false)
+	defer putWorkspaceVec(c)
 	c.MulVec(u.T(), b)
 
-	y := getVecDenseWorkspace(rank, false)
-	defer putVecDenseWorkspace(y)
+	y := getWorkspaceVec(rank, false)
+	defer putWorkspaceVec(y)
 	y.DivElemVec(c.sliceVec(0, rank), NewVecDense(rank, s))
 	dst.MulVec(vt.slice(0, rank, 0, svd.vt.Cols).T(), y)
 
