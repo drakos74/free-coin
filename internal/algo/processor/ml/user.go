@@ -48,9 +48,12 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 
 		switch action {
 		case "ds":
-			txtBuffer.WriteString(fmt.Sprintf("%s\n%s",
-				formatOutPredictions(time.Now(), key, 0, tracker[key].Prediction, tracker[key].Performance),
-				formatRecentData(tracker[key].Buffer.Get())))
+			if track, ok := tracker[key]; ok {
+				txtBuffer.WriteString(fmt.Sprintf("%s\n%s",
+					formatOutPredictions(time.Now(), key, 0, track.Prediction, track.Performance),
+					formatRecentData(track.Buffer.Get())))
+			}
+			txtBuffer.WriteString("no ds yet ... ")
 		case "cfg":
 			txtBuffer.WriteString(formatConfig(strategy.Config()))
 		case "gap":
