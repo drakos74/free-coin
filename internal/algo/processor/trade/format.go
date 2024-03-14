@@ -32,7 +32,7 @@ func formatConfig(config mlmodel.Config) string {
 	buffer := new(strings.Builder)
 
 	for k, segment := range config.Segments {
-		buffer.WriteString(fmt.Sprintf("%+v\n%s\n",
+		buffer.WriteString(fmt.Sprintf("%+v %s",
 			k.ToString(), segment.Trader.Format()))
 	}
 

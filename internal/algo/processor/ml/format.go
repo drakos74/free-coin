@@ -65,14 +65,9 @@ func formatConfig(config mlmodel.Config) string {
 			segment.Stats.Format()))
 	}
 
-	return fmt.Sprintf("%d\n%s (%.2f€ +%.2f -%.2f) \n[debug=%v,benchmark=%v]",
+	return fmt.Sprintf("%d\n%s",
 		len(config.Segments),
 		buffer.String(),
-		config.Position.OpenValue,
-		config.Position.TakeProfit,
-		config.Position.StopLoss,
-		config.Option.Debug,
-		config.Option.Benchmark,
 	)
 }
 

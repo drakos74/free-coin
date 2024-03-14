@@ -55,61 +55,15 @@ func CoinConfig(coins map[model.Coin]mlmodel.ConfigSegment) *mlmodel.Config {
 
 func Config(coin ...model.Coin) *mlmodel.Config {
 
-	cfg := mlmodel.SegmentConfig(make(map[model.Key]mlmodel.Segments))
+	cfg := make(map[model.Coin]mlmodel.ConfigSegment)
 
-	if len(coin) > 0 {
-		for _, c := range coin {
-			cfg = cfg.AddConfig(ForCoin(c))
+	for _, c := range coin {
+		cfg[c] = func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+			return ForCoin(coin)
 		}
-	} else {
-		cfg = cfg.
-			AddConfig(ForCoin(model.BTC)).
-			AddConfig(ForCoin(model.DOT)).
-			AddConfig(ForCoin(model.ETH)).
-			AddConfig(ForCoin(model.LINK)).
-			AddConfig(ForCoin(model.SOL)).
-			//AddConfig(ForCoin(model.FLOW)).
-			AddConfig(ForCoin(model.MATIC)).
-			AddConfig(ForCoin(model.AAVE)).
-			//AddConfig(ForCoin(model.KSM)).
-			AddConfig(ForCoin(model.XRP)).
-			//AddConfig(ForCoin(model.ADA)).
-			AddConfig(ForCoin(model.KAVA))
 	}
 
-	return &mlmodel.Config{
-		Segments: cfg,
-		Position: mlmodel.Position{
-			OpenValue:  250,
-			StopLoss:   0.015,
-			TakeProfit: 0.015,
-			TrackingConfig: []*model.TrackingConfig{{
-				Duration: 30 * time.Second,
-				Samples:  5,
-				// TODO : investigate more what this does
-				//Threshold: []float64{0.00005, 0.000002},
-				//Threshold: []float64{0.00002, 0.000001},
-				Threshold: []float64{0.0, 0.0},
-			}},
-		},
-		Option: mlmodel.Option{
-			Trace: map[string]bool{
-				//string(model.AllCoins): true,
-				//string(model.BTC): true,
-			},
-			Log:       false,
-			Debug:     true,
-			Benchmark: true,
-		},
-		Buffer: mlmodel.Buffer{
-			Interval: 10 * time.Second,
-			History:  true,
-		},
-		Segment: mlmodel.Buffer{
-			Interval: 15 * time.Minute,
-			History:  true,
-		},
-	}
+	return CoinConfig(cfg)
 }
 
 func ModelConfig(precision float64) mlmodel.Model {
