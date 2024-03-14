@@ -57,10 +57,27 @@ func Config(coin ...model.Coin) *mlmodel.Config {
 
 	cfg := make(map[model.Coin]mlmodel.ConfigSegment)
 
-	for _, c := range coin {
-		cfg[c] = func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-			return ForCoin(coin)
+	if len(coin) > 0 {
+		for _, c := range coin {
+			cfg[c] = func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+				return ForCoin(coin)
+			}
 		}
+	} else {
+		return Config(
+			model.BTC,
+			model.DOT,
+			model.ETH,
+			model.LINK,
+			model.SOL,
+			//model.FLOW,
+			model.MATIC,
+			model.AAVE,
+			//model.KSM,
+			model.XRP,
+			//model.ADA,
+			model.KAVA,
+		)
 	}
 
 	return CoinConfig(cfg)
