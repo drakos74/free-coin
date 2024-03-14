@@ -57,7 +57,7 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 				for k, _ := range strategy.Config().Segments {
 					if track, ok := tracker[k]; ok {
 						txtBuffer.WriteString(fmt.Sprintf("%s\n%s\n",
-							formatOutPredictions(time.Now(), key, 0, track.Prediction, track.Performance),
+							formatOutPredictions(time.Now(), k, 0, track.Prediction, track.Performance),
 							formatRecentData(track.Buffer.Get())))
 					} else {
 						txtBuffer.WriteString(fmt.Sprintf("no ds yet for ... %+v\n", k))

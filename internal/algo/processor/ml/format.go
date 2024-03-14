@@ -34,11 +34,11 @@ func formatDetail(detail mlmodel.Detail) string {
 }
 
 func formatRecentData(dd [][]float64) string {
-	one := make([]float64, len(dd))
-	two := make([]float64, len(dd))
+	one := make([]string, len(dd))
+	two := make([]string, len(dd))
 	for i, d := range dd {
-		one[i] = d[0]
-		two[i] = d[1]
+		one[i] = fmt.Sprintf("%.2f", d[0])
+		two[i] = fmt.Sprintf("%.2f", d[1])
 	}
 	return fmt.Sprintf("%+v\n%+v", one, two)
 }
