@@ -72,11 +72,11 @@ func formatConfig(config mlmodel.Config) string {
 }
 
 func formatModelConfig(models []mlmodel.Model) string {
-	formattedStrings := make([]string, len(models))
-	for i, m := range models {
-		formattedStrings[i] = m.Format()
+	buffer := new(strings.Builder)
+	for _, m := range models {
+		buffer.WriteString(fmt.Sprintf("\n%s", m.Format()))
 	}
-	return fmt.Sprintf("%+v", formattedStrings)
+	return buffer.String()
 }
 
 func formatPosition(p model.Position) string {

@@ -73,12 +73,12 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 	var networkConstructor = net.BaseNetworkConstructor(8, 3)
 	networks := make(map[model.Key]*net.BaseNetwork)
 
-	tracker := make(map[model.Key]Tracker)
+	tracker := make(map[model.Key]*Tracker)
 
 	return func(u api.User, e api.Exchange) api.Processor {
 		// init the user interactions
 		go trackUserActions(index, u, strategy, tracker)
-		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(config))), nil)
+		u.Send(index, api.NewMessage(fmt.Sprintf("%s starting processor ... %s", Name, formatConfig(config))), nil)
 
 		numEvents := 0
 		// process the collector vectors for sophisticated analysis
@@ -95,7 +95,7 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 				for key, segments := range configSegments {
 
 					if _, ok := tracker[key]; !ok {
-						tracker[key] = Tracker{
+						tracker[key] = &Tracker{
 							// track the latest data
 							Buffer:      buffer.NewMultiBuffer(5),
 							Performance: make(map[mlmodel.Detail]Performance),

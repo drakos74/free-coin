@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, strategy *processor.Strategy, tracker map[model.Key]Tracker) {
+func trackUserActions(index api.Index, user api.User, strategy *processor.Strategy, tracker map[model.Key]*Tracker) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
