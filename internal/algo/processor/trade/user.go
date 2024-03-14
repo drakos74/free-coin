@@ -26,7 +26,7 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 		var action string
 		_, err := command.Validate(
 			api.AnyUser(),
-			api.Contains("?ml"),
+			api.Contains("?tr"),
 			api.OneOf(&action,
 				"start",
 				"stop",
