@@ -48,6 +48,7 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 
 		switch action {
 		case "ds":
+			txtBuffer.WriteString(fmt.Sprintf("%d\n", len(tracker)))
 			if track, ok := tracker[key]; ok {
 				txtBuffer.WriteString(fmt.Sprintf("%s\n%s",
 					formatOutPredictions(time.Now(), key, 0, track.Prediction, track.Performance),
