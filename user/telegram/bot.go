@@ -113,7 +113,6 @@ func (b *Bot) Listen(key, prefix string) <-chan api.Command {
 
 // Send sends the given message with the attached details to the specified telegram chat.
 func (b *Bot) Send(private api.Index, message *api.Message, trigger *api.Trigger) int {
-	fmt.Printf("send private = %+v\n", private)
 	msg, err := b.newMessage(private, message)
 	if err != nil {
 		log.Err(err).Msg("could not create message")

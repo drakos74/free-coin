@@ -86,12 +86,12 @@ func main() {
 	engine.AddProcessor(coin.NewStrategy(trade.Name).
 		ForUser(u).
 		ForExchange(exchange).
-		WithProcessor(trade.Processor(api.DrCoin, shard, registry, strategy)).
+		WithProcessor(trade.Processor(api.FreeCoin, shard, registry, strategy)).
 		Apply()).
 		AddProcessor(coin.NewStrategy(ml.Name).
 			ForUser(u).
 			ForExchange(exchange).
-			WithProcessor(ml.Processor(api.DrCoin, shard, strategy)).
+			WithProcessor(ml.Processor(api.FreeCoin, shard, strategy)).
 			Apply())
 	go u.Run(context.Background())
 	err = engine.Run()
