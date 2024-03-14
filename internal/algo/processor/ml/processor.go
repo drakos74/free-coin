@@ -1,7 +1,6 @@
 package ml
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -48,8 +47,8 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 		//}
 
 		// init the user interactions
-		go trackUserActions(index, u, nil)
-		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
+		//go trackUserActions(index, u, nil)
+		//u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(*config))), nil)
 
 		// process the collector vectors for sophisticated analysis
 		//go func(col *collector) {

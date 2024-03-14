@@ -25,6 +25,12 @@ const (
 	Name = "ml-network"
 )
 
+type Tracker struct {
+	Buffer      *buffer.MultiBuffer
+	Performance map[mlmodel.Detail]Performance
+	Prediction  map[mlmodel.Detail][][]float64
+}
+
 type Performance struct {
 	num            int
 	total          int
@@ -67,16 +73,14 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 	var networkConstructor = net.BaseNetworkConstructor(8, 3)
 	networks := make(map[model.Key]*net.BaseNetwork)
 
-	performance := make(map[model.Key]map[mlmodel.Detail]Performance)
-	prediction := make(map[model.Key]map[mlmodel.Detail][][]float64)
+	tracker := make(map[model.Key]Tracker)
 
 	return func(u api.User, e api.Exchange) api.Processor {
 		// init the user interactions
-		go trackUserActions(index, u, strategy)
+		go trackUserActions(index, u, strategy, tracker)
 		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(config))), nil)
 
 		numEvents := 0
-		recentHistory := make(map[model.Key]*buffer.MultiBuffer)
 		// process the collector vectors for sophisticated analysis
 		go func(col *Collector) {
 			for vv := range col.vectors {
@@ -89,30 +93,30 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 				t := vv.Meta.Tick.Time
 				p := vv.NewIn[len(vv.NewIn)-1]
 				for key, segments := range configSegments {
+
+					if _, ok := tracker[key]; !ok {
+						tracker[key] = Tracker{
+							// track the latest data
+							Buffer:      buffer.NewMultiBuffer(5),
+							Performance: make(map[mlmodel.Detail]Performance),
+							Prediction:  make(map[mlmodel.Detail][][]float64),
+						}
+					}
+
 					if key.Match(vv.Meta.Key.Coin) {
-						// track the latest data
-						if _, ok := recentHistory[key]; !ok {
-							recentHistory[key] = buffer.NewMultiBuffer(5)
-						}
 						// track the trend and price ...
-						recentHistory[key].Push(vv.NewIn[0], vv.NewIn[len(vv.NewIn)-1])
+						tracker[key].Buffer.Push(vv.NewIn[0], vv.NewIn[len(vv.NewIn)-1])
 						// track the performance
-						if _, ok := prediction[key]; !ok {
-							prediction[key] = make(map[mlmodel.Detail][][]float64)
-						}
-						if _, ok := performance[key]; !ok {
-							performance[key] = make(map[mlmodel.Detail]Performance)
-						}
-						for detail, p := range prediction[key] {
-							if _, ok := performance[key][detail]; !ok {
-								performance[key][detail] = Performance{
+						for detail, prediction := range tracker[key].Prediction {
+							if _, ok := tracker[key].Performance[detail]; !ok {
+								tracker[key].Performance[detail] = Performance{
 									num:            0,
 									total:          0,
 									falsePositives: make(map[string]int),
 								}
 							}
 
-							perf := performance[key][detail]
+							perf := tracker[key].Performance[detail]
 							// compare new vector with previous prediction
 							reality := 0.0
 							if vv.PrevOut[0] > 0.5 {
@@ -120,7 +124,7 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 							} else if vv.PrevOut[0] < -0.5 {
 								reality = -1
 							}
-							pred := p[0][0]
+							pred := prediction[0][0]
 
 							result := reality * pred
 							if result < 0 {
@@ -143,7 +147,7 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 								perf.total += 1
 							}
 							perf.num += 1
-							performance[key][detail] = perf
+							tracker[key].Performance[detail] = perf
 						}
 						// do our training here ...
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
@@ -155,8 +159,8 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 						out, done, err := network.Push(key, vv)
 						if hasTrigger(out) {
 							u.Send(index,
-								api.NewMessage(formatOutPredictions(t, key, p, out, performance[key])).
-									AddLine(formatRecentData(recentHistory[key].Get())),
+								api.NewMessage(formatOutPredictions(t, key, p, out, tracker[key].Performance)).
+									AddLine(formatRecentData(tracker[key].Buffer.Get())),
 								nil)
 						}
 						//fmt.Printf("out = %+v\n", out)
@@ -165,7 +169,9 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 							return
 						}
 						if done {
-							prediction[key] = out
+							for d, o := range out {
+								tracker[key].Prediction[d] = o
+							}
 						}
 					}
 				}

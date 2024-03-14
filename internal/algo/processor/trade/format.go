@@ -76,16 +76,16 @@ func formatTrendValue(k time.Duration, trend model.Trend) string {
 	return fmt.Sprintf("%v:%+v|%+v\n"+
 		"%+v\n%+v\n"+
 		"%+v\n%+v",
-		k, formatTypes(trend.Type, emoji.MapToTrend), formatTypes(trend.Shift, emoji.MapToTrend),
-		formatFloats(trend.LastValue, func(f float64) string {
+		k, formatTypes(emoji.ArrowUp, trend.Type, emoji.MapToTrend), formatTypes(emoji.ArrowCurve, trend.Shift, emoji.MapToTrend),
+		formatFloats(emoji.Equal, trend.LastValue, func(f float64) string {
 			return fmt.Sprintf(" %.4f", f)
 		}),
-		formatFloats(trend.CurrentValue, func(f float64) string {
+		formatFloats(emoji.Minus, trend.CurrentValue, func(f float64) string {
 			return fmt.Sprintf(" %.4f", f)
 		}),
-		formatFloats(trend.XX, func(f float64) string {
+		formatFloats("x", trend.XX, func(f float64) string {
 			return fmt.Sprintf(" %.2f", f)
-		}), formatFloats(trend.YY, func(f float64) string {
+		}), formatFloats("y", trend.YY, func(f float64) string {
 			return fmt.Sprintf(" %.2f", f)
 		}))
 }
@@ -269,23 +269,23 @@ func formatPositionState(state model.PositionState) string {
 	return formatCoinPosition(state.Coin, state.Type, 0, state.Value, state.PnL)
 }
 
-func formatDecision(decision *model.Decision) string {
-	if decision == nil {
-		return ""
-	}
-	return fmt.Sprintf("%.2f %+v\n"+
-		"%+v\n"+
-		"%+v\v",
-		decision.Confidence, formatFloats(decision.Config, func(f float64) string {
-			return fmt.Sprintf(" %.2f", f)
-		}),
-		formatFloats(decision.Features, func(f float64) string {
-			return fmt.Sprintf(" %.2f", f)
-		}),
-		formatFloats(decision.Importance, func(f float64) string {
-			return fmt.Sprintf(" %.2f", f)
-		}))
-}
+//func formatDecision(decision *model.Decision) string {
+//	if decision == nil {
+//		return ""
+//	}
+//	return fmt.Sprintf("%.2f %+v\n"+
+//		"%+v\n"+
+//		"%+v\v",
+//		decision.Confidence, formatFloats(decision.Config, func(f float64) string {
+//			return fmt.Sprintf(" %.2f", f)
+//		}),
+//		formatFloats(decision.Features, func(f float64) string {
+//			return fmt.Sprintf(" %.2f", f)
+//		}),
+//		formatFloats(decision.Importance, func(f float64) string {
+//			return fmt.Sprintf(" %.2f", f)
+//		}))
+//}
 
 func formatPrediction(trace bool, cluster int, score float64, metadata ml.Metadata, err error) string {
 	if trace {
@@ -304,9 +304,9 @@ func formatSpectrum(spectrum math.Spectrum) string {
 	return fmt.Sprintf("%.2f (%.2f) %s", spectrum.Amplitude, spectrum.Mean(), formatRNums(spectrum.Values))
 }
 
-func formatFloats(ff []float64, format func(f float64) string) string {
+func formatFloats(title string, ff []float64, format func(f float64) string) string {
 	s := new(strings.Builder)
-	s.WriteString("[")
+	s.WriteString(fmt.Sprintf("%s:[", title))
 	for i := 0; i < len(ff); i++ {
 		if i != 0 {
 			s.WriteString(",")
@@ -317,9 +317,9 @@ func formatFloats(ff []float64, format func(f float64) string) string {
 	return s.String()
 }
 
-func formatTypes(ff []model.Type, format func(i model.Type) string) string {
+func formatTypes(title string, ff []model.Type, format func(i model.Type) string) string {
 	s := new(strings.Builder)
-	s.WriteString("[")
+	s.WriteString(fmt.Sprintf("%s:[", title))
 	for i := 0; i < len(ff); i++ {
 		if i != 0 {
 			s.WriteString(",")

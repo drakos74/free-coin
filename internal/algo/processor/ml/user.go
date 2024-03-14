@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func trackUserActions(index api.Index, user api.User, strategy *processor.Strategy) {
+func trackUserActions(index api.Index, user api.User, strategy *processor.Strategy, tracker map[model.Key]Tracker) {
 	for command := range user.Listen("ml", "?ml") {
 		log.Debug().
 			Str("user", command.User).
@@ -31,6 +31,7 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 				"cfg",
 				"gap",
 				"prec",
+				"ds",
 				"",
 			),
 			api.Any(&coin),
@@ -46,6 +47,10 @@ func trackUserActions(index api.Index, user api.User, strategy *processor.Strate
 		txtBuffer := new(strings.Builder)
 
 		switch action {
+		case "ds":
+			txtBuffer.WriteString(fmt.Sprintf("%s\n%s",
+				formatOutPredictions(time.Now(), key, 0, tracker[key].Prediction, tracker[key].Performance),
+				formatRecentData(tracker[key].Buffer.Get())))
 		case "cfg":
 			txtBuffer.WriteString(formatConfig(strategy.Config()))
 		case "gap":

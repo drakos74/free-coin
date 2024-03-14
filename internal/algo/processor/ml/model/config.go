@@ -192,9 +192,11 @@ func EvolveFloat(f float64, r float64, limit float64) float64 {
 }
 
 func (m Model) Format() string {
-	return fmt.Sprintf("[%d|%.2f|%d|%d]",
+	return fmt.Sprintf("(%s:%s)[buffer:%d|threshold:%.2f|spread:%.2f.f|size:%d|features:%d]",
+		m.Detail.Type, m.Detail.Hash,
 		m.BufferSize,
 		m.Threshold,
+		m.Spread,
 		m.Size,
 		m.Features)
 }

@@ -55,6 +55,12 @@ const (
 	Loss   = "🩸"
 	Profit = "💰"
 	None   = "🪙"
+
+	ArrowUp    = "↗"
+	ArrowCurve = "⤵"
+
+	Minus = "➖"
+	Equal = "➗"
 )
 
 func MapBool(s bool) string {
