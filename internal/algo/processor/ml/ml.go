@@ -40,7 +40,7 @@ type Performance struct {
 func (p Performance) String() string {
 	buffer := new(strings.Builder)
 
-	buffer.WriteString(fmt.Sprintf("%d / %d | %.2f : %.2f\n",
+	buffer.WriteString(fmt.Sprintf("%d / %d | %.2f : %.2f",
 		p.total, p.num, p.Value(false), p.Value(true)))
 	//for s, v := range p.falsePositives {
 	//	buffer.WriteString(fmt.Sprintf("%s : %d\n", s, v))
