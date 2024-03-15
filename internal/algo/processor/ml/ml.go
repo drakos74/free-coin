@@ -40,7 +40,7 @@ type Performance struct {
 func (p Performance) String() string {
 	buffer := new(strings.Builder)
 
-	buffer.WriteString(fmt.Sprintf("%d of %d -> %.2f (%.2f)\n",
+	buffer.WriteString(fmt.Sprintf("%d / %d | %.2f : %.2f\n",
 		p.total, p.num, p.Value(false), p.Value(true)))
 	//for s, v := range p.falsePositives {
 	//	buffer.WriteString(fmt.Sprintf("%s : %d\n", s, v))
@@ -94,6 +94,11 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 				t := vv.Meta.Tick.Time
 				p := vv.NewIn[len(vv.NewIn)-1]
 				for key, segments := range configSegments {
+
+					// process only if we have it enabled
+					if !segments.Stats.Live {
+						return
+					}
 
 					if _, ok := tracker[key]; !ok {
 						tracker[key] = &Tracker{

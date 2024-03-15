@@ -19,11 +19,14 @@ import (
 func formatOutPredictions(t time.Time, key model.Key, p float64, out map[mlmodel.Detail][][]float64, performance map[mlmodel.Detail]Performance) string {
 	buffer := new(strings.Builder)
 
-	for detail, p := range out {
-		buffer.WriteString(fmt.Sprintf("%v %+v (%+v)\n",
-			formatDetail(detail),
-			emoji.MapToSign(p[len(p)-1][0]),
-			performance[detail]))
+	for detail, o := range out {
+		v := o[len(o)-1][0]
+		if v != 0 {
+			buffer.WriteString(fmt.Sprintf("%v %+v\n(%+v)\n",
+				formatDetail(detail),
+				emoji.MapToSign(v),
+				performance[detail]))
+		}
 	}
 
 	return fmt.Sprintf("%v | %s | %.2f \n%s", t, formatKey(key), p, buffer.String())
