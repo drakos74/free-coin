@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	Name = "close"
+	Name = "trade-execution"
 )
 
 // Processor is the position processor main routine.
