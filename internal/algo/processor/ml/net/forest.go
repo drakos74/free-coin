@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/drakos74/free-coin/internal/model"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/math/ml"
@@ -118,7 +120,7 @@ func toFeatureFile(parentPath string, description string, vectors [][]float64, p
 		lw := new(strings.Builder)
 		for i, v := range vector {
 			if i >= len(vector)-1 {
-				lw.WriteString(fmt.Sprintf("%s", toEmoji(v)))
+				lw.WriteString(fmt.Sprintf("%s", toEmoji(v, 0.5)))
 			} else {
 				lw.WriteString(fmt.Sprintf("%.4f,", v))
 			}
@@ -126,4 +128,14 @@ func toFeatureFile(parentPath string, description string, vectors [][]float64, p
 		_, _ = writer.WriteString(lw.String() + "\n")
 	}
 	return fn, nil
+}
+
+func (r *RandomForest) Load(key model.Key, detail mlmodel.Detail) error {
+	log.Warn().Msg("TODO load for forest network")
+	return nil
+}
+
+func (r *RandomForest) Save(key model.Key, detail mlmodel.Detail) error {
+	log.Warn().Msg("TODO save for forest network")
+	return nil
 }

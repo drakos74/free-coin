@@ -5,6 +5,7 @@ import (
 
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/math/ml"
+	"github.com/drakos74/free-coin/internal/model"
 	"github.com/drakos74/go-ex-machina/xmath"
 )
 
@@ -65,4 +66,12 @@ func (m *MultiNetwork) Loss(actual, predicted [][]float64) []float64 {
 
 func (m *MultiNetwork) Config() mlmodel.Model {
 	return mlmodel.Model{}
+}
+
+func (m *MultiNetwork) Load(key model.Key, detail mlmodel.Detail) error {
+	return nil
+}
+
+func (m *MultiNetwork) Save(key model.Key, detail mlmodel.Detail) error {
+	return nil
 }

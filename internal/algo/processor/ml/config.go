@@ -127,12 +127,13 @@ func defaultConfig() mlmodel.Segments {
 				{
 					Detail: mlmodel.Detail{
 						Type: net.GRU_KEY,
+						Hash: "gru_1_64_1",
 					},
 					Size:         []int{1, 64, 1},
 					LearningRate: 0.01,
 					Threshold:    0,
 					MaxEpochs:    100,
-					Spread:       0.5,
+					Spread:       1,
 				},
 				{
 					Detail: mlmodel.Detail{
@@ -141,7 +142,7 @@ func defaultConfig() mlmodel.Segments {
 					},
 					BufferSize: 2,
 					Features:   []int{2, 1},
-					Spread:     0.5,
+					Spread:     1,
 					Live:       true,
 				},
 				{
@@ -151,7 +152,7 @@ func defaultConfig() mlmodel.Segments {
 					},
 					BufferSize: 4,
 					Features:   []int{3, 1},
-					Spread:     0.5,
+					Spread:     1,
 					Live:       true,
 				},
 				{
@@ -161,15 +162,17 @@ func defaultConfig() mlmodel.Segments {
 					},
 					BufferSize: 2,
 					Features:   []int{1, 1},
-					Spread:     0.5,
+					Spread:     1,
 					Live:       true,
 				},
 				{
 					Detail: mlmodel.Detail{
 						Type: net.HMM_KEY,
+						Hash: "hmm_5_2",
 					},
 					Features:   []int{5, 2},
 					BufferSize: 0,
+					Spread:     1,
 				},
 				// TODO : fix forest does not work currently
 				//{

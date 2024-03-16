@@ -60,6 +60,8 @@ type Network interface {
 	Predict(x [][]float64) ([][]float64, ml.Metadata, error)
 	Loss(actual, predicted [][]float64) []float64
 	Config() mlmodel.Model
+	Load(key model.Key, detail mlmodel.Detail) error
+	Save(key model.Key, detail mlmodel.Detail) error
 }
 
 // ConstructNetwork defines a network constructor func.
@@ -89,19 +91,19 @@ type BaseNetwork struct {
 	track  map[mlmodel.Detail]*Tracker
 }
 
-func BaseNetworkConstructor(in, out int) func(segments mlmodel.Segments) *BaseNetwork {
-	return func(segments mlmodel.Segments) *BaseNetwork {
+func BaseNetworkConstructor(in, out int) func(key model.Key, segments mlmodel.Segments) *BaseNetwork {
+	return func(key model.Key, segments mlmodel.Segments) *BaseNetwork {
 		gen := make([]ConstructNetwork, len(segments.Stats.Model))
 		for i, segment := range segments.Stats.Model {
 			gen[i] = func() (Network, mlmodel.Model) {
 				return NewNetwork(segment.Detail.Type, segment), segment
 			}
 		}
-		return NewBaseNetwork(in, out, gen...)
+		return NewBaseNetwork(key, in, out, gen...)
 	}
 }
 
-func NewBaseNetwork(in, out int, gen ...ConstructNetwork) *BaseNetwork {
+func NewBaseNetwork(key model.Key, in, out int, gen ...ConstructNetwork) *BaseNetwork {
 
 	trackers := make(map[mlmodel.Detail]*Tracker)
 	networks := make(map[mlmodel.Detail]Network)
@@ -127,6 +129,14 @@ func NewBaseNetwork(in, out int, gen ...ConstructNetwork) *BaseNetwork {
 			Hash:  hash,
 			Index: i,
 		}
+
+		// check if we load the network
+		loadErr := nw.Load(key, detail)
+		log.Info().Err(loadErr).
+			Str("key", key.ToString()).
+			Str("detail", detail.ToString()).
+			Msg("loaded network")
+
 		networks[detail] = nw
 		config[detail] = cfg
 		trackers[detail] = NewTracker(12)
@@ -205,6 +215,14 @@ func (b *BaseNetwork) Push(k model.Key, vv mlmodel.Vector) (map[mlmodel.Detail][
 					out[detail] = thisOut
 					if minLoss == math.MaxFloat64 {
 						// init the first to have something to work with in the first iterations
+					}
+					// save the network state
+					saveErr := net.Save(k, detail)
+					if saveErr != nil {
+						log.Warn().Err(saveErr).
+							Str("key", k.ToString()).
+							Str("detail", detail.ToString()).
+							Msg("could not save network")
 					}
 					// set a default accuracy if nothing is there ...
 					if b.track[detail].metrics.Loss == 0.0 {

@@ -59,7 +59,12 @@ func ReProcessor() (proc api.Processor, err error) {
 			configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 
 			if num%100 == 0 {
-				fmt.Printf("%v | %f | performance \n%+v\n", t, p, performance)
+				fmt.Printf("%v | %f | performance \n", t, p)
+				for _, dp := range performance {
+					for d, perf := range dp {
+						fmt.Printf("%s = %+v\n", d.ToString(), perf)
+					}
+				}
 			}
 
 			for key, segments := range configSegments {
@@ -120,7 +125,7 @@ func ReProcessor() (proc api.Processor, err error) {
 					metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 					if _, ok := networks[key]; !ok {
 						// create the network for this coin set up for the first encounter
-						networks[key] = networkConstructor(segments)
+						networks[key] = networkConstructor(key, segments)
 					}
 					network := networks[key]
 					out, done, err := network.Push(key, vv)

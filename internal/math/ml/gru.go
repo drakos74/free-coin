@@ -1,9 +1,11 @@
 package ml
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/drakos74/go-ex-machina/xmath"
@@ -28,25 +30,24 @@ func apply(f func(x float64) float64) func([]float64) []float64 {
 }
 
 type GRU struct {
-	inputSize     int
-	hiddenSize    int
-	outputSize    int
-	wr            [][]float64 // reset gate weights
-	ur            [][]float64 // reset gate biases
-	wz            [][]float64 // update gate weights
-	uz            [][]float64 // update gate biases
-	wx            [][]float64 // candidate weights
-	ux            [][]float64 // candidate biases
-	wo            [][]float64 // New weight matrix
-	bo            []float64   // New bias vector
-	resetGate     []float64
-	updateGate    []float64
-	combinedInput []float64
+	inputSize     int         `json:"input_size"`
+	hiddenSize    int         `json:"hidden_size"`
+	outputSize    int         `json:"output_size"`
+	wr            [][]float64 `json:"wr"`
+	ur            [][]float64 `json:"ur"`
+	wz            [][]float64 `json:"wz"`
+	uz            [][]float64 `json:"uz"`
+	wx            [][]float64 `json:"wx"`
+	ux            [][]float64 `json:"ux"`
+	wo            [][]float64 `json:"wo"`
+	bo            []float64   `json:"bo"`
+	resetGate     []float64   `json:"reset_gate"`
+	updateGate    []float64   `json:"update_gate"`
+	combinedInput []float64   `json:"combined_input"`
 }
 
 func NewGRU(inputSize, hiddenSize, outputSize int) *GRU {
 	rand.Seed(time.Now().UnixNano())
-
 	gru := &GRU{
 		inputSize:     inputSize,
 		hiddenSize:    hiddenSize,
@@ -63,8 +64,23 @@ func NewGRU(inputSize, hiddenSize, outputSize int) *GRU {
 		updateGate:    randVec(hiddenSize),
 		combinedInput: randVec(hiddenSize),
 	}
-
 	return gru
+}
+
+func (gru *GRU) Save(filename string) error {
+	dd, err := json.Marshal(gru)
+	if err != nil {
+		return fmt.Errorf("cannot encode gru: %w", err)
+	}
+	return os.WriteFile(filename, dd, 0644)
+}
+
+func (gru *GRU) Load(filename string) error {
+	dd, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("cannot decode gru: %w", err)
+	}
+	return json.Unmarshal(dd, gru)
 }
 
 func randVec(cols int) []float64 {

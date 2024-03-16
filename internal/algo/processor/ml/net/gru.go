@@ -1,8 +1,13 @@
 package net
 
 import (
+	"fmt"
+	"os"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/math/ml"
+	"github.com/drakos74/free-coin/internal/model"
+	"github.com/drakos74/free-coin/internal/storage"
 )
 
 const GRU_KEY string = "net.GRU"
@@ -47,4 +52,21 @@ func (gru *GRU) Loss(actual, predicted [][]float64) []float64 {
 
 func (gru *GRU) Config() mlmodel.Model {
 	return gru.config
+}
+
+func (gru *GRU) Load(key model.Key, detail mlmodel.Detail) error {
+	dir := fmt.Sprintf("%s/net/%s", storage.DefaultDir, key.ToString())
+	filename := fmt.Sprintf("%s/%s.json", dir, detail.ToString())
+	return gru.network.Load(filename)
+}
+
+func (gru *GRU) Save(key model.Key, detail mlmodel.Detail) error {
+	// create file name
+	dir := fmt.Sprintf("%s/net/%s", storage.DefaultDir, key.ToString())
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create directory for model: %w", err)
+	}
+	filename := fmt.Sprintf("%s/%s.json", dir, detail.ToString())
+	return gru.network.Save(filename)
 }

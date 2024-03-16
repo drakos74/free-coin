@@ -89,10 +89,10 @@ func strip(in, out [][]float64) ([][]float64, [][]float64) {
 	return in[len(in)-l:], out[len(out)-l:]
 }
 
-func toEmoji(v float64) string {
-	if v > 0.5 {
+func toEmoji(v float64, spread float64) string {
+	if v > spread {
 		return emoji.DotFire
-	} else if v < -0.5 {
+	} else if v < -1*spread {
 		return emoji.DotWater
 	}
 	return emoji.DotSnow
@@ -110,10 +110,10 @@ func fromEmoji(s string) float64 {
 	return 0
 }
 
-func toEmojis(v []float64) []string {
+func toEmojis(v []float64, spread float64) []string {
 	s := make([]string, len(v))
 	for i, _ := range v {
-		s[i] = toEmoji(v[i])
+		s[i] = toEmoji(v[i], spread)
 	}
 	return s
 }

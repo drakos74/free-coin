@@ -88,7 +88,8 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 				coin := string(vv.Meta.Key.Coin)
 				duration := vv.Meta.Key.Duration.String()
 				metrics.Observer.IncrementEvents(coin, duration, "collector", Name)
-				configSegments := config.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
+				cfg := strategy.Config()
+				configSegments := cfg.GetSegments(vv.Meta.Key.Coin, vv.Meta.Key.Duration)
 
 				numEvents++
 				t := vv.Meta.Tick.Time
@@ -96,7 +97,7 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 				for key, segments := range configSegments {
 
 					// process only if we have it enabled
-					if !segments.Stats.Live {
+					if !strategy.IsEnabledML(key) {
 						return
 					}
 
@@ -159,7 +160,7 @@ func Processor(index api.Index, shard storage.Shard, strategy *processor.Strateg
 						metrics.Observer.IncrementEvents(coin, duration, "train", Name)
 						if _, ok := networks[key]; !ok {
 							// create the network for this coin set up for the first encounter
-							networks[key] = networkConstructor(segments)
+							networks[key] = networkConstructor(key, segments)
 						}
 						network := networks[key]
 						out, done, err := network.Push(key, vv)

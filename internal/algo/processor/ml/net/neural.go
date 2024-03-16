@@ -1,13 +1,15 @@
 package net
 
 import (
+	"math"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/math/ml"
+	"github.com/drakos74/free-coin/internal/model"
 	xml "github.com/drakos74/go-ex-machina/xmachina/ml"
 	"github.com/drakos74/go-ex-machina/xmachina/net"
 	"github.com/drakos74/go-ex-machina/xmachina/net/ff"
-
-	"math"
+	"github.com/rs/zerolog/log"
 
 	"github.com/drakos74/go-ex-machina/xmath"
 )
@@ -80,4 +82,14 @@ func (n *NeuralNet) Loss(actual, predicted [][]float64) []float64 {
 func (n *NeuralNet) Config() mlmodel.Model {
 	return n.cfg
 
+}
+
+func (n *NeuralNet) Load(key model.Key, detail mlmodel.Detail) error {
+	log.Warn().Msg("TODO load for neural network")
+	return nil
+}
+
+func (n *NeuralNet) Save(key model.Key, detail mlmodel.Detail) error {
+	log.Warn().Msg("TODO save for neural network")
+	return nil
 }

@@ -302,6 +302,10 @@ type Detail struct {
 	Index int    `json:"index"`
 }
 
+func (detail Detail) ToString() string {
+	return fmt.Sprintf("%s_%s", detail.Type, detail.Hash)
+}
+
 func NetworkType(n string) Detail {
 	return Detail{
 		Type: n,

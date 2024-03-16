@@ -4,6 +4,9 @@ import (
 	"fmt"
 	math2 "math"
 
+	"github.com/drakos74/free-coin/internal/model"
+	"github.com/rs/zerolog/log"
+
 	mlmodel "github.com/drakos74/free-coin/internal/algo/processor/ml/model"
 	"github.com/drakos74/free-coin/internal/buffer"
 	"github.com/drakos74/free-coin/internal/math"
@@ -81,4 +84,14 @@ func (p *Polynomial) Loss(actual, predicted [][]float64) []float64 {
 
 func (p *Polynomial) Config() mlmodel.Model {
 	return p.cfg
+}
+
+func (p *Polynomial) Load(key model.Key, detail mlmodel.Detail) error {
+	log.Debug().Msg("nothing to load for polynomial network")
+	return nil
+}
+
+func (p *Polynomial) Save(key model.Key, detail mlmodel.Detail) error {
+	log.Debug().Msg("nothing to save for polynomial network")
+	return nil
 }

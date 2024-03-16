@@ -65,6 +65,15 @@ func (s *Strategy) EnableML(c model.Coin, enabled bool) map[string]bool {
 	return ee
 }
 
+func (s *Strategy) IsEnabledML(k model.Key) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if segment, ok := s.config.Segments[k]; ok {
+		return segment.Stats.Live
+	}
+	return false
+}
+
 func (s *Strategy) EnableTrader(c model.Coin, enabled bool) map[string]bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -84,6 +93,15 @@ func (s *Strategy) EnableTrader(c model.Coin, enabled bool) map[string]bool {
 	}
 	s.config = newConfig
 	return ee
+}
+
+func (s *Strategy) IsEnabledTrader(k model.Key) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if segment, ok := s.config.Segments[k]; ok {
+		return segment.Trader.Live
+	}
+	return false
 }
 
 func (s *Strategy) IsLive(coin model.Coin, trade model.Tick) (bool, bool) {
