@@ -167,3 +167,7 @@ func Execute(stop <-chan struct{}, interval time.Duration, exec func() error, sh
 		}
 	}()
 }
+
+func Format(t time.Time) string {
+	return t.Format("20060102.1504")
+}

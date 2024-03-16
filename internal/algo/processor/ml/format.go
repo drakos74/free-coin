@@ -29,7 +29,7 @@ func formatOutPredictions(t time.Time, key model.Key, p float64, out map[mlmodel
 		}
 	}
 
-	return fmt.Sprintf("%v | %s | %.2f \n%s", t, formatKey(key), p, buffer.String())
+	return fmt.Sprintf("%v | %s | %.2f \n%s", cointime.Format(t), formatKey(key), p, buffer.String())
 }
 
 func formatDetail(detail mlmodel.Detail) string {
