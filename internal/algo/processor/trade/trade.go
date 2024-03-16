@@ -47,7 +47,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 
 		// init the user interactions
 		go trackUserActions(index, u, strategy, wallet)
-		u.Send(index, api.NewMessage(fmt.Sprintf("starting processor ... %s", formatConfig(config))), nil)
+		u.Send(index, api.NewMessage(fmt.Sprintf("%s starting processor ... %s", Name, formatConfig(config))), nil)
 
 		return processor.ProcessBufferedWithClose(Name, config.Buffer.Interval, true, func(tradeSignal *model.TradeSignal) error {
 			coin := string(tradeSignal.Coin)

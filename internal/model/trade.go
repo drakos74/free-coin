@@ -136,7 +136,7 @@ type TradeSignal struct {
 //	Time     time.Time `json:"time"`
 //	t     t      `json:"t"`
 //	Active   bool      `json:"active"`
-//	Live     bool      `json:"live"`
+//	Multi     bool      `json:"live"`
 //	Meta     Batch     `json:"batch"`
 //	Signals  []Signal  `json:"-"`
 //}

@@ -96,7 +96,7 @@ type Model struct {
 	Features     []int   `json:"features"`
 	MaxEpochs    int     `json:"max_epochs"`
 	LearningRate float64 `json:"learning_rate"`
-	Live         bool    `json:"live"`
+	Multi        bool    `json:"multi"`
 }
 
 // NewConfig defines a numeric way to initialise the config

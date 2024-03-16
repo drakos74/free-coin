@@ -53,14 +53,22 @@ func CoinConfig(coins map[model.Coin]mlmodel.ConfigSegment) *mlmodel.Config {
 	}
 }
 
-func Config(coin ...model.Coin) *mlmodel.Config {
-
+func WithConfig(coin map[model.Coin]bool) *mlmodel.Config {
 	cfg := make(map[model.Coin]mlmodel.ConfigSegment)
+	for c, live := range coin {
+		cfg[c] = func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+			return ForCoin(coin, live)
+		}
+	}
+	return CoinConfig(cfg)
+}
 
+func Config(coin ...model.Coin) *mlmodel.Config {
+	cfg := make(map[model.Coin]mlmodel.ConfigSegment)
 	if len(coin) > 0 {
 		for _, c := range coin {
 			cfg[c] = func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-				return ForCoin(coin)
+				return ForCoin(coin, true)
 			}
 		}
 	} else {
@@ -79,7 +87,6 @@ func Config(coin ...model.Coin) *mlmodel.Config {
 			model.KAVA,
 		)
 	}
-
 	return CoinConfig(cfg)
 }
 
@@ -109,20 +116,20 @@ func ConfigKey(coin model.Coin, d int) model.Key {
 	}
 }
 
-func ForCoin(coin model.Coin) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
+func ForCoin(coin model.Coin, live bool) func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 	return func(sgm mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-		sgm[ConfigKey(coin, 15)] = defaultConfig()
+		sgm[ConfigKey(coin, 15)] = defaultConfig(live)
 		return sgm
 	}
 }
 
-func defaultConfig() mlmodel.Segments {
+func defaultConfig(live bool) mlmodel.Segments {
 	return mlmodel.Segments{
 		Stats: mlmodel.Stats{
 			LookBack:  8,
 			LookAhead: 3,
 			Gap:       0.5,
-			Live:      true,
+			Live:      live,
 			Model: []mlmodel.Model{
 				{
 					Detail: mlmodel.Detail{
@@ -143,7 +150,7 @@ func defaultConfig() mlmodel.Segments {
 					BufferSize: 2,
 					Features:   []int{2, 1},
 					Spread:     1,
-					Live:       true,
+					Multi:      true,
 				},
 				{
 					Detail: mlmodel.Detail{
@@ -153,7 +160,7 @@ func defaultConfig() mlmodel.Segments {
 					BufferSize: 4,
 					Features:   []int{3, 1},
 					Spread:     1,
-					Live:       true,
+					Multi:      true,
 				},
 				{
 					Detail: mlmodel.Detail{
@@ -163,7 +170,7 @@ func defaultConfig() mlmodel.Segments {
 					BufferSize: 2,
 					Features:   []int{1, 1},
 					Spread:     1,
-					Live:       true,
+					Multi:      true,
 				},
 				{
 					Detail: mlmodel.Detail{

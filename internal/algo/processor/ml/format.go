@@ -62,8 +62,8 @@ func formatConfig(config mlmodel.Config) string {
 	buffer := new(strings.Builder)
 
 	for k, segment := range config.Segments {
-		buffer.WriteString(fmt.Sprintf("%+v%s\n%s\n",
-			k.ToString(),
+		buffer.WriteString(fmt.Sprintf("%+v %s%s\n%s\n",
+			k.ToString(), emoji.MapOpen(segment.Stats.Live),
 			formatModelConfig(segment.Stats.Model),
 			segment.Stats.Format()))
 	}

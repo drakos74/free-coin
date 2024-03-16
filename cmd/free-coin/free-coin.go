@@ -30,9 +30,25 @@ const (
 	bot      = "bot"
 )
 
+var CONFIG = map[model.Coin]bool{
+	model.BTC:  true,
+	model.DOT:  true,
+	model.ETH:  true,
+	model.LINK: true,
+	model.SOL:  true,
+	//model.FLOW : false,
+	model.MATIC: false,
+	model.AAVE:  false,
+	//model.KSM: false,
+	model.XRP: false,
+	//model.ADA: false,
+	model.KAVA: false,
+}
+
 func main() {
 	//config := ml.Config(model.ETH)
-	config := ml.Config()
+	//config := ml.Config()
+	config := ml.WithConfig(CONFIG)
 
 	cc := make([]model.Coin, 0)
 	coins := make(map[model.Coin]bool)

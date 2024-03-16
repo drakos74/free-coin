@@ -114,7 +114,7 @@ func NewBaseNetwork(key model.Key, in, out int, gen ...ConstructNetwork) *BaseNe
 	multiType := make([]string, 0)
 	for i, net := range gen {
 		nw, cfg := net()
-		if cfg.Live {
+		if cfg.Multi {
 			nvw, _ := net()
 			multi = append(multi, nvw)
 			multiType = append(multiType, cfg.Detail.Type)

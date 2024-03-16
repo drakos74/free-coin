@@ -30,7 +30,7 @@ func ReProcessor() (proc api.Processor, err error) {
 	config := CoinConfig(map[model.Coin]mlmodel.ConfigSegment{
 		model.BTC: func(coin model.Coin) func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
 			return func(cfg mlmodel.SegmentConfig) mlmodel.SegmentConfig {
-				cfg[ConfigKey(coin, 15)] = defaultConfig()
+				cfg[ConfigKey(coin, 15)] = defaultConfig(true)
 				return cfg
 			}
 		},

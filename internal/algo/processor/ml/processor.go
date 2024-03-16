@@ -76,7 +76,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 		//						Precision: result.Accuracy,
 		//						Trend:     result.Trend,
 		//						Weight:    segmentConfig.Trader.Weight,
-		//						Live:      segmentConfig.Trader.Live,
+		//						Multi:      segmentConfig.Trader.Multi,
 		//					}
 		//					if ok && signal.Detail != model.NoType {
 		//						//if s, k, open, ok := strategy.eval(vv.Meta.Tick, signal, config); ok {
@@ -89,7 +89,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 		//						//		Score:      score,
 		//						//		Accuracy:      metadata.Accuracy,
 		//						//	}
-		//						//	_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Detail, open, 0, reason, s.Live, result.Decision())
+		//						//	_, ok, action, err := wallet.CreateOrder(k, s.Time, s.Price, s.Detail, open, 0, reason, s.Multi, result.Decision())
 		//						//	if err != nil {
 		//						//		log.Error().Str("signal", fmt.Sprintf("%+v", s)).Err(err).Msg("error creating order")
 		//						//	} else if !ok {
@@ -102,7 +102,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 		//						//		//AddLine(formatDecision(action.Decision)).
 		//						//		//AddLine(formatSpectrum(*signal.Spectrum)).
 		//						//		AddLine(formatPrediction(false, cluster, score, metadata, trainErr)).
-		//						//		AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Live))), nil)
+		//						//		AddLine(fmt.Sprintf("%s", emoji.MapToValid(s.Multi))), nil)
 		//						//}
 		//						// TODO : enable disable logging from user
 		//						log.Debug().
@@ -159,7 +159,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 			//		u.Send(index, api.NewMessage(fmt.Sprintf("%s strategy going live for %s",
 			//			tradeSignal.Meta.Time.Format(time.Stamp), tradeSignal.Coin)), nil)
 			//	}
-			//	if tradeSignal.Meta.Live || config.Option.Debug {
+			//	if tradeSignal.Meta.Multi || config.Option.Debug {
 			//		metrics.Observer.NoteLag(f, coin, Name, "process")
 			//		pp, profit, trend, _ := wallet.Update(config.Option.Trace, tradeSignal, config.Position.TrackingConfig)
 			//		if len(pp) > 0 {
@@ -170,7 +170,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 			//				if p.Decision != nil {
 			//					metadata, trainErr = ds.Clusters(p.Key, p.Decision.Importance, value, true)
 			//				}
-			//				_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Detail.Inv(), false, p.Volume, reason, p.Live, nil)
+			//				_, ok, action, err := wallet.CreateOrder(k, tradeSignal.Meta.Time, tradeSignal.Tick.Price, p.Detail.Inv(), false, p.Volume, reason, p.Multi, nil)
 			//				if err != nil || !ok {
 			//					log.Error().Err(err).Bool("ok", ok).Msg("could not close position")
 			//				} else if floats.Sum(profit) < 0 {
@@ -183,7 +183,7 @@ func DeprecatedProcessor(index api.Index, shard storage.Shard, registry storage.
 			//				u.Send(index, api.NewMessage(formatAction(config.Option.Log, action, trend[k], err, ok)).
 			//					//AddLine(fmt.Sprintf(formatDecision(p.Decision))).
 			//					AddLine(formatPrediction(false, 0, 0.0, metadata, trainErr)).
-			//					AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Live))), nil)
+			//					AddLine(fmt.Sprintf("%s", emoji.MapToValid(p.Multi))), nil)
 			//			}
 			//		} else if len(trend) > 0 && (config.Option.Trace[string(tradeSignal.Coin)] || config.Option.Trace[string(model.AllCoins)]) {
 			//			u.Send(index, api.NewMessage(fmt.Sprintf("%s %s", formatTime(tradeSignal.Tick.Time), tradeSignal.Coin)).AddLine(formatTrend(trend)), nil)
