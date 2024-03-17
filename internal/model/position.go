@@ -263,6 +263,9 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 
 			if _, ok := profit.Window.Push(trade.Time, p.PnL); ok {
 				p.HasUpdate = true
+				trend := p.Trend[k]
+				trend.Stamp = time.Now()
+				trend.Live = true
 				s, xx, yy, err := profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 					return 100 * buffer.Avg(b)
 				}, 1, trace)
@@ -272,6 +275,7 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 						Floats64("xx", xx).
 						Floats64("yy", yy).
 						Msg("could not complete polynomial '2' fit for position")
+					trend.Live = false
 				}
 				a, xx, yy, err := profit.Window.Polynomial(0, func(b buffer.TimeWindowView) float64 {
 					return 100 * buffer.Avg(b)
@@ -281,10 +285,8 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 						Floats64("xx", xx).
 						Floats64("yy", yy).
 						Msg("could not complete polynomial '3' fit for position")
+					trend.Live = false
 				}
-				trend := p.Trend[k]
-				trend.Stamp = time.Now()
-				trend.Live = true
 				trend.XX = xx
 				trend.YY = yy
 				if len(s) >= 1 && len(a) >= 2 {
@@ -295,8 +297,8 @@ func (p *Position) Update(trace bool, trade Tick, cfg []*TrackingConfig) Positio
 					trend.Threshold = profit.Config.Threshold
 					trend.Type[0], trend.Shift[0] = calculateTrend(trend.CurrentValue[0], profit.Config.Threshold[0], trend.LastValue[0])
 					trend.Type[1], trend.Shift[1] = calculateTrend(trend.CurrentValue[1], profit.Config.Threshold[1], trend.LastValue[1])
-					p.Trend[k] = trend
 				}
+				p.Trend[k] = trend
 			}
 		}
 	}

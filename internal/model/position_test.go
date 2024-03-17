@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	math2 "github.com/drakos74/free-coin/internal/math"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -135,4 +137,13 @@ func TestPositionTracking(t *testing.T) {
 		})
 	}
 
+}
+
+func TestPositionCloseConditionI(t *testing.T) {
+
+	x := []float64{0.00, 0.50, 1.00, 1.50, 2.00, 2.50}
+	y := []float64{0.62, 0.70, 0.72, 0.70, 0.59, 0.67}
+
+	a, _ := math2.Fit(x, y, 2)
+	fmt.Printf("a = %+v\n", a)
 }
