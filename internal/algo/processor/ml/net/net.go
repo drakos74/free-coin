@@ -131,11 +131,11 @@ func NewBaseNetwork(key model.Key, in, out int, gen ...ConstructNetwork) *BaseNe
 		}
 
 		// check if we load the network
-		loadErr := nw.Load(key, detail)
-		log.Info().Err(loadErr).
-			Str("key", key.ToString()).
-			Str("detail", detail.ToString()).
-			Msg("loaded network")
+		//loadErr := nw.Load(key, detail)
+		//log.Info().Err(loadErr).
+		//	Str("key", key.ToString()).
+		//	Str("detail", detail.ToString()).
+		//	Msg("loaded network")
 
 		networks[detail] = nw
 		config[detail] = cfg
@@ -217,13 +217,13 @@ func (b *BaseNetwork) Push(k model.Key, vv mlmodel.Vector) (map[mlmodel.Detail][
 						// init the first to have something to work with in the first iterations
 					}
 					// save the network state
-					saveErr := net.Save(k, detail)
-					if saveErr != nil {
-						log.Warn().Err(saveErr).
-							Str("key", k.ToString()).
-							Str("detail", detail.ToString()).
-							Msg("could not save network")
-					}
+					//saveErr := net.Save(k, detail)
+					//if saveErr != nil {
+					//	log.Warn().Err(saveErr).
+					//		Str("key", k.ToString()).
+					//		Str("detail", detail.ToString()).
+					//		Msg("could not save network")
+					//}
 					// set a default accuracy if nothing is there ...
 					if b.track[detail].metrics.Loss == 0.0 {
 						b.track[detail].metrics.Loss = 0.01
