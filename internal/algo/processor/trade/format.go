@@ -49,13 +49,15 @@ func formatConfig(config mlmodel.Config) string {
 
 func formatPosition(p model.Position) string {
 	// gather the trends
-	return fmt.Sprintf("%s : %.2f (%s %.2f%s) | %s (%.0f)"+
+	return fmt.Sprintf("%s : %.2f (%s %.2f%s) (%.2f/%.2f) \n %s (%.0f)"+
 		"\n%s",
 		emoji.MapType(p.Type),
 		p.OpenPrice*p.Volume,
 		emoji.MapToSign(p.PnL),
 		100*p.PnL,
 		"%",
+		p.OpenPrice,
+		p.CurrentPrice,
 		p.CurrentTime.Format(time.Stamp), cointime.ToNow(p.CurrentTime),
 		formatPositionTrend(p.Trend),
 	)
