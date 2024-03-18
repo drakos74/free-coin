@@ -37,12 +37,12 @@ var CONFIG = map[model.Coin]bool{
 	model.LINK: true,
 	model.SOL:  true,
 	//model.FLOW : false,
-	model.MATIC: false,
-	model.AAVE:  false,
+	//model.MATIC: false,
+	//model.AAVE:  false,
 	//model.KSM: false,
-	model.XRP: false,
+	model.XRP: true,
 	//model.ADA: false,
-	model.KAVA: false,
+	//model.KAVA: false,
 }
 
 func main() {
