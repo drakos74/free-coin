@@ -76,7 +76,7 @@ func Processor(index api.Index, shard storage.Shard, registry storage.EventRegis
 							} else if floats.Sum(profit) < 0 {
 								ok := strategy.Reset(k)
 								if !ok {
-									log.Error().Str("Index", k.ToString()).Msg("could not reset signal")
+									log.Error().Str("Index", k.ToString()).Msg("signal already reset")
 								}
 							}
 							action.SourceTime = p.OpenTime
