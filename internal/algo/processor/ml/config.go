@@ -21,7 +21,7 @@ func CoinConfig(coins map[model.Coin]mlmodel.ConfigSegment) *mlmodel.Config {
 	return &mlmodel.Config{
 		Segments: cfg,
 		Position: mlmodel.Position{
-			OpenValue:  500,
+			OpenValue:  100,
 			StopLoss:   0.020,
 			TakeProfit: 0.020,
 			TrackingConfig: []*model.TrackingConfig{{
