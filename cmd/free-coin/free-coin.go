@@ -55,7 +55,7 @@ func main() {
 	for k, _ := range config.Segments {
 		if !coins[k.Coin] {
 			cc = append(cc, k.Coin)
-			coins[k.Coin] = true
+			coins[k.Coin] = false
 		}
 	}
 
