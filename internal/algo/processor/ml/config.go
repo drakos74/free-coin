@@ -30,7 +30,7 @@ func CoinConfig(coins map[model.Coin]mlmodel.ConfigSegment) *mlmodel.Config {
 				// TODO : investigate more what this does
 				//Threshold: []float64{0.00005, 0.000002},
 				//Threshold: []float64{0.00002, 0.000001},
-				Threshold: []float64{0.0, 0.0},
+				Threshold: []float64{0.00001, 0.000001},
 			}},
 		},
 		Option: mlmodel.Option{
